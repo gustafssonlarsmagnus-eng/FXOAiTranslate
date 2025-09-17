@@ -67,26 +67,28 @@ namespace FXOAiTranslator
             ),
 
             // ============================
-            //  Risk Reversal (Put/Call)
-            // ============================
-            new TradePattern(
-                "RiskReversal_PutCall",
-                new Regex(
-                    @"buy\s+(?<notional1>\d+)\s*mio\s+(?<strike1>\d+(\.\d+)?)\s*put.*?sell\s+(?<notional2>\d+)\s*mio\s+(?<strike2>\d+(\.\d+)?)\s*call",
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline
-                )
-            ),
+//  Risk Reversal (Buy Put + Sell Call)
+// ============================
+new TradePattern(
+    "RiskReversal_PutCall",
+    new Regex(
+        @"(?:i\s+)?buy(?:\s+a)?\s+(?<strike1>\d+(\.\d+)?)\s*put\s+(?:in\s+)?(?<notional1>\d+)\s*mio.*?" +
+        @"(?:and\s+)?(?:i\s+)?sell(?:\s+a)?\s+(?<strike2>\d+(\.\d+)?)\s*call\s+(?:in\s+)?(?<notional2>\d+)\s*mio",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )
+),
 
-            // ============================
-            //  Risk Reversal (Call/Put)
-            // ============================
-            new TradePattern(
-                "RiskReversal_CallPut",
-                new Regex(
-                    @"buy\s+(?<notional1>\d+)\s*mio\s+(?<strike1>\d+(\.\d+)?)\s*call.*?sell\s+(?<notional2>\d+)\s*mio\s+(?<strike2>\d+(\.\d+)?)\s*put",
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline
-                )
-            ),
+// ============================
+//  Risk Reversal (Buy Call + Sell Put)
+// ============================
+new TradePattern(
+    "RiskReversal_CallPut",
+    new Regex(
+        @"(?:i\s+)?buy(?:\s+a)?\s+(?<strike1>\d+(\.\d+)?)\s*call\s+(?:in\s+)?(?<notional1>\d+)\s*mio.*?" +
+        @"(?:and\s+)?(?:i\s+)?sell(?:\s+a)?\s+(?<strike2>\d+(\.\d+)?)\s*put\s+(?:in\s+)?(?<notional2>\d+)\s*mio",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )
+),
 
             // ============================
             //  Strangle (Buy/Buy)
@@ -124,13 +126,13 @@ namespace FXOAiTranslator
             // ============================
             //  Simple Vanilla (Strike + Notional) - MUST BE LAST - catches partial matches
             // ============================
-            new TradePattern(
-                "Simple_Vanilla",
-                new Regex(
-                    @"(?<strike>\d+(\.\d+)?)\s*(call|put)?\s*in\s*(?<notional>\d+)\s*mio",
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline
-                )
-            )
+           new TradePattern(
+    "Simple_Vanilla",
+    new Regex(
+        @"(?:i\s+)?(?<side>buy|sell)(?:\s+a)?\s+(?<strike>\d+(\.\d+)?)\s*(?<type>call|put)\s+(?:in\s+)?(?<notional>\d+)\s*mio",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )
+)
         };
 
         // Spot reference regex

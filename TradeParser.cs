@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -10,6 +12,8 @@ namespace FXOAiTranslator
         private BloombergService _bloombergService;
         private OpenAIService _openAI;
         private HybridPatternLearner _patternLearner;
+        private readonly Dictionary<string, TradeParseResult> _cache = new(); // Cache for parsed results
+
         public Action<string> DebugCallback { get; set; }
 
         public TradeParser(BloombergService bloombergService, string openAIApiKey = null)
@@ -19,7 +23,7 @@ namespace FXOAiTranslator
             if (!string.IsNullOrEmpty(openAIApiKey))
             {
                 _openAI = new OpenAIService(openAIApiKey);
-                _patternLearner = new HybridPatternLearner(_openAI, _bloombergService, "config_path_here");
+                _patternLearner = new HybridPatternLearner(_openAI, _bloombergService, "");
                 Console.WriteLine("[AI] OpenAI integration enabled");
             }
             else
@@ -39,8 +43,29 @@ namespace FXOAiTranslator
             if (string.IsNullOrWhiteSpace(input))
                 return null;
 
-            await Task.Delay(50);
+            // Prevent infinite loop: skip if it's already OVML
+            if (input.StartsWith("OVML", StringComparison.OrdinalIgnoreCase))
+            {
+                LogDebug("DEBUG: Input already OVML, skipping AI/regex parse.");
+                var already = new TradeParseResult
+                {
+                    OVML = input,
+                    Underlying = ExtractCurrencyPair(input),
+                    Expiry = ExtractExpiry(input),
+                    ParseMethod = "Already-OVML"
+                };
+                _cache[input] = already;
+                return already;
+            }
+
             input = input.Trim();
+
+            // Check cache first
+            if (_cache.TryGetValue(input, out var cached))
+            {
+                LogDebug("DEBUG: Returning cached result for input.");
+                return cached;
+            }
 
             LogDebug($"DEBUG: Processing input: '{input}'");
 
@@ -85,11 +110,46 @@ namespace FXOAiTranslator
                         LogDebug($"DEBUG: Spot reference found: '{spotMatch.Groups["spot"].Value}'");
                         spot = " SP" + spotMatch.Groups["spot"].Value;
                     }
+                    else
+                    {
+                        // If no explicit spot in input, fetch live Bloomberg spot
+                        if (_bloombergService != null && _bloombergService.IsConnected)
+                        {
+                            try
+                            {
+                                var liveSpotTask = _bloombergService.GetSpotRate(underlying);
+                                double? liveSpot = await liveSpotTask;
+
+                                if (liveSpot.HasValue)
+                                {
+                                    LogDebug($"DEBUG: No spot in input, using live Bloomberg spot: {liveSpot.Value}");
+                                    spot = " SP" + liveSpot.Value.ToString("0.####", CultureInfo.InvariantCulture);
+                                }
+                                else
+                                {
+                                    LogDebug("DEBUG: Live spot returned null, skipping spot ref.");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                LogDebug($"DEBUG: Failed to fetch live spot: {ex.Message}");
+                            }
+                        }
+                    }
 
                     try
                     {
                         switch (pattern.Name)
                         {
+                            case "Collar_BuyCallSellCallSellPut":
+                                LogDebug($"DEBUG: Processing Collar_BuyCallSellCallSellPut pattern");
+                                result.LegCount = 3;
+                                result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
+                                              $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C,{match.Groups["strike3"].Value}P " +
+                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
+                                              spot;
+                                break;
+
                             case "PutSpread_Market":
                                 LogDebug($"DEBUG: Processing PutSpread_Market pattern");
                                 result.LegCount = 2;
@@ -123,6 +183,17 @@ namespace FXOAiTranslator
                                 result.OVML = $"OVML {result.Underlying} 1L " +
                                               (match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S") +
                                               $" {match.Groups["strike"].Value}{match.Groups["type"].Value.Substring(0, 1).ToUpper()} " +
+                                              $"{result.Expiry} N{match.Groups["notional"].Value}M" +
+                                              spot;
+                                break;
+
+                            case "Simple_Vanilla":
+                                LogDebug($"DEBUG: Processing Simple_Vanilla pattern");
+                                result.LegCount = 1;
+                                string side = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
+                                string optionType = match.Groups["type"].Value.Substring(0, 1).ToUpper();
+                                result.OVML = $"OVML {result.Underlying} 1L {side} " +
+                                              $"{match.Groups["strike"].Value}{optionType} " +
                                               $"{result.Expiry} N{match.Groups["notional"].Value}M" +
                                               spot;
                                 break;
@@ -166,24 +237,6 @@ namespace FXOAiTranslator
                                               spot;
                                 break;
 
-                            case "RiskReversal_Swedish_CallPut":
-                                LogDebug($"DEBUG: Processing RiskReversal_Swedish_CallPut pattern");
-                                result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L S,B " +
-                                              $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}P " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "RiskReversal_Swedish_PutCall":
-                                LogDebug($"DEBUG: Processing RiskReversal_Swedish_PutCall pattern");
-                                result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                              $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}P " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                              spot;
-                                break;
-
                             case "Seagull":
                                 LogDebug($"DEBUG: Processing Seagull pattern");
                                 result.LegCount = 3;
@@ -193,8 +246,8 @@ namespace FXOAiTranslator
                                               spot;
                                 break;
 
-                            case "Collar_BuyCallSellCallSellPut":
-                                LogDebug($"DEBUG: Processing Collar_BuyCallSellCallSellPut pattern");
+                            case "Seagull_CallLed":
+                                LogDebug($"DEBUG: Processing Seagull_CallLed pattern");
                                 result.LegCount = 3;
                                 result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
                                               $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C,{match.Groups["strike3"].Value}P " +
@@ -207,8 +260,13 @@ namespace FXOAiTranslator
                                 throw new Exception($"Unknown pattern: {pattern.Name}");
                         }
 
+                        // Normalize date format in OVML before returning
+                        result.OVML = NormalizeOVMLDates(result.OVML);
+
                         LogDebug($"DEBUG: Generated OVML: '{result.OVML}'");
                         LogDebug($"[RegexParser] Matched {pattern.Name}: {result.OVML}");
+
+                        _cache[input] = result; // Cache the result
                         return result;
                     }
                     catch (Exception ex)
@@ -224,44 +282,40 @@ namespace FXOAiTranslator
                 }
             }
 
-            // No regex matched → try market data enhancement, then fall back to AI
-            LogDebug($"DEBUG: No regex patterns matched. Checking for market data enhancement...");
-
-            // Check if this looks like a trade missing call/put specification
-            var marketEnhancedResult = await TryMarketDataEnhancement(input);
-            if (marketEnhancedResult != null)
-            {
-                LogDebug($"DEBUG: Market data enhanced trade, retrying regex patterns...");
-
-                // Try patterns again with enhanced input
-                foreach (var pattern in RegexTradePatterns.Patterns)
-                {
-                    var enhancedMatch = pattern.Regex.Match(marketEnhancedResult.EnhancedInput);
-                    if (enhancedMatch.Success)
-                    {
-                        LogDebug($"DEBUG: Enhanced input matched pattern: {pattern.Name}");
-
-                        // Process the enhanced match (reuse existing switch logic)
-                        var enhancedTradeResult = await ProcessPatternMatch(pattern, enhancedMatch, underlying, expiry, marketEnhancedResult.EnhancedInput);
-                        if (enhancedTradeResult != null)
-                        {
-                            enhancedTradeResult.ParseMethod = "Market-Enhanced-" + pattern.Name;
-                            enhancedTradeResult.AdditionalInfo = $"Auto-determined {marketEnhancedResult.DeterminedType} based on strike vs spot";
-                            return enhancedTradeResult;
-                        }
-                    }
-                }
-            }
-
-            LogDebug($"DEBUG: No market enhancement possible, falling back to AI...");
+            LogDebug($"DEBUG: No regex patterns matched. Falling back to AI...");
             LogDebug("[Parser] Falling back to AI...");
             try
             {
                 var aiResult = await ParseWithAI(input);
 
+                // Correction: override AI expiry if regex extracted a better one
+                if (!string.IsNullOrWhiteSpace(expiry) &&
+                    expiry != "3M" &&
+                    aiResult.Expiry != expiry)
+                {
+                    LogDebug($"DEBUG: Corrected AI expiry from {aiResult.Expiry} → {expiry}");
+                    aiResult.Expiry = expiry;
+
+                    // Replace expiry in OVML too
+                    var parts = aiResult.OVML.Split(' ').ToList();
+                    for (int i = 0; i < parts.Count; i++)
+                    {
+                        if (parts[i].Contains("/") || Regex.IsMatch(parts[i], @"\d+[MY]$"))
+                        {
+                            parts[i] = expiry;
+                            break;
+                        }
+                    }
+                    aiResult.OVML = string.Join(" ", parts);
+                }
+
+                // Normalize OVML dates
+                aiResult.OVML = NormalizeOVMLDates(aiResult.OVML);
+
                 LogDebug($"DEBUG: AI Success - ParseMethod: '{aiResult.ParseMethod}'");
                 LogDebug($"DEBUG: AI Success - OVML: '{aiResult.OVML}'");
 
+                _cache[input] = aiResult; // Cache AI result
                 return aiResult;
             }
             catch (Exception ex)
@@ -278,201 +332,8 @@ namespace FXOAiTranslator
                 LogDebug($"DEBUG: AI Error - ParseMethod: '{errorResult.ParseMethod}'");
                 LogDebug($"DEBUG: AI Error - OVML: '{errorResult.OVML}'");
 
+                _cache[input] = errorResult; // Cache error result
                 return errorResult;
-            }
-        }
-
-        // Market data enhancement methods
-        private async Task<MarketEnhancementResult> TryMarketDataEnhancement(string input)
-        {
-            try
-            {
-                // Look for pattern: [CURRENCY] [DATE] [STRIKE] in [NOTIONAL] (missing call/put)
-                var incompleteTradePattern = new Regex(
-                    @"(?<currency>[A-Z]{6})\s+(?<date>\d+[A-Za-z]{3}\d{2})\s+(?<strike>\d+(\.\d+)?)\s+(?:in\s+)?(?<notional>\d+)\s*mio",
-                    RegexOptions.IgnoreCase
-                );
-
-                var match = incompleteTradePattern.Match(input);
-                if (match.Success)
-                {
-                    string currency = match.Groups["currency"].Value;
-                    string strike = match.Groups["strike"].Value;
-
-                    LogDebug($"DEBUG: Found incomplete trade - {currency} strike {strike}, checking market data...");
-
-                    if (double.TryParse(strike, out double strikePrice))
-                    {
-                        string callOrPut = _bloombergService.DetermineCallOrPut(strikePrice, currency);
-
-                        if (callOrPut == "CALL" || callOrPut == "PUT")
-                        {
-                            string enhancedInput = input.Replace(
-                                $"{strike} ",
-                                $"{strike} {callOrPut.ToLower()} "
-                            );
-
-                            LogDebug($"DEBUG: Enhanced input: {enhancedInput}");
-
-                            return new MarketEnhancementResult
-                            {
-                                EnhancedInput = enhancedInput,
-                                DeterminedType = callOrPut,
-                                OriginalStrike = strikePrice,
-                                CurrencyPair = currency
-                            };
-                        }
-                        else if (callOrPut == "AT_MONEY")
-                        {
-                            LogDebug($"DEBUG: Strike is at-the-money, needs user clarification");
-                            return null; // Let AI handle this case
-                        }
-                    }
-                }
-
-                return null;
-            }
-            catch (Exception ex)
-            {
-                LogDebug($"DEBUG: Error in market data enhancement: {ex.Message}");
-                return null;
-            }
-        }
-
-        private async Task<TradeParseResult> ProcessPatternMatch(TradePattern pattern, Match match, string underlying, string expiry, string input)
-        {
-            var result = new TradeParseResult
-            {
-                ParseMethod = "Regex-" + pattern.Name,
-                Underlying = underlying,
-                Expiry = expiry
-            };
-
-            // Spot reference
-            string spot = "";
-            var spotMatch = RegexTradePatterns.SpotRegex.Match(input);
-            if (spotMatch.Success)
-            {
-                LogDebug($"DEBUG: Spot reference found: '{spotMatch.Groups["spot"].Value}'");
-                spot = " SP" + spotMatch.Groups["spot"].Value;
-            }
-
-            try
-            {
-                switch (pattern.Name)
-                {
-                    case "PutSpread_Market":
-                        LogDebug($"DEBUG: Processing PutSpread_Market pattern");
-                        result.LegCount = 2;
-                        result.OVML = $"OVML {result.Underlying} 2L S,B " +
-                                      $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P " +
-                                      $"{result.Expiry} N{match.Groups["notional"].Value}M,{match.Groups["notional"].Value}M" +
-                                      spot;
-                        break;
-
-                    case "CallSpread_Market":
-                        LogDebug($"DEBUG: Processing CallSpread_Market pattern");
-                        result.LegCount = 2;
-                        result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                      $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C " +
-                                      $"{result.Expiry} N{match.Groups["notional"].Value}M,{match.Groups["notional"].Value}M" +
-                                      spot;
-                        break;
-
-                    case "RiskReversal_Market":
-                        LogDebug($"DEBUG: Processing RiskReversal_Market pattern");
-                        result.LegCount = 2;
-                        result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                      $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}C " +
-                                      $"{result.Expiry} N{match.Groups["notional"].Value}M,{match.Groups["notional"].Value}M" +
-                                      spot;
-                        break;
-
-                    case "Vanilla":
-                        LogDebug($"DEBUG: Processing Vanilla pattern");
-                        result.LegCount = 1;
-                        result.OVML = $"OVML {result.Underlying} 1L " +
-                                      (match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S") +
-                                      $" {match.Groups["strike"].Value}{match.Groups["type"].Value.Substring(0, 1).ToUpper()} " +
-                                      $"{result.Expiry} N{match.Groups["notional"].Value}M" +
-                                      spot;
-                        break;
-
-                    case "RiskReversal_PutCall":
-                        LogDebug($"DEBUG: Processing RiskReversal_PutCall pattern");
-                        result.LegCount = 2;
-                        result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                      $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}C " +
-                                      $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                      spot;
-                        break;
-
-                    case "RiskReversal_CallPut":
-                        LogDebug($"DEBUG: Processing RiskReversal_CallPut pattern");
-                        result.LegCount = 2;
-                        result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                      $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}P " +
-                                      $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                      spot;
-                        break;
-
-                    case "Strangle_Long":
-                        LogDebug($"DEBUG: Processing Strangle_Long pattern");
-                        result.LegCount = 2;
-                        result.OVML = $"OVML {result.Underlying} 2L B,B " +
-                                      $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}C " +
-                                      $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                      spot;
-                        break;
-
-                    case "Strangle_Short":
-                        LogDebug($"DEBUG: Processing Strangle_Short pattern");
-                        result.LegCount = 2;
-                        result.OVML = $"OVML {result.Underlying} 2L S,S " +
-                                      $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}C " +
-                                      $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                      spot;
-                        break;
-
-                    case "RiskReversal_Swedish_CallPut":
-                        LogDebug($"DEBUG: Processing RiskReversal_Swedish_CallPut pattern");
-                        result.LegCount = 2;
-                        result.OVML = $"OVML {result.Underlying} 2L S,B " +
-                                      $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}P " +
-                                      $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                      spot;
-                        break;
-
-                    case "RiskReversal_Swedish_PutCall":
-                        LogDebug($"DEBUG: Processing RiskReversal_Swedish_PutCall pattern");
-                        result.LegCount = 2;
-                        result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                      $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}P " +
-                                      $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                      spot;
-                        break;
-
-                    case "Seagull":
-                        LogDebug($"DEBUG: Processing Seagull pattern");
-                        result.LegCount = 3;
-                        result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
-                                      $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P,{match.Groups["strike3"].Value}C " +
-                                      $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
-                                      spot;
-                        break;
-
-                    default:
-                        LogDebug($"DEBUG: Unknown pattern name: {pattern.Name}");
-                        return null;
-                }
-
-                LogDebug($"DEBUG: Generated OVML: '{result.OVML}'");
-                return result;
-            }
-            catch (Exception ex)
-            {
-                LogDebug($"DEBUG: Exception in ProcessPatternMatch: {ex.Message}");
-                return null;
             }
         }
 
@@ -656,6 +517,46 @@ namespace FXOAiTranslator
                 throw;
             }
         }
+
+        private string NormalizeOVMLDates(string ovml)
+        {
+            if (string.IsNullOrWhiteSpace(ovml))
+                return ovml;
+
+            var parts = ovml.Split(' ');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Contains("/") || Regex.IsMatch(parts[i], @"\d{1,2}[A-Za-z]{3}\d{2}"))
+                {
+                    string normalized = TryNormalizeDate(parts[i]);
+                    if (!string.IsNullOrEmpty(normalized))
+                    {
+                        parts[i] = normalized;
+                    }
+                }
+            }
+            return string.Join(" ", parts);
+        }
+
+        private string TryNormalizeDate(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return null;
+
+            string[] formats = { "ddMMMyy", "dMMMyy", "ddMMMyyyy", "M/d/yy", "MM/dd/yy", "M/d/yyyy", "MM/dd/yyyy" };
+            if (DateTime.TryParseExact(raw, formats, CultureInfo.InvariantCulture,
+                                       DateTimeStyles.None, out DateTime dt))
+            {
+                return dt.ToString("MM/dd/yy", CultureInfo.InvariantCulture);
+            }
+
+            if (DateTime.TryParse(raw, out dt))
+            {
+                return dt.ToString("MM/dd/yy", CultureInfo.InvariantCulture);
+            }
+
+            return null;
+        }
     }
 
     public class MarketEnhancementResult
@@ -685,4 +586,4 @@ namespace FXOAiTranslator
             AdditionalInfo = "";
         }
     }
-} // End of namespace FXOAiTranslator
+}
