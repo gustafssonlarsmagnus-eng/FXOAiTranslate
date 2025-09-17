@@ -255,6 +255,15 @@ namespace FXOAiTranslator
                                               spot;
                                 break;
 
+                            case "Seagull_BuyPutSellPutSellCall":
+                                LogDebug($"DEBUG: Processing Seagull_BuyPutSellPutSellCall pattern");
+                                result.LegCount = 3;
+                                result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
+                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P,{match.Groups["strike3"].Value}C " +
+                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
+                                              spot;
+                                break;
+
                             default:
                                 LogDebug($"DEBUG: Unknown pattern name: {pattern.Name}");
                                 throw new Exception($"Unknown pattern: {pattern.Name}");

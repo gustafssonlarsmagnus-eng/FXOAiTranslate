@@ -43,7 +43,19 @@ namespace FXOAiTranslator
                     RegexOptions.IgnoreCase | RegexOptions.Singleline
                 )
             ),
-
+            // ==================
+// 3-Leg Seagull: Buy Put + Sell Put + Sell Call
+// Format: "i buy a 11.8000 put in 100 mio and sell a 11.6000 put in 150 mio and sell a 11.9500 call in 50 mio"
+// ==================
+new TradePattern(
+    "Seagull_BuyPutSellPutSellCall",
+    new Regex(
+        @"(?:i\s+)?buy(?:\s+a)?\s+(?<strike1>\d+(\.\d+)?)\s*put\s+(?:in\s+)?(?<notional1>\d+)\s*mio.*?" +
+        @"(?:and\s+)?(?:i\s+)?sell(?:\s+a)?\s+(?<strike2>\d+(\.\d+)?)\s*put\s+(?:in\s+)?(?<notional2>\d+)\s*mio.*?" +
+        @"(?:and\s+)?(?:i\s+)?sell(?:\s+a)?\s+(?<strike3>\d+(\.\d+)?)\s*call\s+(?:in\s+)?(?<notional3>\d+)\s*mio",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )
+),
             // ============================
             //  Put Spread
             // ============================
