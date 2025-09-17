@@ -411,7 +411,56 @@ namespace FXOAiTranslator
                 var monthNames = new[] { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
                 var fullMonthNames = new[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
 
-                // FX Market date format: 14Oct (day + 3-letter month, no year)
+                // FIRST: Format "2 feb 2026" - Full date with year (MOVED TO FIRST POSITION)
+                var dateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>[A-Za-z]+)\s+(?<year>\d{4})\b", RegexOptions.IgnoreCase);
+                if (dateMatch.Success)
+                {
+                    string day = dateMatch.Groups["day"].Value;
+                    string month = dateMatch.Groups["month"].Value.ToUpper();
+                    string year = dateMatch.Groups["year"].Value;
+
+                    LogDebug($"DEBUG: Matched date - day: '{day}', month: '{month}', year: '{year}'");
+
+                    // Convert full month names to 3-letter abbreviations
+                    for (int i = 0; i < fullMonthNames.Length; i++)
+                    {
+                        if (month == fullMonthNames[i])
+                        {
+                            month = monthNames[i];
+                            break;
+                        }
+                    }
+
+                    // Ensure month is 3 characters max
+                    if (month.Length > 3)
+                    {
+                        month = month.Substring(0, 3).ToUpper();
+                    }
+
+                    LogDebug($"DEBUG: Converted month: '{month}'");
+
+                    int dayInt = int.Parse(day);
+                    int yearInt = int.Parse(year);
+                    int shortYear = yearInt % 100;
+
+                    string result = $"{dayInt:D2}{month}{shortYear:D2}";
+                    LogDebug($"DEBUG: Final expiry: '{result}'");
+                    return result;
+                }
+
+                // SECOND: Bloomberg-style date: 17Sep25
+                var bloombergDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>[A-Za-z]{3})(?<year>\d{2})\b", RegexOptions.IgnoreCase);
+                if (bloombergDateMatch.Success)
+                {
+                    string day = bloombergDateMatch.Groups["day"].Value;
+                    string month = bloombergDateMatch.Groups["month"].Value.ToUpper();
+                    string year = bloombergDateMatch.Groups["year"].Value;
+
+                    LogDebug($"DEBUG: Matched Bloomberg date - day: '{day}', month: '{month}', year: '{year}'");
+                    return $"{int.Parse(day):D2}{month}{year}";
+                }
+
+                // THIRD: FX Market date format: 14Oct (day + 3-letter month, no year) - MOVED TO THIRD POSITION
                 var fxDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>[A-Za-z]{3})\b", RegexOptions.IgnoreCase);
                 if (fxDateMatch.Success)
                 {
@@ -453,56 +502,7 @@ namespace FXOAiTranslator
                     return result;
                 }
 
-                // Bloomberg-style date: 17Sep25
-                var bloombergDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>[A-Za-z]{3})(?<year>\d{2})\b", RegexOptions.IgnoreCase);
-                if (bloombergDateMatch.Success)
-                {
-                    string day = bloombergDateMatch.Groups["day"].Value;
-                    string month = bloombergDateMatch.Groups["month"].Value.ToUpper();
-                    string year = bloombergDateMatch.Groups["year"].Value;
-
-                    LogDebug($"DEBUG: Matched Bloomberg date - day: '{day}', month: '{month}', year: '{year}'");
-                    return $"{int.Parse(day):D2}{month}{year}";
-                }
-
-                // Format: "3 dec 2025" - Fixed regex with named groups
-                var dateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>[A-Za-z]+)\s+(?<year>\d{4})\b", RegexOptions.IgnoreCase);
-                if (dateMatch.Success)
-                {
-                    string day = dateMatch.Groups["day"].Value;
-                    string month = dateMatch.Groups["month"].Value.ToUpper();
-                    string year = dateMatch.Groups["year"].Value;
-
-                    LogDebug($"DEBUG: Matched date - day: '{day}', month: '{month}', year: '{year}'");
-
-                    // Convert full month names to 3-letter abbreviations
-                    for (int i = 0; i < fullMonthNames.Length; i++)
-                    {
-                        if (month == fullMonthNames[i])
-                        {
-                            month = monthNames[i];
-                            break;
-                        }
-                    }
-
-                    // Ensure month is 3 characters max
-                    if (month.Length > 3)
-                    {
-                        month = month.Substring(0, 3).ToUpper();
-                    }
-
-                    LogDebug($"DEBUG: Converted month: '{month}'");
-
-                    int dayInt = int.Parse(day);
-                    int yearInt = int.Parse(year);
-                    int shortYear = yearInt % 100;
-
-                    string result = $"{dayInt:D2}{month}{shortYear:D2}";
-                    LogDebug($"DEBUG: Final expiry: '{result}'");
-                    return result;
-                }
-
-                // Tenor: 3M, 2Y, etc.
+                // FOURTH: Tenor: 3M, 2Y, etc.
                 var tenorMatch = Regex.Match(input, @"\b(\d+)\s*(mth|[DWMY])\b", RegexOptions.IgnoreCase);
                 if (tenorMatch.Success)
                 {
