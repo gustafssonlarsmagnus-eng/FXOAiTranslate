@@ -22,6 +22,8 @@ namespace FXOAiTranslator
                 )
             ),
 
+
+
             // ============================
             //  Seagull (Put-led): Buy Put + Sell Put + Sell Call
             // ============================
@@ -57,26 +59,26 @@ new TradePattern(
     )
 ),
             // ============================
-            //  Put Spread
-            // ============================
-            new TradePattern(
-                "PutSpread_Market",
-                new Regex(
-                    @"buy\s+(?<notional>\d+)\s*mio\s+put\s+spread\s+(?<strike1>\d+(\.\d+)?)\s*-\s*(?<strike2>\d+(\.\d+)?)",
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline
-                )
-            ),
+//  Put Spread - Multilingual
+// ============================
+new TradePattern(
+    "PutSpread_Market",
+    new Regex(
+        @"(?<side>buy|sell|køp|køpa|sälj|säljer|kjøp|kjøpe|selg|selger)\s+(?<notional>\d+)\s*(mio|m)\s+(put\s+spread|ps)\s+(?<strike1>\d+(\.\d+)?)\s*-\s*(?<strike2>\d+(\.\d+)?)",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )
+),
 
-            // ============================
-            //  Call Spread
-            // ============================
-            new TradePattern(
-                "CallSpread_Market",
-                new Regex(
-                    @"buy\s+(?<notional>\d+)\s*mio\s+call\s+spread\s+(?<strike1>\d+(\.\d+)?)\s*-\s*(?<strike2>\d+(\.\d+)?)",
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline
-                )
-            ),
+// ============================
+//  Call Spread - Multilingual
+// ============================
+new TradePattern(
+    "CallSpread_Market",
+    new Regex(
+        @"(?<side>buy|sell|køp|køpa|sälj|säljer|kjøp|kjøpe|selg|selger)\s+(?<notional>\d+)\s*(mio|m)\s+(call\s+spread|cs)\s+(?<pair>[A-Z]{6})?\s*(?<strike1>\d+(\.\d+)?)\s*-\s*(?<strike2>\d+(\.\d+)?)",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )
+),
 
             // ============================
 //  Risk Reversal (Buy Put + Sell Call) — Multilingual, flexible word order

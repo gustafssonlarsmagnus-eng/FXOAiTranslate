@@ -151,6 +151,15 @@ namespace FXOAiTranslator
                                               (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
                                 break;
 
+                            case "Seagull_BuyPutSellPutSellCall":
+                                LogDebug($"DEBUG: Processing Seagull_BuyPutSellPutSellCall pattern");
+                                result.LegCount = 3;
+                                result.OVML = $"OVML {result.Underlying} {result.Expiry} 3L B,S,S " +
+                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P,{match.Groups["strike3"].Value}C " +
+                                              $"N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
+                                              (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                break;
+
                             case "RiskReversal_PutCall":
                             case "RiskReversal_CallPut":
                                 LogDebug($"DEBUG: Processing {pattern.Name} pattern");
@@ -213,6 +222,34 @@ namespace FXOAiTranslator
                                     result.OVML =
                                         $"OVML {result.Underlying} 2L {sidePair} {kPut}P,{kCall}C {result.Expiry} N{n}M,{n}M" +
                                         (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
+                                }
+                                break;
+
+                            case "CallSpread_Market":
+                                LogDebug($"DEBUG: Processing CallSpread_Market pattern");
+                                result.LegCount = 2;
+
+                                string notional = match.Groups["notional"].Value;
+                                string strike1 = match.Groups["strike1"].Value;
+                                string strike2 = match.Groups["strike2"].Value;
+
+                                // For call spread: buy lower strike, sell higher strike
+                                double s1 = double.Parse(strike1);
+                                double s2 = double.Parse(strike2);
+
+                                if (s1 < s2)
+                                {
+                                    // Standard order: buy lower, sell higher
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
+                                                  $"{strike1}C,{strike2}C N{notional}M,{notional}M VA" +
+                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                }
+                                else
+                                {
+                                    // Reverse order: buy higher, sell lower
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
+                                                  $"{strike2}C,{strike1}C N{notional}M,{notional}M VA" +
+                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
                                 }
                                 break;
 
@@ -324,11 +361,11 @@ namespace FXOAiTranslator
                 LogDebug($"DEBUG: ExtractCurrencyPair input: '{input}'");
 
                 string[] commonPairs = {
-                    "EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD",
-                    "USDCAD", "NZDUSD", "EURSEK", "EURNOK", "USDNOK",
-                    "EURJPY", "GBPJPY", "AUDJPY", "EURAUD", "EURGBP",
-                    "USDSEK"
-                };
+            "EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD",
+            "USDCAD", "NZDUSD", "EURSEK", "EURNOK", "USDNOK",
+            "EURJPY", "GBPJPY", "AUDJPY", "EURAUD", "EURGBP",
+            "USDSEK", "GBPNOK", "NOKSEK", "SEKEUR", "SEKNOK"
+        };
 
                 string upper = input.ToUpper();
                 foreach (var pair in commonPairs)
@@ -340,6 +377,36 @@ namespace FXOAiTranslator
                     }
                 }
 
+                // Clean input by removing option-related words AND buy/sell variants before currency extraction
+                string cleanInput = Regex.Replace(input,
+                    @"\b(put|call|spread|option|straddle|strangle|buy|sell|köp|köpa|köper|sälj|säljer|kjøp|kjøpe|kjøper|selg|selger|prisa|cs)\b",
+                    " ",
+                    RegexOptions.IgnoreCase);
+                LogDebug($"DEBUG: Cleaned input for currency extraction: '{cleanInput}'");
+
+                // Look for two 3-letter currency codes
+                var matches = Regex.Matches(cleanInput.ToUpper(), @"\b([A-Z]{3})\b");
+                if (matches.Count >= 2)
+                {
+                    string ccy1 = matches[0].Groups[1].Value;
+                    string ccy2 = matches[1].Groups[1].Value;
+
+                    // Validate they are actual currency codes (extended list)
+                    string[] validCurrencies = {
+                "EUR", "USD", "GBP", "JPY", "CHF", "AUD", "CAD", "NZD",
+                "SEK", "NOK", "DKK", "PLN", "CZK", "HUF", "RUB", "CNY",
+                "HKD", "SGD", "THB", "MXN", "ZAR", "BRL", "KRW", "INR"
+            };
+
+                    if (validCurrencies.Contains(ccy1) && validCurrencies.Contains(ccy2))
+                    {
+                        string result = ccy1 + ccy2;
+                        LogDebug($"DEBUG: Extracted currency pair from clean input: '{result}'");
+                        return result;
+                    }
+                }
+
+                // Fallback: original regex pattern on original input
                 var match = Regex.Match(upper, @"\b([A-Z]{3})\s*[/]?\s*([A-Z]{3})\b");
                 if (match.Success)
                 {
@@ -364,39 +431,78 @@ namespace FXOAiTranslator
             try
             {
                 LogDebug($"DEBUG: ExtractExpiry input: '{input}'");
-                LogDebug("DEBUG: EXPIRY METHOD UPDATED - Version 3.0");
+                LogDebug("DEBUG: EXPIRY METHOD UPDATED - Version 4.0");
 
                 var monthNames = new[] { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
                 var fullMonthNames = new[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
 
-                // 1. Full date with year: "11 nov 2025"
+                // Swedish months
+                var swedishMonths = new[] { "JANUARI", "FEBRUARI", "MARS", "APRIL", "MAJ", "JUNI", "JULI", "AUGUSTI", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DECEMBER" };
+                var swedishShortMonths = new[] { "JAN", "FEB", "MAR", "APR", "MAJ", "JUN", "JUL", "AUG", "SEP", "OKT", "NOV", "DEC" };
+
+                // Norwegian months
+                var norwegianMonths = new[] { "JANUAR", "FEBRUAR", "MARS", "APRIL", "MAI", "JUNI", "JULI", "AUGUST", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
+
+                // Helper method to normalize month names
+                string NormalizeMonth(string month)
+                {
+                    month = month.ToUpper();
+
+                    // Check Norwegian months
+                    for (int i = 0; i < norwegianMonths.Length; i++)
+                    {
+                        if (month == norwegianMonths[i]) return monthNames[i];
+                    }
+
+                    // Check Swedish months
+                    for (int i = 0; i < swedishMonths.Length; i++)
+                    {
+                        if (month == swedishMonths[i]) return monthNames[i];
+                    }
+
+                    // Check Swedish short months
+                    for (int i = 0; i < swedishShortMonths.Length; i++)
+                    {
+                        if (month == swedishShortMonths[i]) return monthNames[i];
+                    }
+
+                    // Check English months
+                    for (int i = 0; i < fullMonthNames.Length; i++)
+                    {
+                        if (month == fullMonthNames[i]) return monthNames[i];
+                    }
+
+                    // If already 3-letter format, return as-is
+                    if (month.Length == 3) return month;
+                    if (month.Length > 3) return month.Substring(0, 3).ToUpper();
+
+                    return month;
+                }
+
+                // 1. Full date with year: "11 nov 2025", "12e juni 2026", "2 feb 2026"
                 LogDebug("DEBUG: Testing full date pattern...");
-                var dateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>[A-Za-z]+)\s+(?<year>\d{4})\b", RegexOptions.IgnoreCase);
+                var dateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})e?\s+(?<month>[A-Za-zåäöæøé]+)\s+(?<year>\d{4})\b", RegexOptions.IgnoreCase);
                 if (dateMatch.Success)
                 {
                     string day = dateMatch.Groups["day"].Value;
-                    string month = dateMatch.Groups["month"].Value.ToUpper();
+                    string month = dateMatch.Groups["month"].Value;
                     string year = dateMatch.Groups["year"].Value;
 
                     LogDebug($"DEBUG: Full date pattern matched: {dateMatch.Value}");
                     LogDebug($"DEBUG: Matched date - day: '{day}', month: '{month}', year: '{year}'");
 
-                    for (int i = 0; i < fullMonthNames.Length; i++)
-                    {
-                        if (month == fullMonthNames[i]) month = monthNames[i];
-                    }
-                    if (month.Length > 3) month = month.Substring(0, 3).ToUpper();
+                    string normalizedMonth = NormalizeMonth(month);
 
                     int dayInt = int.Parse(day);
                     int yearInt = int.Parse(year);
                     int shortYear = yearInt % 100;
 
-                    string result = $"{dayInt:D2}{month}{shortYear:D2}";
+                    string result = $"{dayInt:D2}{normalizedMonth}{shortYear:D2}";
                     LogDebug($"DEBUG: Final expiry: '{result}'");
                     return result;
                 }
 
-                // 2. Bloomberg style: 17Sep25 - with month validation
+                // 2. Bloomberg style: 17Sep25 - with month validation (English only)
                 LogDebug("DEBUG: Testing Bloomberg date pattern...");
                 var bloombergDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)(?<year>\d{2})\b", RegexOptions.IgnoreCase);
                 if (bloombergDateMatch.Success)
@@ -406,45 +512,47 @@ namespace FXOAiTranslator
                     string month = bloombergDateMatch.Groups["month"].Value.ToUpper();
                     string year = bloombergDateMatch.Groups["year"].Value;
 
-                    // Normalize month abbreviations
                     if (month == "SEPT") month = "SEP";
 
                     return $"{int.Parse(day):D2}{month}{year}";
                 }
 
-                // 3. Day + month without year, e.g. "2 sep" - with month validation
+                // 3. Day + month without year - multilingual support
                 LogDebug("DEBUG: Testing day + month pattern...");
-                var dayMonthMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC|JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\b", RegexOptions.IgnoreCase);
+                var dayMonthMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>[A-Za-zåäöæøé]{3,})\b", RegexOptions.IgnoreCase);
                 if (dayMonthMatch.Success)
                 {
                     LogDebug($"DEBUG: Day + month pattern matched: {dayMonthMatch.Value}");
                     string day = dayMonthMatch.Groups["day"].Value;
-                    string month = dayMonthMatch.Groups["month"].Value.ToUpper();
+                    string month = dayMonthMatch.Groups["month"].Value;
 
-                    // Normalize month to 3-letter
-                    for (int i = 0; i < fullMonthNames.Length; i++)
+                    string normalizedMonth = NormalizeMonth(month);
+
+                    // Skip if month normalization failed (not a real month)
+                    if (normalizedMonth.Length != 3 || Array.IndexOf(monthNames, normalizedMonth) == -1)
                     {
-                        if (month == fullMonthNames[i]) month = monthNames[i];
+                        LogDebug($"DEBUG: Skipping - '{month}' not recognized as a valid month");
+                        // Continue to next pattern
                     }
-                    if (month == "SEPT") month = "SEP";
-                    if (month.Length > 3) month = month.Substring(0, 3).ToUpper();
-
-                    int currentYear = DateTime.Now.Year;
-                    int shortYear = currentYear % 100;
-
-                    int monthIndex = Array.IndexOf(monthNames, month);
-                    if (monthIndex >= 0)
+                    else
                     {
-                        DateTime target = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
-                        if (target < DateTime.Now.AddDays(-5)) // roll forward if already passed
-                            currentYear++;
-                    }
+                        int currentYear = DateTime.Now.Year;
+                        int shortYear = currentYear % 100;
 
-                    shortYear = currentYear % 100;
-                    return $"{int.Parse(day):D2}{month}{shortYear:D2}";
+                        int monthIndex = Array.IndexOf(monthNames, normalizedMonth);
+                        if (monthIndex >= 0)
+                        {
+                            DateTime target = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
+                            if (target < DateTime.Now.AddDays(-5))
+                                currentYear++;
+                        }
+
+                        shortYear = currentYear % 100;
+                        return $"{int.Parse(day):D2}{normalizedMonth}{shortYear:D2}";
+                    }
                 }
 
-                // 4. FX date without year: 14Oct - with month validation
+                // 4. FX date without year: 14Oct - with month validation (English only)
                 LogDebug("DEBUG: Testing FX date pattern...");
                 var fxDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)\b", RegexOptions.IgnoreCase);
                 if (fxDateMatch.Success)
@@ -453,7 +561,6 @@ namespace FXOAiTranslator
                     string day = fxDateMatch.Groups["day"].Value;
                     string month = fxDateMatch.Groups["month"].Value.ToUpper();
 
-                    // Normalize month abbreviations
                     if (month == "SEPT") month = "SEP";
 
                     int currentYear = DateTime.Now.Year;
@@ -471,23 +578,41 @@ namespace FXOAiTranslator
                     return $"{int.Parse(day):D2}{month}{shortYear:D2}";
                 }
 
-                // 5. Tenor: 3M, 5MTH, 2Y, 10D, 2W - with explicit "mio" exclusion
+                // 5. Tenor: 3M, 5MTH, 2Y, 10D, 2W - but NOT notional amounts like "500m"
                 LogDebug("DEBUG: Testing tenor patterns...");
+
+                // More restrictive: avoid matching large numbers that are likely notionals
                 var tenorMatch = Regex.Match(
                     input,
-                    @"\b(?<num>\d+)\s*(?<unit>mth|mo|m|y|d|w)\b(?!\s*io)",
+                    @"\b(?<num>[1-9]\d{0,1})\s*(?<unit>month|months|mth|mo|m|year|years|y|day|days|d|week|weeks|w)\b(?!\s*io)(?!\s*[A-Z]{6})",
                     RegexOptions.IgnoreCase
                 );
 
+                // Additional check: if number is > 99, it's likely a notional, not a tenor
                 if (tenorMatch.Success)
                 {
                     string number = tenorMatch.Groups["num"].Value;
                     string period = tenorMatch.Groups["unit"].Value.ToUpper();
 
-                    LogDebug($"DEBUG: Tenor match found - number: '{number}', period: '{period}'");
+                    int numValue = int.Parse(number);
+                    if (numValue > 99)
+                    {
+                        LogDebug($"DEBUG: Skipping tenor match - number too large for tenor: {number}");
+                    }
+                    else
+                    {
+                        LogDebug($"DEBUG: Tenor match found - number: '{number}', period: '{period}'");
 
-                    if (period == "MTH") period = "M";
-                    return number + period;
+                        // Normalize period abbreviations
+                        if (period.StartsWith("MONTH")) period = "M";
+                        else if (period == "MTH") period = "M";
+                        else if (period == "MO") period = "M";
+                        else if (period.StartsWith("YEAR")) period = "Y";
+                        else if (period.StartsWith("DAY")) period = "D";
+                        else if (period.StartsWith("WEEK")) period = "W";
+
+                        return number + period;
+                    }
                 }
                 else
                 {

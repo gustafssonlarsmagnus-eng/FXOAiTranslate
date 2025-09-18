@@ -184,6 +184,9 @@ OVML EURUSD {DateTime.Now.AddMonths(1):MM/dd/yy} P 1.0500 S N100M VA
 Input: ""GBPNOK: 25 mio 5mth gbp put nok call 20 delta""
 Output: OVML GBPNOK 5M P DS20 B N25M VA SP9.8166
 
+Input: ""3-month EUR put/NOK call spread with 11.50 and 11.30""
+Output: OVML EURNOK 3M 2L B,S 11.5000P,11.3000P N25M,25M VA
+
 Multi-leg format: OVML (pair) (expiry) (legs)L (directions) (strikes) N(notionals) (style) SP(spot)
 Example: OVML GBPNOK 02/18/26 2L B,S DS20P,DS20C N25M,25M VA SP9.8285
 
