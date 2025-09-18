@@ -51,9 +51,13 @@ namespace FXOAiTranslator
             txtTradeInput = new TextBox
             {
                 Location = new Point(20, 45),
-                Size = new Size(800, 23),
+                Size = new Size(800, 55),
                 Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "e.g., eursek 4m i buy a 11.00 put in 100 mio and sell a 11.5000 call in 50 mio"
+                PlaceholderText = "e.g., eursek 4m i buy a 11.00 put in 100 mio and sell a 11.5000 call in 50 mio",
+                Multiline = true,
+                AcceptsReturn = true,
+                ScrollBars = ScrollBars.None,
+                WordWrap = true
             };
 
             // Bloomberg Status
@@ -70,7 +74,7 @@ namespace FXOAiTranslator
             btnClearAll = new Button
             {
                 Text = "Clear All",
-                Location = new Point(20, 80),
+                Location = new Point(20, 115),
                 Size = new Size(100, 30),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
@@ -82,7 +86,7 @@ namespace FXOAiTranslator
             btnCopyOVML = new Button
             {
                 Text = "Copy OVML",
-                Location = new Point(130, 80),
+                Location = new Point(130, 115),
                 Size = new Size(100, 30),
                 BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
@@ -94,7 +98,7 @@ namespace FXOAiTranslator
             btnCopyUBS = new Button
             {
                 Text = "Copy UBS",
-                Location = new Point(240, 80),
+                Location = new Point(240, 115),
                 Size = new Size(100, 30),
                 BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
@@ -106,7 +110,7 @@ namespace FXOAiTranslator
             btnClearPatterns = new Button
             {
                 Text = "Clear AI Patterns",
-                Location = new Point(350, 80),
+                Location = new Point(350, 115),
                 Size = new Size(130, 30),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
@@ -118,7 +122,7 @@ namespace FXOAiTranslator
             chkAutoSend = new CheckBox
             {
                 Text = "Auto-send to Bloomberg",
-                Location = new Point(500, 85),
+                Location = new Point(500, 120),
                 Size = new Size(180, 20),
                 Checked = true,
                 Font = new Font("Segoe UI", 9F)
@@ -127,7 +131,7 @@ namespace FXOAiTranslator
             btnToggleDebug = new Button
             {
                 Text = "Show Debug",
-                Location = new Point(700, 80),
+                Location = new Point(700, 115),
                 Size = new Size(100, 30),
                 BackColor = Color.FromArgb(108, 117, 125),
                 ForeColor = Color.White,
@@ -140,14 +144,14 @@ namespace FXOAiTranslator
             var lblBlotter = new Label
             {
                 Text = "Trade Blotter (Click X to reject bad OVML patterns - good patterns auto-learn):",
-                Location = new Point(20, 125),
+                Location = new Point(20, 160),
                 Size = new Size(500, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular)
             };
 
             dgvTradeBlotter = new DataGridView
             {
-                Location = new Point(20, 150),
+                Location = new Point(20, 185),
                 Size = new Size(1150, 300),
                 AutoGenerateColumns = false,
                 AllowUserToAddRows = false,
@@ -164,7 +168,7 @@ namespace FXOAiTranslator
             // Debug Panel (initially hidden)
             pnlDebug = new Panel
             {
-                Location = new Point(20, 460),
+                Location = new Point(20, 495),
                 Size = new Size(1150, 180),
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.FromArgb(248, 249, 250),
@@ -304,7 +308,12 @@ namespace FXOAiTranslator
         private void SetupServices()
         {
             _bloombergService = new BloombergService();
-            _tradeParser = new TradeParser(_bloombergService);
+
+            // Load OpenAI API key from config file
+            string openAIApiKey = System.Configuration.ConfigurationManager.AppSettings["OpenAIApiKey"];
+            Console.WriteLine($"DEBUG: OpenAI API Key loaded: {(string.IsNullOrEmpty(openAIApiKey) ? "NONE" : "YES (length: " + openAIApiKey.Length + ")")}");
+
+            _tradeParser = new TradeParser(_bloombergService, openAIApiKey);
 
             // Hook into debug callback to capture parsing logs
             _tradeParser.DebugCallback = LogDebugMessage;
@@ -491,13 +500,13 @@ namespace FXOAiTranslator
             if (debugVisible)
             {
                 btnToggleDebug.Text = "Hide Debug";
-                this.Size = new Size(1200, 700); // More reasonable expansion
-                dgvTradeBlotter.Size = new Size(1150, 300); // Slightly smaller blotter
+                this.Size = new Size(1200, 800); // More reasonable expansion
+                dgvTradeBlotter.Size = new Size(1150, 280); // Slightly smaller blotter
             }
             else
             {
                 btnToggleDebug.Text = "Show Debug";
-                this.Size = new Size(1200, 500); // Original size
+                this.Size = new Size(1200, 700); // Original size
                 dgvTradeBlotter.Size = new Size(1150, 300); // Restore blotter size
             }
         }

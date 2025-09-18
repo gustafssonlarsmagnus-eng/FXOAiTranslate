@@ -95,22 +95,42 @@ namespace FXOAiTranslator
                 }
 
                 Console.WriteLine("[AI] No learned pattern found, calling OpenAI...");
-                var prompt = $@"Convert this FX options trading request to Bloomberg OVML format:
+                var prompt = $@"You are an expert FX options trader and OVML parser. Convert this natural language trading request into STRICT Bloomberg OVML format.
 
 Input: ""{input}""
 
-OVML SYNTAX RULES:
-Single Leg: OVML (currency) (expiry) (P/C) (strike) (B/S) (notional) (style) [SP(spot)]
-Multi-Leg: OVML (currency) (legs) (directions) (strikes) (expiry) (notionals) (style) [SP(spot)]
+MANDATORY OVML SYNTAX (Bloomberg Terminal Official):
+Single Leg: OVML (currency pair) (expiration date) (call/put) (strike) (buy/sell) (notional amount) (option style code) [SP(spot)]
 
-CRITICAL RULES:
-- Strikes always 4 decimals
-- Use SP(spot) if provided or live spot
-- Expiry in MM/dd/yy format for dates
-- B=Buy, S=Sell
-- Append C for calls, P for puts
+CRITICAL FORMAT RULES:
+1. DATE FORMAT: Always MM/dd/yy (NOT tenors like 1W, 3M in final output)
+   - ""1 week"" → calculate actual date as MM/dd/yy from today: {DateTime.Now:MM/dd/yyyy}
+   - ""3M"" → calculate 3 months from today as MM/dd/yy
+   - ""1 month"" → calculate 1 month from today as MM/dd/yy
 
-RESPOND WITH ONLY THE OVML COMMAND - NO EXPLANATIONS:";
+2. CURRENCY PAIR: Two 3-letter ISO codes without separator (EURUSD, USDNOK, EURSEK)
+
+3. OPTION TYPE: C (call) or P (put) - NEVER ""Call"" or ""Put""
+
+4. STRIKE FORMAT: Numeric with 4 decimals (10.0000), trim unnecessary zeros
+
+5. DIRECTION: B (buy) or S (sell) - NEVER ""Buy"" or ""Sell""
+
+6. NOTIONAL: N + amount + M (e.g., N100M)
+   - ""100mm"" → N100M, ""50 mio"" → N50M, ""25M"" → N25M
+
+7. OPTION STYLE: VA (vanilla) unless specified otherwise
+
+8. SPOT REFERENCE: SP + rate (e.g., SP9.8190) - NO BRACKETS
+
+EXAMPLES:
+Input: ""USDNOK 1 week 10.00 call in 100mm, spot ref 9.8190""
+Output: OVML USDNOK {DateTime.Now.AddDays(7):MM/dd/yy} C 10.0000 B N100M VA SP9.8190
+
+Input: ""EURSEK 1 month 11.50 put 50M""  
+Output: OVML EURSEK {DateTime.Now.AddMonths(1):MM/dd/yy} P 11.5000 B N50M VA
+
+RESPOND WITH ONLY THE OVML COMMAND:";
 
                 var response = await _openAI.GetChatCompletion(prompt);
                 var aiResponse = response.choices[0].message.content.Trim();
