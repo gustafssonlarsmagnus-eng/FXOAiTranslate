@@ -79,28 +79,33 @@ new TradePattern(
             ),
 
             // ============================
-//  Risk Reversal (Buy Put + Sell Call)
+//  Risk Reversal (Buy Put + Sell Call) — Multilingual
 // ============================
 new TradePattern(
     "RiskReversal_PutCall",
     new Regex(
-        @"(?:i\s+)?buy(?:\s+a)?\s+(?<strike1>\d+(\.\d+)?)\s*put\s+(?:in\s+)?(?<notional1>\d+)\s*mio.*?" +
-        @"(?:and\s+)?(?:i\s+)?sell(?:\s+a)?\s+(?<strike2>\d+(\.\d+)?)\s*call\s+(?:in\s+)?(?<notional2>\d+)\s*mio",
+        @".*?(?<side1>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s+(?:[A-Z]{6}\s+)?" +
+        @"(?<strike1>\d+(\.\d+)?)\s*(?<type1>put)\s+(?:i\s+)?(?<notional1>\d+)\s*mio(?:\s*(USD|SEK))?.*?" +
+        @"(?:and|och)\s+.*?(?<side2>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s+(?:[A-Z]{6}\s+)?" +
+        @"(?<strike2>\d+(\.\d+)?)\s*(?<type2>call)\s+(?:i\s+)?(?<notional2>\d+)\s*mio(?:\s*(USD|SEK))?",
         RegexOptions.IgnoreCase | RegexOptions.Singleline
     )
 ),
 
 // ============================
-//  Risk Reversal (Buy Call + Sell Put)
+//  Risk Reversal (Buy Call + Sell Put) — Multilingual
 // ============================
 new TradePattern(
     "RiskReversal_CallPut",
     new Regex(
-        @"(?:i\s+)?buy(?:\s+a)?\s+(?<strike1>\d+(\.\d+)?)\s*call\s+(?:in\s+)?(?<notional1>\d+)\s*mio.*?" +
-        @"(?:and\s+)?(?:i\s+)?sell(?:\s+a)?\s+(?<strike2>\d+(\.\d+)?)\s*put\s+(?:in\s+)?(?<notional2>\d+)\s*mio",
+        @".*?(?<side1>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s+(?:[A-Z]{6}\s+)?" +
+        @"(?<strike1>\d+(\.\d+)?)\s*(?<type1>call)\s+(?:i\s+)?(?<notional1>\d+)\s*mio(?:\s*(USD|SEK))?.*?" +
+        @"(?:and|och)\s+.*?(?<side2>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s+(?:[A-Z]{6}\s+)?" +
+        @"(?<strike2>\d+(\.\d+)?)\s*(?<type2>put)\s+(?:i\s+)?(?<notional2>\d+)\s*mio(?:\s*(USD|SEK))?",
         RegexOptions.IgnoreCase | RegexOptions.Singleline
     )
 ),
+
 
             // ============================
             //  Strangle (Buy/Buy)
@@ -150,6 +155,45 @@ new TradePattern(
         // Spot reference regex
         public static readonly Regex SpotRegex =
             new Regex(@"(?:ref|spot|sp)\s*(?<spot>\d+(\.\d+)?)", RegexOptions.IgnoreCase);
+        // === Helpers for OVML assembly ===
+        public static string MapSide(string side)
+        {
+            side = side.ToLower();
+            return (side.StartsWith("b") || side.StartsWith("köp")) ? "B" : "S";
+        }
+
+        public static string MapType(string type)
+        {
+            type = type.ToLower();
+            return type.StartsWith("c") ? "C" : "P";
+        }
+
+        public static string BuildRiskReversalOVML(string ccyPair, Match match, string expiry, string spot)
+        {
+            // Preserve order as captured in the regex
+            var sides = string.Join(",", new[]
+            {
+                MapSide(match.Groups["side1"].Value),
+                MapSide(match.Groups["side2"].Value)
+            });
+
+            var strikes = string.Join(",", new[]
+            {
+                match.Groups["strike1"].Value + MapType(match.Groups["type1"].Value),
+                match.Groups["strike2"].Value + MapType(match.Groups["type2"].Value)
+            });
+
+            var notionals = string.Join(",", new[]
+            {
+                match.Groups["notional1"].Value + "M",
+                match.Groups["notional2"].Value + "M"
+            });
+
+            // Ensure SP prefix is correct
+            string spotPart = string.IsNullOrEmpty(spot) ? "" : " SP" + spot;
+
+            return $"OVML {ccyPair} 2L {sides} {strikes} {expiry} N{string.Join(",", notionals)}{spotPart}";
+        }
     }
 
     public class TradePattern

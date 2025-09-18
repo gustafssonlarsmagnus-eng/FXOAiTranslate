@@ -200,24 +200,16 @@ namespace FXOAiTranslator
 
                             case "RiskReversal_PutCall":
                                 LogDebug($"DEBUG: Processing RiskReversal_PutCall pattern");
-                                LogDebug($"DEBUG: strike1='{match.Groups["strike1"].Value}', notional1='{match.Groups["notional1"].Value}'");
-                                LogDebug($"DEBUG: strike2='{match.Groups["strike2"].Value}', notional2='{match.Groups["notional2"].Value}'");
-
                                 result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}C " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                              spot;
+                                result.OVML = RegexTradePatterns.BuildRiskReversalOVML(result.Underlying, match, result.Expiry, spot.Replace(" SP", ""));
                                 break;
 
                             case "RiskReversal_CallPut":
                                 LogDebug($"DEBUG: Processing RiskReversal_CallPut pattern");
                                 result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                              $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}P " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                              spot;
+                                result.OVML = RegexTradePatterns.BuildRiskReversalOVML(result.Underlying, match, result.Expiry, spot.Replace(" SP", ""));
                                 break;
+
 
                             case "Strangle_Long":
                                 LogDebug($"DEBUG: Processing Strangle_Long pattern");
