@@ -95,42 +95,106 @@ namespace FXOAiTranslator
                 }
 
                 Console.WriteLine("[AI] No learned pattern found, calling OpenAI...");
+                // Fetch live spot rate BEFORE calling AI
+                var liveSpot = await GetDefaultSpotRateAsync(underlying);
+                string spotInfo = !string.IsNullOrEmpty(liveSpot) ? liveSpot : "9.8000";
+
                 var prompt = $@"You are an expert FX options trader and OVML parser. Convert this natural language trading request into STRICT Bloomberg OVML format.
 
 Input: ""{input}""
+LIVE SPOT RATE for {underlying}: {spotInfo} (Use this exact rate for strike comparison)
 
 MANDATORY OVML SYNTAX (Bloomberg Terminal Official):
 Single Leg: OVML (currency pair) (expiration date) (call/put) (strike) (buy/sell) (notional amount) (option style code) [SP(spot)]
+Multi-Leg: Use multiple OVML commands or strategy codes
 
 CRITICAL FORMAT RULES:
 1. DATE FORMAT: Always MM/dd/yy (NOT tenors like 1W, 3M in final output)
-   - ""1 week"" → calculate actual date as MM/dd/yy from today: {DateTime.Now:MM/dd/yyyy}
+   - ""1 week"" → calculate actual date as MM/dd/yy
    - ""3M"" → calculate 3 months from today as MM/dd/yy
-   - ""1 month"" → calculate 1 month from today as MM/dd/yy
+   - Current date reference: Today is {DateTime.Now:MM/dd/yyyy}
 
 2. CURRENCY PAIR: Two 3-letter ISO codes without separator (EURUSD, USDNOK, EURSEK)
 
 3. OPTION TYPE: C (call) or P (put) - NEVER ""Call"" or ""Put""
 
-4. STRIKE FORMAT: Numeric with 4 decimals (10.0000), trim unnecessary zeros
+4. STRIKE FORMAT:
+   - Numeric: 10.0000 (trim unnecessary zeros)
+   - Delta: DS25 (for 25 delta), DF25 (forward delta)
+   - ATM: Use actual spot rate if provided
 
 5. DIRECTION: B (buy) or S (sell) - NEVER ""Buy"" or ""Sell""
 
 6. NOTIONAL: N + amount + M (e.g., N100M)
-   - ""100mm"" → N100M, ""50 mio"" → N50M, ""25M"" → N25M
+   - ""100mm"" → N100M
+   - ""50 mio"" → N50M
+   - ""25M"" → N25M
 
-7. OPTION STYLE: VA (vanilla) unless specified otherwise
+7. OPTION STYLE: VA (vanilla), DKI (double knock-in), DKO (double knock-out)
+   - Default to VA unless specified
 
-8. SPOT REFERENCE: SP + rate (e.g., SP9.8190) - NO BRACKETS
+8. SPOT REFERENCE: SP + rate (e.g., SP9.8190)
+   - NO brackets: [SP9.8190] is WRONG
+   - Extract from: ""spot ref"", ""s.r."", ""sp ref"", ""spotref""
+
+9. MULTI-LEG DETECTION:
+   - Generate SEPARATE OVML command for EACH leg mentioned
+   - ""sell call + buy put"" = TWO OVML commands (one per line)
+   - Each leg keeps its own strike, direction, notional, option type
+
+10. LANGUAGE SUPPORT:
+    - Swedish: säljer=sell, köper=buy, mio=million, mån=months
+    - Always use explicit option types when stated (""call"" → C, ""put"" → P)
+
+STRUCTURE PATTERNS:
+- Risk Reversal: Buy Call + Sell Put (or Sell Call + Buy Put)
+- Call Spread: Buy lower strike Call + Sell higher strike Call  
+- Put Spread: Buy higher strike Put + Sell lower strike Put
+- Collar: Buy Call + Sell Call + Sell Put (3-leg)
+- Straddle: Buy Call + Buy Put (same strike)
+- Strangle: Buy Call + Buy Put (different strikes)
+
+NOTIONAL PARSING:
+- ""mio"", ""milj"", ""m"", ""mm"", ""MUSD"", ""MEUR"" → M
+- Multiple notionals: ""100M x 50M"" → first leg N100M, second leg N50M
+- ""per ben"", ""per leg"" → same notional for all legs
+
+TENOR TO DATE CONVERSION:
+- 1W = 7 days from today
+- 1M = 1 month from today  
+- 3M = 3 months from today
+- 6M = 6 months from today
+- 1Y = 1 year from today
+Calculate exact MM/dd/yy format
 
 EXAMPLES:
 Input: ""USDNOK 1 week 10.00 call in 100mm, spot ref 9.8190""
 Output: OVML USDNOK {DateTime.Now.AddDays(7):MM/dd/yy} C 10.0000 B N100M VA SP9.8190
 
-Input: ""EURSEK 1 month 11.50 put 50M""  
-Output: OVML EURSEK {DateTime.Now.AddMonths(1):MM/dd/yy} P 11.5000 B N50M VA
+Input: ""EURSEK 3M buy 11.50 put 50M, sell 11.80 call 50M""
+Output: OVML EURSEK {DateTime.Now.AddMonths(3):MM/dd/yy} P 11.5000 B N50M VA
+OVML EURSEK {DateTime.Now.AddMonths(3):MM/dd/yy} C 11.8000 S N50M VA
 
-RESPOND WITH ONLY THE OVML COMMAND:";
+Input: ""EURUSD risk reversal, buy call 1.10, sell put 1.05, 100M each""
+Output: OVML EURUSD {DateTime.Now.AddMonths(1):MM/dd/yy} C 1.1000 B N100M VA
+OVML EURUSD {DateTime.Now.AddMonths(1):MM/dd/yy} P 1.0500 S N100M VA
+
+Multi-leg Swedish Example:
+Input: ""säljer USDSEK 9.52 call i 50 mio och köper 9.22 put i 35 mio, 3 mån""
+Output: 
+OVML USDSEK {{DateTime.Now.AddMonths(3):MM/dd/yy}} C 9.5200 S N50M VA SP{{spotInfo}}
+OVML USDSEK {{DateTime.Now.AddMonths(3):MM/dd/yy}} P 9.2200 B N35M VA SP{{spotInfo}}
+
+STRICT REQUIREMENTS:
+- Always use exact Bloomberg OVML syntax
+- Convert ALL tenors to MM/dd/yy dates
+- Use only B/S for direction, C/P for option type
+- Format notionals as N + amount + M
+- Include VA style code unless specified otherwise
+- Spot reference as SP + rate (no brackets)
+- For multi-leg: separate OVML command per leg
+
+Response with ONLY the OVML command(s) - ONE PER LINE FOR MULTI-LEG:";
 
                 var response = await _openAI.GetChatCompletion(prompt);
                 var aiResponse = response.choices[0].message.content.Trim();
@@ -144,6 +208,23 @@ RESPOND WITH ONLY THE OVML COMMAND:";
 
                     // normalize SPx.x
                     ovml = Regex.Replace(ovml, @"\bv(\d+\.\d+)", "SP$1");
+
+                    // Add post-processing correction for option type
+                    var ovmlParts = ovml.Split(' ');
+                    if (ovmlParts.Length >= 4 && !string.IsNullOrEmpty(liveSpot))
+                    {
+                        if (double.TryParse(ovmlParts[4], out double strike) && double.TryParse(liveSpot, out double spot))
+                        {
+                            bool isCall = ovml.Contains(" C ");
+                            bool shouldBeCall = strike > spot;
+
+                            if (isCall != shouldBeCall)
+                            {
+                                ovml = ovml.Replace(isCall ? " C " : " P ", shouldBeCall ? " C " : " P ");
+                                Console.WriteLine($"[AI] Corrected option type: strike {strike} vs spot {spot} → {(shouldBeCall ? "CALL" : "PUT")}");
+                            }
+                        }
+                    }
 
                     // add live spot if missing
                     if (!ovml.Contains("SP"))

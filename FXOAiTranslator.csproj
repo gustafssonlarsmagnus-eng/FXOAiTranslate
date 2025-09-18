@@ -12,4 +12,10 @@
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.9" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="Bloomberglp.Blpapi">
+      <HintPath>..\..\..\blp\API\Office Tools\Bloomberglp.Blpapi.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

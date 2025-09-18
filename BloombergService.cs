@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Bloomberglp.Blpapi;
+using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
