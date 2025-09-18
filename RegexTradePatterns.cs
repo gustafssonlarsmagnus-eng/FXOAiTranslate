@@ -79,32 +79,33 @@ new TradePattern(
             ),
 
             // ============================
-//  Risk Reversal (Buy Put + Sell Call) — Multilingual
+//  Risk Reversal (Buy Put + Sell Call) — Multilingual, flexible word order
 // ============================
 new TradePattern(
     "RiskReversal_PutCall",
     new Regex(
-        @".*?(?<side1>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s+(?:[A-Z]{6}\s+)?" +
-        @"(?<strike1>\d+(\.\d+)?)\s*(?<type1>put)\s+(?:i\s+)?(?<notional1>\d+)\s*mio(?:\s*(USD|SEK))?.*?" +
-        @"(?:and|och)\s+.*?(?<side2>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s+(?:[A-Z]{6}\s+)?" +
-        @"(?<strike2>\d+(\.\d+)?)\s*(?<type2>call)\s+(?:i\s+)?(?<notional2>\d+)\s*mio(?:\s*(USD|SEK))?",
+        @".*?(?<side1>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s*" +
+        @"(?<strike1>\d+(\.\d+)?)\s*(?<type1>put)\s+(?:in|i)?\s*(?<notional1>\d+)\s*mio(?:\s*(USD|SEK))?.*?" +
+        @"(?:and|och)\s+.*?(?<side2>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s*" +
+        @"(?<strike2>\d+(\.\d+)?)\s*(?<type2>call)\s+(?:in|i)?\s*(?<notional2>\d+)\s*mio(?:\s*(USD|SEK))?",
         RegexOptions.IgnoreCase | RegexOptions.Singleline
     )
 ),
 
 // ============================
-//  Risk Reversal (Buy Call + Sell Put) — Multilingual
+//  Risk Reversal (Buy Call + Sell Put) — Multilingual, flexible word order
 // ============================
 new TradePattern(
     "RiskReversal_CallPut",
     new Regex(
-        @".*?(?<side1>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s+(?:[A-Z]{6}\s+)?" +
-        @"(?<strike1>\d+(\.\d+)?)\s*(?<type1>call)\s+(?:i\s+)?(?<notional1>\d+)\s*mio(?:\s*(USD|SEK))?.*?" +
-        @"(?:and|och)\s+.*?(?<side2>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s+(?:[A-Z]{6}\s+)?" +
-        @"(?<strike2>\d+(\.\d+)?)\s*(?<type2>put)\s+(?:i\s+)?(?<notional2>\d+)\s*mio(?:\s*(USD|SEK))?",
+        @".*?(?<side1>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s*" +
+        @"(?<strike1>\d+(\.\d+)?)\s*(?<type1>call)\s+(?:in|i)?\s*(?<notional1>\d+)\s*mio(?:\s*(USD|SEK))?.*?" +
+        @"(?:and|och)\s+.*?(?<side2>buy|köp(?:er)?|sell|sälj(?:er)?)\s+(?:a|en|ett)?\s*" +
+        @"(?<strike2>\d+(\.\d+)?)\s*(?<type2>put)\s+(?:in|i)?\s*(?<notional2>\d+)\s*mio(?:\s*(USD|SEK))?",
         RegexOptions.IgnoreCase | RegexOptions.Singleline
     )
 ),
+
 
 
             // ============================
@@ -128,6 +129,39 @@ new TradePattern(
                     RegexOptions.IgnoreCase | RegexOptions.Singleline
                 )
             ),
+
+            // ============================
+//  Straddle (keyword) — supports buy/sell + 1 or 2 notionals
+// Examples:
+//   "straddle USDSEK 1M 15 mio"
+//   "buy straddle 15mio"
+//   "sell straddle 10 mio / 8 mio"
+// ============================
+new TradePattern(
+    "Straddle",
+    new Regex(
+        @"(?:(?<side>buy|sell|köp(?:er)?|sälj(?:er)?)\s+)?straddle\b.*?" +
+        @"(?<notional1>\d+)\s*mio\b(?:.*?(?:/|and|och|&|,)\s*(?<notional2>\d+)\s*mio\b)?",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )
+),
+
+// ============================
+//  Strangle (keyword) — supports buy/sell, one notional, explicit strikes
+// Example:
+//   "strangle 100 mio 11.00 put and 11.50 call"
+//   "sälj strangle 50 mio 10.80 put och 11.40 call"
+// ============================
+new TradePattern(
+    "Strangle_Keyword",
+    new Regex(
+        @"(?:(?<side>buy|sell|köp(?:er)?|sälj(?:er)?)\s+)?strangle\b.*?" +
+        @"(?<notional>\d+)\s*mio\b.*?" +
+        @"(?<strike1>\d+(\.\d+)?)\s*put\b.*?(?:and|och)\s*(?<strike2>\d+(\.\d+)?)\s*call\b",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )
+),
+
 
             // ============================
             //  Vanilla (Explicit Buy/Sell) - More specific than Simple_Vanilla

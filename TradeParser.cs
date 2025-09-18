@@ -179,6 +179,42 @@ namespace FXOAiTranslator
                                               $"{result.Expiry} N{match.Groups["notional"].Value}M" +
                                               (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
                                 break;
+                            case "Straddle":
+                                LogDebug("DEBUG: Processing Straddle pattern");
+                                result.LegCount = 2;
+
+                                // Side: default long (B,B); if 'sell' / 'sälj' → short (S,S)
+                                {
+                                    var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
+                                    string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
+
+                                    string n1 = match.Groups["notional1"].Value;
+                                    string n2 = match.Groups["notional2"].Success ? match.Groups["notional2"].Value : n1;
+
+                                    // Straddle: ATMS strikes, explicit types C,P
+                                    result.OVML =
+                                        $"OVML {result.Underlying} 2L {sidePair} ATMS, ATMS C,P {result.Expiry} N{n1}M,{n2}M VA" +
+                                        (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
+                                }
+                                break;
+
+                            case "Strangle_Keyword":
+                                LogDebug("DEBUG: Processing Strangle_Keyword pattern");
+                                result.LegCount = 2;
+
+                                {
+                                    var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
+                                    string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
+
+                                    string n = match.Groups["notional"].Value;
+                                    string kPut = match.Groups["strike1"].Value;
+                                    string kCall = match.Groups["strike2"].Value;
+
+                                    result.OVML =
+                                        $"OVML {result.Underlying} 2L {sidePair} {kPut}P,{kCall}C {result.Expiry} N{n}M,{n}M" +
+                                        (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
+                                }
+                                break;
 
                             default:
                                 LogDebug($"DEBUG: Unknown pattern name: {pattern.Name}");
@@ -332,7 +368,7 @@ namespace FXOAiTranslator
                 var monthNames = new[] { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
                 var fullMonthNames = new[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
 
-                // Full date with year: "11 nov 2025"
+                // 1. Full date with year: "11 nov 2025"
                 var dateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>[A-Za-z]+)\s+(?<year>\d{4})\b", RegexOptions.IgnoreCase);
                 if (dateMatch.Success)
                 {
@@ -344,13 +380,8 @@ namespace FXOAiTranslator
 
                     for (int i = 0; i < fullMonthNames.Length; i++)
                     {
-                        if (month == fullMonthNames[i])
-                        {
-                            month = monthNames[i];
-                            break;
-                        }
+                        if (month == fullMonthNames[i]) month = monthNames[i];
                     }
-
                     if (month.Length > 3) month = month.Substring(0, 3).ToUpper();
 
                     int dayInt = int.Parse(day);
@@ -362,7 +393,7 @@ namespace FXOAiTranslator
                     return result;
                 }
 
-                // Bloomberg style: 17Sep25
+                // 2. Bloomberg style: 17Sep25
                 var bloombergDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>[A-Za-z]{3})(?<year>\d{2})\b", RegexOptions.IgnoreCase);
                 if (bloombergDateMatch.Success)
                 {
@@ -372,7 +403,36 @@ namespace FXOAiTranslator
                     return $"{int.Parse(day):D2}{month}{year}";
                 }
 
-                // FX date without year: 14Oct
+                // 3. Day + month without year, e.g. "2 sep"
+                var dayMonthMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>[A-Za-z]{3,})\b", RegexOptions.IgnoreCase);
+                if (dayMonthMatch.Success)
+                {
+                    string day = dayMonthMatch.Groups["day"].Value;
+                    string month = dayMonthMatch.Groups["month"].Value.ToUpper();
+
+                    // Normalize month to 3-letter
+                    for (int i = 0; i < fullMonthNames.Length; i++)
+                    {
+                        if (month == fullMonthNames[i]) month = monthNames[i];
+                    }
+                    if (month.Length > 3) month = month.Substring(0, 3).ToUpper();
+
+                    int currentYear = DateTime.Now.Year;
+                    int shortYear = currentYear % 100;
+
+                    int monthIndex = Array.IndexOf(monthNames, month);
+                    if (monthIndex >= 0)
+                    {
+                        DateTime target = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
+                        if (target < DateTime.Now.AddDays(-5)) // roll forward if already passed
+                            currentYear++;
+                    }
+
+                    shortYear = currentYear % 100;
+                    return $"{int.Parse(day):D2}{month}{shortYear:D2}";
+                }
+
+                // 4. FX date without year: 14Oct
                 var fxDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>[A-Za-z]{3})\b", RegexOptions.IgnoreCase);
                 if (fxDateMatch.Success)
                 {
@@ -394,7 +454,7 @@ namespace FXOAiTranslator
                     return $"{int.Parse(day):D2}{month}{shortYear:D2}";
                 }
 
-                // Tenor: 3M, 2Y
+                // 5. Tenor: 3M, 2Y
                 var tenorMatch = Regex.Match(input, @"\b(\d+)\s*(mth|[DWMY])\b", RegexOptions.IgnoreCase);
                 if (tenorMatch.Success)
                 {
@@ -412,6 +472,8 @@ namespace FXOAiTranslator
                 throw;
             }
         }
+
+
 
         // === Normalization helpers ===
         private string NormalizeOVMLDates(string ovml)
