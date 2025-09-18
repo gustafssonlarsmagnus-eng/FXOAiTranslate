@@ -138,9 +138,11 @@ CRITICAL FORMAT RULES:
    - Extract from: ""spot ref"", ""s.r."", ""sp ref"", ""spotref""
 
 9. MULTI-LEG DETECTION:
-   - Generate SEPARATE OVML command for EACH leg mentioned
-   - ""sell call + buy put"" = TWO OVML commands (one per line)
-   - Each leg keeps its own strike, direction, notional, option type
+   - Use single-line multi-leg format: OVML (pair) (expiry) (legs)L (directions) (strikes) (notionals) (style) [SP(spot)]
+   - Risk Reversal: ""gbp put nok call 20 delta"" → OVML GBPNOK 5M 2L B,S DS20P,DS20C N25M,25M VA SP9.8474
+   - Directions: comma-separated (B,S)
+   - Strikes: comma-separated with option type (DS20P,DS20C)
+   - Notionals: comma-separated (N25M,25M)
 
 10. LANGUAGE SUPPORT:
     - Swedish: säljer=sell, köper=buy, mio=million, mån=months
@@ -179,11 +181,11 @@ Input: ""EURUSD risk reversal, buy call 1.10, sell put 1.05, 100M each""
 Output: OVML EURUSD {DateTime.Now.AddMonths(1):MM/dd/yy} C 1.1000 B N100M VA
 OVML EURUSD {DateTime.Now.AddMonths(1):MM/dd/yy} P 1.0500 S N100M VA
 
-Multi-leg Swedish Example:
-Input: ""säljer USDSEK 9.52 call i 50 mio och köper 9.22 put i 35 mio, 3 mån""
-Output: 
-OVML USDSEK {{DateTime.Now.AddMonths(3):MM/dd/yy}} C 9.5200 S N50M VA SP{{spotInfo}}
-OVML USDSEK {{DateTime.Now.AddMonths(3):MM/dd/yy}} P 9.2200 B N35M VA SP{{spotInfo}}
+Input: ""GBPNOK: 25 mio 5mth gbp put nok call 20 delta""
+Output: OVML GBPNOK 5M P DS20 B N25M VA SP9.8166
+
+Multi-leg format: OVML (pair) (expiry) (legs)L (directions) (strikes) N(notionals) (style) SP(spot)
+Example: OVML GBPNOK 02/18/26 2L B,S DS20P,DS20C N25M,25M VA SP9.8285
 
 STRICT REQUIREMENTS:
 - Always use exact Bloomberg OVML syntax

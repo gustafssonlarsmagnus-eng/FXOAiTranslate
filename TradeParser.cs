@@ -364,11 +364,13 @@ namespace FXOAiTranslator
             try
             {
                 LogDebug($"DEBUG: ExtractExpiry input: '{input}'");
+                LogDebug("DEBUG: EXPIRY METHOD UPDATED - Version 3.0");
 
                 var monthNames = new[] { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
                 var fullMonthNames = new[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
 
                 // 1. Full date with year: "11 nov 2025"
+                LogDebug("DEBUG: Testing full date pattern...");
                 var dateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>[A-Za-z]+)\s+(?<year>\d{4})\b", RegexOptions.IgnoreCase);
                 if (dateMatch.Success)
                 {
@@ -376,6 +378,7 @@ namespace FXOAiTranslator
                     string month = dateMatch.Groups["month"].Value.ToUpper();
                     string year = dateMatch.Groups["year"].Value;
 
+                    LogDebug($"DEBUG: Full date pattern matched: {dateMatch.Value}");
                     LogDebug($"DEBUG: Matched date - day: '{day}', month: '{month}', year: '{year}'");
 
                     for (int i = 0; i < fullMonthNames.Length; i++)
@@ -393,20 +396,28 @@ namespace FXOAiTranslator
                     return result;
                 }
 
-                // 2. Bloomberg style: 17Sep25
-                var bloombergDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>[A-Za-z]{3})(?<year>\d{2})\b", RegexOptions.IgnoreCase);
+                // 2. Bloomberg style: 17Sep25 - with month validation
+                LogDebug("DEBUG: Testing Bloomberg date pattern...");
+                var bloombergDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)(?<year>\d{2})\b", RegexOptions.IgnoreCase);
                 if (bloombergDateMatch.Success)
                 {
+                    LogDebug($"DEBUG: Bloomberg date pattern matched: {bloombergDateMatch.Value}");
                     string day = bloombergDateMatch.Groups["day"].Value;
                     string month = bloombergDateMatch.Groups["month"].Value.ToUpper();
                     string year = bloombergDateMatch.Groups["year"].Value;
+
+                    // Normalize month abbreviations
+                    if (month == "SEPT") month = "SEP";
+
                     return $"{int.Parse(day):D2}{month}{year}";
                 }
 
-                // 3. Day + month without year, e.g. "2 sep"
-                var dayMonthMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>[A-Za-z]{3,})\b", RegexOptions.IgnoreCase);
+                // 3. Day + month without year, e.g. "2 sep" - with month validation
+                LogDebug("DEBUG: Testing day + month pattern...");
+                var dayMonthMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC|JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\b", RegexOptions.IgnoreCase);
                 if (dayMonthMatch.Success)
                 {
+                    LogDebug($"DEBUG: Day + month pattern matched: {dayMonthMatch.Value}");
                     string day = dayMonthMatch.Groups["day"].Value;
                     string month = dayMonthMatch.Groups["month"].Value.ToUpper();
 
@@ -415,6 +426,7 @@ namespace FXOAiTranslator
                     {
                         if (month == fullMonthNames[i]) month = monthNames[i];
                     }
+                    if (month == "SEPT") month = "SEP";
                     if (month.Length > 3) month = month.Substring(0, 3).ToUpper();
 
                     int currentYear = DateTime.Now.Year;
@@ -432,38 +444,57 @@ namespace FXOAiTranslator
                     return $"{int.Parse(day):D2}{month}{shortYear:D2}";
                 }
 
-                // 4. FX date without year: 14Oct
-                var fxDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>[A-Za-z]{3})\b", RegexOptions.IgnoreCase);
+                // 4. FX date without year: 14Oct - with month validation
+                LogDebug("DEBUG: Testing FX date pattern...");
+                var fxDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)\b", RegexOptions.IgnoreCase);
                 if (fxDateMatch.Success)
                 {
+                    LogDebug($"DEBUG: FX date pattern matched: {fxDateMatch.Value}");
                     string day = fxDateMatch.Groups["day"].Value;
                     string month = fxDateMatch.Groups["month"].Value.ToUpper();
+
+                    // Normalize month abbreviations
+                    if (month == "SEPT") month = "SEP";
 
                     int currentYear = DateTime.Now.Year;
                     int shortYear = currentYear % 100;
 
                     int monthIndex = Array.IndexOf(monthNames, month);
-                    DateTime targetDate = (monthIndex == -1)
-                        ? new DateTime(currentYear, 1, int.Parse(day))
-                        : new DateTime(currentYear, monthIndex + 1, int.Parse(day));
+                    if (monthIndex >= 0)
+                    {
+                        DateTime targetDate = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
+                        if (targetDate < DateTime.Now.AddDays(-30))
+                            currentYear++;
+                        shortYear = currentYear % 100;
+                    }
 
-                    if (targetDate < DateTime.Now.AddDays(-30))
-                        currentYear++;
-
-                    shortYear = currentYear % 100;
                     return $"{int.Parse(day):D2}{month}{shortYear:D2}";
                 }
 
-                // 5. Tenor: 3M, 2Y
-                var tenorMatch = Regex.Match(input, @"\b(\d+)\s*(mth|[DWMY])\b", RegexOptions.IgnoreCase);
+                // 5. Tenor: 3M, 5MTH, 2Y, 10D, 2W - with explicit "mio" exclusion
+                LogDebug("DEBUG: Testing tenor patterns...");
+                var tenorMatch = Regex.Match(
+                    input,
+                    @"\b(?<num>\d+)\s*(?<unit>mth|mo|m|y|d|w)\b(?!\s*io)",
+                    RegexOptions.IgnoreCase
+                );
+
                 if (tenorMatch.Success)
                 {
-                    string number = tenorMatch.Groups[1].Value;
-                    string period = tenorMatch.Groups[2].Value.ToUpper();
+                    string number = tenorMatch.Groups["num"].Value;
+                    string period = tenorMatch.Groups["unit"].Value.ToUpper();
+
+                    LogDebug($"DEBUG: Tenor match found - number: '{number}', period: '{period}'");
+
                     if (period == "MTH") period = "M";
                     return number + period;
                 }
+                else
+                {
+                    LogDebug("DEBUG: No tenor match found");
+                }
 
+                LogDebug("DEBUG: No expiry patterns matched, using default");
                 return "3M"; // Default
             }
             catch (Exception ex)
