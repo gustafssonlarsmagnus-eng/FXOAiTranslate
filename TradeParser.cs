@@ -252,6 +252,39 @@ namespace FXOAiTranslator
                                                   (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
                                 }
                                 break;
+                            case "PutSpread_Short":
+                                LogDebug("DEBUG: Processing PutSpread_Short pattern");
+                                result.LegCount = 2;
+
+                                // Normalize strikes (higher = buy put, lower = sell put)
+                                double ps1 = double.Parse(match.Groups["strike1"].Value);
+                                double ps2 = double.Parse(match.Groups["strike2"].Value);
+
+                                string putLow = ps1 < ps2 ? match.Groups["strike1"].Value : match.Groups["strike2"].Value;
+                                string putHigh = ps1 < ps2 ? match.Groups["strike2"].Value : match.Groups["strike1"].Value;
+
+                                string notionalPS = match.Groups["notional"].Value;
+
+                                result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {putHigh}P,{putLow}P N{notionalPS}M,{notionalPS}M VA" +
+                                              (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                break;
+
+                            case "CallSpread_Short":
+                                LogDebug("DEBUG: Processing CallSpread_Short pattern");
+                                result.LegCount = 2;
+
+                                // Normalize strikes (lower = buy call, higher = sell call)
+                                double cs1 = double.Parse(match.Groups["strike1"].Value);
+                                double cs2 = double.Parse(match.Groups["strike2"].Value);
+
+                                string callLow = cs1 < cs2 ? match.Groups["strike1"].Value : match.Groups["strike2"].Value;
+                                string callHigh = cs1 < cs2 ? match.Groups["strike2"].Value : match.Groups["strike1"].Value;
+
+                                string notionalCS = match.Groups["notional"].Value;
+
+                                result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {callLow}C,{callHigh}C N{notionalCS}M,{notionalCS}M VA" +
+                                              (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                break;
 
                             default:
                                 LogDebug($"DEBUG: Unknown pattern name: {pattern.Name}");
@@ -280,13 +313,23 @@ namespace FXOAiTranslator
                     LogDebug($"DEBUG: No match for pattern: {pattern.Name}");
                 }
             }
-
             // === AI fallback ===
             LogDebug($"DEBUG: No regex patterns matched. Falling back to AI...");
             LogDebug("[Parser] Falling back to AI...");
+
+            // Try to capture explicit spot from input
+            string explicitSpot = "";
+            var aiSpotMatch = RegexTradePatterns.SpotRegex.Match(input);
+            if (aiSpotMatch.Success)
+            {
+                explicitSpot = aiSpotMatch.Groups["spot"].Value;
+                LogDebug($"DEBUG: Explicit spot extracted for AI fallback: '{explicitSpot}'");
+            }
+
             try
             {
-                var aiResult = await ParseWithAI(input);
+                var aiResult = await ParseWithAI(input, explicitSpot);
+
 
                 // Correction: override AI expiry if regex extracted a better one
                 if (!string.IsNullOrWhiteSpace(expiry) &&
@@ -339,7 +382,7 @@ namespace FXOAiTranslator
         }
 
         // === AI integration ===
-        private async Task<TradeParseResult> ParseWithAI(string input)
+        private async Task<TradeParseResult> ParseWithAI(string input, string explicitSpot = "")
         {
             if (_patternLearner == null)
             {
@@ -350,8 +393,9 @@ namespace FXOAiTranslator
             string underlying = ExtractCurrencyPair(input);
             string expiry = ExtractExpiry(input);
 
-            return await _patternLearner.ParseWithAI(input, underlying, expiry);
+            return await _patternLearner.ParseWithAI(input, underlying, expiry, explicitSpot);
         }
+
 
         // === Currency extraction ===
         private string ExtractCurrencyPair(string input)

@@ -79,6 +79,30 @@ new TradePattern(
         RegexOptions.IgnoreCase | RegexOptions.Singleline
     )
 ),
+// ============================
+//  Put Spread (Bloomberg shorthand: "PS")
+//  Example: "14Oct 11.60 11.40 PS just 10mio per"
+// ============================
+new TradePattern(
+    "PutSpread_Short",
+    new Regex(
+        @"(?<strike1>\d+(\.\d+)?)\s+(?<strike2>\d+(\.\d+)?)\s*PS\b.*?(?<notional>\d+)\s*(mio|m)",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )
+),
+
+// ============================
+//  Call Spread (Bloomberg shorthand: "CS")
+//  Example: "14Oct 9.20 9.40 CS 25mio"
+// ============================
+new TradePattern(
+    "CallSpread_Short",
+    new Regex(
+        @"(?<strike1>\d+(\.\d+)?)\s+(?<strike2>\d+(\.\d+)?)\s*CS\b.*?(?<notional>\d+)\s*(mio|m)",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )
+),
+
 
             // ============================
 //  Risk Reversal (Buy Put + Sell Call) — Multilingual, flexible word order
@@ -190,7 +214,8 @@ new TradePattern(
 
         // Spot reference regex
         public static readonly Regex SpotRegex =
-            new Regex(@"(?:ref|spot|sp)\s*(?<spot>\d+(\.\d+)?)", RegexOptions.IgnoreCase);
+    new Regex(@"(?:spot\s*ref|sp\s*ref|spotref|s\.ref)\s*(?<spot>\d+(\.\d+)?)", RegexOptions.IgnoreCase);
+
         // === Helpers for OVML assembly ===
         public static string MapSide(string side)
         {

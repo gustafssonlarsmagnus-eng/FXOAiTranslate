@@ -83,7 +83,9 @@ namespace FXOAiTranslator
             LoadLearnedPatterns();
         }
 
-        public async Task<TradeParseResult> ParseWithAI(string input, string underlying, string expiry)
+        public async Task<TradeParseResult> ParseWithAI(string input, string underlying, string expiry, string explicitSpot = "")
+
+
         {
             try
             {
@@ -97,7 +99,28 @@ namespace FXOAiTranslator
                 Console.WriteLine("[AI] No learned pattern found, calling OpenAI...");
                 // Fetch live spot rate BEFORE calling AI
                 var liveSpot = await GetDefaultSpotRateAsync(underlying);
-                string spotInfo = !string.IsNullOrEmpty(liveSpot) ? liveSpot : "9.8000";
+
+                string spotInfo;
+                string spotSource;
+
+                if (!string.IsNullOrEmpty(explicitSpot))
+                {
+                    spotInfo = explicitSpot;
+                    spotSource = "user input (s.ref / spot ref)";
+                }
+                else if (!string.IsNullOrEmpty(liveSpot))
+                {
+                    spotInfo = liveSpot;
+                    spotSource = "Bloomberg API";
+                }
+                else
+                {
+                    spotInfo = "9.8000"; // fallback
+                    spotSource = "default fallback";
+                }
+
+                Console.WriteLine($"DEBUG: Spot source = {spotSource}, value = {spotInfo}");
+
 
                 var prompt = $@"You are an expert FX options trader and OVML parser. Convert this natural language trading request into STRICT Bloomberg OVML format.
 
@@ -105,118 +128,91 @@ Input: ""{input}""
 LIVE SPOT RATE for {underlying}: {spotInfo} (Use this exact rate for strike comparison)
 
 MANDATORY OVML SYNTAX (Bloomberg Terminal Official):
-Single Leg: OVML (currency pair) (expiration date) (call/put) (strike) (buy/sell) (notional amount) (option style code) [SP(spot)]
-Multi-Leg: Use multiple OVML commands or strategy codes
+- Single Leg: OVML (currency pair) (expiry) (call/put) (strike) (buy/sell) (notional amount) (option style code) [SP(spot)]
+- Multi-Leg: OVML (currency pair) (expiry) (legs)L (directions) (strikes) N(notionals) (style) [SP(spot)]
 
 CRITICAL FORMAT RULES:
-1. DATE FORMAT: Always MM/dd/yy (NOT tenors like 1W, 3M in final output)
-   - ""1 week"" → calculate actual date as MM/dd/yy
-   - ""3M"" → calculate 3 months from today as MM/dd/yy
-   - Current date reference: Today is {DateTime.Now:MM/dd/yyyy}
+1. DATE/TENOR FORMAT:
+   - Allow Bloomberg tenor shorthand (1W, 2M, 3M, 6M, 1Y) or explicit dates (MM/dd/yy).
+   - If input is a tenor like ""3M"", keep it as ""3M"" in output.
+   - Today’s date is {DateTime.Now:MM/dd/yyyy} for reference.
 
-2. CURRENCY PAIR: Two 3-letter ISO codes without separator (EURUSD, USDNOK, EURSEK)
+2. CURRENCY PAIR: Two 3-letter ISO codes without separator (EURUSD, USDNOK, EURSEK).
 
-3. OPTION TYPE: C (call) or P (put) - NEVER ""Call"" or ""Put""
+3. OPTION TYPE: C (call) or P (put) only.
 
 4. STRIKE FORMAT:
-   - Numeric: 10.0000 (trim unnecessary zeros)
-   - Delta: DS25 (for 25 delta), DF25 (forward delta)
-   - ATM: Use actual spot rate if provided
+   - Numeric: 10.0000 (trim unnecessary zeros but keep up to 4 decimals).
+   - Delta: DS25 (for 25 delta), DF25 (forward delta).
+   - ATM: If input says ATM, use literal ""ATM"".
 
-5. DIRECTION: B (buy) or S (sell) - NEVER ""Buy"" or ""Sell""
+5. DIRECTION: B (buy) or S (sell) only.
 
-6. NOTIONAL: N + amount + M (e.g., N100M)
+6. NOTIONAL: N + amount + M (e.g., N100M).
    - ""100mm"" → N100M
    - ""50 mio"" → N50M
    - ""25M"" → N25M
-   - ""25mio"" → N25M
-
    - Multiple notionals for multi-leg: N100M,50M
+   - Default to N10M per leg if not specified.
 
-7. OPTION STYLE: VA (vanilla), DKI (double knock-in), DKO (double knock-out)
-   - Default to VA unless specified
+7. OPTION STYLE: VA (vanilla), DKI (double knock-in), DKO (double knock-out).
+   - Default to VA unless specified.
 
-8. SPOT REFERENCE: SP + rate (e.g., SP9.8190)
-   - NO brackets: [SP9.8190] is WRONG
-   - Extract from: ""spot ref"", ""s.r."", ""sp ref"", ""spotref""
+8. SPOT REFERENCE: SP + rate (e.g., SP9.8190).
+   - Always at the end if provided.
+   - Omit if no spot is given.
 
-9. MULTI-LEG DETECTION:
-   - Use single-line multi-leg format: OVML (pair) (expiry) (legs)L (directions) (strikes) (notionals) (style) [SP(spot)]
-   - Risk Reversal: ""gbp put nok call 20 delta"" → OVML GBPNOK 5M 2L B,S DS20P,DS20C N25M,25M VA SP9.8474
-   - Directions: comma-separated (B,S)
-   - Strikes: comma-separated with option type (DS20P,DS20C)
-   - Notionals: comma-separated (N25M,25M)
+9. MULTI-LEG STRUCTURES (always one OVML line):
+   - Risk Reversal: Buy Call + Sell Put (or opposite).
+   - Call Spread: Buy lower strike Call + Sell higher strike Call.
+   - Put Spread: Buy higher strike Put + Sell lower strike Put.
+   - Straddle: Buy Call + Buy Put (same strike).
+   - Strangle: Buy Call + Buy Put (different strikes).
+   - Collar: Buy Put + Sell Call (or as described).
+   - Directions: comma-separated (B,S).
+   - Strikes: comma-separated (e.g., 11.50P,11.30P).
+   - Notionals: comma-separated (e.g., N25M,25M).
 
 10. LANGUAGE SUPPORT:
-    - Swedish: säljer=sell, köper=buy, mio=million, mån=months
-    - Always use explicit option types when stated (""call"" → C, ""put"" → P)
+    - Swedish: säljer=sell, köper=buy, mio=million, mån=months.
 
-STRUCTURE PATTERNS:
-- Risk Reversal: Buy Call + Sell Put (or Sell Call + Buy Put)
-- Call Spread: Buy lower strike Call + Sell higher strike Call  
-- Put Spread: Buy higher strike Put + Sell lower strike Put
-- Collar: Buy Call + Sell Call + Sell Put (3-leg)
-- Straddle: Buy Call + Buy Put (same strike)
-- Strangle: Buy Call + Buy Put (different strikes)
+11. SHORTHAND MAPPINGS:
+    - ""PS"" = Put Spread (buy higher strike Put, sell lower strike Put).
+    - ""CS"" = Call Spread (buy lower strike Call, sell higher strike Call).
+    - These shorthands ALWAYS override other interpretations.
 
-FX SPREAD RULES:
-- ""EUR put/NOK call spread"" = put spread on EURNOK pair (both legs are puts)
-- ""EUR call/NOK put spread"" = call spread on EURNOK pair (both legs are calls)
-- Put spread = buy higher strike put, sell lower strike put → use P,P for both legs
-- Call spread = buy lower strike call, sell higher strike call → use C,C for both legs
-- ALWAYS use same option type for both legs in spreads (P,P or C,C, never mix P,C)
-- Default to 10M notional if not specified in spread requests
-
-NOTIONAL PARSING:
-- ""mio"", ""milj"", ""m"", ""mm"", ""MUSD"", ""MEUR"" → M
-- Multiple notionals: ""100M x 50M"" → first leg N100M, second leg N50M
-- ""per ben"", ""per leg"" → same notional for all legs
-
-TENOR TO DATE CONVERSION:
-- 1W = 7 days from today
-- 1M = 1 month from today  
-- 3M = 3 months from today
-- 6M = 6 months from today
-- 1Y = 1 year from today
-Calculate exact MM/dd/yy format
 
 EXAMPLES:
 Input: ""USDNOK 1 week 10.00 call in 100mm, spot ref 9.8190""
-Output: OVML USDNOK {DateTime.Now.AddDays(7):MM/dd/yy} C 10.0000 B N100M VA SP9.8190
+Output: OVML USDNOK 1W C 10.0000 B N100M VA SP9.8190
 
 Input: ""EURSEK 3M buy 11.50 put 50M, sell 11.80 call 50M""
-Output: OVML EURSEK {DateTime.Now.AddMonths(3):MM/dd/yy} P 11.5000 B N50M VA
-OVML EURSEK {DateTime.Now.AddMonths(3):MM/dd/yy} C 11.8000 S N50M VA
+Output: OVML EURSEK 3M 2L B,S 11.5000P,11.8000C N50M,50M VA
 
-Input: ""EURUSD risk reversal, buy call 1.10, sell put 1.05, 100M each""
-Output: OVML EURUSD {DateTime.Now.AddMonths(1):MM/dd/yy} C 1.1000 B N100M VA
-OVML EURUSD {DateTime.Now.AddMonths(1):MM/dd/yy} P 1.0500 S N100M VA
+Input: ""EURUSD risk reversal, buy call 1.10, sell put 1.05, 100M each, spotref 1.0833""
+Output: OVML EURUSD 1M 2L B,S 1.1000C,1.0500P N100M,100M VA SP1.0833
 
-Input: ""GBPNOK: 25 mio 5mth gbp put nok call 20 delta""
-Output: OVML GBPNOK 5M P DS20 B N25M VA SP9.8166
-
-Input: ""3-month EUR put spread with 11.50 and 11.30""
+Input: ""3-month EUR put spread with 11.50 and 11.30 in 10 mio""
 Output: OVML EURNOK 3M 2L B,S 11.5000P,11.3000P N10M,10M VA
 
-Input: ""USDSEK call spread 9.20-9.40 2 months""  
+Input: ""USDSEK call spread 9.20-9.40 2 months""
 Output: OVML USDSEK 2M 2L B,S 9.2000C,9.4000C N10M,10M VA
 
 Input: ""6M GBPNOK call spread buy 15.20 sell 15.80""
 Output: OVML GBPNOK 6M 2L B,S 15.2000C,15.8000C N10M,10M VA
 
-Multi-leg format: OVML (pair) (expiry) (legs)L (directions) (strikes) N(notionals) (style) SP(spot)
-Example: OVML GBPNOK 02/18/26 2L B,S DS20P,DS20C N25M,25M VA SP9.8285
+Input: ""Straddle EURUSD ATM 1M 25M each""
+Output: OVML EURUSD 1M 2L B,B ATM C,ATM P N25M,25M VA
 
 STRICT REQUIREMENTS:
-- Always use exact Bloomberg OVML syntax
-- Convert ALL tenors to MM/dd/yy dates
-- Use only B/S for direction, C/P for option type
-- Format notionals as N + amount + M
-- Include VA style code unless specified otherwise
-- Spot reference as SP + rate (no brackets)
+- Always produce exactly one OVML line.
+- Use single-line multi-leg format for all strategies.
+- Keep tenor notation (1W, 3M, 6M) if given.
+- Do not output explanations, only the OVML line.
 
 
-Response with ONLY the OVML command(s) - ONE PER LINE FOR MULTI-LEG:";
+";
+
 
                 var response = await _openAI.GetChatCompletion(prompt);
                 var aiResponse = response.choices[0].message.content.Trim();
@@ -418,10 +414,13 @@ Response with ONLY the OVML command(s) - ONE PER LINE FOR MULTI-LEG:";
 
         private int ExtractLegCountFromOVML(string ovml)
         {
+            if (string.IsNullOrWhiteSpace(ovml))
+                return 1;
+
             var parts = ovml.Split(' ');
 
-            // Find the part with "L" suffix - could be in different positions
-            for (int i = 2; i < Math.Min(parts.Length, 6); i++)
+            // 1. Look for explicit "2L", "3L", etc.
+            for (int i = 2; i < Math.Min(parts.Length, 8); i++)
             {
                 if (parts[i].EndsWith("L") && parts[i].Length > 1 && char.IsDigit(parts[i][0]))
                 {
@@ -431,8 +430,20 @@ Response with ONLY the OVML command(s) - ONE PER LINE FOR MULTI-LEG:";
                     }
                 }
             }
+
+            // 2. Fallback: infer from comma-separated strikes
+            // e.g. "11.5000P,11.3000P" → 2 legs
+            var strikePart = parts.FirstOrDefault(p => p.Contains("P") || p.Contains("C"));
+            if (!string.IsNullOrEmpty(strikePart) && strikePart.Contains(","))
+            {
+                var legs = strikePart.Split(',').Length;
+                if (legs > 1) return legs;
+            }
+
+            // 3. Default: assume single leg
             return 1;
         }
+
     }
 
     public class LearnedPattern

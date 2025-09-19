@@ -72,26 +72,51 @@ namespace FXOAiTranslator
             }
         }
 
-        // Simulate fetching a spot rate (stub for Bloomberg market data API)
+        // Fetch a spot rate from Bloomberg if possible
         public async Task<double?> GetSpotRate(string underlying)
         {
             try
             {
-                // Simulate async delay
-                await Task.Delay(200);
+                // === 1. Try Bloomberg Desktop API (replace with your actual implementation) ===
+                using var session = new Session();
+                if (!session.Start() || !session.OpenService("//blp/refdata"))
+                {
+                    Console.WriteLine("[Bloomberg API] Could not start Bloomberg session.");
+                    return null;
+                }
 
-                // This would be a real Bloomberg API call in production
-                var random = new Random();
-                double fakeSpot = 9.8000 + random.NextDouble() * 0.0500;
+                var service = session.GetService("//blp/refdata");
+                var request = service.CreateRequest("ReferenceDataRequest");
+                request.Append("securities", $"{underlying} Curncy");
+                request.Append("fields", "PX_LAST");
 
-                Console.WriteLine($"[Bloomberg API] Got spot rate for {underlying}: {fakeSpot:F4}");
-                return fakeSpot;
+                var cid = session.SendRequest(request, null);
+
+                while (true)
+                {
+                    var evt = session.NextEvent();
+                    foreach (var msg in evt)
+                    {
+                        if (msg.HasElement("PX_LAST"))
+                        {
+                            double spot = msg.GetElementAsFloat64("PX_LAST");
+                            Console.WriteLine($"[Bloomberg API] Got live spot for {underlying}: {spot:F4}");
+                            return spot;
+                        }
+                    }
+                    if (evt.Type == Event.EventType.RESPONSE) break;
+                }
+
+                Console.WriteLine($"[Bloomberg API] No PX_LAST returned for {underlying}");
+                return null;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"[Bloomberg API] Error fetching spot: {ex.Message}");
                 return null;
             }
         }
+
 
         // ADD THIS METHOD HERE (after GetSpotRate method, before the comment "--- Helpers to find Bloomberg window ---"):
         public string DetermineCallOrPut(double strikePrice, string currencyPair)
