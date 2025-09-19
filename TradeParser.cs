@@ -54,6 +54,7 @@ namespace FXOAiTranslator
                     Expiry = NormalizeExpiry(ExtractExpiry(input)), // normalized here
                     ParseMethod = "Already-OVML"
                 };
+                already.GenerateUBS();
                 _cache[input] = already;
                 return already;
             }
@@ -294,8 +295,10 @@ namespace FXOAiTranslator
                         // Normalize outputs
                         result.OVML = NormalizeOVMLDates(result.OVML);
                         result.Expiry = NormalizeExpiry(result.Expiry);
+                        result.GenerateUBS(); // Generate UBS format
 
                         LogDebug($"DEBUG: Generated OVML: '{result.OVML}'");
+                        LogDebug($"DEBUG: Generated UBS: '{result.UBS}'");
                         LogDebug($"[RegexParser] Matched {pattern.Name}: {result.OVML}");
 
                         _cache[input] = result; // Cache the result
@@ -355,9 +358,11 @@ namespace FXOAiTranslator
                 // Normalize both expiry + OVML
                 aiResult.OVML = NormalizeOVMLDates(aiResult.OVML);
                 aiResult.Expiry = NormalizeExpiry(aiResult.Expiry);
+                aiResult.GenerateUBS(); // Generate UBS format
 
                 LogDebug($"DEBUG: AI Success - ParseMethod: '{aiResult.ParseMethod}'");
                 LogDebug($"DEBUG: AI Success - OVML: '{aiResult.OVML}'");
+                LogDebug($"DEBUG: AI Success - UBS: '{aiResult.UBS}'");
 
                 _cache[input] = aiResult; // Cache AI result
                 return aiResult;
@@ -673,8 +678,6 @@ namespace FXOAiTranslator
             }
         }
 
-
-
         // === Normalization helpers ===
         private string NormalizeOVMLDates(string ovml)
         {
@@ -745,7 +748,7 @@ namespace FXOAiTranslator
         public int LegCount { get; set; }
         public string Expiry { get; set; }
         public string ParseMethod { get; set; }
-        public string AdditionalInfo { get; set; } // For AI responses, error messages, etc.
+        public string AdditionalInfo { get; set; }
 
         public TradeParseResult()
         {
@@ -756,6 +759,273 @@ namespace FXOAiTranslator
             Expiry = "";
             ParseMethod = "";
             AdditionalInfo = "";
+        }
+
+        // Generate UBS format from OVML
+        public void GenerateUBS()
+        {
+            if (string.IsNullOrEmpty(OVML))
+            {
+                UBS = "";
+                return;
+            }
+
+            try
+            {
+                UBS = ConvertOVMLToUBS(OVML, Underlying, Expiry, LegCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error generating UBS format: {ex.Message}");
+                UBS = "";
+            }
+        }
+
+        private string ConvertOVMLToUBS(string ovml, string underlying, string expiry, int legCount)
+        {
+            var parts = ovml.Split(' ');
+            if (parts.Length < 4) return "";
+
+            // Extract components from OVML
+            string currency = ExtractBaseCurrency(underlying); // EUR from EURNOK
+            string formattedDate = FormatDateForUBS(expiry);
+            string spot = ExtractSpotFromOVML(ovml);
+
+            if (legCount == 1)
+            {
+                return BuildSingleLegUBS(parts, underlying, currency, formattedDate, spot);
+            }
+            else
+            {
+                return BuildMultiLegUBS(parts, underlying, currency, formattedDate, spot, legCount);
+            }
+        }
+
+        private string BuildMultiLegUBS(string[] parts, string underlying, string currency, string formattedDate, string spot, int legCount)
+        {
+            // Find strikes, directions, and notionals in OVML
+            string strikes = FindStrikesInOVML(parts);
+            string directions = FindDirectionsInOVML(parts);
+            string notionals = FindNotionalsInOVML(parts);
+
+            if (string.IsNullOrEmpty(strikes) || string.IsNullOrEmpty(notionals))
+                return "";
+
+            var strikeList = strikes.Split(',');
+            var notionalList = notionals.Replace("N", "").Replace("M", "").Split(',');
+            var directionList = directions.Split(',');
+
+            var legs = new List<string>();
+
+            for (int i = 0; i < Math.Min(strikeList.Length, notionalList.Length); i++)
+            {
+                string strike = strikeList[i].Trim();
+                string notional = notionalList[i].Trim();
+                string direction = i < directionList.Length ? directionList[i].Trim() : "B";
+
+                // Extract option type (C/P) from strike
+                char optionType = 'C';
+                if (strike.EndsWith("P"))
+                {
+                    optionType = 'P';
+                    strike = strike.Substring(0, strike.Length - 1);
+                }
+                else if (strike.EndsWith("C"))
+                {
+                    strike = strike.Substring(0, strike.Length - 1);
+                }
+
+                // Build leg: EURNOK 11.8000C EUR 10MIO 11-Nov-25
+                string leg = $"{underlying} {strike}{optionType}";
+
+                // Add currency for first leg only (based on pattern)
+                if (i == 0)
+                {
+                    leg += $" {currency}";
+                }
+
+                // Scale notional down by 10x for UBS format
+                if (double.TryParse(notional, out double amount))
+                {
+                    double scaledAmount = amount / 10.0;
+                    leg += $" {scaledAmount}MIO";
+                }
+                else
+                {
+                    leg += $" {notional}MIO";
+                }
+
+                // Add date to first leg only
+                if (i == 0 && !string.IsNullOrEmpty(formattedDate))
+                {
+                    leg += $" {formattedDate}";
+                }
+
+                legs.Add(leg);
+            }
+
+            string result = string.Join(", ", legs);
+
+            // Add spot reference at the end
+            if (!string.IsNullOrEmpty(spot))
+            {
+                result += $" SPOT {spot}";
+            }
+
+            return result;
+        }
+
+        private string BuildSingleLegUBS(string[] parts, string underlying, string currency, string formattedDate, string spot)
+        {
+            // For single leg: EURNOK 11.8000C EUR 10MIO 11-Nov-25 SPOT 11.7425
+            string strike = "";
+            string optionType = "";
+            string direction = "";
+            string notional = "";
+
+            // Parse single leg OVML format
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i] == "C" || parts[i] == "P")
+                {
+                    optionType = parts[i];
+                    if (i > 0) strike = parts[i - 1];
+                }
+                else if (parts[i] == "B" || parts[i] == "S")
+                {
+                    direction = parts[i];
+                }
+                else if (parts[i].StartsWith("N") && parts[i].EndsWith("M"))
+                {
+                    notional = parts[i].Substring(1, parts[i].Length - 2);
+                }
+            }
+
+            if (string.IsNullOrEmpty(strike) || string.IsNullOrEmpty(optionType) || string.IsNullOrEmpty(notional))
+                return "";
+
+            string result = $"{underlying} {strike}{optionType} {currency}";
+
+            // Scale notional down by 10x for UBS format
+            if (double.TryParse(notional, out double amount))
+            {
+                double scaledAmount = amount / 10.0;
+                result += $" {scaledAmount}MIO";
+            }
+            else
+            {
+                result += $" {notional}MIO";
+            }
+
+            if (!string.IsNullOrEmpty(formattedDate))
+            {
+                result += $" {formattedDate}";
+            }
+
+            if (!string.IsNullOrEmpty(spot))
+            {
+                result += $" SPOT {spot}";
+            }
+
+            return result;
+        }
+
+        private string ExtractBaseCurrency(string currencyPair)
+        {
+            // Extract base currency (first 3 letters)
+            if (currencyPair.Length >= 3)
+            {
+                return currencyPair.Substring(0, 3);
+            }
+            return "EUR"; // Default fallback
+        }
+
+        private string FormatDateForUBS(string expiry)
+        {
+            // Convert various date formats to dd-MMM-yy format
+            try
+            {
+                // Handle MM/dd/yy format
+                if (Regex.IsMatch(expiry, @"^\d{2}/\d{2}/\d{2}$"))
+                {
+                    if (DateTime.TryParseExact(expiry, "MM/dd/yy", null, DateTimeStyles.None, out DateTime dt))
+                    {
+                        return dt.ToString("dd-MMM-yy");
+                    }
+                }
+
+                // Handle ddMMMYY format (like 11NOV25)
+                if (Regex.IsMatch(expiry, @"^\d{1,2}[A-Za-z]{3}\d{2}$"))
+                {
+                    if (DateTime.TryParseExact(expiry, new[] { "ddMMMyy", "dMMMyy" },
+                        null, DateTimeStyles.None, out DateTime dt))
+                    {
+                        return dt.ToString("dd-MMM-yy");
+                    }
+                }
+
+                // Handle tenor formats (3M, 1Y, etc.) - calculate future date
+                if (Regex.IsMatch(expiry, @"^\d+[MYWWD]$"))
+                {
+                    var futureDate = CalculateFutureDate(expiry);
+                    if (futureDate.HasValue)
+                    {
+                        return futureDate.Value.ToString("dd-MMM-yy");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error formatting date for UBS: {ex.Message}");
+            }
+
+            return ""; // Return empty if can't parse
+        }
+
+        private DateTime? CalculateFutureDate(string tenor)
+        {
+            if (string.IsNullOrEmpty(tenor)) return null;
+
+            var match = Regex.Match(tenor, @"^(\d+)([MYWWD])$");
+            if (!match.Success) return null;
+
+            int amount = int.Parse(match.Groups[1].Value);
+            char period = match.Groups[2].Value[0];
+
+            var baseDate = DateTime.Now;
+
+            return period switch
+            {
+                'D' => baseDate.AddDays(amount),
+                'W' => baseDate.AddDays(amount * 7),
+                'M' => baseDate.AddMonths(amount),
+                'Y' => baseDate.AddYears(amount),
+                _ => null
+            };
+        }
+
+        private string FindStrikesInOVML(string[] parts)
+        {
+            // Look for pattern like "11.8000C,12.1000C,11.5500P"
+            return parts.FirstOrDefault(p => p.Contains("C") || p.Contains("P")) ?? "";
+        }
+
+        private string FindDirectionsInOVML(string[] parts)
+        {
+            // Look for pattern like "B,S,S"
+            return parts.FirstOrDefault(p => p.Contains("B") || p.Contains("S")) ?? "";
+        }
+
+        private string FindNotionalsInOVML(string[] parts)
+        {
+            // Look for pattern like "N100M,125M,100M"
+            return parts.FirstOrDefault(p => p.StartsWith("N") && p.Contains("M")) ?? "";
+        }
+
+        private string ExtractSpotFromOVML(string ovml)
+        {
+            var match = Regex.Match(ovml, @"SP(\d+\.?\d*)");
+            return match.Success ? match.Groups[1].Value : "";
         }
     }
 }
