@@ -584,7 +584,7 @@ namespace FXOAiTranslator
                 // More restrictive: avoid matching large numbers that are likely notionals
                 var tenorMatch = Regex.Match(
                     input,
-                    @"\b(?<num>[1-9]\d{0,1})\s*(?<unit>month|months|mth|mo|m|year|years|y|day|days|d|week|weeks|w)\b(?!\s*io)(?!\s*[A-Z]{6})",
+                    @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>month|months|mth|mo|m|year|years|y|day|days|d|week|weeks|w)\b(?!\s*io)(?!\s*[A-Z]{6})",
                     RegexOptions.IgnoreCase
                 );
 
@@ -696,6 +696,7 @@ namespace FXOAiTranslator
     public class TradeParseResult
     {
         public string OVML { get; set; }
+        public string UBS { get; set; }
         public string Underlying { get; set; }
         public int LegCount { get; set; }
         public string Expiry { get; set; }
@@ -705,6 +706,7 @@ namespace FXOAiTranslator
         public TradeParseResult()
         {
             OVML = "";
+            UBS = "";
             Underlying = "";
             LegCount = 1;
             Expiry = "";

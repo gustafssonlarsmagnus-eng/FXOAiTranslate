@@ -295,6 +295,16 @@ namespace FXOAiTranslator
                 UseColumnTextForButtonValue = true
             });
 
+            // Add hidden UBS column to store UBS data
+            dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "UBS",
+                HeaderText = "UBS",
+                Width = 0,
+                Visible = false,
+                ReadOnly = true
+            });
+
             // Style the header
             dgvTradeBlotter.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 58, 64);
             dgvTradeBlotter.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
@@ -402,7 +412,9 @@ namespace FXOAiTranslator
                 result.LegCount,
                 result.Expiry,
                 spotRef,
-                result.ParseMethod
+                result.ParseMethod,
+                "", // Placeholder for Reject column
+                result.UBS ?? "" // Store UBS data in hidden column
             });
 
             // Color code by method
@@ -421,75 +433,6 @@ namespace FXOAiTranslator
 
             var match = System.Text.RegularExpressions.Regex.Match(ovml, @"SP(\d+\.?\d*)");
             return match.Success ? match.Groups[1].Value : "";
-        }
-
-        private string GenerateUBSFormat(string ovml, string originalRequest)
-        {
-            if (string.IsNullOrEmpty(ovml)) return "";
-
-            try
-            {
-                // Parse OVML to extract components
-                var parts = ovml.Split(' ');
-                if (parts.Length < 6) return "";
-
-                string currency = parts[1];
-                string legs = parts[2];
-                string directions = parts[3];
-                string strikes = parts[4];
-                string expiry = parts[5];
-                string notionals = "";
-                string spotRef = "";
-
-                // Find notionals and spot ref
-                for (int i = 6; i < parts.Length; i++)
-                {
-                    if (parts[i].StartsWith("N"))
-                        notionals = parts[i].Substring(1); // Remove 'N'
-                    else if (parts[i].StartsWith("SP"))
-                        spotRef = parts[i].Substring(2); // Remove 'SP'
-                }
-
-                // Convert to UBS format
-                if (legs == "1L")
-                {
-                    // Single leg
-                    var dir = directions == "B" ? "BUY" : "SELL";
-                    var notional = notionals.Replace("M", "");
-                    var ubsNotional = (int.Parse(notional) / 10).ToString(); // Divide by 10
-                    var optionType = strikes.Contains("C") ? "CALL" : "PUT";
-                    var strike = strikes.Replace("C", "").Replace("P", "");
-
-                    return $"{currency} {expiry} {dir} {ubsNotional}M {strike} {optionType}" +
-                           (string.IsNullOrEmpty(spotRef) ? "" : $" @ SP {spotRef}");
-                }
-                else
-                {
-                    // Multi-leg
-                    var dirs = directions.Split(',');
-                    var strikeArray = strikes.Split(',');
-                    var notionalArray = notionals.Split(',');
-
-                    var ubsLegs = new string[dirs.Length];
-                    for (int i = 0; i < dirs.Length; i++)
-                    {
-                        var dir = dirs[i] == "B" ? "BUY" : "SELL";
-                        var notional = notionalArray[i].Replace("M", "");
-                        var ubsNotional = (int.Parse(notional) / 10).ToString(); // Divide by 10
-                        var optionType = strikeArray[i].Contains("C") ? "CALL" : "PUT";
-                        var strike = strikeArray[i].Replace("C", "").Replace("P", "");
-
-                        ubsLegs[i] = $"{dir} {ubsNotional}M {strike} {optionType}";
-                    }
-
-                    return $"{currency} {expiry} " + string.Join(" / ", ubsLegs) +
-                           (string.IsNullOrEmpty(spotRef) ? "" : $" @ SP {spotRef}");
-                }
-            }
-            catch
-            {
-                return $"Error converting OVML to UBS format: {ovml}";
-            }
         }
 
         private void BtnToggleDebug_Click(object sender, EventArgs e)
@@ -566,15 +509,18 @@ namespace FXOAiTranslator
         {
             if (dgvTradeBlotter.SelectedRows.Count > 0)
             {
-                var ovml = dgvTradeBlotter.SelectedRows[0].Cells["OVML"].Value?.ToString();
-                var request = dgvTradeBlotter.SelectedRows[0].Cells["Request"].Value?.ToString();
+                var ubs = dgvTradeBlotter.SelectedRows[0].Cells["UBS"].Value?.ToString();
 
-                if (!string.IsNullOrEmpty(ovml))
+                if (!string.IsNullOrEmpty(ubs))
                 {
-                    var ubs = GenerateUBSFormat(ovml, request);
                     Clipboard.SetText(ubs);
                     MessageBox.Show("UBS format copied to clipboard!", "Success",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show("No UBS data available for this trade.", "No Data",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             else

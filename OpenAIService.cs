@@ -129,6 +129,9 @@ CRITICAL FORMAT RULES:
    - ""100mm"" → N100M
    - ""50 mio"" → N50M
    - ""25M"" → N25M
+   - ""25mio"" → N25M
+
+   - Multiple notionals for multi-leg: N100M,50M
 
 7. OPTION STYLE: VA (vanilla), DKI (double knock-in), DKO (double knock-out)
    - Default to VA unless specified
@@ -155,6 +158,14 @@ STRUCTURE PATTERNS:
 - Collar: Buy Call + Sell Call + Sell Put (3-leg)
 - Straddle: Buy Call + Buy Put (same strike)
 - Strangle: Buy Call + Buy Put (different strikes)
+
+FX SPREAD RULES:
+- ""EUR put/NOK call spread"" = put spread on EURNOK pair (both legs are puts)
+- ""EUR call/NOK put spread"" = call spread on EURNOK pair (both legs are calls)
+- Put spread = buy higher strike put, sell lower strike put → use P,P for both legs
+- Call spread = buy lower strike call, sell higher strike call → use C,C for both legs
+- ALWAYS use same option type for both legs in spreads (P,P or C,C, never mix P,C)
+- Default to 10M notional if not specified in spread requests
 
 NOTIONAL PARSING:
 - ""mio"", ""milj"", ""m"", ""mm"", ""MUSD"", ""MEUR"" → M
@@ -184,8 +195,14 @@ OVML EURUSD {DateTime.Now.AddMonths(1):MM/dd/yy} P 1.0500 S N100M VA
 Input: ""GBPNOK: 25 mio 5mth gbp put nok call 20 delta""
 Output: OVML GBPNOK 5M P DS20 B N25M VA SP9.8166
 
-Input: ""3-month EUR put/NOK call spread with 11.50 and 11.30""
-Output: OVML EURNOK 3M 2L B,S 11.5000P,11.3000P N25M,25M VA
+Input: ""3-month EUR put spread with 11.50 and 11.30""
+Output: OVML EURNOK 3M 2L B,S 11.5000P,11.3000P N10M,10M VA
+
+Input: ""USDSEK call spread 9.20-9.40 2 months""  
+Output: OVML USDSEK 2M 2L B,S 9.2000C,9.4000C N10M,10M VA
+
+Input: ""6M GBPNOK call spread buy 15.20 sell 15.80""
+Output: OVML GBPNOK 6M 2L B,S 15.2000C,15.8000C N10M,10M VA
 
 Multi-leg format: OVML (pair) (expiry) (legs)L (directions) (strikes) N(notionals) (style) SP(spot)
 Example: OVML GBPNOK 02/18/26 2L B,S DS20P,DS20C N25M,25M VA SP9.8285
@@ -197,7 +214,7 @@ STRICT REQUIREMENTS:
 - Format notionals as N + amount + M
 - Include VA style code unless specified otherwise
 - Spot reference as SP + rate (no brackets)
-- For multi-leg: separate OVML command per leg
+
 
 Response with ONLY the OVML command(s) - ONE PER LINE FOR MULTI-LEG:";
 
@@ -402,10 +419,17 @@ Response with ONLY the OVML command(s) - ONE PER LINE FOR MULTI-LEG:";
         private int ExtractLegCountFromOVML(string ovml)
         {
             var parts = ovml.Split(' ');
-            if (parts.Length > 2 && parts[2].EndsWith("L"))
+
+            // Find the part with "L" suffix - could be in different positions
+            for (int i = 2; i < Math.Min(parts.Length, 6); i++)
             {
-                if (int.TryParse(parts[2].Substring(0, parts[2].Length - 1), out int legs))
-                    return legs;
+                if (parts[i].EndsWith("L") && parts[i].Length > 1 && char.IsDigit(parts[i][0]))
+                {
+                    if (int.TryParse(parts[i].Substring(0, parts[i].Length - 1), out int legs))
+                    {
+                        return legs;
+                    }
+                }
             }
             return 1;
         }
