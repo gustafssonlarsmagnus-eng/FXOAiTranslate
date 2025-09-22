@@ -319,11 +319,13 @@ namespace FXOAiTranslator
         {
             _bloombergService = new BloombergService();
 
-            // Load OpenAI API key from config file
-            string openAIApiKey = System.Configuration.ConfigurationManager.AppSettings["OpenAIApiKey"];
+            // Load OpenAI API key (environment variable preferred)
+            string openAIApiKey = LoadApiKey();
             Console.WriteLine($"DEBUG: OpenAI API Key loaded: {(string.IsNullOrEmpty(openAIApiKey) ? "NONE" : "YES (length: " + openAIApiKey.Length + ")")}");
 
+            // Initialize trade parser with API key
             _tradeParser = new TradeParser(_bloombergService, openAIApiKey);
+
 
             // Hook into debug callback to capture parsing logs
             _tradeParser.DebugCallback = LogDebugMessage;
@@ -331,6 +333,21 @@ namespace FXOAiTranslator
             // Update Bloomberg status
             UpdateBloombergStatus();
         }
+
+        private string LoadApiKey()
+        {
+            // 1. Try environment variable first
+            string key = Environment.GetEnvironmentVariable("OpenAIApiKey");
+
+            // 2. Fall back to App.config if not found
+            if (string.IsNullOrEmpty(key) || key == "changeme")
+            {
+                key = System.Configuration.ConfigurationManager.AppSettings["OpenAIApiKey"];
+            }
+
+            return key;
+        }
+
 
         private void SetupEventHandlers()
         {
