@@ -490,7 +490,7 @@ namespace FXOAiTranslator
                 var swedishShortMonths = new[] { "JAN", "FEB", "MAR", "APR", "MAJ", "JUN", "JUL", "AUG", "SEP", "OKT", "NOV", "DEC" };
 
                 // Norwegian months
-                var norwegianMonths = new[] { "JANUAR", "FEBRUAR", "MARS", "APRIL", "MAI", "JUNI", "JULI", "AUGUST", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
+                var norwegianMonths = new[] { "JANUAR", "FEBRUARI", "MARS", "APRIL", "MAI", "JUNI", "JULI", "AUGUST", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
 
                 // Helper method to normalize month names
                 string NormalizeMonth(string month)
@@ -730,6 +730,23 @@ namespace FXOAiTranslator
 
             return null;
         }
+
+        public bool RemoveLearnedPattern(string patternName)
+        {
+            try
+            {
+                if (_patternLearner != null)
+                {
+                    return _patternLearner.RemovePattern(patternName);
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LogDebug($"Error removing pattern {patternName}: {ex.Message}");
+                return false;
+            }
+        }
     }
 
     public class MarketEnhancementResult
@@ -749,6 +766,11 @@ namespace FXOAiTranslator
         public string Expiry { get; set; }
         public string ParseMethod { get; set; }
         public string AdditionalInfo { get; set; }
+
+        // Validation properties
+        public SanityCheckResult ValidationResult { get; set; }
+        public bool IsValidated => ValidationResult?.IsValid ?? false;
+        public string ValidationWarning => ValidationResult?.IsValid == false ? ValidationResult.Reason : null;
 
         public TradeParseResult()
         {

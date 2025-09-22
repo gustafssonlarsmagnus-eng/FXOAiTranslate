@@ -72,14 +72,15 @@ namespace FXOAiTranslator
         private readonly OpenAIService _openAI;
         private readonly string _patternsFilePath;
         private List<LearnedPattern> _learnedPatterns;
-
         private readonly BloombergService _bloombergService;
+        private readonly TradeSanityChecker _sanityChecker;
 
         public HybridPatternLearner(OpenAIService openAI, BloombergService bloombergService, string patternsFilePath = "learned_patterns.json")
         {
             _openAI = openAI;
             _bloombergService = bloombergService;
             _patternsFilePath = patternsFilePath;
+            _sanityChecker = new TradeSanityChecker(openAI, bloombergService); // ADD THIS LINE
             LoadLearnedPatterns();
         }
 
@@ -89,7 +90,7 @@ namespace FXOAiTranslator
         {
             try
             {
-                var learnedResult = TryLearnedPatterns(input, underlying, expiry);
+                var learnedResult = await TryLearnedPatterns(input, underlying, expiry);
                 if (learnedResult != null)
                 {
                     Console.WriteLine($"[AI] Used learned pattern: {learnedResult.ParseMethod}");
@@ -255,7 +256,7 @@ STRICT REQUIREMENTS:
                         }
                     }
 
-                    return new TradeParseResult
+                    var result = new TradeParseResult
                     {
                         OVML = ovml,
                         Underlying = ExtractUnderlyingFromOVML(ovml),
@@ -264,6 +265,34 @@ STRICT REQUIREMENTS:
                         ParseMethod = "AI-Success",
                         AdditionalInfo = aiResponse
                     };
+
+                    // ADD SANITY CHECK HERE:
+                    try
+                    {
+                        var sanityCheck = await _sanityChecker.ValidateTradeAsync(input, result);
+                        result.ValidationResult = sanityCheck;
+
+                        if (sanityCheck.IsValid)
+                        {
+                            result.ParseMethod = $"AI-Success (Validated - {sanityCheck.Confidence:P0})";
+                            Console.WriteLine($"[AI] Sanity check PASSED: {sanityCheck.Reason}");
+
+                            // ADD THIS LINE:
+                            LearnFromSuccessfulExample(input, result);
+                        }
+                        else
+                        {
+                            result.ParseMethod = $"AI-Warning (Failed Validation - {sanityCheck.Confidence:P0})";
+                            Console.WriteLine($"[AI] Sanity check FAILED: {sanityCheck.Reason}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[AI] Sanity check error: {ex.Message}");
+                        // Keep original result if sanity check fails
+                    }
+
+                    return result;
                 }
 
                 return new TradeParseResult
@@ -311,33 +340,28 @@ STRICT REQUIREMENTS:
             return "";
         }
 
-        private TradeParseResult TryLearnedPatterns(string input, string underlying, string expiry)
+        private async Task<TradeParseResult> TryLearnedPatterns(string input, string underlying, string expiry)
         {
             foreach (var pattern in _learnedPatterns.OrderByDescending(p => p.UsageCount))
             {
                 try
                 {
-                    var regex = new Regex(
-                        pattern.RegexPattern.Trim('@', '"'),
-                        RegexOptions.IgnoreCase | RegexOptions.Singleline);
-
+                    var regex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
                     var match = regex.Match(input);
+
                     if (match.Success)
                     {
                         pattern.UsageCount++;
                         SaveLearnedPatterns();
 
-                        var templateOVML = pattern.ExampleOutput;
-                        var generatedOVML = AdaptOVMLTemplate(templateOVML, match, underlying, expiry);
+                        // Execute the learned logic instead of using a template
+                        var result = await ExecuteLearnedLogic(pattern, match, input, underlying, expiry);
 
-                        return new TradeParseResult
+                        if (result != null)
                         {
-                            OVML = generatedOVML,
-                            Underlying = underlying,
-                            Expiry = expiry,
-                            ParseMethod = $"Learned-{pattern.Name}",
-                            LegCount = ExtractLegCountFromOVML(generatedOVML)
-                        };
+                            result.ParseMethod = $"Learned-{pattern.Name}";
+                            return result;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -347,6 +371,110 @@ STRICT REQUIREMENTS:
             }
             return null;
         }
+
+        private async Task<TradeParseResult> ExecuteLearnedLogic(LearnedPattern pattern, Match match, string input, string underlying, string expiry)
+        {
+            try
+            {
+                if (pattern.Logic.StrategyType == "VANILLA")
+                {
+                    // Extract components from the match using learned rules
+                    var components = ExtractComponentsFromMatch(pattern.Logic, match);
+
+                    // Get live spot rate (replicating AI logic)
+                    string spotRate = "";
+                    if (pattern.Logic.RequiresSpotLookup)
+                    {
+                        spotRate = await GetDefaultSpotRateAsync(underlying);
+                    }
+
+                    // Determine option type using learned logic
+                    string optionType = "C"; // Default
+                    if (pattern.Logic.MoneynessDetermination == "STRIKE_VS_SPOT" && !string.IsNullOrEmpty(spotRate))
+                    {
+                        if (double.TryParse(components["STRIKE"], out double strike) &&
+                            double.TryParse(spotRate, out double spot))
+                        {
+                            optionType = strike > spot ? "C" : "P"; // ITM put, OTM call
+                        }
+                    }
+
+                    // Build OVML using extracted values and determined logic
+                    var ovml = $"OVML {underlying} {expiry} {optionType} {components["STRIKE"]} {pattern.Logic.DefaultDirection} N{components["NOTIONAL"]}M VA";
+
+                    if (!string.IsNullOrEmpty(spotRate))
+                    {
+                        ovml += $" SP{spotRate}";
+                    }
+
+                    return new TradeParseResult
+                    {
+                        OVML = ovml,
+                        Underlying = underlying,
+                        Expiry = expiry,
+                        LegCount = 1,
+                        ParseMethod = $"Learned-{pattern.Name}",
+                        AdditionalInfo = "Generated using learned logic pattern"
+                    };
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AI] Error executing learned logic: {ex.Message}");
+                return null;
+            }
+        }
+
+        private Dictionary<string, string> ExtractComponentsFromMatch(PatternLogic logic, Match match)
+        {
+            var components = new Dictionary<string, string>();
+
+            foreach (var rule in logic.ExtractionRules)
+            {
+                switch (rule)
+                {
+                    case "CURRENCY_FROM_GROUP_1":
+                        components["CURRENCY"] = match.Groups[1].Value;
+                        break;
+                    case "EXPIRY_FROM_GROUP_2":
+                        components["EXPIRY"] = match.Groups[2].Value;
+                        break;
+                    case "STRIKE_FROM_GROUP_3":
+                        components["STRIKE"] = match.Groups[3].Value;
+                        break;
+                    case "NOTIONAL_FROM_GROUP_4":
+                        components["NOTIONAL"] = match.Groups[4].Value;
+                        break;
+                }
+            }
+
+            return components;
+        }
+
+        public bool RemovePattern(string patternName)
+        {
+            try
+            {
+                var patternToRemove = _learnedPatterns.FirstOrDefault(p => p.Name == patternName);
+                if (patternToRemove != null)
+                {
+                    _learnedPatterns.Remove(patternToRemove);
+                    SaveLearnedPatterns();
+                    Console.WriteLine($"[AI] Removed learned pattern: {patternName}");
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AI] Error removing pattern: {ex.Message}");
+                return false;
+            }
+        
+        }
+
 
         private string AdaptOVMLTemplate(string templateOVML, Match match, string underlying, string expiry)
         {
@@ -443,6 +571,64 @@ STRICT REQUIREMENTS:
             // 3. Default: assume single leg
             return 1;
         }
+        private void LearnFromSuccessfulExample(string input, TradeParseResult result)
+        {
+            try
+            {
+                // Analyze the successful example to extract the logic pattern
+                var pattern = AnalyzeSuccessfulPattern(input, result);
+
+                if (pattern != null)
+                {
+                    _learnedPatterns.Add(pattern);
+                    SaveLearnedPatterns();
+                    Console.WriteLine($"[AI] Auto-learned new logic pattern: {pattern.Name}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AI] Error learning pattern: {ex.Message}");
+            }
+        }
+
+        private LearnedPattern AnalyzeSuccessfulPattern(string input, TradeParseResult result)
+        {
+            // Detect the input pattern type
+            if (IsVanillaQuotePattern(input))
+            {
+                return new LearnedPattern
+                {
+                    Name = "Auto-Vanilla-Quote",
+                    RegexPattern = @"^(\w{6})\s+(\d{1,2}\w{3}\d{2})\s+([\d.]+)\s+in\s+(\d+)m?io\s*(pls|please)?$",
+                    Description = "Simple vanilla option quote request",
+                    CreatedAt = DateTime.Now,
+                    UsageCount = 1,
+                    Logic = new PatternLogic
+                    {
+                        StrategyType = "VANILLA",
+                        RequiresSpotLookup = true,
+                        MoneynessDetermination = "STRIKE_VS_SPOT",
+                        DefaultDirection = "B", // Quote = buy request
+                        ExtractionRules = new List<string>
+                {
+                    "CURRENCY_FROM_GROUP_1",
+                    "EXPIRY_FROM_GROUP_2",
+                    "STRIKE_FROM_GROUP_3",
+                    "NOTIONAL_FROM_GROUP_4"
+                }
+                    }
+                };
+            }
+
+            // Could add detection for other pattern types here
+            return null;
+        }
+
+        private bool IsVanillaQuotePattern(string input)
+        {
+            // Simple vanilla quote: currency + date + strike + "in" + notional + politeness
+            return Regex.IsMatch(input, @"^\w{6}\s+\d{1,2}\w{3}\d{2}\s+[\d.]+\s+in\s+\d+m?io", RegexOptions.IgnoreCase);
+        }
 
     }
 
@@ -450,10 +636,18 @@ STRICT REQUIREMENTS:
     {
         public string Name { get; set; }
         public string RegexPattern { get; set; }
-        public string ExampleInput { get; set; }
-        public string ExampleOutput { get; set; }
+        public string Description { get; set; }
         public DateTime CreatedAt { get; set; }
         public int UsageCount { get; set; }
-        public string AdditionalInfo { get; set; }
+        public PatternLogic Logic { get; set; }
+    }
+
+    public class PatternLogic
+    {
+        public string StrategyType { get; set; }
+        public bool RequiresSpotLookup { get; set; } = true;
+        public string MoneynessDetermination { get; set; }
+        public string DefaultDirection { get; set; } = "B";
+        public List<string> ExtractionRules { get; set; } = new List<string>();
     }
 }
