@@ -77,11 +77,18 @@ namespace FXOAiTranslator
         {
             try
             {
-                // === 1. Try Bloomberg Desktop API (replace with your actual implementation) ===
+                Console.WriteLine($"[Bloomberg API] Requesting spot rate for {underlying}");
+
                 using var session = new Session();
-                if (!session.Start() || !session.OpenService("//blp/refdata"))
+                if (!session.Start())
                 {
-                    Console.WriteLine("[Bloomberg API] Could not start Bloomberg session.");
+                    Console.WriteLine("[Bloomberg API] Failed to start session");
+                    return null;
+                }
+
+                if (!session.OpenService("//blp/refdata"))
+                {
+                    Console.WriteLine("[Bloomberg API] Failed to open reference data service");
                     return null;
                 }
 
@@ -90,29 +97,57 @@ namespace FXOAiTranslator
                 request.Append("securities", $"{underlying} Curncy");
                 request.Append("fields", "PX_LAST");
 
-                var cid = session.SendRequest(request, null);
+                session.SendRequest(request, null);
 
                 while (true)
                 {
-                    var evt = session.NextEvent();
+                    var evt = session.NextEvent(5000); // Add timeout
+                    if (evt == null)
+                    {
+                        Console.WriteLine("[Bloomberg API] Timeout waiting for response");
+                        break;
+                    }
+
                     foreach (var msg in evt)
                     {
-                        if (msg.HasElement("PX_LAST"))
+                        // FIXED: Use correct Bloomberg API response structure
+                        if (msg.HasElement("securityData"))
                         {
-                            double spot = msg.GetElementAsFloat64("PX_LAST");
-                            Console.WriteLine($"[Bloomberg API] Got live spot for {underlying}: {spot:F4}");
-                            return spot;
+                            var securityDataArray = msg.GetElement("securityData");
+                            for (int i = 0; i < securityDataArray.NumValues; i++)
+                            {
+                                var securityData = securityDataArray.GetValueAsElement(i);
+
+                                if (securityData.HasElement("fieldData"))
+                                {
+                                    var fieldData = securityData.GetElement("fieldData");
+                                    if (fieldData.HasElement("PX_LAST"))
+                                    {
+                                        double spot = fieldData.GetElementAsFloat64("PX_LAST");
+                                        Console.WriteLine($"[Bloomberg API] Got spot rate for {underlying}: {spot:F4}");
+                                        return spot;
+                                    }
+                                }
+
+                                // Check for errors
+                                if (securityData.HasElement("securityError"))
+                                {
+                                    var error = securityData.GetElement("securityError");
+                                    Console.WriteLine($"[Bloomberg API] Security error: {error.GetElementAsString("message")}");
+                                }
+                            }
                         }
                     }
+
                     if (evt.Type == Event.EventType.RESPONSE) break;
                 }
 
-                Console.WriteLine($"[Bloomberg API] No PX_LAST returned for {underlying}");
+                Console.WriteLine($"[Bloomberg API] No data returned for {underlying}");
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Bloomberg API] Error fetching spot: {ex.Message}");
+                Console.WriteLine($"[Bloomberg API] Error fetching spot for {underlying}: {ex.Message}");
                 return null;
             }
         }
