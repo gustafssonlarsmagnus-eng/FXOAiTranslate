@@ -303,6 +303,17 @@ Be concise but thorough. Flag both obvious errors and subtle concerns.";
 
         private SanityCheckResult CombineValidationResults(RuleBasedCheckResult ruleChecks, AIValidationResult aiValidation)
         {
+            Console.WriteLine($"[SANITY] Critical errors: {ruleChecks.CriticalErrors.Count}");
+            Console.WriteLine($"[SANITY] Warnings: {ruleChecks.Warnings.Count}");
+            Console.WriteLine($"[SANITY] AI validation IsValid: {aiValidation.IsValid}");
+            foreach (var error in ruleChecks.CriticalErrors)
+            {
+                Console.WriteLine($"[SANITY] Critical error: {error}");
+            }
+            foreach (var warning in ruleChecks.Warnings)
+            {
+                Console.WriteLine($"[SANITY] Warning: {warning}");
+            }
             // Critical errors always make it invalid
             if (ruleChecks.CriticalErrors.Any())
             {

@@ -82,6 +82,15 @@ namespace FXOAiTranslator
             _patternsFilePath = patternsFilePath;
             _sanityChecker = new TradeSanityChecker(openAI, bloombergService); // ADD THIS LINE
             LoadLearnedPatterns();
+
+            // === DEBUG VERSION CHECK ===
+            Console.WriteLine("[DEBUG VERSION CHECK] HybridPatternLearner constructor called!");
+
+            var asm = System.Reflection.Assembly.GetExecutingAssembly();
+            Console.WriteLine($"[DEBUG VERSION CHECK] Assembly: {asm.FullName}");
+            Console.WriteLine($"[DEBUG VERSION CHECK] Location: {asm.Location}");
+            Console.WriteLine($"[DEBUG VERSION CHECK] Build Date (UTC): {System.IO.File.GetLastWriteTimeUtc(asm.Location)}");
+            // ===========================
         }
 
         public async Task<TradeParseResult> ParseWithAI(string input, string underlying, string expiry, string explicitSpot = "")
@@ -265,20 +274,27 @@ STRICT REQUIREMENTS:
                         ParseMethod = "AI-Success",
                         AdditionalInfo = aiResponse
                     };
-
+                    Console.WriteLine($"[DEBUG] About to enter sanity check try block - OVML: {ovml}");
                     // ADD SANITY CHECK HERE:
                     try
                     {
+                        Console.WriteLine($"[DEBUG] About to call sanity checker...");
                         var sanityCheck = await _sanityChecker.ValidateTradeAsync(input, result);
+                        Console.WriteLine($"[DEBUG] Sanity checker returned successfully");
                         result.ValidationResult = sanityCheck;
+
+                        // ADD THESE DEBUG LINES:
+                        Console.WriteLine($"[DEBUG] Sanity check IsValid: {sanityCheck.IsValid}");
+                        Console.WriteLine($"[DEBUG] Sanity check Confidence: {sanityCheck.Confidence}");
+                        Console.WriteLine($"[DEBUG] Sanity check Reason: {sanityCheck.Reason}");
 
                         if (sanityCheck.IsValid)
                         {
                             result.ParseMethod = $"AI-Success (Validated - {sanityCheck.Confidence:P0})";
                             Console.WriteLine($"[AI] Sanity check PASSED: {sanityCheck.Reason}");
+                            Console.WriteLine($"[AI] About to start learning process...");
 
-                            // ADD THIS LINE:
-                            LearnFromSuccessfulExample(input, result);
+                            _ = Task.Run(async () => await LearnFromSuccessfulExample(input, result));
                         }
                         else
                         {
@@ -289,6 +305,7 @@ STRICT REQUIREMENTS:
                     catch (Exception ex)
                     {
                         Console.WriteLine($"[AI] Sanity check error: {ex.Message}");
+                        Console.WriteLine($"[AI] Sanity check stack trace: {ex.StackTrace}");
                         // Keep original result if sanity check fails
                     }
 
@@ -376,6 +393,10 @@ STRICT REQUIREMENTS:
         {
             try
             {
+                if (pattern.Logic.MoneynessDetermination == "AI_DETERMINED")
+                {
+                    return await ExecuteAIDeterminedPattern(pattern, match, input, underlying, expiry);
+                }
                 if (pattern.Logic.StrategyType == "VANILLA")
                 {
                     // Extract components from the match using learned rules
@@ -426,7 +447,48 @@ STRICT REQUIREMENTS:
                 return null;
             }
         }
+        private async Task<TradeParseResult> ExecuteAIDeterminedPattern(LearnedPattern pattern, Match match, string input, string underlying, string expiry)
+        {
+            // For AI-determined patterns, use a lightweight AI call with the learned structure
+            var lightweightPrompt = $@"Convert this FX options request to OVML using the learned pattern ""{pattern.Name}"":
 
+INPUT: ""{input}""
+UNDERLYING: {underlying}
+EXPIRY: {expiry}
+
+This matches a known pattern: {pattern.Description}
+
+Output only the OVML line, no explanations:";
+
+            try
+            {
+                var response = await _openAI.GetChatCompletion(lightweightPrompt, "gpt-4o-mini");
+                var ovml = response.choices[0].message.content.Trim();
+
+                // Clean up the response
+                var ovmlMatch = Regex.Match(ovml, @"OVML\s+[^\r\n]+");
+                if (ovmlMatch.Success)
+                {
+                    ovml = ovmlMatch.Value.Trim();
+
+                    return new TradeParseResult
+                    {
+                        OVML = ovml,
+                        Underlying = underlying,
+                        Expiry = expiry,
+                        LegCount = ExtractLegCountFromOVML(ovml),
+                        ParseMethod = $"Learned-{pattern.Name}",
+                        AdditionalInfo = "Generated using AI-learned pattern"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AI] Error in lightweight AI execution: {ex.Message}");
+            }
+
+            return null;
+        }
         private Dictionary<string, string> ExtractComponentsFromMatch(PatternLogic logic, Match match)
         {
             var components = new Dictionary<string, string>();
@@ -571,13 +633,11 @@ STRICT REQUIREMENTS:
             // 3. Default: assume single leg
             return 1;
         }
-        private void LearnFromSuccessfulExample(string input, TradeParseResult result)
+        private async Task LearnFromSuccessfulExample(string input, TradeParseResult result)
         {
             try
             {
-                // Analyze the successful example to extract the logic pattern
-                var pattern = AnalyzeSuccessfulPattern(input, result);
-
+                var pattern = await AnalyzeSuccessfulPattern(input, result);
                 if (pattern != null)
                 {
                     _learnedPatterns.Add(pattern);
@@ -591,46 +651,87 @@ STRICT REQUIREMENTS:
             }
         }
 
-        private LearnedPattern AnalyzeSuccessfulPattern(string input, TradeParseResult result)
+        private async Task<LearnedPattern> AnalyzeSuccessfulPattern(string input, TradeParseResult result)
         {
-            // Detect the input pattern type
-            if (IsVanillaQuotePattern(input))
+            try
             {
-                return new LearnedPattern
+                var analysisPrompt = $@"Analyze this successful FX options parsing example and create a regex pattern to match similar inputs:
+
+INPUT: ""{input.Replace("\"", "\\\"")}""
+OUTPUT: ""{result.OVML}""
+
+Generate a regex pattern that would match structurally similar inputs. Focus on:
+1. Currency pair format (6 letters)
+2. Notional amount patterns (numbers + mio/M/mm)
+3. Tenor/expiry patterns (5mth, 3M, etc.)
+4. Option type keywords (put, call, delta, spread, etc.)
+5. Strike/delta specifications
+6. Line breaks and spacing in multi-line inputs
+
+Provide your response in this exact JSON format:
+{{
+    ""name"": ""Auto-[StrategyType]-{DateTime.Now:yyyyMMdd-HHmmss}"",
+    ""regexPattern"": ""your regex here"",
+    ""description"": ""brief description"",
+    ""strategyType"": ""VANILLA|RISK_REVERSAL|SPREAD|STRADDLE|COLLAR"",
+    ""extractionRules"": [""CURRENCY_FROM_GROUP_1"", ""NOTIONAL_FROM_GROUP_2"", ""TENOR_FROM_GROUP_3"", ""DELTA_FROM_GROUP_4""]
+}}
+
+Make the regex flexible enough to handle minor variations but specific enough to avoid false matches.
+Use named capture groups where possible: (?<currency>\\w{{6}})";
+
+                var response = await _openAI.GetChatCompletion(analysisPrompt, "gpt-4o-mini");
+                var aiAnalysis = response.choices[0].message.content.Trim();
+
+                Console.WriteLine($"[AI] Pattern analysis response: {aiAnalysis}");
+
+                // Extract JSON from AI response
+                var jsonMatch = Regex.Match(aiAnalysis, @"\{.*\}", RegexOptions.Singleline);
+                if (jsonMatch.Success)
                 {
-                    Name = "Auto-Vanilla-Quote",
-                    RegexPattern = @"^(\w{6})\s+(\d{1,2}\w{3}\d{2})\s+([\d.]+)\s+in\s+(\d+)m?io\s*(pls|please)?$",
-                    Description = "Simple vanilla option quote request",
-                    CreatedAt = DateTime.Now,
-                    UsageCount = 1,
-                    Logic = new PatternLogic
+                    var jsonString = jsonMatch.Value;
+                    var patternData = JsonSerializer.Deserialize<JsonElement>(jsonString);
+
+                    var pattern = new LearnedPattern
                     {
-                        StrategyType = "VANILLA",
-                        RequiresSpotLookup = true,
-                        MoneynessDetermination = "STRIKE_VS_SPOT",
-                        DefaultDirection = "B", // Quote = buy request
-                        ExtractionRules = new List<string>
-                {
-                    "CURRENCY_FROM_GROUP_1",
-                    "EXPIRY_FROM_GROUP_2",
-                    "STRIKE_FROM_GROUP_3",
-                    "NOTIONAL_FROM_GROUP_4"
+                        Name = patternData.GetProperty("name").GetString(),
+                        RegexPattern = patternData.GetProperty("regexPattern").GetString(),
+                        Description = patternData.GetProperty("description").GetString(),
+                        CreatedAt = DateTime.Now,
+                        UsageCount = 1,
+                        Logic = new PatternLogic
+                        {
+                            StrategyType = patternData.GetProperty("strategyType").GetString(),
+                            RequiresSpotLookup = true,
+                            MoneynessDetermination = "AI_DETERMINED",
+                            DefaultDirection = "B",
+                            ExtractionRules = patternData.GetProperty("extractionRules")
+                                .EnumerateArray()
+                                .Select(x => x.GetString())
+                                .ToList()
+                        }
+                    };
+
+                    Console.WriteLine($"[AI] Successfully created pattern: {pattern.Name}");
+                    return pattern;
                 }
-                    }
-                };
+                else
+                {
+                    Console.WriteLine($"[AI] Could not extract JSON from AI response");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AI] Error in AI pattern analysis: {ex.Message}");
             }
 
-            // Could add detection for other pattern types here
             return null;
         }
 
-        private bool IsVanillaQuotePattern(string input)
-        {
-            // Simple vanilla quote: currency + date + strike + "in" + notional + politeness
-            return Regex.IsMatch(input, @"^\w{6}\s+\d{1,2}\w{3}\d{2}\s+[\d.]+\s+in\s+\d+m?io", RegexOptions.IgnoreCase);
-        }
+       
 
-    }
+
+    }   
 
     public class LearnedPattern
     {

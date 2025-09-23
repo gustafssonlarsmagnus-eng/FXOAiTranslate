@@ -18,6 +18,7 @@ namespace FXOAiTranslator
 
         public TradeParser(BloombergService bloombergService, string openAIApiKey = null)
         {
+            Console.WriteLine("CONSTRUCTOR CALLED - VERSION 2024");
             _bloombergService = bloombergService;
 
             if (!string.IsNullOrEmpty(openAIApiKey))
@@ -389,6 +390,8 @@ namespace FXOAiTranslator
         // === AI integration ===
         private async Task<TradeParseResult> ParseWithAI(string input, string explicitSpot = "")
         {
+            Console.WriteLine($"[DEBUG] _patternLearner is null: {_patternLearner == null}");
+
             if (_patternLearner == null)
             {
                 await Task.Delay(10);
@@ -398,7 +401,11 @@ namespace FXOAiTranslator
             string underlying = ExtractCurrencyPair(input);
             string expiry = ExtractExpiry(input);
 
-            return await _patternLearner.ParseWithAI(input, underlying, expiry, explicitSpot);
+            LogDebug("[TradeParser] About to call HybridPatternLearner.ParseWithAI...");
+            var result = await _patternLearner.ParseWithAI(input, underlying, expiry, explicitSpot);
+            LogDebug($"[TradeParser] HybridPatternLearner returned: {result.ParseMethod}");
+
+            return result;
         }
 
 
