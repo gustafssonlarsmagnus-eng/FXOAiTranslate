@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
@@ -39,133 +39,73 @@ namespace FXOAiTranslator
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.White;
 
-            // Create top panel to hold all the input controls
+            // Create top panel (more compact now)
             var pnlTop = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 220, // Enough space for input + buttons + label
-                Padding = new Padding(25, 25, 25, 15)
+                Height = 110, // reduced height
+                Padding = new Padding(25, 15, 25, 5)
             };
 
-            // Trade Input Section
-            var lblTradeInput = new Label
-            {
-                Text = "Enter trade request:",
-                Location = new Point(0, 0),
-                Size = new Size(150, 23),
-                Font = new Font("Segoe UI", 9F, FontStyle.Regular)
-            };
-
+            // Trade Input Section (no label, just placeholder)
             txtTradeInput = new TextBox
             {
-                Location = new Point(0, 30),
-                Size = new Size(800, 60),
+                Location = new Point(15, 10),
+                Size = new Size(800, 40),
                 Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "e.g., eursek 4m i buy a 11.00 put in 100 mio and sell a 11.5000 call in 50 mio",
+                PlaceholderText = "Enter trade request (e.g., eursek 4m i buy a 11.00 put in 100 mio and sell a 11.5000 call in 50 mio)",
                 Multiline = true,
                 AcceptsReturn = true,
                 ScrollBars = ScrollBars.None,
                 WordWrap = true
             };
 
-            // Bloomberg Status
-            lblBloombergStatus = new Label
-            {
-                Text = "Bloomberg: Disconnected",
-                Location = new Point(830, 0),
-                Size = new Size(200, 23),
-                ForeColor = Color.Red,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
+            // Button row (Bloomberg style)
+            var buttonY = 60;
 
-            // Control Buttons Row
-            var buttonY = 115;
-            btnClearAll = new Button
-            {
-                Text = "Clear All",
-                Location = new Point(0, buttonY),
-                Size = new Size(110, 35),
-                BackColor = Color.FromArgb(220, 53, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnClearAll.FlatAppearance.BorderSize = 0;
+            btnClearAll = CreateBloombergButton("CANCEL", Color.FromArgb(220, 53, 69), 15, buttonY);   // red
+            btnCopyOVML = CreateBloombergButton("OVML", Color.FromArgb(0, 200, 0), 105, buttonY);   // green
+            btnCopyUBS = CreateBloombergButton("UBS", Color.FromArgb(200, 150, 255), 195, buttonY);   // pink/purple
+            btnClearPatterns = CreateBloombergButton("CLEAR AI", Color.FromArgb(0, 100, 255), 285, buttonY);   // darker blue
+            btnToggleDebug = CreateBloombergButton("Show", Color.FromArgb(0, 120, 255), 375, buttonY);   // bright blue
 
-            btnCopyOVML = new Button
-            {
-                Text = "Copy OVML",
-                Location = new Point(125, buttonY),
-                Size = new Size(110, 35),
-                BackColor = Color.FromArgb(40, 167, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnCopyOVML.FlatAppearance.BorderSize = 0;
 
-            btnCopyUBS = new Button
-            {
-                Text = "Copy UBS",
-                Location = new Point(250, buttonY),
-                Size = new Size(110, 35),
-                BackColor = Color.FromArgb(40, 167, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnCopyUBS.FlatAppearance.BorderSize = 0;
-
-            btnClearPatterns = new Button
-            {
-                Text = "Clear AI Patterns",
-                Location = new Point(375, buttonY),
-                Size = new Size(140, 35),
-                BackColor = Color.FromArgb(220, 53, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnClearPatterns.FlatAppearance.BorderSize = 0;
-
+            // Checkbox + Bloomberg status inline
             chkAutoSend = new CheckBox
             {
-                Text = "Auto-send to Bloomberg",
-                Location = new Point(530, buttonY + 8),
-                Size = new Size(180, 20),
+                Text = "Auto-send",
+                Location = new Point(470, buttonY + 3),
+                Size = new Size(100, 20),
                 Checked = true,
                 Font = new Font("Segoe UI", 9F)
             };
 
-            btnToggleDebug = new Button
+            lblBloombergStatus = new Label
             {
-                Text = "Show Debug",
-                Location = new Point(730, buttonY),
-                Size = new Size(110, 35),
-                BackColor = Color.FromArgb(108, 117, 125),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
+                Text = "Bloomberg: Disconnected",
+                Location = new Point(chkAutoSend.Right + 10, chkAutoSend.Top),
+                Size = new Size(200, 20),
+                ForeColor = Color.Red,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
-            btnToggleDebug.FlatAppearance.BorderSize = 0;
 
             // Trade Blotter Label
             var lblBlotter = new Label
             {
                 Text = "Trade Blotter (Click X to reject bad OVML patterns - good patterns auto-learn):",
-                Location = new Point(0, 170),
-                Size = new Size(500, 20),
+                Dock = DockStyle.Top,
+                Height = 20,
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular)
             };
 
             // Add all controls to top panel
             pnlTop.Controls.AddRange(new Control[] {
-        lblTradeInput, txtTradeInput, lblBloombergStatus,
-        btnClearAll, btnCopyOVML, btnCopyUBS, btnClearPatterns, chkAutoSend, btnToggleDebug,
-        lblBlotter
+        txtTradeInput,
+        btnClearAll, btnCopyOVML, btnCopyUBS, btnClearPatterns, btnToggleDebug,
+        chkAutoSend, lblBloombergStatus
     });
 
-            // Create the main content panel (fills remaining space)
+            // Main content panel
             var pnlContent = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -188,37 +128,61 @@ namespace FXOAiTranslator
 
             SetupDataGridView();
 
-            // Debug Panel (initially hidden, docked at bottom)
+            // Debug Panel
             pnlDebug = new Panel
             {
                 Dock = DockStyle.Bottom,
                 Height = 200,
-                BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.FromArgb(248, 249, 250),
+                BackColor = Color.White,
+                Padding = new Padding(5),
                 Visible = false
             };
 
-            var btnClearDebug = new Button
+            var headerPanel = new Panel
             {
-                Text = "Clear Debug",
                 Dock = DockStyle.Top,
                 Height = 25,
-                BackColor = Color.FromArgb(220, 53, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleRight
+                BackColor = Color.White
             };
-            btnClearDebug.FlatAppearance.BorderSize = 0;
-            btnClearDebug.Click += (s, e) => txtDebugLog.Clear();
 
             var lblDebug = new Label
             {
                 Text = "Debug Log:",
-                Dock = DockStyle.Top,
-                Height = 20,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Dock = DockStyle.Left,
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.Black,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(0, 5, 0, 0)
             };
+
+            var btnCopyDebug = new Button
+            {
+                Text = "Copy Debug",
+                Dock = DockStyle.Right,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Regular),
+                BackColor = Color.Transparent,
+                ForeColor = Color.DimGray,
+                Cursor = Cursors.Hand,
+                Padding = new Padding(0, 3, 0, 0)
+            };
+            btnCopyDebug.FlatAppearance.BorderSize = 0;
+            btnCopyDebug.Click += (s, e) => Clipboard.SetText(txtDebugLog.Text);
+
+            var btnClearDebug = new Button
+            {
+                Text = "Clear Debug",
+                Dock = DockStyle.Right,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Regular),
+                BackColor = Color.Transparent,
+                ForeColor = Color.DimGray,
+                Cursor = Cursors.Hand,
+                Padding = new Padding(0, 3, 0, 0)
+            };
+            btnClearDebug.FlatAppearance.BorderSize = 0;
+            btnClearDebug.Click += (s, e) => txtDebugLog.Clear();
 
             txtDebugLog = new TextBox
             {
@@ -227,26 +191,63 @@ namespace FXOAiTranslator
                 ScrollBars = ScrollBars.Vertical,
                 ReadOnly = true,
                 BackColor = Color.White,
-                Font = new Font("Consolas", 8F),
+                ForeColor = Color.Black,
+                Font = new Font("Consolas", 9F),
+                BorderStyle = BorderStyle.None,
                 WordWrap = false
             };
 
-            // Add controls to debug panel in correct order for docking
+            headerPanel.Controls.Add(btnClearDebug);
+            headerPanel.Controls.Add(btnCopyDebug);
+            headerPanel.Controls.Add(lblDebug);
+
             pnlDebug.Controls.Add(txtDebugLog);
-            pnlDebug.Controls.Add(lblDebug);
-            pnlDebug.Controls.Add(btnClearDebug);
+            pnlDebug.Controls.Add(headerPanel);
 
-            // Add DataGridView to content panel
-            pnlContent.Controls.Add(dgvTradeBlotter);
-            pnlContent.Controls.Add(pnlDebug); // Debug panel docks to bottom of content area
+            // Inner grid panel
+            var pnlGrid = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(0, 0, 0, 5)
+            };
+            pnlGrid.Controls.Add(dgvTradeBlotter);
 
-            // Add main panels to form
-            this.Controls.Add(pnlContent); // Content fills remaining space
-            this.Controls.Add(pnlTop);     // Top panel docks to top
+            // Add controls in order
+            pnlContent.Controls.Add(pnlGrid);
+            pnlContent.Controls.Add(pnlDebug);
+            pnlContent.Controls.Add(lblBlotter);
 
-            // Ensure proper tab order
+            this.Controls.Add(pnlContent);
+            this.Controls.Add(pnlTop);
+
             this.SetTabOrder();
         }
+
+        private Button CreateBloombergButton(string text, Color backColor, int x, int y, int width = 80, int height = 24)
+        {
+            var btn = new Button
+            {
+                Text = text,
+                Location = new Point(x, y),
+                Size = new Size(width, height),
+                BackColor = backColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Margin = new Padding(2, 0, 2, 0), // small spacing between buttons
+                TabStop = false // removes dotted focus rectangle
+            };
+
+            btn.FlatAppearance.BorderSize = 0; // no border at all
+            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Light(backColor);  // subtle hover
+            btn.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(backColor);   // subtle press
+
+            return btn;
+        }
+
+
+
+
 
         private void SetTabOrder()
         {
@@ -363,21 +364,19 @@ namespace FXOAiTranslator
             dgvTradeBlotter.DefaultCellStyle.SelectionForeColor = Color.Black;
 
             // Make the grid stretch to form width
-            dgvTradeBlotter.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvTradeBlotter.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
             // Adjust relative widths (Reject column excluded because it's fixed)
-            dgvTradeBlotter.Columns["Time"].FillWeight = 50;
-            dgvTradeBlotter.Columns["Legs"].FillWeight = 40;
-            dgvTradeBlotter.Columns["Expiry"].FillWeight = 70;
-            dgvTradeBlotter.Columns["SpotRef"].FillWeight = 80;
-            dgvTradeBlotter.Columns["Underlying"].FillWeight = 90;
-            dgvTradeBlotter.Columns["Request"].FillWeight = 220;
-            dgvTradeBlotter.Columns["OVML"].FillWeight = 250;
-
-            // Make Reject fixed width
-            dgvTradeBlotter.Columns["Reject"].Width = 50;
-            dgvTradeBlotter.Columns["Reject"].MinimumWidth = 50;
-            dgvTradeBlotter.Columns["Reject"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            // Example per column:
+            dgvTradeBlotter.Columns["Time"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            dgvTradeBlotter.Columns["Request"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // take up remaining space
+            dgvTradeBlotter.Columns["OVML"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            dgvTradeBlotter.Columns["Underlying"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            dgvTradeBlotter.Columns["Legs"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            dgvTradeBlotter.Columns["Expiry"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            dgvTradeBlotter.Columns["SpotRef"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            dgvTradeBlotter.Columns["Method"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            dgvTradeBlotter.Columns["Reject"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
 
             // Apply alignment rules
             foreach (DataGridViewColumn col in dgvTradeBlotter.Columns)
@@ -448,7 +447,28 @@ namespace FXOAiTranslator
             btnClearPatterns.Click += BtnClearPatterns_Click;
             btnToggleDebug.Click += BtnToggleDebug_Click;
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;
+            dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded;
+            dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded;
         }
+        private void DgvTradeBlotter_CellToolTipTextNeeded(object sender, DataGridViewCellToolTipTextNeededEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                var grid = sender as DataGridView;
+                var columnName = grid.Columns[e.ColumnIndex].Name;
+
+                if (columnName == "Request" || columnName == "OVML" || columnName == "Method")
+                {
+                    var value = grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
+                    if (value != null)
+                    {
+                        e.ToolTipText = value.ToString();
+                    }
+                }
+            }
+        }
+
+
 
         private async void TxtTradeInput_KeyDown(object sender, KeyEventArgs e)
         {
@@ -512,7 +532,7 @@ namespace FXOAiTranslator
             dgvTradeBlotter.Rows.Insert(0, new object[]
             {
                 DateTime.Now.ToString("HH:mm:ss"),
-                request.Length > 50 ? request.Substring(0, 47) + "..." : request,
+                request,
                 result.OVML,
                 result.Underlying,
                 result.LegCount,
@@ -692,19 +712,19 @@ namespace FXOAiTranslator
                     if (method?.StartsWith("Learned-") == true)
                     {
                         string patternName = method.Replace("Learned-", "");
-                        message += $"? This will permanently delete the learned pattern: '{patternName}'\n" +
-                                  "� Future similar inputs will go back to AI\n" +
-                                  "� This pattern can be re-learned if AI validates it again\n\n";
+                        message += $"⚠ This will permanently delete the learned pattern: '{patternName}'\n" +
+                                  "• Future similar inputs will go back to AI\n" +
+                                  "• This pattern can be re-learned if AI validates it again\n\n";
                     }
                     else if (method?.Contains("AI-Warning") == true)
                     {
-                        message += "? This trade already failed validation.\n" +
-                                  "� Will prevent learning similar patterns\n\n";
+                        message += "⚠ This trade already failed validation.\n" +
+                                  "• Will prevent learning similar patterns\n\n";
                     }
                     else if (method?.Contains("AI-Success") == true)
                     {
-                        message += "? This trade passed validation.\n" +
-                                  "� Will prevent learning this specific pattern\n\n";
+                        message += "✓ This trade passed validation.\n" +
+                                  "• Will prevent learning this specific pattern\n\n";
                     }
 
                     message += "Continue with rejection?";
