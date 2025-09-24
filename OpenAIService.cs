@@ -393,7 +393,7 @@ STRICT REQUIREMENTS:
         {
             try
             {
-                if (pattern.Logic.MoneynessDetermination == "AI_DETERMINED")
+                if (pattern.Logic != null && pattern.Logic.MoneynessDetermination == "AI_DETERMINED")
                 {
                     return await ExecuteAIDeterminedPattern(pattern, match, input, underlying, expiry);
                 }
@@ -655,30 +655,34 @@ Output only the OVML line, no explanations:";
         {
             try
             {
-                var analysisPrompt = $@"Analyze this successful FX options parsing example and create a regex pattern to match similar inputs:
+                var analysisPrompt = $@"Analyze this successful FX options parsing example and create a FLEXIBLE regex pattern:
 
 INPUT: ""{input.Replace("\"", "\\\"")}""
 OUTPUT: ""{result.OVML}""
 
-Generate a regex pattern that would match structurally similar inputs. Focus on:
-1. Currency pair format (6 letters)
-2. Notional amount patterns (numbers + mio/M/mm)
-3. Tenor/expiry patterns (5mth, 3M, etc.)
-4. Option type keywords (put, call, delta, spread, etc.)
-5. Strike/delta specifications
-6. Line breaks and spacing in multi-line inputs
+Create a regex pattern that matches the CORE STRUCTURE, not specific values. Focus on:
+1. Currency pair format (any 6 letters)
+2. Notional amount (any number + mio/M/mm) 
+3. Tenor/expiry (any number + mth/M/etc)
+4. Option keywords (put/call/delta)
+5. Delta values (any 1-3 digits + delta)
+
+CRITICAL: Make patterns FLEXIBLE for trading variations:
+- Notional amounts can vary (25 mio, 50 mio, 100 mio, etc.)
+- Delta values can vary (15, 20, 25, 30 delta)
+- Spot references are optional
+- Focus on STRUCTURE, not specific numbers
 
 Provide your response in this exact JSON format:
 {{
     ""name"": ""Auto-[StrategyType]-{DateTime.Now:yyyyMMdd-HHmmss}"",
-    ""regexPattern"": ""your regex here"",
-    ""description"": ""brief description"",
+    ""regexPattern"": ""flexible .NET compatible regex here"",
+    ""description"": ""flexible pattern for structural matching"",
     ""strategyType"": ""VANILLA|RISK_REVERSAL|SPREAD|STRADDLE|COLLAR"",
     ""extractionRules"": [""CURRENCY_FROM_GROUP_1"", ""NOTIONAL_FROM_GROUP_2"", ""TENOR_FROM_GROUP_3"", ""DELTA_FROM_GROUP_4""]
 }}
 
-Make the regex flexible enough to handle minor variations but specific enough to avoid false matches.
-Use named capture groups where possible: (?<currency>\\w{{6}})";
+Use named capture groups: (?<currency>\\w{{6}})";
 
                 var response = await _openAI.GetChatCompletion(analysisPrompt, "gpt-4o-mini");
                 var aiAnalysis = response.choices[0].message.content.Trim();
@@ -711,6 +715,18 @@ Use named capture groups where possible: (?<currency>\\w{{6}})";
                                 .ToList()
                         }
                     };
+
+                    try
+                    {
+                        var testRegex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
+                        Console.WriteLine($"[AI] Pattern regex validation PASSED: {pattern.Name}");
+                    }
+                    catch (Exception regexEx)
+                    {
+                        Console.WriteLine($"[AI] Pattern regex validation FAILED: {regexEx.Message}");
+                        Console.WriteLine($"[AI] Discarding invalid pattern: {pattern.Name}");
+                        return null; // Don't save invalid patterns
+                    }
 
                     Console.WriteLine($"[AI] Successfully created pattern: {pattern.Name}");
                     return pattern;

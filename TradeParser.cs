@@ -24,8 +24,10 @@ namespace FXOAiTranslator
             if (!string.IsNullOrEmpty(openAIApiKey))
             {
                 _openAI = new OpenAIService(openAIApiKey);
-                _patternLearner = new HybridPatternLearner(_openAI, _bloombergService, "");
+                _patternLearner = new HybridPatternLearner(_openAI, _bloombergService, "learned_patterns.json");
                 Console.WriteLine("[AI] OpenAI integration enabled");
+
+                
             }
             else
             {
@@ -408,6 +410,67 @@ namespace FXOAiTranslator
             return result;
         }
 
+        // === Learning Test Method ===
+        public async Task<string> TestAILearning()
+        {
+            Console.WriteLine("=== TESTING AI LEARNING SYSTEM ===");
+
+            try
+            {
+                // Check if AI is available
+                if (_openAI == null)
+                {
+                    return "FAILED: OpenAI not initialized";
+                }
+
+                Console.WriteLine("OpenAI service is available");
+
+                // Create test input/output pair
+                string testInput = "GBPNOK: 25 mio\\n5mth gbp put nok call 20 delta";
+                string testOVML = "OVML GBPNOK 5M P DS20 B N25M VA SP13.3454";
+
+                Console.WriteLine($"Test Input: {testInput}");
+                Console.WriteLine($"Test OVML: {testOVML}");
+
+                // Test AI pattern analysis
+                var analysisPrompt = $@"Analyze this FX options parsing example and create a regex pattern:
+
+INPUT: ""{testInput}""
+OUTPUT: ""{testOVML}""
+
+Generate a regex pattern for similar inputs. Respond in JSON format:
+{{
+    ""name"": ""Test-Pattern-{DateTime.Now:yyyyMMdd-HHmmss}"",
+    ""regexPattern"": ""your regex here"",
+    ""description"": ""brief description"",
+    ""strategyType"": ""RISK_REVERSAL""
+}}";
+
+                Console.WriteLine("Calling OpenAI for pattern analysis...");
+                var response = await _openAI.GetChatCompletion(analysisPrompt, "gpt-4o-mini");
+                var aiAnalysis = response.choices[0].message.content.Trim();
+
+                Console.WriteLine($"AI Response: {aiAnalysis}");
+
+                // Try to extract JSON
+                var jsonMatch = Regex.Match(aiAnalysis, @"\{.*\}", RegexOptions.Singleline);
+                if (jsonMatch.Success)
+                {
+                    Console.WriteLine($"JSON extracted successfully: {jsonMatch.Value}");
+                    return "LEARNING TEST PASSED: AI created pattern successfully";
+                }
+                else
+                {
+                    Console.WriteLine("No valid JSON found in AI response");
+                    return "LEARNING TEST PARTIAL: AI responded but no JSON found";
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Learning Test Error: {ex.Message}");
+                return $"LEARNING TEST ERROR: {ex.Message}";
+            }
+        }
 
         // === Currency extraction ===
         private string ExtractCurrencyPair(string input)
