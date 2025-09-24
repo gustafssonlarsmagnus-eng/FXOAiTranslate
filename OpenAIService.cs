@@ -393,7 +393,7 @@ STRICT REQUIREMENTS:
         {
             try
             {
-                if (pattern.Logic.MoneynessDetermination == "AI_DETERMINED")
+                if (pattern.Logic != null && pattern.Logic.MoneynessDetermination == "AI_DETERMINED")
                 {
                     return await ExecuteAIDeterminedPattern(pattern, match, input, underlying, expiry);
                 }
@@ -711,6 +711,18 @@ Use named capture groups where possible: (?<currency>\\w{{6}})";
                                 .ToList()
                         }
                     };
+
+                    try
+                    {
+                        var testRegex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
+                        Console.WriteLine($"[AI] Pattern regex validation PASSED: {pattern.Name}");
+                    }
+                    catch (Exception regexEx)
+                    {
+                        Console.WriteLine($"[AI] Pattern regex validation FAILED: {regexEx.Message}");
+                        Console.WriteLine($"[AI] Discarding invalid pattern: {pattern.Name}");
+                        return null; // Don't save invalid patterns
+                    }
 
                     Console.WriteLine($"[AI] Successfully created pattern: {pattern.Name}");
                     return pattern;
