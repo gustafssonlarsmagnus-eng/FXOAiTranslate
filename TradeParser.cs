@@ -320,6 +320,36 @@ namespace FXOAiTranslator
                 }
             }
             // === AI fallback ===
+            // === TEST LEARNED PATTERNS ===
+            LogDebug("DEBUG: Testing learned patterns from JSON...");
+
+            if (_patternLearner != null)
+            {
+                try
+                {
+                    var learnedResult = await _patternLearner.TryLearnedPatterns(input, underlying, expiry);
+                    if (learnedResult != null)
+                    {
+                        LogDebug($"DEBUG: LEARNED PATTERN MATCHED: {learnedResult.ParseMethod}");
+
+                        // Normalize the result
+                        learnedResult.OVML = NormalizeOVMLDates(learnedResult.OVML);
+                        learnedResult.Expiry = NormalizeExpiry(learnedResult.Expiry);
+                        learnedResult.GenerateUBS();
+
+                        _cache[input] = learnedResult;
+                        return learnedResult;
+                    }
+                    else
+                    {
+                        LogDebug("DEBUG: No learned patterns matched.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogDebug($"DEBUG: Error testing learned patterns: {ex.Message}");
+                }
+            }
             LogDebug($"DEBUG: No regex patterns matched. Falling back to AI...");
             LogDebug("[Parser] Falling back to AI...");
 
@@ -699,6 +729,7 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
                 // 5. Tenor: 3M, 5MTH, 2Y, 10D, 2W - but NOT notional amounts like "500m"
                 LogDebug("DEBUG: Testing tenor patterns...");
+                LogDebug($"DEBUG: Full input for tenor matching: '{input}'");
 
                 // More restrictive: avoid matching large numbers that are likely notionals
                 var tenorMatch = Regex.Match(
@@ -707,9 +738,13 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     RegexOptions.IgnoreCase
                 );
 
+                LogDebug($"DEBUG: Tenor regex matched: {tenorMatch.Success}");
+
                 // Additional check: if number is > 99, it's likely a notional, not a tenor
                 if (tenorMatch.Success)
                 {
+                    LogDebug($"DEBUG: Tenor match groups - num: '{tenorMatch.Groups["num"].Value}', unit: '{tenorMatch.Groups["unit"].Value}'");
+
                     string number = tenorMatch.Groups["num"].Value;
                     string period = tenorMatch.Groups["unit"].Value.ToUpper();
 
@@ -728,7 +763,7 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                         else if (period == "MO") period = "M";
                         else if (period.StartsWith("YEAR")) period = "Y";
                         else if (period.StartsWith("DAY")) period = "D";
-                        else if (period.StartsWith("WEEK")) period = "W";
+                        else if (period.StartsWith("WEEK") || period == "W") period = "W";  // Add this line
 
                         return number + period;
                     }
@@ -878,22 +913,30 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
             var parts = ovml.Split(' ');
             if (parts.Length < 4) return "";
 
-            // Extract components from OVML
             string currency = ExtractBaseCurrency(underlying); // EUR from EURNOK
-            string formattedDate = FormatDateForUBS(expiry);
             string spot = ExtractSpotFromOVML(ovml);
 
-            if (legCount == 1)
+            // 🔑 Decide if expiry is tenor or real date
+            string formattedExpiry = "";
+            if (Regex.IsMatch(expiry, @"^\d+[WwMmYyDd]$"))
             {
-                return BuildSingleLegUBS(parts, underlying, currency, formattedDate, spot);
+                // It’s a tenor → keep as-is
+                formattedExpiry = expiry.ToUpper();
             }
             else
             {
-                return BuildMultiLegUBS(parts, underlying, currency, formattedDate, spot, legCount);
+                // Try to format as a date
+                formattedExpiry = FormatDateForUBS(expiry);
             }
+
+            if (legCount == 1)
+                return BuildSingleLegUBS(parts, underlying, currency, formattedExpiry, spot);
+            else
+                return BuildMultiLegUBS(parts, underlying, currency, formattedExpiry, spot, legCount);
         }
 
-        private string BuildMultiLegUBS(string[] parts, string underlying, string currency, string formattedDate, string spot, int legCount)
+
+        private string BuildMultiLegUBS(string[] parts, string underlying, string currency, string expiry, string spot, int legCount)
         {
             // Find strikes, directions, and notionals in OVML
             string strikes = FindStrikesInOVML(parts);
@@ -930,7 +973,7 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                 // Build leg: EURNOK 11.8000C EUR 10MIO 11-Nov-25
                 string leg = $"{underlying} {strike}{optionType}";
 
-                // Add currency for first leg only (based on pattern)
+                // Add currency for first leg only
                 if (i == 0)
                 {
                     leg += $" {currency}";
@@ -947,10 +990,13 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     leg += $" {notional}MIO";
                 }
 
-                // Add date to first leg only
-                if (i == 0 && !string.IsNullOrEmpty(formattedDate))
+                // Add expiry to first leg only
+                if (i == 0 && !string.IsNullOrEmpty(expiry))
                 {
-                    leg += $" {formattedDate}";
+                    if (Regex.IsMatch(expiry, @"^\d+[WwMmYyDd]$"))
+                        leg += $" {expiry.ToUpper()}";
+                    else
+                        leg += $" {FormatDateForUBS(expiry)}";
                 }
 
                 legs.Add(leg);
@@ -967,15 +1013,15 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
             return result;
         }
 
-        private string BuildSingleLegUBS(string[] parts, string underlying, string currency, string formattedDate, string spot)
+
+        private string BuildSingleLegUBS(string[] parts, string underlying, string currency, string expiry, string spot)
         {
-            // For single leg: EURNOK 11.8000C EUR 10MIO 11-Nov-25 SPOT 11.7425
             string strike = "";
             string optionType = "";
             string direction = "";
             string notional = "";
 
-            // Parse single leg OVML format
+            // Parse OVML parts
             for (int i = 0; i < parts.Length; i++)
             {
                 if (parts[i] == "C" || parts[i] == "P")
@@ -996,6 +1042,7 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
             if (string.IsNullOrEmpty(strike) || string.IsNullOrEmpty(optionType) || string.IsNullOrEmpty(notional))
                 return "";
 
+            // ⚡️ Don’t glue expiry into strike (avoid "3WC")
             string result = $"{underlying} {strike}{optionType} {currency}";
 
             // Scale notional down by 10x for UBS format
@@ -1009,9 +1056,10 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                 result += $" {notional}MIO";
             }
 
-            if (!string.IsNullOrEmpty(formattedDate))
+            // Only append expiry once
+            if (!string.IsNullOrEmpty(expiry))
             {
-                result += $" {formattedDate}";
+                result += $" {expiry}";
             }
 
             if (!string.IsNullOrEmpty(spot))
@@ -1021,6 +1069,8 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
             return result;
         }
+
+
 
         private string ExtractBaseCurrency(string currencyPair)
         {
@@ -1034,46 +1084,57 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
         private string FormatDateForUBS(string expiry)
         {
-            // Convert various date formats to dd-MMM-yy format
             try
             {
-                // Handle MM/dd/yy format
+                if (string.IsNullOrWhiteSpace(expiry))
+                    return "";
+
+                expiry = expiry.Trim();
+
+                // 1️⃣ If expiry is a tenor (like 1W, 2M, 6Y, 10D) → return as-is
+                if (Regex.IsMatch(expiry, @"^\d+\s*[WwMmYyDd]$"))
+                {
+                    return expiry.ToUpper();
+                }
+
+                // 2️⃣ Handle MM/dd/yy (US-style date)
                 if (Regex.IsMatch(expiry, @"^\d{2}/\d{2}/\d{2}$"))
                 {
-                    if (DateTime.TryParseExact(expiry, "MM/dd/yy", null, DateTimeStyles.None, out DateTime dt))
+                    if (DateTime.TryParseExact(expiry, "MM/dd/yy", CultureInfo.InvariantCulture,
+                                               DateTimeStyles.None, out DateTime dt))
                     {
-                        return dt.ToString("dd-MMM-yy", CultureInfo.GetCultureInfo("en-GB"));
-
+                        return dt.ToString("dd-MMM-yy", CultureInfo.InvariantCulture);
                     }
                 }
 
-                // Handle ddMMMYY format (like 11NOV25)
+                // 3️⃣ Handle ddMMMYY (e.g., 11NOV25, 2FEB26)
                 if (Regex.IsMatch(expiry, @"^\d{1,2}[A-Za-z]{3}\d{2}$"))
                 {
-                    if (DateTime.TryParseExact(expiry, new[] { "ddMMMyy", "dMMMyy" },
-                        null, DateTimeStyles.None, out DateTime dt))
+                    if (DateTime.TryParseExact(expiry,
+                            new[] { "ddMMMyy", "dMMMyy" },
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.None, out DateTime dt))
                     {
-                        return dt.ToString("dd-MMM-yy");
+                        return dt.ToString("dd-MMM-yy", CultureInfo.InvariantCulture);
                     }
                 }
 
-                // Handle tenor formats (3M, 1Y, etc.) - calculate future date
-                if (Regex.IsMatch(expiry, @"^\d+[MYWWD]$"))
+                // 4️⃣ Handle yyyy-MM-dd or dd/MM/yyyy
+                if (DateTime.TryParse(expiry, out DateTime parsed))
                 {
-                    var futureDate = CalculateFutureDate(expiry);
-                    if (futureDate.HasValue)
-                    {
-                        return futureDate.Value.ToString("dd-MMM-yy");
-                    }
+                    return parsed.ToString("dd-MMM-yy", CultureInfo.InvariantCulture);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error formatting date for UBS: {ex.Message}");
+                Console.WriteLine($"Error formatting UBS expiry: {ex.Message}");
             }
 
-            return ""; // Return empty if can't parse
+            return expiry; // Fallback → return raw if unknown
         }
+
+
+
 
         private DateTime? CalculateFutureDate(string tenor)
         {

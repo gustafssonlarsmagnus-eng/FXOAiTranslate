@@ -99,14 +99,9 @@ namespace FXOAiTranslator
         {
             try
             {
-                var learnedResult = await TryLearnedPatterns(input, underlying, expiry);
-                if (learnedResult != null)
-                {
-                    Console.WriteLine($"[AI] Used learned pattern: {learnedResult.ParseMethod}");
-                    return learnedResult;
-                }
+               
 
-                Console.WriteLine("[AI] No learned pattern found, calling OpenAI...");
+                
                 // Fetch live spot rate BEFORE calling AI
                 var liveSpot = await GetDefaultSpotRateAsync(underlying);
 
@@ -357,28 +352,49 @@ STRICT REQUIREMENTS:
             return "";
         }
 
-        private async Task<TradeParseResult> TryLearnedPatterns(string input, string underlying, string expiry)
+        public async Task<TradeParseResult> TryLearnedPatterns(string input, string underlying, string expiry)
         {
+            Console.WriteLine($"[AI] TryLearnedPatterns called with input: '{input}'");
+            Console.WriteLine($"[AI] Loaded patterns count: {_learnedPatterns?.Count ?? 0}");
+
+            if (_learnedPatterns == null || _learnedPatterns.Count == 0)
+            {
+                Console.WriteLine("[AI] No patterns loaded or patterns list is null");
+                return null;
+            }
+
+            Console.WriteLine($"[AI] Testing {_learnedPatterns.Count} learned patterns...");
+
             foreach (var pattern in _learnedPatterns.OrderByDescending(p => p.UsageCount))
             {
                 try
                 {
+                    Console.WriteLine($"[AI] Testing pattern: {pattern.Name}");
+                    Console.WriteLine($"[AI] Pattern regex: {pattern.RegexPattern}");
+
                     var regex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
                     var match = regex.Match(input);
 
                     if (match.Success)
                     {
+                        Console.WriteLine($"[AI] PATTERN MATCHED: {pattern.Name}");
                         pattern.UsageCount++;
                         SaveLearnedPatterns();
 
-                        // Execute the learned logic instead of using a template
                         var result = await ExecuteLearnedLogic(pattern, match, input, underlying, expiry);
-
                         if (result != null)
                         {
                             result.ParseMethod = $"Learned-{pattern.Name}";
                             return result;
                         }
+                        else
+                        {
+                            Console.WriteLine($"[AI] ExecuteLearnedLogic returned null for {pattern.Name}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[AI] No match for pattern: {pattern.Name}");
                     }
                 }
                 catch (Exception ex)
@@ -386,6 +402,8 @@ STRICT REQUIREMENTS:
                     Console.WriteLine($"[AI] Error applying learned pattern {pattern.Name}: {ex.Message}");
                 }
             }
+
+            Console.WriteLine("[AI] No learned patterns matched - returning null");
             return null;
         }
 
@@ -393,11 +411,18 @@ STRICT REQUIREMENTS:
         {
             try
             {
+                Console.WriteLine($"[AI] ExecuteLearnedLogic called for pattern: {pattern.Name}");
+                Console.WriteLine($"[AI] Pattern Logic is null: {pattern.Logic == null}");
+                Console.WriteLine($"[AI] MoneynessDetermination: {pattern.Logic?.MoneynessDetermination ?? "NULL"}");
+                Console.WriteLine($"[AI] StrategyType: {pattern.Logic?.StrategyType ?? "NULL"}");
+
                 if (pattern.Logic != null && pattern.Logic.MoneynessDetermination == "AI_DETERMINED")
                 {
+                    Console.WriteLine($"[AI] Using AI_DETERMINED path");
                     return await ExecuteAIDeterminedPattern(pattern, match, input, underlying, expiry);
                 }
-                if (pattern.Logic.StrategyType == "VANILLA")
+
+                if (pattern.Logic?.StrategyType == "VANILLA")
                 {
                     // Extract components from the match using learned rules
                     var components = ExtractComponentsFromMatch(pattern.Logic, match);
@@ -440,6 +465,9 @@ STRICT REQUIREMENTS:
                 }
 
                 return null;
+
+                Console.WriteLine($"[AI] No execution path matched - returning null");
+                return null;
             }
             catch (Exception ex)
             {
@@ -449,38 +477,56 @@ STRICT REQUIREMENTS:
         }
         private async Task<TradeParseResult> ExecuteAIDeterminedPattern(LearnedPattern pattern, Match match, string input, string underlying, string expiry)
         {
-            // For AI-determined patterns, use a lightweight AI call with the learned structure
-            var lightweightPrompt = $@"Convert this FX options request to OVML using the learned pattern ""{pattern.Name}"":
+            Console.WriteLine($"[AI] ExecuteAIDeterminedPattern called for: {pattern.Name}");
+
+            var lightweightPrompt = $@"Convert this FX options request to Bloomberg OVML format:
 
 INPUT: ""{input}""
 UNDERLYING: {underlying}
 EXPIRY: {expiry}
 
-This matches a known pattern: {pattern.Description}
+CRITICAL: Output ONLY a single OVML line in this exact format:
+OVML [CURRENCY] [EXPIRY] [OPTION_TYPE] [STRIKE] [DIRECTION] [NOTIONAL] [STYLE] [SPOT]
 
-Output only the OVML line, no explanations:";
+Example: OVML GBPNOK 5M P DS20 B N25M VA SP13.3690
+
+No explanations, no XML, just the OVML line:";
 
             try
             {
+                Console.WriteLine($"[AI] Calling lightweight AI with prompt");
                 var response = await _openAI.GetChatCompletion(lightweightPrompt, "gpt-4o-mini");
                 var ovml = response.choices[0].message.content.Trim();
+                Console.WriteLine($"[AI] Lightweight AI response: {ovml}");
 
-                // Clean up the response
+                // Clean up the response - be more flexible with OVML detection
                 var ovmlMatch = Regex.Match(ovml, @"OVML\s+[^\r\n]+");
                 if (ovmlMatch.Success)
                 {
                     ovml = ovmlMatch.Value.Trim();
-
-                    return new TradeParseResult
-                    {
-                        OVML = ovml,
-                        Underlying = underlying,
-                        Expiry = expiry,
-                        LegCount = ExtractLegCountFromOVML(ovml),
-                        ParseMethod = $"Learned-{pattern.Name}",
-                        AdditionalInfo = "Generated using AI-learned pattern"
-                    };
+                    Console.WriteLine($"[AI] Extracted OVML: {ovml}");
                 }
+                else if (ovml.StartsWith("OVML", StringComparison.OrdinalIgnoreCase))
+                {
+                    // If it starts with OVML but regex didn't match, use the whole line
+                    ovml = ovml.Split('\n')[0].Trim();
+                    Console.WriteLine($"[AI] Using full OVML line: {ovml}");
+                }
+                else
+                {
+                    Console.WriteLine($"[AI] No OVML found in AI response, trying to extract from content");
+                    return null;
+                }
+
+                return new TradeParseResult
+                {
+                    OVML = ovml,
+                    Underlying = underlying,
+                    Expiry = expiry,
+                    LegCount = ExtractLegCountFromOVML(ovml),
+                    ParseMethod = $"Learned-{pattern.Name}",
+                    AdditionalInfo = "Generated using AI-learned pattern"
+                };
             }
             catch (Exception ex)
             {

@@ -646,8 +646,7 @@ namespace FXOAiTranslator
                 if (!string.IsNullOrEmpty(ovml))
                 {
                     Clipboard.SetText(ovml);
-                    MessageBox.Show("OVML copied to clipboard!", "Success",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    
                 }
             }
             else
@@ -666,8 +665,7 @@ namespace FXOAiTranslator
                 if (!string.IsNullOrEmpty(ubs))
                 {
                     Clipboard.SetText(ubs);
-                    MessageBox.Show("UBS format copied to clipboard!", "Success",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LogDebugMessage("[UI] UBS copied to clipboard");
                 }
                 else
                 {
