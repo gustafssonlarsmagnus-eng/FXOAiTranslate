@@ -659,25 +659,28 @@ Output only the OVML line, no explanations:";
 
 INPUT: ""{input.Replace("\"", "\\\"")}""
 OUTPUT: ""{result.OVML}""
+Create a VERY FLEXIBLE regex pattern for the CORE STRUCTURE only:
+1. Currency pair: 6 letters (anywhere in text)
+2. Notional: any number + units (anywhere in text) 
+3. Tenor: any number + time period (anywhere in text)
+4. Option type: put/call combinations (anywhere in text)
+5. Delta: any number + 'delta' (anywhere in text)
 
-Create a regex pattern that matches the CORE STRUCTURE, not specific values. Focus on:
-1. Currency pair format (any 6 letters)
-2. Notional amount (any number + mio/M/mm) 
-3. Tenor/expiry (any number + mth/M/etc)
-4. Option keywords (put/call/delta)
-5. Delta values (any 1-3 digits + delta)
+CRITICAL FLEXIBILITY RULES:
+- Use (?i) for case-insensitive matching
+- Allow flexible word order - components can appear anywhere
+- Make punctuation optional (.* between components)
+- Use word boundaries \\b to prevent partial matches
+- Allow multiple whitespace variations \\s+
+- Focus on CAPTURING the components, not enforcing sequence
 
-CRITICAL: Make patterns FLEXIBLE for trading variations:
-- Notional amounts can vary (25 mio, 50 mio, 100 mio, etc.)
-- Delta values can vary (15, 20, 25, 30 delta)
-- Spot references are optional
-- Focus on STRUCTURE, not specific numbers
+Example flexible approach: (?i)(?=.*(?<currency>[A-Z]{{6}}))(?=.*(?<notional>\\d+(?:\\.\\d+)?\\s*(?:mio|M|mm)))(?=.*(?<tenor>\\d+\\s*(?:mth|M|etc)))
 
-Provide your response in this exact JSON format:
+Provide JSON response:
 {{
     ""name"": ""Auto-[StrategyType]-{DateTime.Now:yyyyMMdd-HHmmss}"",
-    ""regexPattern"": ""flexible .NET compatible regex here"",
-    ""description"": ""flexible pattern for structural matching"",
+    ""regexPattern"": ""VERY flexible .NET regex using lookaheads"",
+    ""description"": ""flexible structural pattern allowing any word order"",
     ""strategyType"": ""VANILLA|RISK_REVERSAL|SPREAD|STRADDLE|COLLAR"",
     ""extractionRules"": [""CURRENCY_FROM_GROUP_1"", ""NOTIONAL_FROM_GROUP_2"", ""TENOR_FROM_GROUP_3"", ""DELTA_FROM_GROUP_4""]
 }}
