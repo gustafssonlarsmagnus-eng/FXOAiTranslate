@@ -75,6 +75,41 @@ namespace FXOAiTranslator
             // === Result decision ===
             if (result.CriticalErrors.Count > 0)
                 return WrapResult(false, "Critical errors: " + string.Join("; ", result.CriticalErrors), result);
+            // Highlight results in console
+
+            // Passed checks in green
+            if (result.PassedChecks.Any())
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                foreach (var check in result.PassedChecks)
+                {
+                    Console.WriteLine($"[SANITY OK] ✅ {check}");
+                }
+                Console.ResetColor();
+            }
+
+            // Warnings in yellow
+            if (result.Warnings.Any())
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                foreach (var warning in result.Warnings)
+                {
+                    Console.WriteLine($"[SANITY WARNING] ⚠ {warning}");
+                }
+                Console.ResetColor();
+            }
+
+            // Critical errors in red
+            if (result.CriticalErrors.Any())
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                foreach (var error in result.CriticalErrors)
+                {
+                    Console.WriteLine($"[SANITY ERROR] ❌ {error}");
+                }
+                Console.ResetColor();
+            }
+
 
             return WrapResult(true, "Basic structure looks OK", result);
         }

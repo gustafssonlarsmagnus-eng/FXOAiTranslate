@@ -693,8 +693,47 @@ Use named capture groups: (?<currency>\\w{{6}})";
                 var jsonMatch = Regex.Match(aiAnalysis, @"\{.*\}", RegexOptions.Singleline);
                 if (jsonMatch.Success)
                 {
-                    var jsonString = jsonMatch.Value;
-                    var patternData = JsonSerializer.Deserialize<JsonElement>(jsonString);
+                    // Clean up common AI mistakes in JSON output
+                    var jsonString = jsonMatch.Value
+                        .Replace("@\"", "\"")   // Remove C# verbatim string prefixes
+                        .Replace("\\\\", "\\"); // Normalize double-escaped backslashes
+
+                    // --- Fix regex escapes so JSON is valid ---
+                    // Always ensure regex metacharacters are double-escaped in JSON
+                    // Handles: \d, \s, \w, \., \?, \+, \*, \|
+                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\(d|s|w)", @"\\$1");
+                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\\.", @"\\.");
+                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\\?", @"\\?");
+                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\\+", @"\\+");
+                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\\*", @"\\*");
+                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\\|", @"\\|");
+
+                    // Also escape any stray backslashes before quotes
+                    jsonString = Regex.Replace(jsonString, @"\\(?="")", @"\\");
+
+                    // Debug log so you know when sanitizer fixed something
+                    if (jsonString != jsonMatch.Value)
+                    {
+                        Console.WriteLine("[SANITIZER] Fixed regex escapes in AI JSON");
+                        Console.WriteLine("[SANITIZER] Before: " + jsonMatch.Value);
+                        Console.WriteLine("[SANITIZER] After : " + jsonString);
+                    }
+
+
+
+
+                    JsonElement patternData;
+                    try
+                    {
+                        patternData = JsonSerializer.Deserialize<JsonElement>(jsonString);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[AI] Pattern JSON parse failed: {ex.Message}");
+                        Console.WriteLine($"[AI] Raw JSON was: {jsonString}");
+                        return null; // Skip saving invalid pattern
+                    }
+
 
                     var pattern = new LearnedPattern
                     {

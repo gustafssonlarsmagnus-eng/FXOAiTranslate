@@ -1042,7 +1042,8 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                 {
                     if (DateTime.TryParseExact(expiry, "MM/dd/yy", null, DateTimeStyles.None, out DateTime dt))
                     {
-                        return dt.ToString("dd-MMM-yy");
+                        return dt.ToString("dd-MMM-yy", CultureInfo.GetCultureInfo("en-GB"));
+
                     }
                 }
 
