@@ -733,10 +733,10 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
                 // More restrictive: avoid matching large numbers that are likely notionals
                 var tenorMatch = Regex.Match(
-                    input,
-                    @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>month|months|mth|mo|m|year|years|y|day|days|d|week|weeks|w)\b(?!\s*io)(?!\s*[A-Z]{6})",
-                    RegexOptions.IgnoreCase
-                );
+     input,
+     @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>week|weeks|w|month|months|mth|mo|year|years|y|day|days|d)\b(?!\s*mio)",
+     RegexOptions.IgnoreCase
+ );
 
                 LogDebug($"DEBUG: Tenor regex matched: {tenorMatch.Success}");
 
@@ -936,102 +936,22 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
         }
 
 
-        private string BuildMultiLegUBS(string[] parts, string underlying, string currency, string expiry, string spot, int legCount)
-        {
-            // Find strikes, directions, and notionals in OVML
-            string strikes = FindStrikesInOVML(parts);
-            string directions = FindDirectionsInOVML(parts);
-            string notionals = FindNotionalsInOVML(parts);
-
-            if (string.IsNullOrEmpty(strikes) || string.IsNullOrEmpty(notionals))
-                return "";
-
-            var strikeList = strikes.Split(',');
-            var notionalList = notionals.Replace("N", "").Replace("M", "").Split(',');
-            var directionList = directions.Split(',');
-
-            var legs = new List<string>();
-
-            for (int i = 0; i < Math.Min(strikeList.Length, notionalList.Length); i++)
-            {
-                string strike = strikeList[i].Trim();
-                string notional = notionalList[i].Trim();
-                string direction = i < directionList.Length ? directionList[i].Trim() : "B";
-
-                // Extract option type (C/P) from strike
-                char optionType = 'C';
-                if (strike.EndsWith("P"))
-                {
-                    optionType = 'P';
-                    strike = strike.Substring(0, strike.Length - 1);
-                }
-                else if (strike.EndsWith("C"))
-                {
-                    strike = strike.Substring(0, strike.Length - 1);
-                }
-
-                // Build leg: EURNOK 11.8000C EUR 10MIO 11-Nov-25
-                string leg = $"{underlying} {strike}{optionType}";
-
-                // Add currency for first leg only
-                if (i == 0)
-                {
-                    leg += $" {currency}";
-                }
-
-                // Scale notional down by 10x for UBS format
-                if (double.TryParse(notional, out double amount))
-                {
-                    double scaledAmount = amount / 10.0;
-                    leg += $" {scaledAmount}MIO";
-                }
-                else
-                {
-                    leg += $" {notional}MIO";
-                }
-
-                // Add expiry to first leg only
-                if (i == 0 && !string.IsNullOrEmpty(expiry))
-                {
-                    if (Regex.IsMatch(expiry, @"^\d+[WwMmYyDd]$"))
-                        leg += $" {expiry.ToUpper()}";
-                    else
-                        leg += $" {FormatDateForUBS(expiry)}";
-                }
-
-                legs.Add(leg);
-            }
-
-            string result = string.Join(", ", legs);
-
-            // Add spot reference at the end
-            if (!string.IsNullOrEmpty(spot))
-            {
-                result += $" SPOT {spot}";
-            }
-
-            return result;
-        }
 
 
-        private string BuildSingleLegUBS(string[] parts, string underlying, string currency, string expiry, string spot)
+
+
+        private string BuildSingleLegUBS(string[] parts, string underlying, string currency, string formattedDate, string spot)
         {
             string strike = "";
             string optionType = "";
-            string direction = "";
             string notional = "";
 
-            // Parse OVML parts
             for (int i = 0; i < parts.Length; i++)
             {
                 if (parts[i] == "C" || parts[i] == "P")
                 {
                     optionType = parts[i];
                     if (i > 0) strike = parts[i - 1];
-                }
-                else if (parts[i] == "B" || parts[i] == "S")
-                {
-                    direction = parts[i];
                 }
                 else if (parts[i].StartsWith("N") && parts[i].EndsWith("M"))
                 {
@@ -1042,24 +962,26 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
             if (string.IsNullOrEmpty(strike) || string.IsNullOrEmpty(optionType) || string.IsNullOrEmpty(notional))
                 return "";
 
-            // ⚡️ Don’t glue expiry into strike (avoid "3WC")
-            string result = $"{underlying} {strike}{optionType} {currency}";
+            string result;
+            if (Regex.IsMatch(formattedDate, @"^\d+[WwMmYyDd]$"))
+            {
+                result = $"{underlying} {formattedDate} {optionType} {currency}";
+            }
+            else
+            {
+                result = $"{underlying} {strike}{optionType} {currency}";
+            }
 
-            // Scale notional down by 10x for UBS format
             if (double.TryParse(notional, out double amount))
             {
                 double scaledAmount = amount / 10.0;
                 result += $" {scaledAmount}MIO";
             }
-            else
-            {
-                result += $" {notional}MIO";
-            }
 
-            // Only append expiry once
-            if (!string.IsNullOrEmpty(expiry))
+            // Add expiry only if it's a real date, not tenor
+            if (!string.IsNullOrEmpty(formattedDate) && !Regex.IsMatch(formattedDate, @"^\d+[WwMmYyDd]$"))
             {
-                result += $" {expiry}";
+                result += $" {formattedDate}";
             }
 
             if (!string.IsNullOrEmpty(spot))
@@ -1069,6 +991,60 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
             return result;
         }
+
+        private string BuildMultiLegUBS(string[] parts, string underlying, string currency, string formattedDate, string spot, int legCount)
+        {
+            string strikes = FindStrikesInOVML(parts);
+            string notionals = FindNotionalsInOVML(parts);
+
+            if (string.IsNullOrEmpty(strikes) || string.IsNullOrEmpty(notionals))
+                return "";
+
+            var strikeList = strikes.Split(',');
+            var notionalList = notionals.Replace("N", "").Replace("M", "").Split(',');
+
+            var legs = new List<string>();
+
+            for (int i = 0; i < Math.Min(strikeList.Length, notionalList.Length); i++)
+            {
+                string strike = strikeList[i].Trim();
+                string notional = notionalList[i].Trim();
+
+                char optionType = strike.EndsWith("P") ? 'P' : 'C';
+                strike = strike.TrimEnd('C', 'P');
+
+                string leg = $"{underlying} {strike}{optionType}";
+
+                if (i == 0) leg += $" {currency}";
+
+                if (double.TryParse(notional, out double amount))
+                {
+                    double scaledAmount = amount / 10.0;
+                    leg += $" {scaledAmount}MIO";
+                }
+
+                // Only first leg gets date if it's real date (not tenor)
+                if (i == 0 && !string.IsNullOrEmpty(formattedDate) && !Regex.IsMatch(formattedDate, @"^\d+[WwMmYyDd]$"))
+                {
+                    leg += $" {formattedDate}";
+                }
+
+                legs.Add(leg);
+            }
+
+            string result = string.Join(", ", legs);
+
+            if (!string.IsNullOrEmpty(spot))
+            {
+                result += $" SPOT {spot}";
+            }
+
+            return result;
+        }
+
+
+
+
 
 
 
@@ -1086,52 +1062,36 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(expiry))
-                    return "";
-
-                expiry = expiry.Trim();
-
-                // 1️⃣ If expiry is a tenor (like 1W, 2M, 6Y, 10D) → return as-is
-                if (Regex.IsMatch(expiry, @"^\d+\s*[WwMmYyDd]$"))
+                // Case 1: Tenor like 1W, 2W, 3M, 1Y → return as-is
+                if (Regex.IsMatch(expiry, @"^\d+[WwDdMmYy]$"))
                 {
                     return expiry.ToUpper();
                 }
 
-                // 2️⃣ Handle MM/dd/yy (US-style date)
-                if (Regex.IsMatch(expiry, @"^\d{2}/\d{2}/\d{2}$"))
+                // Case 2: MM/dd/yy (US style date)
+                if (Regex.IsMatch(expiry, @"^\d{2}/\d{2}/\d{2}$") &&
+                    DateTime.TryParseExact(expiry, "MM/dd/yy", null, DateTimeStyles.None, out DateTime dtUS))
                 {
-                    if (DateTime.TryParseExact(expiry, "MM/dd/yy", CultureInfo.InvariantCulture,
-                                               DateTimeStyles.None, out DateTime dt))
-                    {
-                        return dt.ToString("dd-MMM-yy", CultureInfo.InvariantCulture);
-                    }
+                    return dtUS.ToString("dd-MMM-yy", CultureInfo.InvariantCulture);
                 }
 
-                // 3️⃣ Handle ddMMMYY (e.g., 11NOV25, 2FEB26)
-                if (Regex.IsMatch(expiry, @"^\d{1,2}[A-Za-z]{3}\d{2}$"))
+                // Case 3: ddMMMyy (e.g. 11NOV25)
+                if (Regex.IsMatch(expiry, @"^\d{1,2}[A-Za-z]{3}\d{2}$") &&
+                    DateTime.TryParseExact(expiry, new[] { "ddMMMyy", "dMMMyy" },
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dtFX))
                 {
-                    if (DateTime.TryParseExact(expiry,
-                            new[] { "ddMMMyy", "dMMMyy" },
-                            CultureInfo.InvariantCulture,
-                            DateTimeStyles.None, out DateTime dt))
-                    {
-                        return dt.ToString("dd-MMM-yy", CultureInfo.InvariantCulture);
-                    }
-                }
-
-                // 4️⃣ Handle yyyy-MM-dd or dd/MM/yyyy
-                if (DateTime.TryParse(expiry, out DateTime parsed))
-                {
-                    return parsed.ToString("dd-MMM-yy", CultureInfo.InvariantCulture);
+                    return dtFX.ToString("dd-MMM-yy", CultureInfo.InvariantCulture);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error formatting UBS expiry: {ex.Message}");
+                Console.WriteLine($"Error formatting date for UBS: {ex.Message}");
             }
 
-            return expiry; // Fallback → return raw if unknown
+            return ""; // no expiry fallback
         }
+
+
 
 
 

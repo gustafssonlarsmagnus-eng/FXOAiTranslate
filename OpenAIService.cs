@@ -370,9 +370,15 @@ STRICT REQUIREMENTS:
                 try
                 {
                     Console.WriteLine($"[AI] Testing pattern: {pattern.Name}");
-                    Console.WriteLine($"[AI] Pattern regex: {pattern.RegexPattern}");
+                    string repairedRegex = RepairRegexPattern(pattern.RegexPattern);
+                    if (repairedRegex == null)
+                    {
+                        Console.WriteLine($"[AI] Skipping pattern {pattern.Name} - invalid regex");
+                        continue;
+                    }
 
-                    var regex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
+                    Console.WriteLine($"[AI] Pattern regex: {repairedRegex}");
+                    var regex = new Regex(repairedRegex, RegexOptions.IgnoreCase);
                     var match = regex.Match(input);
 
                     if (match.Success)
@@ -606,7 +612,12 @@ No explanations, no XML, just the OVML line:";
                 if (File.Exists(_patternsFilePath))
                 {
                     var json = File.ReadAllText(_patternsFilePath);
-                    _learnedPatterns = JsonSerializer.Deserialize<List<LearnedPattern>>(json) ?? new List<LearnedPattern>();
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                    };
+                    _learnedPatterns = JsonSerializer.Deserialize<List<LearnedPattern>>(json, options) ?? new List<LearnedPattern>();
                     Console.WriteLine($"[AI] Loaded {_learnedPatterns.Count} learned patterns");
                 }
                 else
@@ -620,12 +631,39 @@ No explanations, no XML, just the OVML line:";
                 _learnedPatterns = new List<LearnedPattern>();
             }
         }
+        private string RepairRegexPattern(string brokenRegex)
+        {
+            try
+            {
+                // Try to fix common corruption issues
+                string repaired = brokenRegex;
 
+                // Fix missing closing brackets and quotes in named groups
+                repaired = Regex.Replace(repaired, @"\(\?\<(\w+)\[", "(?<$1>\\b[");
+                repaired = Regex.Replace(repaired, @"\(\?\<(\w+)([A-Z])", "(?<$1>$2");
+
+                // Validate the repaired regex
+                new Regex(repaired, RegexOptions.IgnoreCase);
+
+                Console.WriteLine($"[AI] Repaired regex pattern successfully");
+                return repaired;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AI] Failed to repair regex pattern: {ex.Message}");
+                return null; // Return null for invalid patterns
+            }
+        }
         private void SaveLearnedPatterns()
         {
             try
             {
-                var json = JsonSerializer.Serialize(_learnedPatterns, new JsonSerializerOptions { WriteIndented = true });
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                };
+                var json = JsonSerializer.Serialize(_learnedPatterns, options);
                 File.WriteAllText(_patternsFilePath, json);
             }
             catch (Exception ex)
