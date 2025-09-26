@@ -232,19 +232,25 @@ STRICT REQUIREMENTS:
                     // normalize SPx.x
                     ovml = Regex.Replace(ovml, @"\bv(\d+\.\d+)", "SP$1");
 
-                    // Add post-processing correction for option type
-                    var ovmlParts = ovml.Split(' ');
-                    if (ovmlParts.Length >= 4 && !string.IsNullOrEmpty(liveSpot))
-                    {
-                        if (double.TryParse(ovmlParts[4], out double strike) && double.TryParse(liveSpot, out double spot))
-                        {
-                            bool isCall = ovml.Contains(" C ");
-                            bool shouldBeCall = strike > spot;
+                    // Only correct option type if user didn't specify call/put AND didn't provide spot reference
+                    bool userSpecifiedOptionType = Regex.IsMatch(input, @"\b(call|put)\b", RegexOptions.IgnoreCase);
+                    bool userProvidedSpotRef = !string.IsNullOrEmpty(explicitSpot);
 
-                            if (isCall != shouldBeCall)
+                    if (!userSpecifiedOptionType && !userProvidedSpotRef)
+                    {
+                        var ovmlParts = ovml.Split(' ');
+                        if (ovmlParts.Length >= 4 && !string.IsNullOrEmpty(liveSpot))
+                        {
+                            if (double.TryParse(ovmlParts[4], out double strike) && double.TryParse(liveSpot, out double spot))
                             {
-                                ovml = ovml.Replace(isCall ? " C " : " P ", shouldBeCall ? " C " : " P ");
-                                Console.WriteLine($"[AI] Corrected option type: strike {strike} vs spot {spot} → {(shouldBeCall ? "CALL" : "PUT")}");
+                                bool isCall = ovml.Contains(" C ");
+                                bool shouldBeCall = strike > spot;
+
+                                if (isCall != shouldBeCall)
+                                {
+                                    ovml = ovml.Replace(isCall ? " C " : " P ", shouldBeCall ? " C " : " P ");
+                                    Console.WriteLine($"[AI] Corrected option type: strike {strike} vs spot {spot} → {(shouldBeCall ? "CALL" : "PUT")}");
+                                }
                             }
                         }
                     }
