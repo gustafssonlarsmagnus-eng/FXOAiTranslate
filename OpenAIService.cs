@@ -80,112 +80,72 @@ namespace FXOAiTranslator
             _openAI = openAI;
             _bloombergService = bloombergService;
             _patternsFilePath = patternsFilePath;
-            _sanityChecker = new TradeSanityChecker(openAI, bloombergService); // ADD THIS LINE
+            _sanityChecker = new TradeSanityChecker(openAI, bloombergService);
             LoadLearnedPatterns();
-
-            // === DEBUG VERSION CHECK ===
-            Console.WriteLine("[DEBUG VERSION CHECK] HybridPatternLearner constructor called!");
-
-            var asm = System.Reflection.Assembly.GetExecutingAssembly();
-            Console.WriteLine($"[DEBUG VERSION CHECK] Assembly: {asm.FullName}");
-            Console.WriteLine($"[DEBUG VERSION CHECK] Location: {asm.Location}");
-            Console.WriteLine($"[DEBUG VERSION CHECK] Build Date (UTC): {System.IO.File.GetLastWriteTimeUtc(asm.Location)}");
-            // ===========================
+            Console.WriteLine($"[AI] Pattern learner initialized with {_learnedPatterns.Count} patterns");
         }
 
         public async Task<TradeParseResult> ParseWithAI(string input, string underlying, string expiry, string explicitSpot = "")
-
-
         {
+            Console.WriteLine("[AI] ParseWithAI called - VERSION 2025-09-29-NEW");
             try
             {
-               
+                LoadLearnedPatterns();
 
-                
-                // Fetch live spot rate BEFORE calling AI
+                bool patternMatched = false;
+                string matchedPatternName = "";
+
+                if (_learnedPatterns != null && _learnedPatterns.Count > 0)
+                {
+                    Console.WriteLine($"[AI] Checking {_learnedPatterns.Count} learned patterns...");
+
+                    foreach (var pattern in _learnedPatterns.OrderByDescending(p => p.UsageCount))
+                    {
+                        try
+                        {
+                            var regex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
+                            if (regex.IsMatch(input))
+                            {
+                                Console.WriteLine($"[AI] ✓ Pattern matched: {pattern.Description}");
+                                pattern.UsageCount++;
+                                SaveLearnedPatterns();
+                                patternMatched = true;
+                                matchedPatternName = pattern.Name;
+                                break;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[AI] Error testing pattern: {ex.Message}");
+                        }
+                    }
+                }
+
                 var liveSpot = await GetDefaultSpotRateAsync(underlying);
+                // ... rest of your existing code
 
-                string spotInfo;
-                string spotSource;
-
-                if (!string.IsNullOrEmpty(explicitSpot))
-                {
-                    spotInfo = explicitSpot;
-                    spotSource = "user input (s.ref / spot ref)";
-                }
-                else if (!string.IsNullOrEmpty(liveSpot))
-                {
-                    spotInfo = liveSpot;
-                    spotSource = "Bloomberg API";
-                }
-                else
-                {
-                    spotInfo = "9.8000"; // fallback
-                    spotSource = "default fallback";
-                }
-
-                Console.WriteLine($"DEBUG: Spot source = {spotSource}, value = {spotInfo}");
-
+                string spotInfo = !string.IsNullOrEmpty(explicitSpot) ? explicitSpot
+                    : !string.IsNullOrEmpty(liveSpot) ? liveSpot
+                    : "9.8000";
 
                 var prompt = $@"You are an expert FX options trader and OVML parser. Convert this natural language trading request into STRICT Bloomberg OVML format.
 
 Input: ""{input}""
-LIVE SPOT RATE for {underlying}: {spotInfo} (Use this exact rate for strike comparison)
+LIVE SPOT RATE for {underlying}: {spotInfo}
 
-MANDATORY OVML SYNTAX (Bloomberg Terminal Official):
+MANDATORY OVML SYNTAX:
 - Single Leg: OVML (currency pair) (expiry) (call/put) (strike) (buy/sell) (notional amount) (option style code) [SP(spot)]
 - Multi-Leg: OVML (currency pair) (expiry) (legs)L (directions) (strikes) N(notionals) (style) [SP(spot)]
 
 CRITICAL FORMAT RULES:
-1. DATE/TENOR FORMAT:
-   - Allow Bloomberg tenor shorthand (1W, 2M, 3M, 6M, 1Y) or explicit dates (MM/dd/yy).
-   - If input is a tenor like ""3M"", keep it as ""3M"" in output.
-   - Today’s date is {DateTime.Now:MM/dd/yyyy} for reference.
-
+1. DATE/TENOR FORMAT: Allow Bloomberg tenor shorthand (1W, 2M, 3M, 6M, 1Y) or explicit dates (MM/dd/yy).
 2. CURRENCY PAIR: Two 3-letter ISO codes without separator (EURUSD, USDNOK, EURSEK).
-
 3. OPTION TYPE: C (call) or P (put) only.
-
-4. STRIKE FORMAT:
-   - Numeric: 10.0000 (trim unnecessary zeros but keep up to 4 decimals).
-   - Delta: DS25 (for 25 delta), DF25 (forward delta).
-   - ATM: If input says ATM, use literal ""ATM"".
-
+4. STRIKE FORMAT: Numeric: 10.0000 (trim unnecessary zeros but keep up to 4 decimals), Delta: DS25, ATM: literal ""ATM"".
 5. DIRECTION: B (buy) or S (sell) only.
-
-6. NOTIONAL: N + amount + M (e.g., N100M).
-   - ""100mm"" → N100M
-   - ""50 mio"" → N50M
-   - ""25M"" → N25M
-   - Multiple notionals for multi-leg: N100M,50M
-   - Default to N10M per leg if not specified.
-
-7. OPTION STYLE: VA (vanilla), DKI (double knock-in), DKO (double knock-out).
-   - Default to VA unless specified.
-
-8. SPOT REFERENCE: SP + rate (e.g., SP9.8190).
-   - Always at the end if provided.
-   - Omit if no spot is given.
-
-9. MULTI-LEG STRUCTURES (always one OVML line):
-   - Risk Reversal: Buy Call + Sell Put (or opposite).
-   - Call Spread: Buy lower strike Call + Sell higher strike Call.
-   - Put Spread: Buy higher strike Put + Sell lower strike Put.
-   - Straddle: Buy Call + Buy Put (same strike).
-   - Strangle: Buy Call + Buy Put (different strikes).
-   - Collar: Buy Put + Sell Call (or as described).
-   - Directions: comma-separated (B,S).
-   - Strikes: comma-separated (e.g., 11.50P,11.30P).
-   - Notionals: comma-separated (e.g., N25M,25M).
-
-10. LANGUAGE SUPPORT:
-    - Swedish: säljer=sell, köper=buy, mio=million, mån=months.
-
-11. SHORTHAND MAPPINGS:
-    - ""PS"" = Put Spread (buy higher strike Put, sell lower strike Put).
-    - ""CS"" = Call Spread (buy lower strike Call, sell higher strike Call).
-    - These shorthands ALWAYS override other interpretations.
-
+6. NOTIONAL: N + amount + M (e.g., N100M). ""100mm"" → N100M, ""50 mio"" → N50M.
+7. OPTION STYLE: VA (vanilla), DKI (double knock-in), DKO (double knock-out). Default to VA.
+8. SPOT REFERENCE: SP + rate (e.g., SP9.8190). Always at the end if provided.
 
 EXAMPLES:
 Input: ""USDNOK 1 week 10.00 call in 100mm, spot ref 9.8190""
@@ -194,133 +154,94 @@ Output: OVML USDNOK 1W C 10.0000 B N100M VA SP9.8190
 Input: ""EURSEK 3M buy 11.50 put 50M, sell 11.80 call 50M""
 Output: OVML EURSEK 3M 2L B,S 11.5000P,11.8000C N50M,50M VA
 
-Input: ""EURUSD risk reversal, buy call 1.10, sell put 1.05, 100M each, spotref 1.0833""
-Output: OVML EURUSD 1M 2L B,S 1.1000C,1.0500P N100M,100M VA SP1.0833
-
-Input: ""3-month EUR put spread with 11.50 and 11.30 in 10 mio""
-Output: OVML EURNOK 3M 2L B,S 11.5000P,11.3000P N10M,10M VA
-
-Input: ""USDSEK call spread 9.20-9.40 2 months""
-Output: OVML USDSEK 2M 2L B,S 9.2000C,9.4000C N10M,10M VA
-
-Input: ""6M GBPNOK call spread buy 15.20 sell 15.80""
-Output: OVML GBPNOK 6M 2L B,S 15.2000C,15.8000C N10M,10M VA
-
-Input: ""Straddle EURUSD ATM 1M 25M each""
-Output: OVML EURUSD 1M 2L B,B ATM C,ATM P N25M,25M VA
-
 STRICT REQUIREMENTS:
 - Always produce exactly one OVML line.
 - Use single-line multi-leg format for all strategies.
-- Keep tenor notation (1W, 3M, 6M) if given.
-- Do not output explanations, only the OVML line.
-
-
-";
-
+- Do not output explanations, only the OVML line.";
 
                 var response = await _openAI.GetChatCompletion(prompt);
                 var aiResponse = response.choices[0].message.content.Trim();
 
-                Console.WriteLine($"[AI] Raw response: {aiResponse}");
-
                 var ovmlMatch = Regex.Match(aiResponse, @"OVML\s+[^\r\n]+");
-                if (ovmlMatch.Success)
+                if (!ovmlMatch.Success)
                 {
-                    var ovml = ovmlMatch.Value.Trim();
-
-                    // normalize SPx.x
-                    ovml = Regex.Replace(ovml, @"\bv(\d+\.\d+)", "SP$1");
-
-                    // Only correct option type if user didn't specify call/put AND didn't provide spot reference
-                    bool userSpecifiedOptionType = Regex.IsMatch(input, @"\b(call|put)\b", RegexOptions.IgnoreCase);
-                    bool userProvidedSpotRef = !string.IsNullOrEmpty(explicitSpot);
-
-                    if (!userSpecifiedOptionType && !userProvidedSpotRef)
+                    return new TradeParseResult
                     {
-                        var ovmlParts = ovml.Split(' ');
-                        if (ovmlParts.Length >= 4 && !string.IsNullOrEmpty(liveSpot))
-                        {
-                            if (double.TryParse(ovmlParts[4], out double strike) && double.TryParse(liveSpot, out double spot))
-                            {
-                                bool isCall = ovml.Contains(" C ");
-                                bool shouldBeCall = strike > spot;
+                        OVML = aiResponse,
+                        Underlying = underlying,
+                        Expiry = expiry,
+                        ParseMethod = "AI-Raw",
+                        AdditionalInfo = "Returned raw AI response since no OVML detected"
+                    };
+                }
 
-                                if (isCall != shouldBeCall)
-                                {
-                                    ovml = ovml.Replace(isCall ? " C " : " P ", shouldBeCall ? " C " : " P ");
-                                    Console.WriteLine($"[AI] Corrected option type: strike {strike} vs spot {spot} → {(shouldBeCall ? "CALL" : "PUT")}");
-                                }
+                var ovml = ovmlMatch.Value.Trim();
+                ovml = Regex.Replace(ovml, @"\bv(\d+\.\d+)", "SP$1");
+
+                // Only correct option type if user didn't specify call/put AND didn't provide spot reference
+                bool userSpecifiedOptionType = Regex.IsMatch(input, @"\b(call|put)\b", RegexOptions.IgnoreCase);
+                bool userProvidedSpotRef = !string.IsNullOrEmpty(explicitSpot);
+
+                if (!userSpecifiedOptionType && !userProvidedSpotRef)
+                {
+                    var ovmlParts = ovml.Split(' ');
+                    if (ovmlParts.Length >= 4 && !string.IsNullOrEmpty(liveSpot))
+                    {
+                        if (double.TryParse(ovmlParts[4], out double strike) && double.TryParse(liveSpot, out double spot))
+                        {
+                            bool isCall = ovml.Contains(" C ");
+                            bool shouldBeCall = strike > spot;
+
+                            if (isCall != shouldBeCall)
+                            {
+                                ovml = ovml.Replace(isCall ? " C " : " P ", shouldBeCall ? " C " : " P ");
                             }
                         }
                     }
-
-                    // add live spot if missing
-                    if (!ovml.Contains("SP"))
-                    {
-                        var liveRate = await GetDefaultSpotRateAsync(underlying);
-                        if (!string.IsNullOrEmpty(liveRate))
-                        {
-                            ovml += $" SP{liveRate}";
-                            Console.WriteLine($"[AI] Added live Bloomberg spot rate for {underlying}: SP{liveRate}");
-                        }
-                    }
-
-                    var result = new TradeParseResult
-                    {
-                        OVML = ovml,
-                        Underlying = ExtractUnderlyingFromOVML(ovml),
-                        Expiry = ExtractExpiryFromOVML(ovml),
-                        LegCount = ExtractLegCountFromOVML(ovml),
-                        ParseMethod = "AI-Success",
-                        AdditionalInfo = aiResponse
-                    };
-                    Console.WriteLine($"[DEBUG] About to enter sanity check try block - OVML: {ovml}");
-                    // ADD SANITY CHECK HERE:
-                    try
-                    {
-                        Console.WriteLine($"[DEBUG] About to call sanity checker...");
-                        var sanityCheck = await _sanityChecker.ValidateTradeAsync(input, result);
-                        Console.WriteLine($"[DEBUG] Sanity checker returned successfully");
-                        result.ValidationResult = sanityCheck;
-
-                        // ADD THESE DEBUG LINES:
-                        Console.WriteLine($"[DEBUG] Sanity check IsValid: {sanityCheck.IsValid}");
-                        Console.WriteLine($"[DEBUG] Sanity check Confidence: {sanityCheck.Confidence}");
-                        Console.WriteLine($"[DEBUG] Sanity check Reason: {sanityCheck.Reason}");
-
-                        if (sanityCheck.IsValid)
-                        {
-                            result.ParseMethod = $"AI-Success (Validated - {sanityCheck.Confidence:P0})";
-                            Console.WriteLine($"[AI] Sanity check PASSED: {sanityCheck.Reason}");
-                            Console.WriteLine($"[AI] About to start learning process...");
-
-                            _ = Task.Run(async () => await LearnFromSuccessfulExample(input, result));
-                        }
-                        else
-                        {
-                            result.ParseMethod = $"AI-Warning (Failed Validation - {sanityCheck.Confidence:P0})";
-                            Console.WriteLine($"[AI] Sanity check FAILED: {sanityCheck.Reason}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[AI] Sanity check error: {ex.Message}");
-                        Console.WriteLine($"[AI] Sanity check stack trace: {ex.StackTrace}");
-                        // Keep original result if sanity check fails
-                    }
-
-                    return result;
                 }
 
-                return new TradeParseResult
+                if (!ovml.Contains("SP") && !string.IsNullOrEmpty(liveSpot))
                 {
-                    OVML = aiResponse,
-                    Underlying = underlying,
-                    Expiry = expiry,
-                    ParseMethod = "AI-Raw",
-                    AdditionalInfo = "Returned raw AI response since no OVML detected"
+                    ovml += $" SP{liveSpot}";
+                }
+
+                var result = new TradeParseResult
+                {
+                    OVML = ovml,
+                    Underlying = ExtractUnderlyingFromOVML(ovml),
+                    Expiry = ExtractExpiryFromOVML(ovml),
+                    LegCount = ExtractLegCountFromOVML(ovml),
+                    ParseMethod = patternMatched ? $"Learned-Pattern-{matchedPatternName}" : "AI-Success",
+                    AdditionalInfo = aiResponse
                 };
+
+                try
+                {
+                    var sanityCheck = await _sanityChecker.ValidateTradeAsync(input, result);
+                    result.ValidationResult = sanityCheck;
+
+                    if (sanityCheck.IsValid)
+                    {
+                        result.ParseMethod = patternMatched
+                            ? $"Learned-Pattern-{matchedPatternName} (Validated - {sanityCheck.Confidence:P0})"
+                            : $"AI-Success (Validated - {sanityCheck.Confidence:P0})";
+
+                        if (!patternMatched)
+                        {
+                            await LearnFromSuccessfulExample(input, result);
+                        }
+                    }
+                    else
+                    {
+                        result.ParseMethod = $"AI-Warning (Failed Validation - {sanityCheck.Confidence:P0})";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AI] Sanity check error: {ex.Message}");
+                }
+
+                return result;
             }
             catch (Exception ex)
             {
@@ -345,9 +266,7 @@ STRICT REQUIREMENTS:
                     var spotRate = await _bloombergService.GetSpotRate(underlying);
                     if (spotRate.HasValue)
                     {
-                        string liveRate = spotRate.Value.ToString("F4");
-                        Console.WriteLine($"[AI] Using live Bloomberg spot rate for {underlying}: {liveRate}");
-                        return liveRate;
+                        return spotRate.Value.ToString("F4");
                     }
                 }
             }
@@ -360,12 +279,8 @@ STRICT REQUIREMENTS:
 
         public async Task<TradeParseResult> TryLearnedPatterns(string input, string underlying, string expiry)
         {
-            Console.WriteLine($"[AI] TryLearnedPatterns called with input: '{input}'");
-            Console.WriteLine($"[AI] Loaded patterns count: {_learnedPatterns?.Count ?? 0}");
-
             if (_learnedPatterns == null || _learnedPatterns.Count == 0)
             {
-                Console.WriteLine("[AI] No patterns loaded or patterns list is null");
                 return null;
             }
 
@@ -375,202 +290,25 @@ STRICT REQUIREMENTS:
             {
                 try
                 {
-                    Console.WriteLine($"[AI] Testing pattern: {pattern.Name}");
-                    string repairedRegex = RepairRegexPattern(pattern.RegexPattern);
-                    if (repairedRegex == null)
-                    {
-                        Console.WriteLine($"[AI] Skipping pattern {pattern.Name} - invalid regex");
-                        continue;
-                    }
+                    var regex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
 
-                    Console.WriteLine($"[AI] Pattern regex: {repairedRegex}");
-                    var regex = new Regex(repairedRegex, RegexOptions.IgnoreCase);
-                    var match = regex.Match(input);
-
-                    if (match.Success)
+                    if (regex.IsMatch(input))
                     {
-                        Console.WriteLine($"[AI] PATTERN MATCHED: {pattern.Name}");
+                        Console.WriteLine($"[AI] ✓ Pattern matched: {pattern.Description}");
                         pattern.UsageCount++;
                         SaveLearnedPatterns();
 
-                        var result = await ExecuteLearnedLogic(pattern, match, input, underlying, expiry);
-                        if (result != null)
-                        {
-                            result.ParseMethod = $"Learned-{pattern.Name}";
-                            return result;
-                        }
-                        else
-                        {
-                            Console.WriteLine($"[AI] ExecuteLearnedLogic returned null for {pattern.Name}");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[AI] No match for pattern: {pattern.Name}");
+                        // Pattern matched - let AI handle the actual OVML generation with correct values
+                        return null;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[AI] Error applying learned pattern {pattern.Name}: {ex.Message}");
+                    Console.WriteLine($"[AI] Error testing pattern {pattern.Name}: {ex.Message}");
                 }
-            }
-
-            Console.WriteLine("[AI] No learned patterns matched - returning null");
-            return null;
-        }
-
-        private async Task<TradeParseResult> ExecuteLearnedLogic(LearnedPattern pattern, Match match, string input, string underlying, string expiry)
-        {
-            try
-            {
-                Console.WriteLine($"[AI] ExecuteLearnedLogic called for pattern: {pattern.Name}");
-                Console.WriteLine($"[AI] Pattern Logic is null: {pattern.Logic == null}");
-                Console.WriteLine($"[AI] MoneynessDetermination: {pattern.Logic?.MoneynessDetermination ?? "NULL"}");
-                Console.WriteLine($"[AI] StrategyType: {pattern.Logic?.StrategyType ?? "NULL"}");
-
-                if (pattern.Logic != null && pattern.Logic.MoneynessDetermination == "AI_DETERMINED")
-                {
-                    Console.WriteLine($"[AI] Using AI_DETERMINED path");
-                    return await ExecuteAIDeterminedPattern(pattern, match, input, underlying, expiry);
-                }
-
-                if (pattern.Logic?.StrategyType == "VANILLA")
-                {
-                    // Extract components from the match using learned rules
-                    var components = ExtractComponentsFromMatch(pattern.Logic, match);
-
-                    // Get live spot rate (replicating AI logic)
-                    string spotRate = "";
-                    if (pattern.Logic.RequiresSpotLookup)
-                    {
-                        spotRate = await GetDefaultSpotRateAsync(underlying);
-                    }
-
-                    // Determine option type using learned logic
-                    string optionType = "C"; // Default
-                    if (pattern.Logic.MoneynessDetermination == "STRIKE_VS_SPOT" && !string.IsNullOrEmpty(spotRate))
-                    {
-                        if (double.TryParse(components["STRIKE"], out double strike) &&
-                            double.TryParse(spotRate, out double spot))
-                        {
-                            optionType = strike > spot ? "C" : "P"; // ITM put, OTM call
-                        }
-                    }
-
-                    // Build OVML using extracted values and determined logic
-                    var ovml = $"OVML {underlying} {expiry} {optionType} {components["STRIKE"]} {pattern.Logic.DefaultDirection} N{components["NOTIONAL"]}M VA";
-
-                    if (!string.IsNullOrEmpty(spotRate))
-                    {
-                        ovml += $" SP{spotRate}";
-                    }
-
-                    return new TradeParseResult
-                    {
-                        OVML = ovml,
-                        Underlying = underlying,
-                        Expiry = expiry,
-                        LegCount = 1,
-                        ParseMethod = $"Learned-{pattern.Name}",
-                        AdditionalInfo = "Generated using learned logic pattern"
-                    };
-                }
-
-                return null;
-
-                Console.WriteLine($"[AI] No execution path matched - returning null");
-                return null;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AI] Error executing learned logic: {ex.Message}");
-                return null;
-            }
-        }
-        private async Task<TradeParseResult> ExecuteAIDeterminedPattern(LearnedPattern pattern, Match match, string input, string underlying, string expiry)
-        {
-            Console.WriteLine($"[AI] ExecuteAIDeterminedPattern called for: {pattern.Name}");
-
-            var lightweightPrompt = $@"Convert this FX options request to Bloomberg OVML format:
-
-INPUT: ""{input}""
-UNDERLYING: {underlying}
-EXPIRY: {expiry}
-
-CRITICAL: Output ONLY a single OVML line in this exact format:
-OVML [CURRENCY] [EXPIRY] [OPTION_TYPE] [STRIKE] [DIRECTION] [NOTIONAL] [STYLE] [SPOT]
-
-Example: OVML GBPNOK 5M P DS20 B N25M VA SP13.3690
-
-No explanations, no XML, just the OVML line:";
-
-            try
-            {
-                Console.WriteLine($"[AI] Calling lightweight AI with prompt");
-                var response = await _openAI.GetChatCompletion(lightweightPrompt, "gpt-4o-mini");
-                var ovml = response.choices[0].message.content.Trim();
-                Console.WriteLine($"[AI] Lightweight AI response: {ovml}");
-
-                // Clean up the response - be more flexible with OVML detection
-                var ovmlMatch = Regex.Match(ovml, @"OVML\s+[^\r\n]+");
-                if (ovmlMatch.Success)
-                {
-                    ovml = ovmlMatch.Value.Trim();
-                    Console.WriteLine($"[AI] Extracted OVML: {ovml}");
-                }
-                else if (ovml.StartsWith("OVML", StringComparison.OrdinalIgnoreCase))
-                {
-                    // If it starts with OVML but regex didn't match, use the whole line
-                    ovml = ovml.Split('\n')[0].Trim();
-                    Console.WriteLine($"[AI] Using full OVML line: {ovml}");
-                }
-                else
-                {
-                    Console.WriteLine($"[AI] No OVML found in AI response, trying to extract from content");
-                    return null;
-                }
-
-                return new TradeParseResult
-                {
-                    OVML = ovml,
-                    Underlying = underlying,
-                    Expiry = expiry,
-                    LegCount = ExtractLegCountFromOVML(ovml),
-                    ParseMethod = $"Learned-{pattern.Name}",
-                    AdditionalInfo = "Generated using AI-learned pattern"
-                };
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AI] Error in lightweight AI execution: {ex.Message}");
             }
 
             return null;
-        }
-        private Dictionary<string, string> ExtractComponentsFromMatch(PatternLogic logic, Match match)
-        {
-            var components = new Dictionary<string, string>();
-
-            foreach (var rule in logic.ExtractionRules)
-            {
-                switch (rule)
-                {
-                    case "CURRENCY_FROM_GROUP_1":
-                        components["CURRENCY"] = match.Groups[1].Value;
-                        break;
-                    case "EXPIRY_FROM_GROUP_2":
-                        components["EXPIRY"] = match.Groups[2].Value;
-                        break;
-                    case "STRIKE_FROM_GROUP_3":
-                        components["STRIKE"] = match.Groups[3].Value;
-                        break;
-                    case "NOTIONAL_FROM_GROUP_4":
-                        components["NOTIONAL"] = match.Groups[4].Value;
-                        break;
-                }
-            }
-
-            return components;
         }
 
         public bool RemovePattern(string patternName)
@@ -582,7 +320,7 @@ No explanations, no XML, just the OVML line:";
                 {
                     _learnedPatterns.Remove(patternToRemove);
                     SaveLearnedPatterns();
-                    Console.WriteLine($"[AI] Removed learned pattern: {patternName}");
+                    Console.WriteLine($"[AI] Removed pattern: {patternName}");
                     return true;
                 }
                 return false;
@@ -592,23 +330,6 @@ No explanations, no XML, just the OVML line:";
                 Console.WriteLine($"[AI] Error removing pattern: {ex.Message}");
                 return false;
             }
-        
-        }
-
-
-        private string AdaptOVMLTemplate(string templateOVML, Match match, string underlying, string expiry)
-        {
-            var parts = templateOVML.Split(' ');
-            if (parts.Length > 1) parts[1] = underlying;
-            for (int i = 0; i < parts.Length; i++)
-            {
-                if (parts[i].EndsWith("M") || parts[i].EndsWith("Y") || parts[i].Contains("/"))
-                {
-                    parts[i] = expiry;
-                    break;
-                }
-            }
-            return string.Join(" ", parts);
         }
 
         private void LoadLearnedPatterns()
@@ -620,11 +341,9 @@ No explanations, no XML, just the OVML line:";
                     var json = File.ReadAllText(_patternsFilePath);
                     var options = new JsonSerializerOptions
                     {
-                        PropertyNameCaseInsensitive = true,
-                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                        PropertyNameCaseInsensitive = true
                     };
                     _learnedPatterns = JsonSerializer.Deserialize<List<LearnedPattern>>(json, options) ?? new List<LearnedPattern>();
-                    Console.WriteLine($"[AI] Loaded {_learnedPatterns.Count} learned patterns");
                 }
                 else
                 {
@@ -633,48 +352,26 @@ No explanations, no XML, just the OVML line:";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AI] Error loading learned patterns: {ex.Message}");
+                Console.WriteLine($"[AI] Error loading patterns: {ex.Message}");
                 _learnedPatterns = new List<LearnedPattern>();
             }
         }
-        private string RepairRegexPattern(string brokenRegex)
-        {
-            try
-            {
-                // Try to fix common corruption issues
-                string repaired = brokenRegex;
 
-                // Fix missing closing brackets and quotes in named groups
-                repaired = Regex.Replace(repaired, @"\(\?\<(\w+)\[", "(?<$1>\\b[");
-                repaired = Regex.Replace(repaired, @"\(\?\<(\w+)([A-Z])", "(?<$1>$2");
-
-                // Validate the repaired regex
-                new Regex(repaired, RegexOptions.IgnoreCase);
-
-                Console.WriteLine($"[AI] Repaired regex pattern successfully");
-                return repaired;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AI] Failed to repair regex pattern: {ex.Message}");
-                return null; // Return null for invalid patterns
-            }
-        }
         private void SaveLearnedPatterns()
         {
             try
             {
                 var options = new JsonSerializerOptions
                 {
-                    WriteIndented = true,
-                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                    WriteIndented = true
                 };
+
                 var json = JsonSerializer.Serialize(_learnedPatterns, options);
                 File.WriteAllText(_patternsFilePath, json);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AI] Error saving learned patterns: {ex.Message}");
+                Console.WriteLine($"[AI] Error saving patterns: {ex.Message}");
             }
         }
 
@@ -699,7 +396,6 @@ No explanations, no XML, just the OVML line:";
 
             var parts = ovml.Split(' ');
 
-            // 1. Look for explicit "2L", "3L", etc.
             for (int i = 2; i < Math.Min(parts.Length, 8); i++)
             {
                 if (parts[i].EndsWith("L") && parts[i].Length > 1 && char.IsDigit(parts[i][0]))
@@ -711,8 +407,6 @@ No explanations, no XML, just the OVML line:";
                 }
             }
 
-            // 2. Fallback: infer from comma-separated strikes
-            // e.g. "11.5000P,11.3000P" → 2 legs
             var strikePart = parts.FirstOrDefault(p => p.Contains("P") || p.Contains("C"));
             if (!string.IsNullOrEmpty(strikePart) && strikePart.Contains(","))
             {
@@ -720,19 +414,35 @@ No explanations, no XML, just the OVML line:";
                 if (legs > 1) return legs;
             }
 
-            // 3. Default: assume single leg
             return 1;
         }
+
         private async Task LearnFromSuccessfulExample(string input, TradeParseResult result)
         {
             try
             {
-                var pattern = await AnalyzeSuccessfulPattern(input, result);
-                if (pattern != null)
+                // Simple hardcoded order-independent pattern for vanilla FX options
+                var pattern = new LearnedPattern
                 {
-                    _learnedPatterns.Add(pattern);
-                    SaveLearnedPatterns();
-                    Console.WriteLine($"[AI] Auto-learned new logic pattern: {pattern.Name}");
+                    Name = $"Vanilla-{DateTime.Now:yyyyMMdd-HHmmss}",
+                    RegexPattern = @"^(?=.*\b[A-Z]{6}\b)(?=.*\d+\s*(?:mio|M|mm|mi|million))(?=.*\d+\s*(?:w|W|wks|weeks|M|mth|months|d|D|days))(?=.*\d+\.?\d*)(?=.*\b(?:call|put|Call|Put)\b).*$",
+                    Description = "Order-independent vanilla FX option",
+                    CreatedAt = DateTime.Now,
+                    UsageCount = 1,
+                    ExampleInput = input
+                };
+
+                // Check if we already have this pattern
+                if (!_learnedPatterns.Any(p => p.RegexPattern == pattern.RegexPattern))
+                {
+                    // Verify pattern matches the input
+                    var testRegex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
+                    if (testRegex.IsMatch(input))
+                    {
+                        _learnedPatterns.Add(pattern);
+                        SaveLearnedPatterns();
+                        Console.WriteLine($"[AI] ✓ Learned pattern from: {input}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -740,163 +450,15 @@ No explanations, no XML, just the OVML line:";
                 Console.WriteLine($"[AI] Error learning pattern: {ex.Message}");
             }
         }
-
-        private async Task<LearnedPattern> AnalyzeSuccessfulPattern(string input, TradeParseResult result)
-        {
-            try
-            {
-                var analysisPrompt = $@"Analyze this successful FX options parsing example and create a FLEXIBLE regex pattern:
-
-INPUT: ""{input.Replace("\"", "\\\"")}""
-OUTPUT: ""{result.OVML}""
-Create a VERY FLEXIBLE regex pattern for the CORE STRUCTURE only:
-1. Currency pair: 6 letters (anywhere in text)
-2. Notional: any number + units (anywhere in text) 
-3. Tenor: any number + time period (anywhere in text)
-4. Option type: put/call combinations (anywhere in text)
-5. Delta: any number + 'delta' (anywhere in text)
-
-CRITICAL FLEXIBILITY RULES:
-- Use (?i) for case-insensitive matching
-- Allow flexible word order - components can appear anywhere
-- Make punctuation optional (.* between components)
-- Use word boundaries \\b to prevent partial matches
-- Allow multiple whitespace variations \\s+
-- Focus on CAPTURING the components, not enforcing sequence
-
-Example flexible approach: (?i)(?=.*(?<currency>[A-Z]{{6}}))(?=.*(?<notional>\\d+(?:\\.\\d+)?\\s*(?:mio|M|mm)))(?=.*(?<tenor>\\d+\\s*(?:mth|M|etc)))
-
-Provide JSON response:
-{{
-    ""name"": ""Auto-[StrategyType]-{DateTime.Now:yyyyMMdd-HHmmss}"",
-    ""regexPattern"": ""VERY flexible .NET regex using lookaheads"",
-    ""description"": ""flexible structural pattern allowing any word order"",
-    ""strategyType"": ""VANILLA|RISK_REVERSAL|SPREAD|STRADDLE|COLLAR"",
-    ""extractionRules"": [""CURRENCY_FROM_GROUP_1"", ""NOTIONAL_FROM_GROUP_2"", ""TENOR_FROM_GROUP_3"", ""DELTA_FROM_GROUP_4""]
-}}
-
-Use named capture groups: (?<currency>\\w{{6}})";
-
-                var response = await _openAI.GetChatCompletion(analysisPrompt, "gpt-4o-mini");
-                var aiAnalysis = response.choices[0].message.content.Trim();
-
-                Console.WriteLine($"[AI] Pattern analysis response: {aiAnalysis}");
-
-                // Extract JSON from AI response
-                var jsonMatch = Regex.Match(aiAnalysis, @"\{.*\}", RegexOptions.Singleline);
-                if (jsonMatch.Success)
-                {
-                    // Clean up common AI mistakes in JSON output
-                    var jsonString = jsonMatch.Value
-                        .Replace("@\"", "\"")   // Remove C# verbatim string prefixes
-                        .Replace("\\\\", "\\"); // Normalize double-escaped backslashes
-
-                    // --- Fix regex escapes so JSON is valid ---
-                    // Always ensure regex metacharacters are double-escaped in JSON
-                    // Handles: \d, \s, \w, \., \?, \+, \*, \|
-                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\(d|s|w)", @"\\$1");
-                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\\.", @"\\.");
-                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\\?", @"\\?");
-                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\\+", @"\\+");
-                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\\*", @"\\*");
-                    jsonString = Regex.Replace(jsonString, @"(?<!\\)\\\|", @"\\|");
-
-                    // Also escape any stray backslashes before quotes
-                    jsonString = Regex.Replace(jsonString, @"\\(?="")", @"\\");
-
-                    // Debug log so you know when sanitizer fixed something
-                    if (jsonString != jsonMatch.Value)
-                    {
-                        Console.WriteLine("[SANITIZER] Fixed regex escapes in AI JSON");
-                        Console.WriteLine("[SANITIZER] Before: " + jsonMatch.Value);
-                        Console.WriteLine("[SANITIZER] After : " + jsonString);
-                    }
-
-
-
-
-                    JsonElement patternData;
-                    try
-                    {
-                        patternData = JsonSerializer.Deserialize<JsonElement>(jsonString);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[AI] Pattern JSON parse failed: {ex.Message}");
-                        Console.WriteLine($"[AI] Raw JSON was: {jsonString}");
-                        return null; // Skip saving invalid pattern
-                    }
-
-
-                    var pattern = new LearnedPattern
-                    {
-                        Name = patternData.GetProperty("name").GetString(),
-                        RegexPattern = patternData.GetProperty("regexPattern").GetString(),
-                        Description = patternData.GetProperty("description").GetString(),
-                        CreatedAt = DateTime.Now,
-                        UsageCount = 1,
-                        Logic = new PatternLogic
-                        {
-                            StrategyType = patternData.GetProperty("strategyType").GetString(),
-                            RequiresSpotLookup = true,
-                            MoneynessDetermination = "AI_DETERMINED",
-                            DefaultDirection = "B",
-                            ExtractionRules = patternData.GetProperty("extractionRules")
-                                .EnumerateArray()
-                                .Select(x => x.GetString())
-                                .ToList()
-                        }
-                    };
-
-                    try
-                    {
-                        var testRegex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
-                        Console.WriteLine($"[AI] Pattern regex validation PASSED: {pattern.Name}");
-                    }
-                    catch (Exception regexEx)
-                    {
-                        Console.WriteLine($"[AI] Pattern regex validation FAILED: {regexEx.Message}");
-                        Console.WriteLine($"[AI] Discarding invalid pattern: {pattern.Name}");
-                        return null; // Don't save invalid patterns
-                    }
-
-                    Console.WriteLine($"[AI] Successfully created pattern: {pattern.Name}");
-                    return pattern;
-                }
-                else
-                {
-                    Console.WriteLine($"[AI] Could not extract JSON from AI response");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AI] Error in AI pattern analysis: {ex.Message}");
-            }
-
-            return null;
-        }
-
-       
-
-
-    }   
+    }
 
     public class LearnedPattern
     {
         public string Name { get; set; }
         public string RegexPattern { get; set; }
         public string Description { get; set; }
+        public string ExampleInput { get; set; }
         public DateTime CreatedAt { get; set; }
         public int UsageCount { get; set; }
-        public PatternLogic Logic { get; set; }
-    }
-
-    public class PatternLogic
-    {
-        public string StrategyType { get; set; }
-        public bool RequiresSpotLookup { get; set; } = true;
-        public string MoneynessDetermination { get; set; }
-        public string DefaultDirection { get; set; } = "B";
-        public List<string> ExtractionRules { get; set; } = new List<string>();
     }
 }

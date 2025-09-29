@@ -320,36 +320,7 @@ namespace FXOAiTranslator
                 }
             }
             // === AI fallback ===
-            // === TEST LEARNED PATTERNS ===
-            LogDebug("DEBUG: Testing learned patterns from JSON...");
-
-            if (_patternLearner != null)
-            {
-                try
-                {
-                    var learnedResult = await _patternLearner.TryLearnedPatterns(input, underlying, expiry);
-                    if (learnedResult != null)
-                    {
-                        LogDebug($"DEBUG: LEARNED PATTERN MATCHED: {learnedResult.ParseMethod}");
-
-                        // Normalize the result
-                        learnedResult.OVML = NormalizeOVMLDates(learnedResult.OVML);
-                        learnedResult.Expiry = NormalizeExpiry(learnedResult.Expiry);
-                        learnedResult.GenerateUBS();
-
-                        _cache[input] = learnedResult;
-                        return learnedResult;
-                    }
-                    else
-                    {
-                        LogDebug("DEBUG: No learned patterns matched.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogDebug($"DEBUG: Error testing learned patterns: {ex.Message}");
-                }
-            }
+            // Pattern matching is now handled inside ParseWithAI
             LogDebug($"DEBUG: No regex patterns matched. Falling back to AI...");
             LogDebug("[Parser] Falling back to AI...");
 
