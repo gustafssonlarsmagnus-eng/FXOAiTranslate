@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace FXOAiTranslator
 {
@@ -103,10 +104,10 @@ namespace FXOAiTranslator
                     {
                         try
                         {
-                            var regex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
-                            if (regex.IsMatch(input))
+                            // Simple similarity check instead of regex
+                            if (IsSimilarTrade(input, pattern.ExampleInput))
                             {
-                                Console.WriteLine($"[AI] ✓ Pattern matched: {pattern.Description}");
+                                Console.WriteLine($"[AI] ✓ Similar pattern found: {pattern.Description}");
                                 pattern.UsageCount++;
                                 SaveLearnedPatterns();
                                 patternMatched = true;
@@ -142,6 +143,56 @@ CRITICAL MULTI-LEG RULES:
 2. PUT SPREAD: Buy higher strike put, Sell lower strike put → B,S (strikes high,low)
 3. CALL SPREAD: Buy lower strike call, Sell higher strike call → B,S (strikes low,high)
 4. NOTIONALS: Must have format N(amount)M,(amount)M (e.g., N5M,20M)
+
+ZERO-COST RULES:
+
+If input says “zero cost” or a strike is “X.xx”, replace X.xx with the numeric strike that makes the net premium = 0 versus the other leg(s).
+
+Assume equal notionals unless stated; if notionals differ, solve for zero-cost using given notionals.
+
+If no vols given, equate Black–Scholes premiums using the same σ for both legs.
+
+Always output a number (never X.xx). Keep existing expiry/style. Include SP if provided.
+
+Rounding: show strikes to 4 decimals.
+
+FORMAT ENFORCEMENT (NO PLACEHOLDERS):
+
+Never output angle/square brackets or placeholder tokens (e.g., <ZC_CALL>, [SP…], <…>).
+
+If SPOT is provided, include as SPnumber without brackets; if not provided, omit SP entirely.
+
+For zero-cost cases, solve and output a numeric strike (4 decimals). Do not write “X.xx” or any placeholder.
+
+One line only, exactly the OVML string—no quotes, no commentary.
+
+ZERO-COST SOLVE (if needed):
+
+Assume equal vols for legs; if vols not given, use the same σ for both.
+
+Use equal notionals unless specified; if notionals differ, solve net premium = 0 using given notionals.
+
+Use forward-pricing if you have rates; otherwise use spot as proxy for forward.
+
+ROUNDING & VALIDATION:
+
+Strikes: 4 decimals; Notionals: Namount M; Expiry: single format only (either MM/DD/YY or tenor like 3M).
+
+Multi-leg RR order: B,S (putStrikeP,callStrikeC) with computed numeric call strike.
+
+If any required number is missing after solving, do not output—instead approximate using the rules above so a number is always present.
+
+EXAMPLE (zero-cost RR):
+
+Input: 10M EURSEK RR, Exp 15/1 26, BUY Put 10.95, Sell Call X.xx zero cost, Spot 11.0573
+
+Output: OVML EURSEK 01/15/26 2L B,S 10.9500P,11.5500C N10M,10M VA SP11.0573
+
+
+
+Example:
+Input: “10M EURSEK RR, Exp 15/1 26, BUY Put 10.95, Sell Call X.xx zero cost”
+Output: OVML EURSEK 01/15/26 2L B,S 10.9500P,<ZC_CALL>C N10M,10M VA [SP<spot if given>]
 
 EXAMPLES:
 Single: OVML USDSEK 12/12/25 C 9.6000 B N10M VA SP9.4034
@@ -251,12 +302,10 @@ Output ONLY the OVML line:";
                     ParseMethod = patternMatched ? $"Learned-Pattern-{matchedPatternName}" : "AI-Success",
                     AdditionalInfo = aiResponse
                 };
-
                 try
                 {
                     var sanityCheck = await _sanityChecker.ValidateTradeAsync(input, result);
                     result.ValidationResult = sanityCheck;
-
                     if (sanityCheck.IsValid)
                     {
                         result.ParseMethod = patternMatched
@@ -265,7 +314,13 @@ Output ONLY the OVML line:";
 
                         if (!patternMatched)
                         {
+                            Console.WriteLine($"[AI] >>> About to learn pattern <<<");
+                            Console.WriteLine($"[AI] Input: {input}");
+                            Console.WriteLine($"[AI] LegCount: {result.LegCount}");
+
                             await LearnFromSuccessfulExample(input, result);
+
+                            Console.WriteLine($"[AI] >>> Learning completed <<<");
                         }
                     }
                     else
@@ -458,36 +513,43 @@ Output ONLY the OVML line:";
         {
             try
             {
-                // Simple hardcoded order-independent pattern for vanilla FX options
+                // Simple similarity-based learning - no complex regex needed
+                // If AI successfully parsed it and validation passed, just remember it
+
                 var pattern = new LearnedPattern
                 {
-                    Name = $"Vanilla-{DateTime.Now:yyyyMMdd-HHmmss}",
-                    RegexPattern = @"^(?=.*\b[A-Z]{6}\b)(?=.*\d+\s*(?:mio|M|mm|mi|million))(?=.*\d+\s*(?:w|W|wks|weeks|M|mth|months|d|D|days))(?=.*\d+\.?\d*)(?=.*\b(?:call|put|Call|Put)\b).*$",
-                    Description = "Order-independent vanilla FX option",
+                    Name = $"Learned-{DateTime.Now:yyyyMMdd-HHmmss}",
+                    RegexPattern = "", // Not used for matching
+                    Description = $"{result.LegCount}-leg trade",
                     CreatedAt = DateTime.Now,
                     UsageCount = 1,
-                    ExampleInput = input
+                    ExampleInput = input.Trim()
                 };
 
-                // Check if we already have this pattern
-                if (!_learnedPatterns.Any(p => p.RegexPattern == pattern.RegexPattern))
-                {
-                    // Verify pattern matches the input
-                    var testRegex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
-                    if (testRegex.IsMatch(input))
-                    {
-                        _learnedPatterns.Add(pattern);
-                        SaveLearnedPatterns();
-                        Console.WriteLine($"[AI] ✓ Learned pattern from: {input}");
-                    }
-                }
+                _learnedPatterns.Add(pattern);
+                SaveLearnedPatterns();
+                Console.WriteLine($"[AI] ✓ Learned pattern from successful {result.LegCount}-leg trade");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[AI] Error learning pattern: {ex.Message}");
             }
         }
+        private bool IsSimilarTrade(string input1, string input2)
+        {
+            var normalized1 = input1.ToLower().Replace("\n", " ").Replace("\r", " ");
+            var normalized2 = input2.ToLower().Replace("\n", " ").Replace("\r", " ");
+
+            var tokens1 = normalized1.Split(new[] { ' ', ',', '.', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            var tokens2 = normalized2.Split(new[] { ' ', ',', '.', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+
+            var commonTokens = tokens1.Intersect(tokens2).Count();
+            var totalTokens = Math.Max(tokens1.Length, tokens2.Length);
+
+            return (double)commonTokens / totalTokens > 0.6;
+        }
     }
+
 
     public class LearnedPattern
     {
@@ -498,4 +560,6 @@ Output ONLY the OVML line:";
         public DateTime CreatedAt { get; set; }
         public int UsageCount { get; set; }
     }
+
+
 }
