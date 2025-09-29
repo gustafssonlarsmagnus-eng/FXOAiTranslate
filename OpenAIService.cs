@@ -134,30 +134,28 @@ Input: ""{input}""
 LIVE SPOT RATE for {underlying}: {spotInfo}
 
 MANDATORY OVML SYNTAX:
-- Single Leg: OVML (currency pair) (expiry) (call/put) (strike) (buy/sell) (notional amount) (option style code) [SP(spot)]
-- Multi-Leg: OVML (currency pair) (expiry) (legs)L (directions) (strikes) N(notionals) (style) [SP(spot)]
+- Single Leg: OVML (currency) (expiry) C/P (strike) B/S (notional) (style) [SP(spot)]
+- Multi-Leg: OVML (currency) (expiry) (legs)L (directions) (strikes) (notionals) (style) [SP(spot)]
 
-CRITICAL FORMAT RULES:
-1. DATE/TENOR FORMAT: Allow Bloomberg tenor shorthand (1W, 2M, 3M, 6M, 1Y) or explicit dates (MM/dd/yy).
-2. CURRENCY PAIR: Two 3-letter ISO codes without separator (EURUSD, USDNOK, EURSEK).
-3. OPTION TYPE: C (call) or P (put) only.
-4. STRIKE FORMAT: Numeric: 10.0000 (trim unnecessary zeros but keep up to 4 decimals), Delta: DS25, ATM: literal ""ATM"".
-5. DIRECTION: B (buy) or S (sell) only.
-6. NOTIONAL: N + amount + M (e.g., N100M). ""100mm"" → N100M, ""50 mio"" → N50M.
-7. OPTION STYLE: VA (vanilla), DKI (double knock-in), DKO (double knock-out). Default to VA.
-8. SPOT REFERENCE: SP + rate (e.g., SP9.8190). Always at the end if provided.
+CRITICAL MULTI-LEG RULES:
+1. EXPIRY: Use ONE expiry format only - NEVER include both tenor and date
+2. PUT SPREAD: Buy higher strike put, Sell lower strike put → B,S (strikes high,low)
+3. CALL SPREAD: Buy lower strike call, Sell higher strike call → B,S (strikes low,high)
+4. NOTIONALS: Must have format N(amount)M,(amount)M (e.g., N5M,20M)
 
 EXAMPLES:
-Input: ""USDNOK 1 week 10.00 call in 100mm, spot ref 9.8190""
-Output: OVML USDNOK 1W C 10.0000 B N100M VA SP9.8190
-
-Input: ""EURSEK 3M buy 11.50 put 50M, sell 11.80 call 50M""
-Output: OVML EURSEK 3M 2L B,S 11.5000P,11.8000C N50M,50M VA
+Single: OVML USDSEK 12/12/25 C 9.6000 B N10M VA SP9.4034
+Put Spread: OVML USDSEK 12/12/25 2L B,S 9.6000P,9.1500P N5M,20M VA SP9.3600
+Call Spread: OVML EURSEK 3M 2L B,S 11.2000C,11.8000C N50M,50M VA
 
 STRICT REQUIREMENTS:
-- Always produce exactly one OVML line.
-- Use single-line multi-leg format for all strategies.
-- Do not output explanations, only the OVML line.";
+- ONE expiry only (either MM/dd/yy OR tenor like 3M, never both)
+- Notionals MUST start with N
+- Put spread: B,S with higher strike first
+- Call spread: B,S with lower strike first
+- No explanations, only OVML'
+
+Output ONLY the OVML line:";
 
                 var response = await _openAI.GetChatCompletion(prompt);
                 var aiResponse = response.choices[0].message.content.Trim();
@@ -178,16 +176,55 @@ STRICT REQUIREMENTS:
                 var ovml = ovmlMatch.Value.Trim();
                 ovml = Regex.Replace(ovml, @"\bv(\d+\.\d+)", "SP$1");
 
+                // CLEANUP: Remove duplicate expiry formats (e.g., both "12Dec" and "12/12/25")
+                var ovmlParts = ovml.Split(' ').ToList();
+                int expiryCount = 0;
+                int expiryFoundAt = -1;
+
+                for (int i = 0; i < ovmlParts.Count; i++)
+                {
+                    // Check if part looks like an expiry (date format or tenor shorthand like "12Dec")
+                    if (Regex.IsMatch(ovmlParts[i], @"^\d{1,2}/\d{1,2}/\d{2,4}$") ||
+                        Regex.IsMatch(ovmlParts[i], @"^\d{1,2}[A-Z]{3}\d{0,2}$", RegexOptions.IgnoreCase) ||
+                        Regex.IsMatch(ovmlParts[i], @"^\d+[MWYD]$", RegexOptions.IgnoreCase))
+                    {
+                        expiryCount++;
+                        if (expiryCount == 1)
+                        {
+                            expiryFoundAt = i;
+                        }
+                        else
+                        {
+                            // Keep the properly formatted one (MM/dd/yy format is preferred)
+                            if (Regex.IsMatch(ovmlParts[i], @"^\d{1,2}/\d{1,2}/\d{2}$"))
+                            {
+                                // This is the proper format, remove the earlier one
+                                ovmlParts.RemoveAt(expiryFoundAt);
+                                expiryFoundAt = i - 1; // Adjust index after removal
+                                Console.WriteLine($"[AI] Kept proper date format, removed duplicate at position {expiryFoundAt}");
+                            }
+                            else
+                            {
+                                // Remove this duplicate
+                                ovmlParts.RemoveAt(i);
+                                i--; // Adjust loop counter
+                                Console.WriteLine($"[AI] Removed duplicate expiry at position {i + 1}");
+                            }
+                        }
+                    }
+                }
+                ovml = string.Join(" ", ovmlParts);
+
                 // Only correct option type if user didn't specify call/put AND didn't provide spot reference
                 bool userSpecifiedOptionType = Regex.IsMatch(input, @"\b(call|put)\b", RegexOptions.IgnoreCase);
                 bool userProvidedSpotRef = !string.IsNullOrEmpty(explicitSpot);
 
                 if (!userSpecifiedOptionType && !userProvidedSpotRef)
                 {
-                    var ovmlParts = ovml.Split(' ');
-                    if (ovmlParts.Length >= 4 && !string.IsNullOrEmpty(liveSpot))
+                    var ovmlPartsForType = ovml.Split(' ');
+                    if (ovmlPartsForType.Length >= 4 && !string.IsNullOrEmpty(liveSpot))
                     {
-                        if (double.TryParse(ovmlParts[4], out double strike) && double.TryParse(liveSpot, out double spot))
+                        if (double.TryParse(ovmlPartsForType[4], out double strike) && double.TryParse(liveSpot, out double spot))
                         {
                             bool isCall = ovml.Contains(" C ");
                             bool shouldBeCall = strike > spot;

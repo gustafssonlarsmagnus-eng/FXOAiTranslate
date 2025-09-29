@@ -332,7 +332,16 @@ namespace FXOAiTranslator
                 explicitSpot = aiSpotMatch.Groups["spot"].Value;
                 LogDebug($"DEBUG: Explicit spot extracted for AI fallback: '{explicitSpot}'");
             }
-
+            else
+            {
+                // Also check for abbreviated format: "sr 9.3600"
+                var srMatch = Regex.Match(input, @"\bsr\s+(?<spot>\d+\.?\d*)", RegexOptions.IgnoreCase);
+                if (srMatch.Success)
+                {
+                    explicitSpot = srMatch.Groups["spot"].Value;
+                    LogDebug($"DEBUG: Explicit spot (sr format) extracted: '{explicitSpot}'");
+                }
+            }
             try
             {
                 var aiResult = await ParseWithAI(input, explicitSpot);

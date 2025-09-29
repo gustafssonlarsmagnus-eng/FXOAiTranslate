@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace FXOAiTranslator
 {
@@ -12,8 +14,8 @@ namespace FXOAiTranslator
 
         public TradeSanityChecker(OpenAIService openAIService, BloombergService bloombergService, Action<string> debugCallback = null)
         {
-            _openAIService = openAIService;   // kept for signature compatibility
-            _bloombergService = bloombergService; // not used in this slim version
+            _openAIService = openAIService;
+            _bloombergService = bloombergService;
             _debugCallback = debugCallback;
         }
 
@@ -27,7 +29,7 @@ namespace FXOAiTranslator
                 return WrapResult(false, "Empty OVML", result);
             }
 
-
+            var ovmlParts = aiResult.OVML.Split(' ');
 
             // 1. OVML prefix
             if (!aiResult.OVML.StartsWith("OVML"))
@@ -42,53 +44,206 @@ namespace FXOAiTranslator
             else
                 result.PassedChecks.Add("Currency pair format OK");
 
-            // 3. Option type (C/P)
-            if (!Regex.IsMatch(aiResult.OVML, @"\b[CP]\b"))
-                result.CriticalErrors.Add("Missing option type (C or P)");
-            else
-                result.PassedChecks.Add("Option type present");
+            // 3. Detect if multi-leg
+            var legCountMatch = Regex.Match(aiResult.OVML, @"\b(\d+)L\b");
+            bool isMultiLeg = legCountMatch.Success;
+            int expectedLegs = isMultiLeg ? int.Parse(legCountMatch.Groups[1].Value) : 1;
 
-            // 4. Direction (B/S)
-            if (!Regex.IsMatch(aiResult.OVML, @"\b[BS]\b"))
-                result.CriticalErrors.Add("Missing direction (B or S)");
-            else
-                result.PassedChecks.Add("Direction present");
+            if (isMultiLeg)
+            {
+                result.PassedChecks.Add($"Multi-leg trade detected: {expectedLegs} legs");
 
-            // 5. Notional format (NxxM)
-            if (!Regex.IsMatch(aiResult.OVML, @"N\d+M"))
-                result.Warnings.Add("No notional in standard format (NxxM)");
+                // Validate multi-leg structure
+                ValidateMultiLeg(aiResult.OVML, expectedLegs, result);
+            }
             else
-                result.PassedChecks.Add("Notional format OK");
+            {
+                // Single leg validation
+                ValidateSingleLeg(aiResult.OVML, result);
+            }
 
-            // 6. Strike(s)
-            if (!Regex.IsMatch(aiResult.OVML, @"\d+(\.\d+)?[CP]?"))
-                result.Warnings.Add("No strike detected");
-            else
-                result.PassedChecks.Add("Strike(s) detected");
-
-            // 7. Spot reference (optional but useful)
+            // 4. Spot reference (optional but good)
             if (aiResult.OVML.Contains("SP"))
                 result.PassedChecks.Add("Spot reference present");
             else
                 result.Warnings.Add("No spot reference (SP) in OVML");
 
-            // === Result decision ===
+            // Display results
+            DisplayResults(result);
+
+            // Decision logic
             if (result.CriticalErrors.Count > 0)
                 return WrapResult(false, "Critical errors: " + string.Join("; ", result.CriticalErrors), result);
-            // Highlight results in console
 
-            // Passed checks in green
+            // If only warnings, still valid but lower confidence
+            double confidence = result.Warnings.Count == 0 ? 0.9 : 0.75;
+            return WrapResult(true, "Structure validated successfully", result, confidence);
+        }
+
+        private void ValidateSingleLeg(string ovml, RuleBasedCheckResult result)
+        {
+            // Option type (C/P)
+            if (!Regex.IsMatch(ovml, @"\b[CP]\b"))
+                result.CriticalErrors.Add("Missing option type (C or P)");
+            else
+                result.PassedChecks.Add("Option type present");
+
+            // Direction (B/S)
+            if (!Regex.IsMatch(ovml, @"\b[BS]\b"))
+                result.CriticalErrors.Add("Missing direction (B or S)");
+            else
+                result.PassedChecks.Add("Direction present");
+
+            // Notional format (NxxM)
+            if (!Regex.IsMatch(ovml, @"N\d+M\b"))
+                result.Warnings.Add("No notional in standard format (NxxM)");
+            else
+                result.PassedChecks.Add("Notional format OK");
+
+            // Strike
+            if (!Regex.IsMatch(ovml, @"\d+(\.\d+)?"))
+                result.Warnings.Add("No strike detected");
+            else
+                result.PassedChecks.Add("Strike detected");
+        }
+
+        private void ValidateMultiLeg(string ovml, int expectedLegs, RuleBasedCheckResult result)
+        {
+            // Extract strikes (e.g., "9.6000P,9.1500P")
+            var strikesMatch = Regex.Match(ovml, @"(\d+\.\d+[CP],?)+");
+            if (!strikesMatch.Success)
+            {
+                result.CriticalErrors.Add("No strikes found in multi-leg trade");
+                return;
+            }
+
+            var strikes = strikesMatch.Value.Split(',');
+            if (strikes.Length != expectedLegs)
+            {
+                result.CriticalErrors.Add($"Strike count mismatch: expected {expectedLegs}, found {strikes.Length}");
+            }
+            else
+            {
+                result.PassedChecks.Add($"Strike count matches leg count ({expectedLegs})");
+            }
+
+            // Extract directions (e.g., "B,S")
+            var directionsMatch = Regex.Match(ovml, @"\b([BS],?)+\b");
+            if (!directionsMatch.Success)
+            {
+                result.CriticalErrors.Add("No directions found in multi-leg trade");
+                return;
+            }
+
+            var directions = directionsMatch.Value.Split(',');
+            if (directions.Length != expectedLegs)
+            {
+                result.CriticalErrors.Add($"Direction count mismatch: expected {expectedLegs}, found {directions.Length}");
+            }
+            else
+            {
+                result.PassedChecks.Add($"Direction count matches leg count ({expectedLegs})");
+            }
+
+            // Extract notionals (e.g., "N5M,25M")
+            var notionalsMatch = Regex.Match(ovml, @"N(\d+M,?)+");
+            if (!notionalsMatch.Success)
+            {
+                result.Warnings.Add("No notionals found in multi-leg trade");
+            }
+            else
+            {
+                var notionalString = notionalsMatch.Value.Substring(1); // Remove leading N
+                var notionals = notionalString.Split(',');
+
+                if (notionals.Length != expectedLegs)
+                {
+                    result.Warnings.Add($"Notional count mismatch: expected {expectedLegs}, found {notionals.Length}");
+                }
+                else
+                {
+                    result.PassedChecks.Add($"Notional count matches leg count ({expectedLegs})");
+                }
+            }
+
+            // Validate spread logic for 2-leg trades
+            if (expectedLegs == 2 && strikes.Length == 2 && directions.Length == 2)
+            {
+                ValidateSpreadLogic(strikes, directions, result);
+            }
+        }
+
+        private void ValidateSpreadLogic(string[] strikes, string[] directions, RuleBasedCheckResult result)
+        {
+            // Extract strike values and types
+            var strike1Match = Regex.Match(strikes[0], @"(\d+\.\d+)([CP])");
+            var strike2Match = Regex.Match(strikes[1], @"(\d+\.\d+)([CP])");
+
+            if (!strike1Match.Success || !strike2Match.Success)
+                return;
+
+            double strike1Value = double.Parse(strike1Match.Groups[1].Value);
+            double strike2Value = double.Parse(strike2Match.Groups[1].Value);
+            char type1 = strike1Match.Groups[2].Value[0];
+            char type2 = strike2Match.Groups[2].Value[0];
+
+            // Both strikes should be same type for a spread
+            if (type1 != type2)
+            {
+                result.Warnings.Add($"Mixed option types in spread: {type1} and {type2}");
+                return;
+            }
+
+            // Check spread direction logic
+            bool isBuyFirst = directions[0] == "B";
+            bool isSellSecond = directions[1] == "S";
+
+            if (type1 == 'P') // Put spread
+            {
+                // Put spread: Buy higher strike, Sell lower strike
+                if (strike1Value > strike2Value && isBuyFirst && isSellSecond)
+                {
+                    result.PassedChecks.Add("Put spread structure correct (Buy high, Sell low)");
+                }
+                else if (strike1Value < strike2Value)
+                {
+                    result.Warnings.Add($"Put spread: Higher strike should be first (found {strike1Value} then {strike2Value})");
+                }
+                else if (!isBuyFirst || !isSellSecond)
+                {
+                    result.Warnings.Add($"Put spread directions unusual: {directions[0]},{directions[1]}");
+                }
+            }
+            else // Call spread
+            {
+                // Call spread: Buy lower strike, Sell higher strike
+                if (strike1Value < strike2Value && isBuyFirst && isSellSecond)
+                {
+                    result.PassedChecks.Add("Call spread structure correct (Buy low, Sell high)");
+                }
+                else if (strike1Value > strike2Value)
+                {
+                    result.Warnings.Add($"Call spread: Lower strike should be first (found {strike1Value} then {strike2Value})");
+                }
+                else if (!isBuyFirst || !isSellSecond)
+                {
+                    result.Warnings.Add($"Call spread directions unusual: {directions[0]},{directions[1]}");
+                }
+            }
+        }
+
+        private void DisplayResults(RuleBasedCheckResult result)
+        {
             if (result.PassedChecks.Any())
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 foreach (var check in result.PassedChecks)
                 {
-                    Console.WriteLine($"[SANITY OK] ✅ {check}");
+                    Console.WriteLine($"[SANITY OK] ✓ {check}");
                 }
                 Console.ResetColor();
             }
 
-            // Warnings in yellow
             if (result.Warnings.Any())
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
@@ -99,34 +254,34 @@ namespace FXOAiTranslator
                 Console.ResetColor();
             }
 
-            // Critical errors in red
             if (result.CriticalErrors.Any())
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 foreach (var error in result.CriticalErrors)
                 {
-                    Console.WriteLine($"[SANITY ERROR] ❌ {error}");
+                    Console.WriteLine($"[SANITY ERROR] ✗ {error}");
                 }
                 Console.ResetColor();
             }
-
-
-            return WrapResult(true, "Basic structure looks OK", result);
         }
+
         public Task<SanityCheckResult> ValidateTradeAsync(string originalInput, TradeParseResult aiResult)
         {
             return Task.FromResult(ValidateTrade(originalInput, aiResult));
         }
 
-        private SanityCheckResult WrapResult(bool isValid, string reason, RuleBasedCheckResult checks)
+        private SanityCheckResult WrapResult(bool isValid, string reason, RuleBasedCheckResult checks, double confidence = 0.9)
         {
+            if (!isValid)
+                confidence = 0.1;
+
             LogDebug($"Sanity check: {(isValid ? "VALID" : "INVALID")} - {reason}");
             return new SanityCheckResult
             {
                 IsValid = isValid,
-                ValidationMethod = "Rule-Based Structural",
+                ValidationMethod = "Enhanced Multi-Leg Validation",
                 Reason = reason,
-                Confidence = isValid ? 0.9 : 0.1,
+                Confidence = confidence,
                 RuleBasedChecks = checks
             };
         }
@@ -135,11 +290,10 @@ namespace FXOAiTranslator
 
         public void Dispose()
         {
-            // Nothing to dispose in this slim version
+            // Nothing to dispose
         }
     }
 
-    // Support classes
     public class SanityCheckResult
     {
         public bool IsValid { get; set; }
