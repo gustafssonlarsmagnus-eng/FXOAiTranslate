@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Drawing;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -25,6 +24,9 @@ namespace FXOAiTranslator
         private TextBox txtDebugLog;
         private bool debugVisible = false;
 
+        // Re-entrancy guard for processing
+        private bool _processing;
+
         public MainForm()
         {
             InitializeComponent();
@@ -39,15 +41,15 @@ namespace FXOAiTranslator
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.White;
 
-            // Create top panel (more compact now)
+            // Create top panel
             var pnlTop = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 110, // reduced height
+                Height = 110,
                 Padding = new Padding(25, 15, 25, 5)
             };
 
-            // Trade Input Section (no label, just placeholder)
+            // Trade Input Section
             txtTradeInput = new TextBox
             {
                 Location = new Point(15, 10),
@@ -60,15 +62,14 @@ namespace FXOAiTranslator
                 WordWrap = true
             };
 
-            // Button row (Bloomberg style)
+            // Button row
             var buttonY = 60;
 
             btnClearAll = CreateBloombergButton("CANCEL", Color.FromArgb(220, 53, 69), 15, buttonY);   // red
-            btnCopyOVML = CreateBloombergButton("OVML", Color.FromArgb(0, 200, 0), 105, buttonY);   // green
-            btnCopyUBS = CreateBloombergButton("UBS", Color.FromArgb(200, 150, 255), 195, buttonY);   // pink/purple
-            btnClearPatterns = CreateBloombergButton("CLEAR AI", Color.FromArgb(0, 100, 255), 285, buttonY);   // darker blue
-            btnToggleDebug = CreateBloombergButton("Show", Color.FromArgb(0, 120, 255), 375, buttonY);   // bright blue
-
+            btnCopyOVML = CreateBloombergButton("OVML", Color.FromArgb(0, 200, 0), 105, buttonY);      // green
+            btnCopyUBS = CreateBloombergButton("UBS", Color.FromArgb(200, 150, 255), 195, buttonY);    // pink/purple
+            btnClearPatterns = CreateBloombergButton("CLEAR AI", Color.FromArgb(0, 100, 255), 285, buttonY); // darker blue
+            btnToggleDebug = CreateBloombergButton("Show Debug", Color.FromArgb(0, 120, 255), 375, buttonY);  // bright blue
 
             // Checkbox + Bloomberg status inline
             chkAutoSend = new CheckBox
@@ -100,10 +101,10 @@ namespace FXOAiTranslator
 
             // Add all controls to top panel
             pnlTop.Controls.AddRange(new Control[] {
-        txtTradeInput,
-        btnClearAll, btnCopyOVML, btnCopyUBS, btnClearPatterns, btnToggleDebug,
-        chkAutoSend, lblBloombergStatus
-    });
+                txtTradeInput,
+                btnClearAll, btnCopyOVML, btnCopyUBS, btnClearPatterns, btnToggleDebug,
+                chkAutoSend, lblBloombergStatus
+            });
 
             // Main content panel
             var pnlContent = new Panel
@@ -234,115 +235,109 @@ namespace FXOAiTranslator
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Margin = new Padding(2, 0, 2, 0), // small spacing between buttons
-                TabStop = false // removes dotted focus rectangle
+                Margin = new Padding(2, 0, 2, 0),
+                TabStop = false // removes dotted focus rectangle and excludes from tab order
             };
 
-            btn.FlatAppearance.BorderSize = 0; // no border at all
-            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Light(backColor);  // subtle hover
-            btn.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(backColor);   // subtle press
+            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Light(backColor);
+            btn.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(backColor);
 
             return btn;
         }
 
-
-
-
-
         private void SetTabOrder()
         {
+            // Buttons have TabStop=false, so keep tabbing to main inputs only
             txtTradeInput.TabIndex = 0;
-            btnClearAll.TabIndex = 1;
-            btnCopyOVML.TabIndex = 2;
-            btnCopyUBS.TabIndex = 3;
-            btnClearPatterns.TabIndex = 4;
-            chkAutoSend.TabIndex = 5;
-            btnToggleDebug.TabIndex = 6;
-            dgvTradeBlotter.TabIndex = 7;
+            chkAutoSend.TabIndex = 1;
+            btnToggleDebug.TabIndex = 2; // TabStop=false by default from CreateBloombergButton; change if you want it tabbable
+            dgvTradeBlotter.TabIndex = 3;
         }
-
 
         private void SetupDataGridView()
         {
+            // Columns (no fixed Width when using AutoSizeMode)
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Time",
                 HeaderText = "Time",
-                Width = 80,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Request",
                 HeaderText = "Request",
-                Width = 300,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "OVML",
                 HeaderText = "OVML",
-                Width = 350,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Underlying",
                 HeaderText = "Underlying",
-                Width = 80,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Legs",
                 HeaderText = "Legs",
-                Width = 50,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Expiry",
                 HeaderText = "Expiry",
-                Width = 80,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "SpotRef",
                 HeaderText = "Spot Ref",
-                Width = 80,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Method",
                 HeaderText = "Method",
-                Width = 100,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
-            dgvTradeBlotter.Columns.Add(new DataGridViewButtonColumn
+            var rejectCol = new DataGridViewButtonColumn
             {
                 Name = "Reject",
                 HeaderText = "Reject",
-                Width = 50,
+                UseColumnTextForButtonValue = true,
                 Text = "X",
-                UseColumnTextForButtonValue = true
-            });
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+            };
+            rejectCol.DefaultCellStyle.NullValue = "X";
+            dgvTradeBlotter.Columns.Add(rejectCol);
 
-            // Add hidden UBS column to store UBS data
+            // Hidden UBS column (Width not needed when invisible)
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "UBS",
                 HeaderText = "UBS",
-                Width = 0,
                 Visible = false,
                 ReadOnly = true
             });
@@ -356,29 +351,14 @@ namespace FXOAiTranslator
             // Alternate row colors
             dgvTradeBlotter.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
 
-            // Hide the row headers (removes dark blue highlight on first cell)
+            // Hide the row headers
             dgvTradeBlotter.RowHeadersVisible = false;
 
             // Softer selection color
             dgvTradeBlotter.DefaultCellStyle.SelectionBackColor = Color.LightSkyBlue;
             dgvTradeBlotter.DefaultCellStyle.SelectionForeColor = Color.Black;
 
-            // Make the grid stretch to form width
-            dgvTradeBlotter.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
-
-            // Adjust relative widths (Reject column excluded because it's fixed)
-            // Example per column:
-            dgvTradeBlotter.Columns["Time"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            dgvTradeBlotter.Columns["Request"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // take up remaining space
-            dgvTradeBlotter.Columns["OVML"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-            dgvTradeBlotter.Columns["Underlying"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            dgvTradeBlotter.Columns["Legs"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            dgvTradeBlotter.Columns["Expiry"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            dgvTradeBlotter.Columns["SpotRef"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            dgvTradeBlotter.Columns["Method"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-            dgvTradeBlotter.Columns["Reject"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-
-            // Apply alignment rules
+            // Alignment rules
             foreach (DataGridViewColumn col in dgvTradeBlotter.Columns)
             {
                 switch (col.Name)
@@ -388,11 +368,10 @@ namespace FXOAiTranslator
                     case "Expiry":
                     case "SpotRef":
                     case "Reject":
-                    case "Method":   // centered too
+                    case "Method":
                         col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                         col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                         break;
-
                     default:
                         col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
                         col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft;
@@ -400,8 +379,6 @@ namespace FXOAiTranslator
                 }
             }
         }
-
-
 
         private void SetupServices()
         {
@@ -413,7 +390,6 @@ namespace FXOAiTranslator
 
             // Initialize trade parser with API key
             _tradeParser = new TradeParser(_bloombergService, openAIApiKey);
-
 
             // Hook into debug callback to capture parsing logs
             _tradeParser.DebugCallback = LogDebugMessage;
@@ -436,7 +412,6 @@ namespace FXOAiTranslator
             return key;
         }
 
-
         private void SetupEventHandlers()
         {
             txtTradeInput.KeyDown += TxtTradeInput_KeyDown;
@@ -447,9 +422,9 @@ namespace FXOAiTranslator
             btnClearPatterns.Click += BtnClearPatterns_Click;
             btnToggleDebug.Click += BtnToggleDebug_Click;
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;
-            dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded;
-            dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded;
+            dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded; // single hookup only
         }
+
         private void DgvTradeBlotter_CellToolTipTextNeeded(object sender, DataGridViewCellToolTipTextNeededEventArgs e)
         {
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
@@ -468,13 +443,12 @@ namespace FXOAiTranslator
             }
         }
 
-
-
         private async void TxtTradeInput_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
                 e.Handled = true;
+                e.SuppressKeyPress = true; // prevents newline/beep in multiline textbox
                 await ProcessTrade();
             }
         }
@@ -499,11 +473,13 @@ namespace FXOAiTranslator
 
         private async Task ProcessTrade()
         {
-            string input = txtTradeInput.Text.Trim();
-            if (string.IsNullOrEmpty(input)) return;
-
+            if (_processing) return;
+            _processing = true;
             try
             {
+                string input = txtTradeInput.Text.Trim();
+                if (string.IsNullOrEmpty(input)) return;
+
                 var result = await _tradeParser.ParseTradeAsync(input);
                 if (result != null)
                 {
@@ -523,6 +499,10 @@ namespace FXOAiTranslator
                 MessageBox.Show($"Error processing trade: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            finally
+            {
+                _processing = false;
+            }
         }
 
         private void AddTradeToBlotter(string request, TradeParseResult result)
@@ -539,8 +519,8 @@ namespace FXOAiTranslator
                 result.Expiry,
                 spotRef,
                 result.ParseMethod,
-                "", // Placeholder for Reject column
-                result.UBS ?? "" // Store UBS data in hidden column
+                null,             // Reject button column (value unused)
+                result.UBS ?? ""  // hidden UBS
             });
 
             // Enhanced color coding with validation status
@@ -587,13 +567,19 @@ namespace FXOAiTranslator
                     validationInfo :
                     $"{currentTooltip}\n{validationInfo}";
             }
+
+            // Always highlight/select the newest row and keep it visible at the top
+            dgvTradeBlotter.ClearSelection();
+            row.Selected = true;
+            dgvTradeBlotter.CurrentCell = row.Cells["Request"];
+            dgvTradeBlotter.FirstDisplayedScrollingRowIndex = 0;
         }
 
         private string ExtractSpotFromOVML(string ovml)
         {
             if (string.IsNullOrEmpty(ovml)) return "";
 
-            var match = System.Text.RegularExpressions.Regex.Match(ovml, @"SP(\d+\.?\d*)");
+            var match = System.Text.RegularExpressions.Regex.Match(ovml, @"SP(\d+(?:[.,]\d+)?)");
             return match.Success ? match.Groups[1].Value : "";
         }
 
@@ -603,8 +589,6 @@ namespace FXOAiTranslator
             pnlDebug.Visible = debugVisible;
             btnToggleDebug.Text = debugVisible ? "Hide Debug" : "Show Debug";
         }
-
-        
 
         private void LogDebugMessage(string message)
         {
@@ -646,7 +630,6 @@ namespace FXOAiTranslator
                 if (!string.IsNullOrEmpty(ovml))
                 {
                     Clipboard.SetText(ovml);
-                    
                 }
             }
             else
