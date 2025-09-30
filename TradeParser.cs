@@ -759,10 +759,10 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
                 // More restrictive: avoid matching large numbers that are likely notionals
                 var tenorMatch = Regex.Match(
-     input,
-     @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>week|weeks|w|month|months|mth|mo|year|years|y|day|days|d)\b(?!\s*mio)",
-     RegexOptions.IgnoreCase
- );
+                    input,
+                    @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>m|w|y|d|week|weeks|month|months|mth|mo|year|years|day|days)\b(?!\s*io)",
+                    RegexOptions.IgnoreCase
+                );
 
                 LogDebug($"DEBUG: Tenor regex matched: {tenorMatch.Success}");
 
