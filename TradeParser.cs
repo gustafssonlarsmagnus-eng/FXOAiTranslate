@@ -831,10 +831,18 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
         {
             try
             {
+                Console.WriteLine($"[TradeParser] RemoveLearnedPattern called with: '{patternName}'");
+
                 if (_patternLearner != null)
                 {
-                    return _patternLearner.RemovePattern(patternName);
+                    string fullPatternName = $"Learned-{patternName}";
+                    Console.WriteLine($"[TradeParser] Looking for pattern: '{fullPatternName}'");
+
+                    bool result = _patternLearner.RemovePattern(fullPatternName);
+                    Console.WriteLine($"[TradeParser] RemovePattern returned: {result}");
+                    return result;
                 }
+                Console.WriteLine($"[TradeParser] _patternLearner is null");
                 return false;
             }
             catch (Exception ex)

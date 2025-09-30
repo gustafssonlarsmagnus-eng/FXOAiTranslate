@@ -213,8 +213,10 @@ new TradePattern(
         };
 
         // Spot reference regex
-        public static readonly Regex SpotRegex =
-    new Regex(@"(?:spot\s*ref|sp\s*ref|spotref|s\.ref)\s*(?<spot>\d+(\.\d+)?)", RegexOptions.IgnoreCase);
+        public static readonly Regex SpotRegex = new Regex(
+    @"(?:spot\s*ref|sp\s*ref|spotref|s\.?\s*r\.?\s*ref|s\.?\s*r\.?)\s*[:.]?\s*(?<spot>\d+(?:\.\d+)?)",
+    RegexOptions.IgnoreCase
+);
 
         // === Helpers for OVML assembly ===
         public static string MapSide(string side)

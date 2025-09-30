@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -15,7 +16,7 @@ namespace FXOAiTranslator
         private Button btnClearAll;
         private Button btnCopyOVML;
         private Button btnCopyUBS;
-        private Button btnClearPatterns;
+  
         private CheckBox chkAutoSend;
         private Label lblBloombergStatus;
         private DataGridView dgvTradeBlotter;
@@ -68,8 +69,8 @@ namespace FXOAiTranslator
             btnClearAll = CreateBloombergButton("CANCEL", Color.FromArgb(220, 53, 69), 15, buttonY);   // red
             btnCopyOVML = CreateBloombergButton("OVML", Color.FromArgb(0, 200, 0), 105, buttonY);      // green
             btnCopyUBS = CreateBloombergButton("UBS", Color.FromArgb(200, 150, 255), 195, buttonY);    // pink/purple
-            btnClearPatterns = CreateBloombergButton("CLEAR AI", Color.FromArgb(0, 100, 255), 285, buttonY); // darker blue
-            btnToggleDebug = CreateBloombergButton("Show Debug", Color.FromArgb(0, 120, 255), 375, buttonY);  // bright blue
+
+            btnToggleDebug = CreateBloombergButton("Show Debug", Color.FromArgb(0, 120, 255), 285, buttonY);  // bright blue
 
             // Checkbox + Bloomberg status inline
             chkAutoSend = new CheckBox
@@ -102,7 +103,7 @@ namespace FXOAiTranslator
             // Add all controls to top panel
             pnlTop.Controls.AddRange(new Control[] {
                 txtTradeInput,
-                btnClearAll, btnCopyOVML, btnCopyUBS, btnClearPatterns, btnToggleDebug,
+                btnClearAll, btnCopyOVML, btnCopyUBS, btnToggleDebug,
                 chkAutoSend, lblBloombergStatus
             });
 
@@ -419,7 +420,7 @@ namespace FXOAiTranslator
             btnClearAll.Click += BtnClearAll_Click;
             btnCopyOVML.Click += BtnCopyOVML_Click;
             btnCopyUBS.Click += BtnCopyUBS_Click;
-            btnClearPatterns.Click += BtnClearPatterns_Click;
+           
             btnToggleDebug.Click += BtnToggleDebug_Click;
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;
             dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded; // single hookup only
@@ -663,18 +664,7 @@ namespace FXOAiTranslator
             }
         }
 
-        private void BtnClearPatterns_Click(object sender, EventArgs e)
-        {
-            var result = MessageBox.Show("Clear all learned AI patterns?", "Confirm",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
-            if (result == DialogResult.Yes)
-            {
-                // TODO: Clear learned patterns
-                MessageBox.Show("AI patterns cleared.", "Success",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
 
         private void DgvTradeBlotter_CellClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -692,10 +682,14 @@ namespace FXOAiTranslator
 
                     if (method?.StartsWith("Learned-") == true)
                     {
-                        string patternName = method.Replace("Learned-", "");
-                        message += $"⚠ This will permanently delete the learned pattern: '{patternName}'\n" +
-                                  "• Future similar inputs will go back to AI\n" +
-                                  "• This pattern can be re-learned if AI validates it again\n\n";
+                        var match = Regex.Match(method, @"Learned-Pattern-(\d{8}-\d{6})");
+                        if (match.Success)
+                        {
+                            string patternTimestamp = match.Groups[1].Value;
+                            message += $"⚠ This will permanently delete the learned pattern: '{patternTimestamp}'\n" +
+                                      "• Future similar inputs will go back to AI\n" +
+                                      "• This pattern can be re-learned if AI validates it again\n\n";
+                        }
                     }
                     else if (method?.Contains("AI-Warning") == true)
                     {
@@ -721,20 +715,24 @@ namespace FXOAiTranslator
                         // Handle learned pattern deletion
                         if (method?.StartsWith("Learned-") == true)
                         {
-                            string patternName = method.Replace("Learned-", "");
-                            bool success = _tradeParser.RemoveLearnedPattern(patternName);
+                            var match = Regex.Match(method, @"Learned-Pattern-(\d{8}-\d{6})");
+                            if (match.Success)
+                            {
+                                string patternTimestamp = match.Groups[1].Value;
+                                bool success = _tradeParser.RemoveLearnedPattern(patternTimestamp);
 
-                            if (success)
-                            {
-                                LogDebugMessage($"Deleted learned pattern: {patternName}");
-                                MessageBox.Show($"Learned pattern '{patternName}' has been deleted.\n\n" +
-                                              "Similar inputs will now use AI processing again.",
-                                              "Pattern Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            }
-                            else
-                            {
-                                MessageBox.Show("Failed to delete pattern. It may have already been removed.",
-                                              "Deletion Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                if (success)
+                                {
+                                    LogDebugMessage($"Deleted learned pattern: {patternTimestamp}");
+                                    MessageBox.Show($"Learned pattern '{patternTimestamp}' has been deleted.\n\n" +
+                                                  "Similar inputs will now use AI processing again.",
+                                                  "Pattern Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                }
+                                else
+                                {
+                                    MessageBox.Show("Failed to delete pattern. It may have already been removed.",
+                                                  "Deletion Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                }
                             }
                         }
                         else

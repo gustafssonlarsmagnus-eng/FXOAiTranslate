@@ -288,9 +288,15 @@ Output ONLY the OVML line:";
                     }
                 }
 
-                if (!ovml.Contains("SP") && !string.IsNullOrEmpty(liveSpot))
+                if (!ovml.Contains("SP"))
                 {
-                    ovml += $" SP{liveSpot}";
+                    // Prioritize user-provided spot reference over live API spot
+                    string spotToUse = !string.IsNullOrEmpty(explicitSpot) ? explicitSpot : liveSpot;
+
+                    if (!string.IsNullOrEmpty(spotToUse))
+                    {
+                        ovml += $" SP{spotToUse}";
+                    }
                 }
 
                 var result = new TradeParseResult
@@ -318,9 +324,15 @@ Output ONLY the OVML line:";
                             Console.WriteLine($"[AI] Input: {input}");
                             Console.WriteLine($"[AI] LegCount: {result.LegCount}");
 
-                            await LearnFromSuccessfulExample(input, result);
+                            string learnedPatternName = await LearnFromSuccessfulExample(input, result);
 
                             Console.WriteLine($"[AI] >>> Learning completed <<<");
+
+                            // Update parse method to show it's a learned pattern
+                            if (!string.IsNullOrEmpty(learnedPatternName))
+                            {
+                                result.ParseMethod = $"Learned-Pattern-{learnedPatternName.Replace("Learned-", "")} (Validated - {sanityCheck.Confidence:P0})";
+                            }
                         }
                     }
                     else
@@ -407,14 +419,26 @@ Output ONLY the OVML line:";
         {
             try
             {
+                Console.WriteLine($"[AI] RemovePattern called with: '{patternName}'");
+                Console.WriteLine($"[AI] Current patterns count: {_learnedPatterns.Count}");
+
+                foreach (var p in _learnedPatterns)
+                {
+                    Console.WriteLine($"[AI] - Pattern in list: '{p.Name}'");
+                }
+
                 var patternToRemove = _learnedPatterns.FirstOrDefault(p => p.Name == patternName);
+
                 if (patternToRemove != null)
                 {
+                    Console.WriteLine($"[AI] Found pattern to remove: '{patternToRemove.Name}'");
                     _learnedPatterns.Remove(patternToRemove);
                     SaveLearnedPatterns();
-                    Console.WriteLine($"[AI] Removed pattern: {patternName}");
+                    Console.WriteLine($"[AI] Removed pattern and saved. Remaining: {_learnedPatterns.Count}");
                     return true;
                 }
+
+                Console.WriteLine($"[AI] Pattern NOT FOUND: '{patternName}'");
                 return false;
             }
             catch (Exception ex)
@@ -509,32 +533,32 @@ Output ONLY the OVML line:";
             return 1;
         }
 
-        private async Task LearnFromSuccessfulExample(string input, TradeParseResult result)
+        private async Task<string> LearnFromSuccessfulExample(string input, TradeParseResult result)
         {
             try
             {
-                // Simple similarity-based learning - no complex regex needed
-                // If AI successfully parsed it and validation passed, just remember it
-
                 var pattern = new LearnedPattern
                 {
                     Name = $"Learned-{DateTime.Now:yyyyMMdd-HHmmss}",
-                    RegexPattern = "", // Not used for matching
+                    RegexPattern = "",
                     Description = $"{result.LegCount}-leg trade",
                     CreatedAt = DateTime.Now,
                     UsageCount = 1,
                     ExampleInput = input.Trim()
                 };
-
                 _learnedPatterns.Add(pattern);
                 SaveLearnedPatterns();
                 Console.WriteLine($"[AI] ✓ Learned pattern from successful {result.LegCount}-leg trade");
+
+                return pattern.Name;  // <-- Return the pattern name
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[AI] Error learning pattern: {ex.Message}");
+                return null;  // <-- Return null on error
             }
         }
+
         private bool IsSimilarTrade(string input1, string input2)
         {
             var normalized1 = input1.ToLower().Replace("\n", " ").Replace("\r", " ");
