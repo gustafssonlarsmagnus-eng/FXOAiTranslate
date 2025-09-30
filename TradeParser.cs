@@ -341,6 +341,16 @@ namespace FXOAiTranslator
                     explicitSpot = srMatch.Groups["spot"].Value;
                     LogDebug($"DEBUG: Explicit spot (sr format) extracted: '{explicitSpot}'");
                 }
+                else
+                {
+                    // Also check for "v" format: "v9.9600"
+                    var vMatch = Regex.Match(input, @"\bv\s*(?<spot>\d+\.?\d*)", RegexOptions.IgnoreCase);
+                    if (vMatch.Success)
+                    {
+                        explicitSpot = vMatch.Groups["spot"].Value;
+                        LogDebug($"DEBUG: Explicit spot (v format) extracted: '{explicitSpot}'");
+                    }
+                }
             }
             try
             {
@@ -370,6 +380,7 @@ namespace FXOAiTranslator
 
                 // Normalize both expiry + OVML
                 aiResult.OVML = NormalizeOVMLDates(aiResult.OVML);
+                aiResult.OVML = aiResult.OVML.Trim('"', '\'');  // Remove stray quotes
                 aiResult.Expiry = NormalizeExpiry(aiResult.Expiry);
                 aiResult.GenerateUBS(); // Generate UBS format
 
