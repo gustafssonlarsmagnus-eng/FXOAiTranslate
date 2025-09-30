@@ -143,68 +143,47 @@ CRITICAL MULTI-LEG RULES:
 2. PUT SPREAD: Buy higher strike put, Sell lower strike put → B,S (strikes high,low)
 3. CALL SPREAD: Buy lower strike call, Sell higher strike call → B,S (strikes low,high)
 4. NOTIONALS: Must have format N(amount)M,(amount)M (e.g., N5M,20M)
+5. Unless explicitly stated otherwise, each leg has the SAME notional amount
 
-ZERO-COST RULES:
+SEAGULL STRUCTURE RULES:
+- 3 legs: Buy Put (protection), Sell Put (financing), Sell Call (financing)
+- Example: '40m seagull' → N40M,40M,40M (40M on EACH leg, not 40M total)
+- For zero-cost: solve for the sold call strike that makes net premium = 0
 
-If input says “zero cost” or a strike is “X.xx”, replace X.xx with the numeric strike that makes the net premium = 0 versus the other leg(s).
+RISK REVERSAL (RR) RULES:
+- 2 legs: Buy Put + Sell Call OR Buy Call + Sell Put
+- Common notation: '10.70 vs ?' means one strike given, solve for the other
+- For zero-cost RR: Premium(Long option) = Premium(Short option)
+- Calculate the unknown strike to achieve zero net cost
 
-Assume equal notionals unless stated; if notionals differ, solve for zero-cost using given notionals.
+SPOT REFERENCE AND DELTA NOTATION:
+- 'Sr: 10.9250' or 'delta 20m @ 9.3890' provides the spot reference for pricing
+- The @ or Sr: value becomes the SP field in OVML output
+- CRITICAL: Spot reference (SP) is NOT an option strike - never use it as a strike price
+- Delta information is for risk management only, not for OVML structure
+- Example: 'delta 20m @ 9.3890' → use SP9.3890, but calculate actual strike prices separately
 
-If no vols given, equate Black–Scholes premiums using the same σ for both legs.
+ZERO-COST CALCULATION:
+- Solve for unknown strikes so net premium = 0
+- Assume typical FX implied volatility of 8-10% if not specified
+- Use spot reference (not live spot) for pricing calculations
+- Zero-cost strikes will typically be above spot for calls, below spot for puts
+- Example: Spot ref 9.3890, buy put 9.25, sell put 8.95 → zero-cost call around 9.50-9.55
+- Always output calculated numeric strikes (4 decimals), never '??', 'X.xx', or the spot reference itself
 
-Always output a number (never X.xx). Keep existing expiry/style. Include SP if provided.
-
-Rounding: show strikes to 4 decimals.
-
-FORMAT ENFORCEMENT (NO PLACEHOLDERS):
-
-Never output angle/square brackets or placeholder tokens (e.g., <ZC_CALL>, [SP…], <…>).
-
-If SPOT is provided, include as SPnumber without brackets; if not provided, omit SP entirely.
-
-For zero-cost cases, solve and output a numeric strike (4 decimals). Do not write “X.xx” or any placeholder.
-
-One line only, exactly the OVML string—no quotes, no commentary.
-
-ZERO-COST SOLVE (if needed):
-
-Assume equal vols for legs; if vols not given, use the same σ for both.
-
-Use equal notionals unless specified; if notionals differ, solve net premium = 0 using given notionals.
-
-Use forward-pricing if you have rates; otherwise use spot as proxy for forward.
-
-ROUNDING & VALIDATION:
-
-Strikes: 4 decimals; Notionals: Namount M; Expiry: single format only (either MM/DD/YY or tenor like 3M).
-
-Multi-leg RR order: B,S (putStrikeP,callStrikeC) with computed numeric call strike.
-
-If any required number is missing after solving, do not output—instead approximate using the rules above so a number is always present.
-
-EXAMPLE (zero-cost RR):
-
-Input: 10M EURSEK RR, Exp 15/1 26, BUY Put 10.95, Sell Call X.xx zero cost, Spot 11.0573
-
-Output: OVML EURSEK 01/15/26 2L B,S 10.9500P,11.5500C N10M,10M VA SP11.0573
-
-
-
-Example:
-Input: “10M EURSEK RR, Exp 15/1 26, BUY Put 10.95, Sell Call X.xx zero cost”
-Output: OVML EURSEK 01/15/26 2L B,S 10.9500P,<ZC_CALL>C N10M,10M VA [SP<spot if given>]
+FORMAT ENFORCEMENT:
+- No placeholders, brackets, or tokens (e.g., <ZC_CALL>, [SP…])
+- Strikes: 4 decimals
+- Notionals: N(amount)M format
+- If SPOT provided, include as SPnumber; if not, omit SP
+- Output exactly one OVML line - no quotes, no commentary
 
 EXAMPLES:
 Single: OVML USDSEK 12/12/25 C 9.6000 B N10M VA SP9.4034
 Put Spread: OVML USDSEK 12/12/25 2L B,S 9.6000P,9.1500P N5M,20M VA SP9.3600
 Call Spread: OVML EURSEK 3M 2L B,S 11.2000C,11.8000C N50M,50M VA
-
-STRICT REQUIREMENTS:
-- ONE expiry only (either MM/dd/yy OR tenor like 3M, never both)
-- Notionals MUST start with N
-- Put spread: B,S with higher strike first
-- Call spread: B,S with lower strike first
-- No explanations, only OVML'
+Risk Reversal: OVML EURSEK 04/22/26 2L B,S 10.7000P,11.1500C N10M,10M VA SP10.9250
+Seagull: OVML USDSEK 02/19/26 3L B,S,S 9.2500P,8.9500P,9.5200C N40M,40M,40M VA SP9.3890
 
 Output ONLY the OVML line:";
 

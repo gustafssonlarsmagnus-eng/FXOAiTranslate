@@ -112,8 +112,8 @@ namespace FXOAiTranslator
                     var spotMatch = RegexTradePatterns.SpotRegex.Match(input);
                     if (spotMatch.Success)
                     {
-                        LogDebug($"DEBUG: Spot reference found: '{spotMatch.Groups["spot"].Value}'");
-                        spot = spotMatch.Groups["spot"].Value;
+                        spot = spotMatch.Groups["spot"].Value.Replace(",", ".");
+                        LogDebug($"DEBUG: Spot reference found: '{spot}'");
                     }
                     else
                     {
