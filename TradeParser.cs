@@ -717,8 +717,43 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
                     return $"{int.Parse(day):D2}{month}{shortYear:D2}";
                 }
+                // 5. Four-digit format without year (MMDD or DDMM): exp 0612
+                LogDebug("DEBUG: Testing four-digit date format...");
+                var shortDateMatch = Regex.Match(input, @"\bexp\s*(\d{4})\b", RegexOptions.IgnoreCase);
+                if (shortDateMatch.Success)
+                {
+                    string digits = shortDateMatch.Groups[1].Value;
+                    int month = int.Parse(digits.Substring(0, 2));
+                    int day = int.Parse(digits.Substring(2, 2));
 
-                // 5. Tenor: 3M, 5MTH, 2Y, 10D, 2W - but NOT notional amounts like "500m"
+                    LogDebug($"DEBUG: Four-digit format matched: {digits}");
+
+                    // Swap if month > 12 (it's DDMM format)
+                    if (month > 12)
+                    {
+                        (month, day) = (day, month);
+                        LogDebug($"DEBUG: Swapped to DDMM format - day: {day}, month: {month}");
+                    }
+
+                    // Determine year: use current year if date hasn't passed, otherwise next year
+                    int currentYear = DateTime.Now.Year;
+                    DateTime targetDate = new DateTime(currentYear, month, day);
+
+                    if (targetDate < DateTime.Now)
+                    {
+                        targetDate = targetDate.AddYears(1);
+                        LogDebug($"DEBUG: Date in past, using next year: {targetDate.Year}");
+                    }
+
+                    string monthAbbr = monthNames[month - 1];
+                    string shortYear = targetDate.Year.ToString().Substring(2);
+                    string result = $"{day:D2}{monthAbbr}{shortYear}";
+
+                    LogDebug($"DEBUG: Extracted expiry from MMDD format: {result}");
+                    return result;
+                }
+
+                // 6. Tenor: 3M, 5MTH, 2Y, 10D, 2W - but NOT notional amounts like "500m"
                 LogDebug("DEBUG: Testing tenor patterns...");
                 LogDebug($"DEBUG: Full input for tenor matching: '{input}'");
 
