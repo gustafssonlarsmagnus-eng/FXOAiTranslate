@@ -678,66 +678,81 @@ namespace FXOAiTranslator
                     string request = row.Cells["Request"].Value?.ToString();
                     string ovml = row.Cells["OVML"].Value?.ToString();
 
-                    var message = "Reject this trade pattern?\n\n";
-
                     if (method?.StartsWith("Learned-") == true)
                     {
                         var match = Regex.Match(method, @"Learned-Pattern-(\d{8}-\d{6})");
                         if (match.Success)
                         {
                             string patternTimestamp = match.Groups[1].Value;
-                            message += $"⚠ This will permanently delete the learned pattern: '{patternTimestamp}'\n" +
-                                      "• Future similar inputs will go back to AI\n" +
-                                      "• This pattern can be re-learned if AI validates it again\n\n";
-                        }
-                    }
-                    else if (method?.Contains("AI-Warning") == true)
-                    {
-                        message += "⚠ This trade already failed validation.\n" +
-                                  "• Will prevent learning similar patterns\n\n";
-                    }
-                    else if (method?.Contains("AI-Success") == true)
-                    {
-                        message += "✓ This trade passed validation.\n" +
-                                  "• Will prevent learning this specific pattern\n\n";
-                    }
 
-                    message += "Continue with rejection?";
+                            var choice = MessageBox.Show(
+                                $"This trade used learned pattern '{patternTimestamp}'.\n\n" +
+                                "YES - Delete the entire pattern permanently\n" +
+                                "NO - Re-parse this trade using AI only (keeps pattern)\n" +
+                                "CANCEL - Keep as is",
+                                "Pattern Action",
+                                MessageBoxButtons.YesNoCancel,
+                                MessageBoxIcon.Question
+                            );
 
-                    var result = MessageBox.Show(message, "Confirm Pattern Rejection",
-                        MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-                    if (result == DialogResult.Yes)
-                    {
-                        // Remove from blotter
-                        dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
-
-                        // Handle learned pattern deletion
-                        if (method?.StartsWith("Learned-") == true)
-                        {
-                            var match = Regex.Match(method, @"Learned-Pattern-(\d{8}-\d{6})");
-                            if (match.Success)
+                            if (choice == DialogResult.Yes)
                             {
-                                string patternTimestamp = match.Groups[1].Value;
+                                // Delete entire pattern
                                 bool success = _tradeParser.RemoveLearnedPattern(patternTimestamp);
 
                                 if (success)
                                 {
+                                    dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
                                     LogDebugMessage($"Deleted learned pattern: {patternTimestamp}");
-                                    MessageBox.Show($"Learned pattern '{patternTimestamp}' has been deleted.\n\n" +
-                                                  "Similar inputs will now use AI processing again.",
-                                                  "Pattern Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    MessageBox.Show($"Pattern '{patternTimestamp}' deleted.\nSimilar trades will use AI.",
+                                        "Pattern Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
                                 }
                                 else
                                 {
-                                    MessageBox.Show("Failed to delete pattern. It may have already been removed.",
-                                                  "Deletion Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    MessageBox.Show("Failed to delete pattern.",
+                                        "Deletion Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                 }
                             }
+                            else if (choice == DialogResult.No)
+                            {
+                                // Re-parse with AI only
+                                dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
+                                LogDebugMessage($"Re-parsing trade with AI, bypassing pattern {patternTimestamp}");
+
+                                // Re-parse the trade forcing AI
+                                _ = Task.Run(async () =>
+                                {
+                                    await _tradeParser.ParseTradeAsync(request, forceAI: true);
+                                });
+
+                                MessageBox.Show("Trade will be re-parsed using AI only.",
+                                    "Re-parsing", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            }
+                            // If Cancel, do nothing
                         }
-                        else
+                    }
+                    else
+                    {
+                        // Non-pattern trades - simple rejection
+                        var message = "Reject this trade?\n\n";
+                        if (method?.Contains("AI-Warning") == true)
                         {
-                            // Mark as bad example for future learning
+                            message += "⚠ This trade already failed validation.\n" +
+                                      "• Will prevent learning similar patterns\n\n";
+                        }
+                        else if (method?.Contains("AI-Success") == true)
+                        {
+                            message += "✓ This trade passed validation.\n" +
+                                      "• Will prevent learning this specific pattern\n\n";
+                        }
+                        message += "Continue with rejection?";
+
+                        var result = MessageBox.Show(message, "Confirm Rejection",
+                            MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                        if (result == DialogResult.Yes)
+                        {
+                            dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
                             LogDebugMessage($"Marked as problematic: {request}");
                         }
                     }

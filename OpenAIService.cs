@@ -86,7 +86,7 @@ namespace FXOAiTranslator
             Console.WriteLine($"[AI] Pattern learner initialized with {_learnedPatterns.Count} patterns");
         }
 
-        public async Task<TradeParseResult> ParseWithAI(string input, string underlying, string expiry, string explicitSpot = "")
+        public async Task<TradeParseResult> ParseWithAI(string input, string underlying, string expiry, string explicitSpot = "", bool bypassPatternMatching = false)
         {
             Console.WriteLine("[AI] ParseWithAI called - VERSION 2025-09-29-NEW");
             try
@@ -96,10 +96,9 @@ namespace FXOAiTranslator
                 bool patternMatched = false;
                 string matchedPatternName = "";
 
-                if (_learnedPatterns != null && _learnedPatterns.Count > 0)
+                if (!bypassPatternMatching && _learnedPatterns != null && _learnedPatterns.Count > 0)
                 {
                     Console.WriteLine($"[AI] Checking {_learnedPatterns.Count} learned patterns...");
-
                     foreach (var pattern in _learnedPatterns.OrderByDescending(p => p.UsageCount))
                     {
                         try
@@ -120,6 +119,11 @@ namespace FXOAiTranslator
                             Console.WriteLine($"[AI] Error testing pattern: {ex.Message}");
                         }
                     }
+
+                }
+                else if (bypassPatternMatching)
+                {
+                    Console.WriteLine("[AI] Pattern matching bypassed - using AI directly");
                 }
 
                 var liveSpot = await GetDefaultSpotRateAsync(underlying);

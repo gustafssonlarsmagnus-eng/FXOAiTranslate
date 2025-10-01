@@ -41,7 +41,7 @@ namespace FXOAiTranslator
             DebugCallback?.Invoke(message);
         }
 
-        public async Task<TradeParseResult> ParseTradeAsync(string input)
+        public async Task<TradeParseResult> ParseTradeAsync(string input, bool forceAI = false)
         {
             if (string.IsNullOrWhiteSpace(input))
                 return null;
@@ -54,7 +54,7 @@ namespace FXOAiTranslator
                 {
                     OVML = input,
                     Underlying = ExtractCurrencyPair(input),
-                    Expiry = NormalizeExpiry(ExtractExpiry(input)), // normalized here
+                    Expiry = NormalizeExpiry(ExtractExpiry(input)),
                     ParseMethod = "Already-OVML"
                 };
                 already.GenerateUBS();
@@ -64,8 +64,8 @@ namespace FXOAiTranslator
 
             input = input.Trim();
 
-            // Check cache first
-            if (_cache.TryGetValue(input, out var cached))
+            // Check cache first (skip cache if forcing AI)
+            if (!forceAI && _cache.TryGetValue(input, out var cached))
             {
                 LogDebug("DEBUG: Returning cached result for input.");
                 return cached;
@@ -80,247 +80,255 @@ namespace FXOAiTranslator
             LogDebug($"DEBUG: Extracted underlying: '{underlying}'");
             LogDebug($"DEBUG: Extracted expiry: '{expiry}'");
 
-            // Test against our known regex patterns
-            foreach (var pattern in RegexTradePatterns.Patterns)
+            // Skip regex patterns if forceAI is true
+            if (!forceAI)
             {
-                LogDebug($"DEBUG: Testing pattern: {pattern.Name}");
-                var match = pattern.Regex.Match(input);
-
-                if (match.Success)
+                // Test against our known regex patterns
+                foreach (var pattern in RegexTradePatterns.Patterns)
                 {
-                    LogDebug($"DEBUG: MATCH FOUND for pattern: {pattern.Name}");
+                    LogDebug($"DEBUG: Testing pattern: {pattern.Name}");
+                    var match = pattern.Regex.Match(input);
 
-                    // Debug all captured groups
-                    foreach (string groupName in pattern.Regex.GetGroupNames())
+                    if (match.Success)
                     {
-                        var group = match.Groups[groupName];
-                        if (group.Success && groupName != "0")
+                        LogDebug($"DEBUG: MATCH FOUND for pattern: {pattern.Name}");
+
+                        // Debug all captured groups
+                        foreach (string groupName in pattern.Regex.GetGroupNames())
                         {
-                            LogDebug($"DEBUG: Group '{groupName}': '{group.Value}'");
+                            var group = match.Groups[groupName];
+                            if (group.Success && groupName != "0")
+                            {
+                                LogDebug($"DEBUG: Group '{groupName}': '{group.Value}'");
+                            }
                         }
-                    }
 
-                    var result = new TradeParseResult
-                    {
-                        ParseMethod = "Regex-" + pattern.Name,
-                        Underlying = underlying,
-                        Expiry = expiry
-                    };
+                        var result = new TradeParseResult
+                        {
+                            ParseMethod = "Regex-" + pattern.Name,
+                            Underlying = underlying,
+                            Expiry = expiry
+                        };
 
-                    // Spot reference
-                    string spot = "";
-                    var spotMatch = RegexTradePatterns.SpotRegex.Match(input);
-                    if (spotMatch.Success)
-                    {
-                        spot = spotMatch.Groups["spot"].Value.Replace(",", ".");
-                        LogDebug($"DEBUG: Spot reference found: '{spot}'");
+                        // Spot reference
+                        string spot = "";
+                        var spotMatch = RegexTradePatterns.SpotRegex.Match(input);
+                        if (spotMatch.Success)
+                        {
+                            spot = spotMatch.Groups["spot"].Value.Replace(",", ".");
+                            LogDebug($"DEBUG: Spot reference found: '{spot}'");
+                        }
+                        else
+                        {
+                            // If no explicit spot in input, fetch live Bloomberg spot
+                            if (_bloombergService != null && _bloombergService.IsConnected)
+                            {
+                                try
+                                {
+                                    var liveSpotTask = _bloombergService.GetSpotRate(underlying);
+                                    double? liveSpot = await liveSpotTask;
+
+                                    if (liveSpot.HasValue)
+                                    {
+                                        LogDebug($"DEBUG: No spot in input, using live Bloomberg spot: {liveSpot.Value}");
+                                        spot = liveSpot.Value.ToString("0.####", CultureInfo.InvariantCulture);
+                                    }
+                                    else
+                                    {
+                                        LogDebug("DEBUG: Live spot returned null, skipping spot ref.");
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    LogDebug($"DEBUG: Failed to fetch live spot: {ex.Message}");
+                                }
+                            }
+                        }
+
+                        try
+                        {
+                            switch (pattern.Name)
+                            {
+                                case "Collar_BuyCallSellCallSellPut":
+                                    LogDebug($"DEBUG: Processing Collar_BuyCallSellCallSellPut pattern");
+                                    result.LegCount = 3;
+                                    result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
+                                                  $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C,{match.Groups["strike3"].Value}P " +
+                                                  $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
+                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                    break;
+
+                                case "Seagull_BuyPutSellPutSellCall":
+                                    LogDebug($"DEBUG: Processing Seagull_BuyPutSellPutSellCall pattern");
+                                    result.LegCount = 3;
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 3L B,S,S " +
+                                                  $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P,{match.Groups["strike3"].Value}C " +
+                                                  $"N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
+                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                    break;
+
+                                case "RiskReversal_PutCall":
+                                case "RiskReversal_CallPut":
+                                    LogDebug($"DEBUG: Processing {pattern.Name} pattern");
+                                    result.LegCount = 2;
+                                    result.OVML = RegexTradePatterns.BuildRiskReversalOVML(result.Underlying, match, result.Expiry, spot);
+                                    break;
+
+                                case "Vanilla":
+                                    LogDebug($"DEBUG: Processing Vanilla pattern");
+                                    result.LegCount = 1;
+                                    string side = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
+                                    string optionType = match.Groups["type"].Value.Substring(0, 1).ToUpper();
+                                    result.OVML = $"OVML {result.Underlying} 1L {side} " +
+                                                  $"{match.Groups["strike"].Value}{optionType} " +
+                                                  $"{result.Expiry} N{match.Groups["notional"].Value}M" +
+                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                    break;
+
+                                case "Simple_Vanilla":
+                                    LogDebug($"DEBUG: Processing Simple_Vanilla pattern");
+                                    result.LegCount = 1;
+                                    string s = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
+                                    string t = match.Groups["type"].Value.Substring(0, 1).ToUpper();
+                                    result.OVML = $"OVML {result.Underlying} 1L {s} " +
+                                                  $"{match.Groups["strike"].Value}{t} " +
+                                                  $"{result.Expiry} N{match.Groups["notional"].Value}M" +
+                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                    break;
+                                case "Straddle":
+                                    LogDebug("DEBUG: Processing Straddle pattern");
+                                    result.LegCount = 2;
+
+                                    // Side: default long (B,B); if 'sell' / 'sälj' → short (S,S)
+                                    {
+                                        var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
+                                        string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
+
+                                        string n1 = match.Groups["notional1"].Value;
+                                        string n2 = match.Groups["notional2"].Success ? match.Groups["notional2"].Value : n1;
+
+                                        // Straddle: ATMS strikes, explicit types C,P
+                                        result.OVML =
+                                            $"OVML {result.Underlying} 2L {sidePair} ATMS, ATMS C,P {result.Expiry} N{n1}M,{n2}M VA" +
+                                            (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
+                                    }
+                                    break;
+
+                                case "Strangle_Keyword":
+                                    LogDebug("DEBUG: Processing Strangle_Keyword pattern");
+                                    result.LegCount = 2;
+
+                                    {
+                                        var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
+                                        string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
+
+                                        string n = match.Groups["notional"].Value;
+                                        string kPut = match.Groups["strike1"].Value;
+                                        string kCall = match.Groups["strike2"].Value;
+
+                                        result.OVML =
+                                            $"OVML {result.Underlying} 2L {sidePair} {kPut}P,{kCall}C {result.Expiry} N{n}M,{n}M" +
+                                            (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
+                                    }
+                                    break;
+
+                                case "CallSpread_Market":
+                                    LogDebug($"DEBUG: Processing CallSpread_Market pattern");
+                                    result.LegCount = 2;
+
+                                    string notional = match.Groups["notional"].Value;
+                                    string strike1 = match.Groups["strike1"].Value;
+                                    string strike2 = match.Groups["strike2"].Value;
+
+                                    // For call spread: buy lower strike, sell higher strike
+                                    double s1 = double.Parse(strike1);
+                                    double s2 = double.Parse(strike2);
+
+                                    if (s1 < s2)
+                                    {
+                                        // Standard order: buy lower, sell higher
+                                        result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
+                                                      $"{strike1}C,{strike2}C N{notional}M,{notional}M VA" +
+                                                      (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                    }
+                                    else
+                                    {
+                                        // Reverse order: buy higher, sell lower
+                                        result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
+                                                      $"{strike2}C,{strike1}C N{notional}M,{notional}M VA" +
+                                                      (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                    }
+                                    break;
+                                case "PutSpread_Short":
+                                    LogDebug("DEBUG: Processing PutSpread_Short pattern");
+                                    result.LegCount = 2;
+
+                                    // Normalize strikes (higher = buy put, lower = sell put)
+                                    double ps1 = double.Parse(match.Groups["strike1"].Value);
+                                    double ps2 = double.Parse(match.Groups["strike2"].Value);
+
+                                    string putLow = ps1 < ps2 ? match.Groups["strike1"].Value : match.Groups["strike2"].Value;
+                                    string putHigh = ps1 < ps2 ? match.Groups["strike2"].Value : match.Groups["strike1"].Value;
+
+                                    string notionalPS = match.Groups["notional"].Value;
+
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {putHigh}P,{putLow}P N{notionalPS}M,{notionalPS}M VA" +
+                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                    break;
+
+                                case "CallSpread_Short":
+                                    LogDebug("DEBUG: Processing CallSpread_Short pattern");
+                                    result.LegCount = 2;
+
+                                    // Normalize strikes (lower = buy call, higher = sell call)
+                                    double cs1 = double.Parse(match.Groups["strike1"].Value);
+                                    double cs2 = double.Parse(match.Groups["strike2"].Value);
+
+                                    string callLow = cs1 < cs2 ? match.Groups["strike1"].Value : match.Groups["strike2"].Value;
+                                    string callHigh = cs1 < cs2 ? match.Groups["strike2"].Value : match.Groups["strike1"].Value;
+
+                                    string notionalCS = match.Groups["notional"].Value;
+
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {callLow}C,{callHigh}C N{notionalCS}M,{notionalCS}M VA" +
+                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                    break;
+
+                                default:
+                                    LogDebug($"DEBUG: Unknown pattern name: {pattern.Name}");
+                                    throw new Exception($"Unknown pattern: {pattern.Name}");
+                            }
+
+                            // Normalize outputs
+                            result.OVML = NormalizeOVMLDates(result.OVML);
+                            result.Expiry = NormalizeExpiry(result.Expiry);
+                            result.GenerateUBS(); // Generate UBS format
+
+                            LogDebug($"DEBUG: Generated OVML: '{result.OVML}'");
+                            LogDebug($"DEBUG: Generated UBS: '{result.UBS}'");
+                            LogDebug($"[RegexParser] Matched {pattern.Name}: {result.OVML}");
+
+                            _cache[input] = result; // Cache the result
+                            return result;
+                        }
+                        catch (Exception ex)
+                        {
+                            LogDebug($"DEBUG: Exception in switch statement: {ex.Message}");
+                            LogDebug($"DEBUG: Exception stack trace: {ex.StackTrace}");
+                            throw;
+                        }
                     }
                     else
                     {
-                        // If no explicit spot in input, fetch live Bloomberg spot
-                        if (_bloombergService != null && _bloombergService.IsConnected)
-                        {
-                            try
-                            {
-                                var liveSpotTask = _bloombergService.GetSpotRate(underlying);
-                                double? liveSpot = await liveSpotTask;
-
-                                if (liveSpot.HasValue)
-                                {
-                                    LogDebug($"DEBUG: No spot in input, using live Bloomberg spot: {liveSpot.Value}");
-                                    spot = liveSpot.Value.ToString("0.####", CultureInfo.InvariantCulture);
-                                }
-                                else
-                                {
-                                    LogDebug("DEBUG: Live spot returned null, skipping spot ref.");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                LogDebug($"DEBUG: Failed to fetch live spot: {ex.Message}");
-                            }
-                        }
+                        LogDebug($"DEBUG: No match for pattern: {pattern.Name}");
                     }
-
-                    try
-                    {
-                        switch (pattern.Name)
-                        {
-                            case "Collar_BuyCallSellCallSellPut":
-                                LogDebug($"DEBUG: Processing Collar_BuyCallSellCallSellPut pattern");
-                                result.LegCount = 3;
-                                result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
-                                              $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C,{match.Groups["strike3"].Value}P " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
-                                              (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
-                                break;
-
-                            case "Seagull_BuyPutSellPutSellCall":
-                                LogDebug($"DEBUG: Processing Seagull_BuyPutSellPutSellCall pattern");
-                                result.LegCount = 3;
-                                result.OVML = $"OVML {result.Underlying} {result.Expiry} 3L B,S,S " +
-                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P,{match.Groups["strike3"].Value}C " +
-                                              $"N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
-                                              (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
-                                break;
-
-                            case "RiskReversal_PutCall":
-                            case "RiskReversal_CallPut":
-                                LogDebug($"DEBUG: Processing {pattern.Name} pattern");
-                                result.LegCount = 2;
-                                result.OVML = RegexTradePatterns.BuildRiskReversalOVML(result.Underlying, match, result.Expiry, spot);
-                                break;
-
-                            case "Vanilla":
-                                LogDebug($"DEBUG: Processing Vanilla pattern");
-                                result.LegCount = 1;
-                                string side = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
-                                string optionType = match.Groups["type"].Value.Substring(0, 1).ToUpper();
-                                result.OVML = $"OVML {result.Underlying} 1L {side} " +
-                                              $"{match.Groups["strike"].Value}{optionType} " +
-                                              $"{result.Expiry} N{match.Groups["notional"].Value}M" +
-                                              (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
-                                break;
-
-                            case "Simple_Vanilla":
-                                LogDebug($"DEBUG: Processing Simple_Vanilla pattern");
-                                result.LegCount = 1;
-                                string s = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
-                                string t = match.Groups["type"].Value.Substring(0, 1).ToUpper();
-                                result.OVML = $"OVML {result.Underlying} 1L {s} " +
-                                              $"{match.Groups["strike"].Value}{t} " +
-                                              $"{result.Expiry} N{match.Groups["notional"].Value}M" +
-                                              (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
-                                break;
-                            case "Straddle":
-                                LogDebug("DEBUG: Processing Straddle pattern");
-                                result.LegCount = 2;
-
-                                // Side: default long (B,B); if 'sell' / 'sälj' → short (S,S)
-                                {
-                                    var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
-                                    string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
-
-                                    string n1 = match.Groups["notional1"].Value;
-                                    string n2 = match.Groups["notional2"].Success ? match.Groups["notional2"].Value : n1;
-
-                                    // Straddle: ATMS strikes, explicit types C,P
-                                    result.OVML =
-                                        $"OVML {result.Underlying} 2L {sidePair} ATMS, ATMS C,P {result.Expiry} N{n1}M,{n2}M VA" +
-                                        (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
-                                }
-                                break;
-
-                            case "Strangle_Keyword":
-                                LogDebug("DEBUG: Processing Strangle_Keyword pattern");
-                                result.LegCount = 2;
-
-                                {
-                                    var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
-                                    string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
-
-                                    string n = match.Groups["notional"].Value;
-                                    string kPut = match.Groups["strike1"].Value;
-                                    string kCall = match.Groups["strike2"].Value;
-
-                                    result.OVML =
-                                        $"OVML {result.Underlying} 2L {sidePair} {kPut}P,{kCall}C {result.Expiry} N{n}M,{n}M" +
-                                        (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
-                                }
-                                break;
-
-                            case "CallSpread_Market":
-                                LogDebug($"DEBUG: Processing CallSpread_Market pattern");
-                                result.LegCount = 2;
-
-                                string notional = match.Groups["notional"].Value;
-                                string strike1 = match.Groups["strike1"].Value;
-                                string strike2 = match.Groups["strike2"].Value;
-
-                                // For call spread: buy lower strike, sell higher strike
-                                double s1 = double.Parse(strike1);
-                                double s2 = double.Parse(strike2);
-
-                                if (s1 < s2)
-                                {
-                                    // Standard order: buy lower, sell higher
-                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
-                                                  $"{strike1}C,{strike2}C N{notional}M,{notional}M VA" +
-                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
-                                }
-                                else
-                                {
-                                    // Reverse order: buy higher, sell lower
-                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
-                                                  $"{strike2}C,{strike1}C N{notional}M,{notional}M VA" +
-                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
-                                }
-                                break;
-                            case "PutSpread_Short":
-                                LogDebug("DEBUG: Processing PutSpread_Short pattern");
-                                result.LegCount = 2;
-
-                                // Normalize strikes (higher = buy put, lower = sell put)
-                                double ps1 = double.Parse(match.Groups["strike1"].Value);
-                                double ps2 = double.Parse(match.Groups["strike2"].Value);
-
-                                string putLow = ps1 < ps2 ? match.Groups["strike1"].Value : match.Groups["strike2"].Value;
-                                string putHigh = ps1 < ps2 ? match.Groups["strike2"].Value : match.Groups["strike1"].Value;
-
-                                string notionalPS = match.Groups["notional"].Value;
-
-                                result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {putHigh}P,{putLow}P N{notionalPS}M,{notionalPS}M VA" +
-                                              (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
-                                break;
-
-                            case "CallSpread_Short":
-                                LogDebug("DEBUG: Processing CallSpread_Short pattern");
-                                result.LegCount = 2;
-
-                                // Normalize strikes (lower = buy call, higher = sell call)
-                                double cs1 = double.Parse(match.Groups["strike1"].Value);
-                                double cs2 = double.Parse(match.Groups["strike2"].Value);
-
-                                string callLow = cs1 < cs2 ? match.Groups["strike1"].Value : match.Groups["strike2"].Value;
-                                string callHigh = cs1 < cs2 ? match.Groups["strike2"].Value : match.Groups["strike1"].Value;
-
-                                string notionalCS = match.Groups["notional"].Value;
-
-                                result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {callLow}C,{callHigh}C N{notionalCS}M,{notionalCS}M VA" +
-                                              (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
-                                break;
-
-                            default:
-                                LogDebug($"DEBUG: Unknown pattern name: {pattern.Name}");
-                                throw new Exception($"Unknown pattern: {pattern.Name}");
-                        }
-
-                        // Normalize outputs
-                        result.OVML = NormalizeOVMLDates(result.OVML);
-                        result.Expiry = NormalizeExpiry(result.Expiry);
-                        result.GenerateUBS(); // Generate UBS format
-
-                        LogDebug($"DEBUG: Generated OVML: '{result.OVML}'");
-                        LogDebug($"DEBUG: Generated UBS: '{result.UBS}'");
-                        LogDebug($"[RegexParser] Matched {pattern.Name}: {result.OVML}");
-
-                        _cache[input] = result; // Cache the result
-                        return result;
-                    }
-                    catch (Exception ex)
-                    {
-                        LogDebug($"DEBUG: Exception in switch statement: {ex.Message}");
-                        LogDebug($"DEBUG: Exception stack trace: {ex.StackTrace}");
-                        throw;
-                    }
-                }
-                else
-                {
-                    LogDebug($"DEBUG: No match for pattern: {pattern.Name}");
                 }
             }
+            else
+            {
+                LogDebug("DEBUG: Force AI requested, skipping regex patterns...");
+            }
+
             // === AI fallback ===
-            // Pattern matching is now handled inside ParseWithAI
             LogDebug($"DEBUG: No regex patterns matched. Falling back to AI...");
             LogDebug("[Parser] Falling back to AI...");
 
@@ -329,7 +337,7 @@ namespace FXOAiTranslator
             var aiSpotMatch = RegexTradePatterns.SpotRegex.Match(input);
             if (aiSpotMatch.Success)
             {
-                explicitSpot = aiSpotMatch.Groups["spot"].Value;
+                explicitSpot = aiSpotMatch.Groups["spot"].Value.Replace(",", ".");
                 LogDebug($"DEBUG: Explicit spot extracted for AI fallback: '{explicitSpot}'");
             }
             else
@@ -354,8 +362,7 @@ namespace FXOAiTranslator
             }
             try
             {
-                var aiResult = await ParseWithAI(input, explicitSpot);
-
+                var aiResult = await ParseWithAI(input, explicitSpot, bypassPatternMatching: forceAI);
 
                 // Correction: override AI expiry if regex extracted a better one
                 if (!string.IsNullOrWhiteSpace(expiry) &&
@@ -411,23 +418,19 @@ namespace FXOAiTranslator
         }
 
         // === AI integration ===
-        private async Task<TradeParseResult> ParseWithAI(string input, string explicitSpot = "")
+        private async Task<TradeParseResult> ParseWithAI(string input, string explicitSpot = "", bool bypassPatternMatching = false)
         {
             Console.WriteLine($"[DEBUG] _patternLearner is null: {_patternLearner == null}");
-
             if (_patternLearner == null)
             {
                 await Task.Delay(10);
                 throw new NotImplementedException("AI parser not configured - no OpenAI API key provided.");
             }
-
             string underlying = ExtractCurrencyPair(input);
             string expiry = ExtractExpiry(input);
-
             LogDebug("[TradeParser] About to call HybridPatternLearner.ParseWithAI...");
-            var result = await _patternLearner.ParseWithAI(input, underlying, expiry, explicitSpot);
+            var result = await _patternLearner.ParseWithAI(input, underlying, expiry, explicitSpot, bypassPatternMatching);
             LogDebug($"[TradeParser] HybridPatternLearner returned: {result.ParseMethod}");
-
             return result;
         }
 
