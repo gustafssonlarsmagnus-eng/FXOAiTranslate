@@ -170,6 +170,60 @@ namespace FXOAiTranslator
                                                   (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
                                     break;
 
+                                case "PutSpread_DifferentNotionals":
+                                    LogDebug("DEBUG: Processing PutSpread_DifferentNotionals pattern");
+                                    result.LegCount = 2;
+
+                                    double psd1 = double.Parse(match.Groups["strike1"].Value);
+                                    double psd2 = double.Parse(match.Groups["strike2"].Value);
+
+                                    string buyStrikePut, sellStrikePut, buyNotionalPut, sellNotionalPut;
+                                    if (psd1 > psd2)
+                                    {
+                                        buyStrikePut = match.Groups["strike1"].Value;
+                                        sellStrikePut = match.Groups["strike2"].Value;
+                                        buyNotionalPut = match.Groups["notional1"].Value;
+                                        sellNotionalPut = match.Groups["notional2"].Value;
+                                    }
+                                    else
+                                    {
+                                        buyStrikePut = match.Groups["strike2"].Value;
+                                        sellStrikePut = match.Groups["strike1"].Value;
+                                        buyNotionalPut = match.Groups["notional2"].Value;
+                                        sellNotionalPut = match.Groups["notional1"].Value;
+                                    }
+
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {buyStrikePut}P,{sellStrikePut}P N{buyNotionalPut}M,{sellNotionalPut}M VA" +
+                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                    break;
+
+                                case "CallSpread_DifferentNotionals":
+                                    LogDebug("DEBUG: Processing CallSpread_DifferentNotionals pattern");
+                                    result.LegCount = 2;
+
+                                    double csd1 = double.Parse(match.Groups["strike1"].Value);
+                                    double csd2 = double.Parse(match.Groups["strike2"].Value);
+
+                                    string buyStrikeCall, sellStrikeCall, buyNotionalCall, sellNotionalCall;
+                                    if (csd1 < csd2)
+                                    {
+                                        buyStrikeCall = match.Groups["strike1"].Value;
+                                        sellStrikeCall = match.Groups["strike2"].Value;
+                                        buyNotionalCall = match.Groups["notional1"].Value;
+                                        sellNotionalCall = match.Groups["notional2"].Value;
+                                    }
+                                    else
+                                    {
+                                        buyStrikeCall = match.Groups["strike2"].Value;
+                                        sellStrikeCall = match.Groups["strike1"].Value;
+                                        buyNotionalCall = match.Groups["notional2"].Value;
+                                        sellNotionalCall = match.Groups["notional1"].Value;
+                                    }
+
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {buyStrikeCall}C,{sellStrikeCall}C N{buyNotionalCall}M,{sellNotionalCall}M VA" +
+                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                    break;
+
                                 case "RiskReversal_PutCall":
                                 case "RiskReversal_CallPut":
                                     LogDebug($"DEBUG: Processing {pattern.Name} pattern");
@@ -198,11 +252,11 @@ namespace FXOAiTranslator
                                                   $"{result.Expiry} N{match.Groups["notional"].Value}M" +
                                                   (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
                                     break;
+
                                 case "Straddle":
                                     LogDebug("DEBUG: Processing Straddle pattern");
                                     result.LegCount = 2;
 
-                                    // Side: default long (B,B); if 'sell' / 'sälj' → short (S,S)
                                     {
                                         var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
                                         string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
@@ -210,7 +264,6 @@ namespace FXOAiTranslator
                                         string n1 = match.Groups["notional1"].Value;
                                         string n2 = match.Groups["notional2"].Success ? match.Groups["notional2"].Value : n1;
 
-                                        // Straddle: ATMS strikes, explicit types C,P
                                         result.OVML =
                                             $"OVML {result.Underlying} 2L {sidePair} ATMS, ATMS C,P {result.Expiry} N{n1}M,{n2}M VA" +
                                             (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
@@ -243,30 +296,27 @@ namespace FXOAiTranslator
                                     string strike1 = match.Groups["strike1"].Value;
                                     string strike2 = match.Groups["strike2"].Value;
 
-                                    // For call spread: buy lower strike, sell higher strike
                                     double s1 = double.Parse(strike1);
                                     double s2 = double.Parse(strike2);
 
                                     if (s1 < s2)
                                     {
-                                        // Standard order: buy lower, sell higher
                                         result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
                                                       $"{strike1}C,{strike2}C N{notional}M,{notional}M VA" +
                                                       (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
                                     }
                                     else
                                     {
-                                        // Reverse order: buy higher, sell lower
                                         result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
                                                       $"{strike2}C,{strike1}C N{notional}M,{notional}M VA" +
                                                       (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
                                     }
                                     break;
+
                                 case "PutSpread_Short":
                                     LogDebug("DEBUG: Processing PutSpread_Short pattern");
                                     result.LegCount = 2;
 
-                                    // Normalize strikes (higher = buy put, lower = sell put)
                                     double ps1 = double.Parse(match.Groups["strike1"].Value);
                                     double ps2 = double.Parse(match.Groups["strike2"].Value);
 
@@ -283,7 +333,6 @@ namespace FXOAiTranslator
                                     LogDebug("DEBUG: Processing CallSpread_Short pattern");
                                     result.LegCount = 2;
 
-                                    // Normalize strikes (lower = buy call, higher = sell call)
                                     double cs1 = double.Parse(match.Groups["strike1"].Value);
                                     double cs2 = double.Parse(match.Groups["strike2"].Value);
 
@@ -430,7 +479,10 @@ namespace FXOAiTranslator
             input = Regex.Replace(input, @"[\r\n]+", "\n"); // Multiple newlines to single newline
             input = input.Trim();
 
-            // 2. Normalize currency pair capitalization
+            // 2a. Join separated currency pairs (usd nok → USDNOK)
+            input = Regex.Replace(input, @"\b(USD|EUR|GBP|NOK|SEK)\s+(NOK|SEK|USD|EUR|GBP)\b", "$1$2", RegexOptions.IgnoreCase);
+
+            // 2b. Normalize currency pair capitalization
             var currencyPairs = new[] { "EURSEK", "USDSEK", "USDNOK", "EURNOK", "GBPSEK", "NOKSEK", "EURUSD", "GBPUSD" };
             foreach (var pair in currencyPairs)
             {
