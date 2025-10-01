@@ -46,6 +46,9 @@ namespace FXOAiTranslator
             if (string.IsNullOrWhiteSpace(input))
                 return null;
 
+            // Preprocess input to clean up common issues
+            input = PreprocessInput(input);
+
             // Prevent infinite loop: skip if it's already OVML
             if (input.StartsWith("OVML", StringComparison.OrdinalIgnoreCase))
             {
@@ -415,6 +418,47 @@ namespace FXOAiTranslator
                 _cache[input] = errorResult; // Cache error result
                 return errorResult;
             }
+        }
+
+        private string PreprocessInput(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return input;
+
+            // 1. Strip extra whitespace
+            input = Regex.Replace(input, @"\s+", " "); // Multiple spaces to single space
+            input = Regex.Replace(input, @"[\r\n]+", "\n"); // Multiple newlines to single newline
+            input = input.Trim();
+
+            // 2. Normalize currency pair capitalization
+            var currencyPairs = new[] { "EURSEK", "USDSEK", "USDNOK", "EURNOK", "GBPSEK", "NOKSEK", "EURUSD", "GBPUSD" };
+            foreach (var pair in currencyPairs)
+            {
+                input = Regex.Replace(input, pair, pair, RegexOptions.IgnoreCase);
+            }
+
+            // 3. Fix common Swedish/Norwegian character issues
+            var charReplacements = new Dictionary<string, string>
+    {
+        { "kopa", "köpa" },
+        { "salja", "sälja" },
+        { "salj", "sälj" },
+        { "forfall", "förfall" },
+        { "mio", "mio" }, // Already correct, but included for completeness
+    };
+
+            foreach (var replacement in charReplacements)
+            {
+                input = Regex.Replace(input, $@"\b{replacement.Key}\b", replacement.Value, RegexOptions.IgnoreCase);
+            }
+
+            // 4. Normalize decimal separators in context (handle European format)
+            // Only replace commas with periods when they're clearly decimals (between digits)
+            input = Regex.Replace(input, @"(\d),(\d)", "$1.$2");
+
+            LogDebug($"DEBUG: Preprocessed input: '{input}'");
+
+            return input;
         }
 
         // === AI integration ===
