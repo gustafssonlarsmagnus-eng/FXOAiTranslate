@@ -145,6 +145,12 @@ CRITICAL MULTI-LEG RULES:
 4. NOTIONALS: Must have format N(amount)M,(amount)M (e.g., N5M,20M)
 5. Unless explicitly stated otherwise, each leg has the SAME notional amount
 
+CRITICAL STRIKE ORDERING:
+- Strikes MUST appear in the exact same order as listed in the input text
+- The first leg mentioned is used for premium pricing, so order is economically significant
+- Do NOT reorder strikes by size or any other logic
+- Example: ""buy 10.40 and 10.80 put"" → B,B 10.4000P,10.8000P (NOT 10.8000P,10.4000P)
+
 SEAGULL STRUCTURE RULES:
 - 3 legs: Buy Put (protection), Sell Put (financing), Sell Call (financing)
 - Example: '40m seagull' → N40M,40M,40M (40M on EACH leg, not 40M total)

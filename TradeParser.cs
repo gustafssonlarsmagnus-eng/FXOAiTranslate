@@ -659,8 +659,9 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
                 // 3. Day + month without year - multilingual support
                 LogDebug("DEBUG: Testing day + month pattern...");
-                var dayMonthMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>[A-Za-zåäöæøé]{3,})\b", RegexOptions.IgnoreCase);
-                if (dayMonthMatch.Success)
+                var dayMonthMatches = Regex.Matches(input, @"\b(?<day>\d{1,2})e?\s+(?<month>[A-Za-zåäöæøé]{3,})\b", RegexOptions.IgnoreCase);
+
+                foreach (Match dayMonthMatch in dayMonthMatches)
                 {
                     LogDebug($"DEBUG: Day + month pattern matched: {dayMonthMatch.Value}");
                     string day = dayMonthMatch.Groups["day"].Value;
@@ -672,24 +673,22 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     if (normalizedMonth.Length != 3 || Array.IndexOf(monthNames, normalizedMonth) == -1)
                     {
                         LogDebug($"DEBUG: Skipping - '{month}' not recognized as a valid month");
-                        // Continue to next pattern
+                        continue;
                     }
-                    else
+
+                    int currentYear = DateTime.Now.Year;
+                    int shortYear = currentYear % 100;
+
+                    int monthIndex = Array.IndexOf(monthNames, normalizedMonth);
+                    if (monthIndex >= 0)
                     {
-                        int currentYear = DateTime.Now.Year;
-                        int shortYear = currentYear % 100;
-
-                        int monthIndex = Array.IndexOf(monthNames, normalizedMonth);
-                        if (monthIndex >= 0)
-                        {
-                            DateTime target = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
-                            if (target < DateTime.Now.AddDays(-5))
-                                currentYear++;
-                        }
-
-                        shortYear = currentYear % 100;
-                        return $"{int.Parse(day):D2}{normalizedMonth}{shortYear:D2}";
+                        DateTime target = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
+                        if (target < DateTime.Now.AddDays(-5))
+                            currentYear++;
                     }
+
+                    shortYear = currentYear % 100;
+                    return $"{int.Parse(day):D2}{normalizedMonth}{shortYear:D2}";
                 }
 
                 // 4. FX date without year: 14Oct - with month validation (English only)
@@ -759,10 +758,10 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
                 // More restrictive: avoid matching large numbers that are likely notionals
                 var tenorMatch = Regex.Match(
-                    input,
-                    @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>m|w|y|d|week|weeks|month|months|mth|mo|year|years|day|days)\b(?!\s*io)",
-                    RegexOptions.IgnoreCase
-                );
+      input,
+      @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>m|w|y|d|week|weeks|month|months|mth|mo|year|years|day|days)\b(?![\s\d]*\d+\.\d+)",
+      RegexOptions.IgnoreCase
+  );
 
                 LogDebug($"DEBUG: Tenor regex matched: {tenorMatch.Success}");
 
