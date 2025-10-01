@@ -334,6 +334,20 @@ namespace FXOAiTranslator
             rejectCol.DefaultCellStyle.NullValue = "X";
             dgvTradeBlotter.Columns.Add(rejectCol);
 
+            // Add Re-parse AI button column
+            var reParseCol = new DataGridViewButtonColumn
+            {
+                Name = "ReParseAI",
+                HeaderText = "AI",
+                UseColumnTextForButtonValue = true,
+                Text = "↻",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+            };
+            reParseCol.DefaultCellStyle.NullValue = "↻";
+            dgvTradeBlotter.Columns.Add(reParseCol);
+
+            // Hidden UBS column (Width not needed when invisible)
+
             // Hidden UBS column (Width not needed when invisible)
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
@@ -369,6 +383,7 @@ namespace FXOAiTranslator
                     case "Expiry":
                     case "SpotRef":
                     case "Reject":
+                    case "ReParseAI":
                     case "Method":
                         col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                         col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -511,18 +526,19 @@ namespace FXOAiTranslator
             string spotRef = ExtractSpotFromOVML(result.OVML);
 
             dgvTradeBlotter.Rows.Insert(0, new object[]
-            {
-                DateTime.Now.ToString("HH:mm:ss"),
-                request,
-                result.OVML,
-                result.Underlying,
-                result.LegCount,
-                result.Expiry,
-                spotRef,
-                result.ParseMethod,
-                null,             // Reject button column (value unused)
-                result.UBS ?? ""  // hidden UBS
-            });
+ {
+    DateTime.Now.ToString("HH:mm:ss"),
+    request,
+    result.OVML,
+    result.Underlying,
+    result.LegCount,
+    result.Expiry,
+    spotRef,
+    result.ParseMethod,
+    null,             // Reject button column (value unused)
+    null,             // ReParseAI button column (value unused)
+    result.UBS ?? ""  // hidden UBS
+ });
 
             // Enhanced color coding with validation status
             var row = dgvTradeBlotter.Rows[0];
@@ -671,11 +687,50 @@ namespace FXOAiTranslator
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
             {
                 var column = dgvTradeBlotter.Columns[e.ColumnIndex];
-                if (column.Name == "Reject")
+                var row = dgvTradeBlotter.Rows[e.RowIndex];
+                string request = row.Cells["Request"].Value?.ToString();
+                string method = row.Cells["Method"].Value?.ToString();
+
+                if (column.Name == "ReParseAI")
                 {
-                    var row = dgvTradeBlotter.Rows[e.RowIndex];
-                    string method = row.Cells["Method"].Value?.ToString();
-                    string request = row.Cells["Request"].Value?.ToString();
+                    // Re-parse with AI for ANY trade
+                    var result = MessageBox.Show(
+                        "Re-parse this trade using AI only?\n\n" +
+                        "Current result will be removed and replaced.",
+                        "Force AI Re-parse",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question
+                    );
+
+                    if (result == DialogResult.Yes)
+                    {
+                        dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
+                        LogDebugMessage($"Force re-parsing with AI: {request}");
+
+                        // Re-parse and add back to blotter
+                        _ = Task.Run(async () =>
+                        {
+                            var parseResult = await _tradeParser.ParseTradeAsync(request, forceAI: true);
+
+                            if (parseResult != null)
+                            {
+                                // Add back to blotter on UI thread
+                                this.Invoke(new Action(() =>
+                                {
+                                    AddTradeToBlotter(request, parseResult);
+
+                                    // Auto-send if enabled
+                                    if (chkAutoSend.Checked && _bloombergService.IsConnected && !string.IsNullOrEmpty(parseResult.OVML))
+                                    {
+                                        _bloombergService.SendOVML(parseResult.OVML);
+                                    }
+                                }));
+                            }
+                        });
+                    }
+                }
+                else if (column.Name == "Reject")
+                {
                     string ovml = row.Cells["OVML"].Value?.ToString();
 
                     if (method?.StartsWith("Learned-") == true)
