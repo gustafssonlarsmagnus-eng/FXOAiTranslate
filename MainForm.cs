@@ -1,5 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -10,29 +14,35 @@ namespace FXOAiTranslator
     {
         private TradeParser _tradeParser;
         private BloombergService _bloombergService;
+        private string _tradesFilePath;
+        private List<TradeRecord> _allTrades;
 
         // UI Controls
         private TextBox txtTradeInput;
-        private Button btnClearAll;
         private Button btnCopyOVML;
         private Button btnCopyUBS;
-  
         private CheckBox chkAutoSend;
         private Label lblBloombergStatus;
         private DataGridView dgvTradeBlotter;
         private Button btnToggleDebug;
+        private Button btnFilterMenu;
         private Panel pnlDebug;
         private TextBox txtDebugLog;
+        private ContextMenuStrip ctxRowMenu;
         private bool debugVisible = false;
 
         // Re-entrancy guard for processing
         private bool _processing;
+
+        // Current filter
+        private TradeFilter _currentFilter = TradeFilter.Today;
 
         public MainForm()
         {
             InitializeComponent();
             SetupServices();
             SetupEventHandlers();
+            LoadTrades();
         }
 
         private void InitializeComponent()
@@ -66,11 +76,10 @@ namespace FXOAiTranslator
             // Button row
             var buttonY = 60;
 
-            btnClearAll = CreateBloombergButton("CANCEL", Color.FromArgb(220, 53, 69), 15, buttonY);   // red
-            btnCopyOVML = CreateBloombergButton("OVML", Color.FromArgb(0, 200, 0), 105, buttonY);      // green
-            btnCopyUBS = CreateBloombergButton("UBS", Color.FromArgb(200, 150, 255), 195, buttonY);    // pink/purple
-
-            btnToggleDebug = CreateBloombergButton("Show Debug", Color.FromArgb(0, 120, 255), 285, buttonY);  // bright blue
+            btnFilterMenu = CreateBloombergButton("Filter ▼", Color.FromArgb(108, 117, 125), 15, buttonY, 90);
+            btnCopyOVML = CreateBloombergButton("OVML", Color.FromArgb(0, 200, 0), 115, buttonY);
+            btnCopyUBS = CreateBloombergButton("UBS", Color.FromArgb(200, 150, 255), 205, buttonY);
+            btnToggleDebug = CreateBloombergButton("Debug", Color.FromArgb(0, 120, 255), 295, buttonY);
 
             // Checkbox + Bloomberg status inline
             chkAutoSend = new CheckBox
@@ -94,7 +103,7 @@ namespace FXOAiTranslator
             // Trade Blotter Label
             var lblBlotter = new Label
             {
-                Text = "Trade Blotter (Click X to reject bad OVML patterns - good patterns auto-learn):",
+                Text = "Trade Blotter (Right-click for options):",
                 Dock = DockStyle.Top,
                 Height = 20,
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular)
@@ -103,7 +112,7 @@ namespace FXOAiTranslator
             // Add all controls to top panel
             pnlTop.Controls.AddRange(new Control[] {
                 txtTradeInput,
-                btnClearAll, btnCopyOVML, btnCopyUBS, btnToggleDebug,
+                btnFilterMenu, btnCopyOVML, btnCopyUBS, btnToggleDebug,
                 chkAutoSend, lblBloombergStatus
             });
 
@@ -129,6 +138,7 @@ namespace FXOAiTranslator
             };
 
             SetupDataGridView();
+            SetupContextMenu();
 
             // Debug Panel
             pnlDebug = new Panel
@@ -237,7 +247,7 @@ namespace FXOAiTranslator
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Margin = new Padding(2, 0, 2, 0),
-                TabStop = false // removes dotted focus rectangle and excludes from tab order
+                TabStop = false
             };
 
             btn.FlatAppearance.BorderSize = 0;
@@ -249,16 +259,28 @@ namespace FXOAiTranslator
 
         private void SetTabOrder()
         {
-            // Buttons have TabStop=false, so keep tabbing to main inputs only
             txtTradeInput.TabIndex = 0;
             chkAutoSend.TabIndex = 1;
-            btnToggleDebug.TabIndex = 2; // TabStop=false by default from CreateBloombergButton; change if you want it tabbable
+            btnToggleDebug.TabIndex = 2;
             dgvTradeBlotter.TabIndex = 3;
+        }
+
+        private void SetupContextMenu()
+        {
+            ctxRowMenu = new ContextMenuStrip();
+            ctxRowMenu.Items.Add("Copy OVML", null, (s, e) => CopySelectedCell("OVML"));
+            ctxRowMenu.Items.Add("Copy UBS", null, (s, e) => CopySelectedCell("UBS"));
+            ctxRowMenu.Items.Add("Copy Request", null, (s, e) => CopySelectedCell("Request"));
+            ctxRowMenu.Items.Add(new ToolStripSeparator());
+            ctxRowMenu.Items.Add("Re-parse with AI", null, CtxReParseAI_Click);
+            ctxRowMenu.Items.Add(new ToolStripSeparator());
+            ctxRowMenu.Items.Add("Delete Row", null, CtxDeleteRow_Click);
+
+            dgvTradeBlotter.ContextMenuStrip = ctxRowMenu;
         }
 
         private void SetupDataGridView()
         {
-            // Columns (no fixed Width when using AutoSizeMode)
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Time",
@@ -326,15 +348,14 @@ namespace FXOAiTranslator
             var rejectCol = new DataGridViewButtonColumn
             {
                 Name = "Reject",
-                HeaderText = "Reject",
+                HeaderText = "✗",
                 UseColumnTextForButtonValue = true,
-                Text = "X",
+                Text = "✗",
                 AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             };
-            rejectCol.DefaultCellStyle.NullValue = "X";
+            rejectCol.DefaultCellStyle.NullValue = "✗";
             dgvTradeBlotter.Columns.Add(rejectCol);
 
-            // Add Re-parse AI button column
             var reParseCol = new DataGridViewButtonColumn
             {
                 Name = "ReParseAI",
@@ -346,13 +367,19 @@ namespace FXOAiTranslator
             reParseCol.DefaultCellStyle.NullValue = "↻";
             dgvTradeBlotter.Columns.Add(reParseCol);
 
-            // Hidden UBS column (Width not needed when invisible)
-
-            // Hidden UBS column (Width not needed when invisible)
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "UBS",
                 HeaderText = "UBS",
+                Visible = false,
+                ReadOnly = true
+            });
+
+            // Hidden ID column for tracking
+            dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "TradeId",
+                HeaderText = "TradeId",
                 Visible = false,
                 ReadOnly = true
             });
@@ -363,17 +390,11 @@ namespace FXOAiTranslator
             dgvTradeBlotter.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             dgvTradeBlotter.EnableHeadersVisualStyles = false;
 
-            // Alternate row colors
             dgvTradeBlotter.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
-
-            // Hide the row headers
             dgvTradeBlotter.RowHeadersVisible = false;
-
-            // Softer selection color
             dgvTradeBlotter.DefaultCellStyle.SelectionBackColor = Color.LightSkyBlue;
             dgvTradeBlotter.DefaultCellStyle.SelectionForeColor = Color.Black;
 
-            // Alignment rules
             foreach (DataGridViewColumn col in dgvTradeBlotter.Columns)
             {
                 switch (col.Name)
@@ -400,26 +421,28 @@ namespace FXOAiTranslator
         {
             _bloombergService = new BloombergService();
 
-            // Load OpenAI API key (environment variable preferred)
             string openAIApiKey = LoadApiKey();
             Console.WriteLine($"DEBUG: OpenAI API Key loaded: {(string.IsNullOrEmpty(openAIApiKey) ? "NONE" : "YES (length: " + openAIApiKey.Length + ")")}");
 
-            // Initialize trade parser with API key
             _tradeParser = new TradeParser(_bloombergService, openAIApiKey);
-
-            // Hook into debug callback to capture parsing logs
             _tradeParser.DebugCallback = LogDebugMessage;
 
-            // Update Bloomberg status
+            // Setup trades file path
+            string appDataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "FXOAiTranslator");
+
+            Directory.CreateDirectory(appDataPath);
+            _tradesFilePath = Path.Combine(appDataPath, "trades.json");
+            _allTrades = new List<TradeRecord>();
+
             UpdateBloombergStatus();
         }
 
         private string LoadApiKey()
         {
-            // 1. Try environment variable first
             string key = Environment.GetEnvironmentVariable("OpenAIApiKey");
 
-            // 2. Fall back to App.config if not found
             if (string.IsNullOrEmpty(key) || key == "changeme")
             {
                 key = System.Configuration.ConfigurationManager.AppSettings["OpenAIApiKey"];
@@ -432,13 +455,177 @@ namespace FXOAiTranslator
         {
             txtTradeInput.KeyDown += TxtTradeInput_KeyDown;
             txtTradeInput.TextChanged += TxtTradeInput_TextChanged;
-            btnClearAll.Click += BtnClearAll_Click;
             btnCopyOVML.Click += BtnCopyOVML_Click;
             btnCopyUBS.Click += BtnCopyUBS_Click;
-           
             btnToggleDebug.Click += BtnToggleDebug_Click;
+            btnFilterMenu.Click += BtnFilterMenu_Click;
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;
-            dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded; // single hookup only
+            dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded;
+            this.FormClosing += MainForm_FormClosing;
+        }
+
+        private void BtnFilterMenu_Click(object sender, EventArgs e)
+        {
+            var filterMenu = new ContextMenuStrip();
+
+            var todayItem = new ToolStripMenuItem("Today's Requests");
+            todayItem.Checked = (_currentFilter == TradeFilter.Today);
+            todayItem.Click += (s, ev) => { _currentFilter = TradeFilter.Today; ApplyFilter(); };
+
+            var allItem = new ToolStripMenuItem("All Requests");
+            allItem.Checked = (_currentFilter == TradeFilter.All);
+            allItem.Click += (s, ev) => { _currentFilter = TradeFilter.All; ApplyFilter(); };
+
+            filterMenu.Items.Add(todayItem);
+            filterMenu.Items.Add(allItem);
+
+            filterMenu.Show(btnFilterMenu, new Point(0, btnFilterMenu.Height));
+        }
+
+        private void ApplyFilter()
+        {
+            dgvTradeBlotter.Rows.Clear();
+
+            IEnumerable<TradeRecord> filtered = _allTrades;
+
+            if (_currentFilter == TradeFilter.Today)
+            {
+                var today = DateTime.Today;
+                filtered = _allTrades.Where(t => t.Timestamp.Date == today);
+            }
+
+            foreach (var trade in filtered.OrderByDescending(t => t.Timestamp))
+            {
+                AddTradeRowToGrid(trade);
+            }
+
+            UpdateFilterButtonText();
+        }
+
+        private void UpdateFilterButtonText()
+        {
+            btnFilterMenu.Text = _currentFilter == TradeFilter.Today ? "Today ▼" : "All ▼";
+        }
+
+        private void LoadTrades()
+        {
+            try
+            {
+                if (File.Exists(_tradesFilePath))
+                {
+                    string json = File.ReadAllText(_tradesFilePath);
+                    _allTrades = JsonSerializer.Deserialize<List<TradeRecord>>(json) ?? new List<TradeRecord>();
+                    LogDebugMessage($"Loaded {_allTrades.Count} trades from storage");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogDebugMessage($"Error loading trades: {ex.Message}");
+                _allTrades = new List<TradeRecord>();
+            }
+
+            ApplyFilter();
+        }
+
+        private void SaveTrades()
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(_allTrades, options);
+                File.WriteAllText(_tradesFilePath, json);
+                LogDebugMessage($"Saved {_allTrades.Count} trades to storage");
+            }
+            catch (Exception ex)
+            {
+                LogDebugMessage($"Error saving trades: {ex.Message}");
+            }
+        }
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            SaveTrades();
+        }
+
+        private void CopySelectedCell(string columnName)
+        {
+            if (dgvTradeBlotter.SelectedRows.Count > 0)
+            {
+                var value = dgvTradeBlotter.SelectedRows[0].Cells[columnName].Value?.ToString();
+                if (!string.IsNullOrEmpty(value))
+                {
+                    Clipboard.SetText(value);
+                    LogDebugMessage($"Copied {columnName} to clipboard");
+                }
+            }
+        }
+
+        private void CtxReParseAI_Click(object sender, EventArgs e)
+        {
+            if (dgvTradeBlotter.SelectedRows.Count > 0)
+            {
+                var row = dgvTradeBlotter.SelectedRows[0];
+                string request = row.Cells["Request"].Value?.ToString();
+                string tradeId = row.Cells["TradeId"].Value?.ToString();
+
+                var result = MessageBox.Show(
+                    "Re-parse this trade using AI only?\n\nCurrent result will be replaced.",
+                    "Force AI Re-parse",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    // Remove from memory and grid
+                    _allTrades.RemoveAll(t => t.Id == tradeId);
+                    dgvTradeBlotter.Rows.Remove(row);
+
+                    LogDebugMessage($"Force re-parsing with AI: {request}");
+
+                    _ = Task.Run(async () =>
+                    {
+                        var parseResult = await _tradeParser.ParseTradeAsync(request, forceAI: true);
+
+                        if (parseResult != null)
+                        {
+                            this.Invoke(new Action(() =>
+                            {
+                                AddTradeToBlotter(request, parseResult);
+
+                                if (chkAutoSend.Checked && _bloombergService.IsConnected && !string.IsNullOrEmpty(parseResult.OVML))
+                                {
+                                    _bloombergService.SendOVML(parseResult.OVML);
+                                }
+                            }));
+                        }
+                    });
+                }
+            }
+        }
+
+        private void CtxDeleteRow_Click(object sender, EventArgs e)
+        {
+            if (dgvTradeBlotter.SelectedRows.Count > 0)
+            {
+                var row = dgvTradeBlotter.SelectedRows[0];
+                string tradeId = row.Cells["TradeId"].Value?.ToString();
+
+                var result = MessageBox.Show(
+                    "Delete this trade permanently?",
+                    "Confirm Delete",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    _allTrades.RemoveAll(t => t.Id == tradeId);
+                    dgvTradeBlotter.Rows.Remove(row);
+                    SaveTrades();
+                    LogDebugMessage($"Deleted trade: {tradeId}");
+                }
+            }
         }
 
         private void DgvTradeBlotter_CellToolTipTextNeeded(object sender, DataGridViewCellToolTipTextNeededEventArgs e)
@@ -464,7 +651,7 @@ namespace FXOAiTranslator
             if (e.KeyCode == Keys.Enter)
             {
                 e.Handled = true;
-                e.SuppressKeyPress = true; // prevents newline/beep in multiline textbox
+                e.SuppressKeyPress = true;
                 await ProcessTrade();
             }
         }
@@ -473,13 +660,10 @@ namespace FXOAiTranslator
         {
             string input = txtTradeInput.Text.Trim();
 
-            // Process automatically when text is pasted (longer than typical typing)
             if (input.Length > 10 && input.Contains(" "))
             {
-                // Small delay to ensure paste operation is complete
                 await Task.Delay(100);
 
-                // Check if text is still there (user didn't clear it)
                 if (txtTradeInput.Text.Trim() == input)
                 {
                     await ProcessTrade();
@@ -507,7 +691,6 @@ namespace FXOAiTranslator
                     }
                 }
 
-                // Clear the input box after processing
                 txtTradeInput.Clear();
             }
             catch (Exception ex)
@@ -523,80 +706,118 @@ namespace FXOAiTranslator
 
         private void AddTradeToBlotter(string request, TradeParseResult result)
         {
-            string spotRef = ExtractSpotFromOVML(result.OVML);
+            var trade = new TradeRecord
+            {
+                Id = Guid.NewGuid().ToString(),
+                Timestamp = DateTime.Now,
+                Request = request,
+                OVML = result.OVML,
+                UBS = result.UBS ?? "",
+                Underlying = result.Underlying,
+                LegCount = result.LegCount.ToString(),
+                Expiry = result.Expiry,
+                SpotRef = ExtractSpotFromOVML(result.OVML),
+                ParseMethod = result.ParseMethod,
+                ValidationWarning = result.ValidationWarning
+            };
 
-            dgvTradeBlotter.Rows.Insert(0, new object[]
- {
-    DateTime.Now.ToString("HH:mm:ss"),
-    request,
-    result.OVML,
-    result.Underlying,
-    result.LegCount,
-    result.Expiry,
-    spotRef,
-    result.ParseMethod,
-    null,             // Reject button column (value unused)
-    null,             // ReParseAI button column (value unused)
-    result.UBS ?? ""  // hidden UBS
- });
+            _allTrades.Add(trade);
+            SaveTrades();
 
-            // Enhanced color coding with validation status
-            var row = dgvTradeBlotter.Rows[0];
+            // Only add to grid if it matches current filter
+            if (_currentFilter == TradeFilter.All || trade.Timestamp.Date == DateTime.Today)
+            {
+                AddTradeRowToGrid(trade, insertAtTop: true);
+            }
+        }
 
-            if (result.ParseMethod.StartsWith("Regex"))
+        private void AddTradeRowToGrid(TradeRecord trade, bool insertAtTop = false)
+        {
+            int rowIndex = insertAtTop ? 0 : dgvTradeBlotter.Rows.Count;
+
+            if (insertAtTop)
+            {
+                dgvTradeBlotter.Rows.Insert(0, new object[]
+                {
+                    trade.Timestamp.ToString("HH:mm:ss"),
+                    trade.Request,
+                    trade.OVML,
+                    trade.Underlying,
+                    trade.LegCount,
+                    trade.Expiry,
+                    trade.SpotRef,
+                    trade.ParseMethod,
+                    null,
+                    null,
+                    trade.UBS,
+                    trade.Id
+                });
+            }
+            else
+            {
+                dgvTradeBlotter.Rows.Add(new object[]
+                {
+                    trade.Timestamp.ToString("HH:mm:ss"),
+                    trade.Request,
+                    trade.OVML,
+                    trade.Underlying,
+                    trade.LegCount,
+                    trade.Expiry,
+                    trade.SpotRef,
+                    trade.ParseMethod,
+                    null,
+                    null,
+                    trade.UBS,
+                    trade.Id
+                });
+            }
+
+            var row = dgvTradeBlotter.Rows[rowIndex];
+
+            // Color coding
+            if (trade.ParseMethod.StartsWith("Regex"))
             {
                 row.DefaultCellStyle.BackColor = Color.LightGreen;
             }
-            else if (result.ParseMethod.StartsWith("Learned"))
+            else if (trade.ParseMethod.StartsWith("Learned"))
             {
                 row.DefaultCellStyle.BackColor = Color.LightYellow;
             }
-            else if (result.ParseMethod.Contains("AI-Success") && result.ParseMethod.Contains("Validated"))
-            {
-                row.DefaultCellStyle.BackColor = Color.LightBlue; // Validated AI
-            }
-            else if (result.ParseMethod.Contains("AI-Warning"))
-            {
-                row.DefaultCellStyle.BackColor = Color.Orange; // Failed validation
-                if (!string.IsNullOrEmpty(result.ValidationWarning))
-                {
-                    row.Cells["Method"].ToolTipText = result.ValidationWarning;
-                }
-            }
-            else if (result.ParseMethod.StartsWith("AI"))
+            else if (trade.ParseMethod.Contains("AI-Success") && trade.ParseMethod.Contains("Validated"))
             {
                 row.DefaultCellStyle.BackColor = Color.LightBlue;
             }
-            else if (result.ParseMethod.Contains("Error"))
+            else if (trade.ParseMethod.Contains("AI-Warning"))
+            {
+                row.DefaultCellStyle.BackColor = Color.Orange;
+                if (!string.IsNullOrEmpty(trade.ValidationWarning))
+                {
+                    row.Cells["Method"].ToolTipText = trade.ValidationWarning;
+                }
+            }
+            else if (trade.ParseMethod.StartsWith("AI"))
+            {
+                row.DefaultCellStyle.BackColor = Color.LightBlue;
+            }
+            else if (trade.ParseMethod.Contains("Error"))
             {
                 row.DefaultCellStyle.BackColor = Color.LightCoral;
             }
 
-            // Add validation info to tooltip
-            if (result.ValidationResult != null)
+            if (insertAtTop)
             {
-                var methodCell = row.Cells["Method"];
-                var validationInfo = $"Validation: {(result.ValidationResult.IsValid ? "PASSED" : "FAILED")} " +
-                                    $"(Confidence: {result.ValidationResult.Confidence:P0})";
-
-                var currentTooltip = methodCell.ToolTipText ?? "";
-                methodCell.ToolTipText = string.IsNullOrEmpty(currentTooltip) ?
-                    validationInfo :
-                    $"{currentTooltip}\n{validationInfo}";
+                dgvTradeBlotter.ClearSelection();
+                row.Selected = true;
+                dgvTradeBlotter.CurrentCell = row.Cells["Request"];
+                dgvTradeBlotter.FirstDisplayedScrollingRowIndex = 0;
             }
-
-            // Always highlight/select the newest row and keep it visible at the top
-            dgvTradeBlotter.ClearSelection();
-            row.Selected = true;
-            dgvTradeBlotter.CurrentCell = row.Cells["Request"];
-            dgvTradeBlotter.FirstDisplayedScrollingRowIndex = 0;
         }
 
         private string ExtractSpotFromOVML(string ovml)
         {
             if (string.IsNullOrEmpty(ovml)) return "";
 
-            var match = System.Text.RegularExpressions.Regex.Match(ovml, @"SP(\d+(?:[.,]\d+)?)");
+            var match = Regex.Match(ovml, @"SP(\d+(?:[.,]\d+)?)");
             return match.Success ? match.Groups[1].Value : "";
         }
 
@@ -604,7 +825,7 @@ namespace FXOAiTranslator
         {
             debugVisible = !debugVisible;
             pnlDebug.Visible = debugVisible;
-            btnToggleDebug.Text = debugVisible ? "Hide Debug" : "Show Debug";
+            btnToggleDebug.Text = debugVisible ? "Hide" : "Debug";
         }
 
         private void LogDebugMessage(string message)
@@ -633,12 +854,6 @@ namespace FXOAiTranslator
             }
         }
 
-        private void BtnClearAll_Click(object sender, EventArgs e)
-        {
-            dgvTradeBlotter.Rows.Clear();
-            txtTradeInput.Clear();
-        }
-
         private void BtnCopyOVML_Click(object sender, EventArgs e)
         {
             if (dgvTradeBlotter.SelectedRows.Count > 0)
@@ -647,6 +862,7 @@ namespace FXOAiTranslator
                 if (!string.IsNullOrEmpty(ovml))
                 {
                     Clipboard.SetText(ovml);
+                    LogDebugMessage("[UI] OVML copied to clipboard");
                 }
             }
             else
@@ -680,8 +896,6 @@ namespace FXOAiTranslator
             }
         }
 
-
-
         private void DgvTradeBlotter_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
@@ -690,13 +904,13 @@ namespace FXOAiTranslator
                 var row = dgvTradeBlotter.Rows[e.RowIndex];
                 string request = row.Cells["Request"].Value?.ToString();
                 string method = row.Cells["Method"].Value?.ToString();
+                string tradeId = row.Cells["TradeId"].Value?.ToString();
 
                 if (column.Name == "ReParseAI")
                 {
-                    // Re-parse with AI for ANY trade
                     var result = MessageBox.Show(
                         "Re-parse this trade using AI only?\n\n" +
-                        "Current result will be removed and replaced.",
+                        "Current result will be replaced.",
                         "Force AI Re-parse",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question
@@ -704,22 +918,20 @@ namespace FXOAiTranslator
 
                     if (result == DialogResult.Yes)
                     {
+                        _allTrades.RemoveAll(t => t.Id == tradeId);
                         dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
                         LogDebugMessage($"Force re-parsing with AI: {request}");
 
-                        // Re-parse and add back to blotter
                         _ = Task.Run(async () =>
                         {
                             var parseResult = await _tradeParser.ParseTradeAsync(request, forceAI: true);
 
                             if (parseResult != null)
                             {
-                                // Add back to blotter on UI thread
                                 this.Invoke(new Action(() =>
                                 {
                                     AddTradeToBlotter(request, parseResult);
 
-                                    // Auto-send if enabled
                                     if (chkAutoSend.Checked && _bloombergService.IsConnected && !string.IsNullOrEmpty(parseResult.OVML))
                                     {
                                         _bloombergService.SendOVML(parseResult.OVML);
@@ -752,12 +964,13 @@ namespace FXOAiTranslator
 
                             if (choice == DialogResult.Yes)
                             {
-                                // Delete entire pattern
                                 bool success = _tradeParser.RemoveLearnedPattern(patternTimestamp);
 
                                 if (success)
                                 {
+                                    _allTrades.RemoveAll(t => t.Id == tradeId);
                                     dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
+                                    SaveTrades();
                                     LogDebugMessage($"Deleted learned pattern: {patternTimestamp}");
                                     MessageBox.Show($"Pattern '{patternTimestamp}' deleted.\nSimilar trades will use AI.",
                                         "Pattern Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -770,25 +983,30 @@ namespace FXOAiTranslator
                             }
                             else if (choice == DialogResult.No)
                             {
-                                // Re-parse with AI only
+                                _allTrades.RemoveAll(t => t.Id == tradeId);
                                 dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
                                 LogDebugMessage($"Re-parsing trade with AI, bypassing pattern {patternTimestamp}");
 
-                                // Re-parse the trade forcing AI
                                 _ = Task.Run(async () =>
                                 {
-                                    await _tradeParser.ParseTradeAsync(request, forceAI: true);
+                                    var parseResult = await _tradeParser.ParseTradeAsync(request, forceAI: true);
+
+                                    if (parseResult != null)
+                                    {
+                                        this.Invoke(new Action(() =>
+                                        {
+                                            AddTradeToBlotter(request, parseResult);
+                                        }));
+                                    }
                                 });
 
                                 MessageBox.Show("Trade will be re-parsed using AI only.",
                                     "Re-parsing", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
-                            // If Cancel, do nothing
                         }
                     }
                     else
                     {
-                        // Non-pattern trades - simple rejection
                         var message = "Reject this trade?\n\n";
                         if (method?.Contains("AI-Warning") == true)
                         {
@@ -807,7 +1025,9 @@ namespace FXOAiTranslator
 
                         if (result == DialogResult.Yes)
                         {
+                            _allTrades.RemoveAll(t => t.Id == tradeId);
                             dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
+                            SaveTrades();
                             LogDebugMessage($"Marked as problematic: {request}");
                         }
                     }
@@ -820,5 +1040,27 @@ namespace FXOAiTranslator
             base.OnLoad(e);
             txtTradeInput.Focus();
         }
+    }
+
+    // Supporting classes
+    public class TradeRecord
+    {
+        public string Id { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string Request { get; set; }
+        public string OVML { get; set; }
+        public string UBS { get; set; }
+        public string Underlying { get; set; }
+        public string LegCount { get; set; }
+        public string Expiry { get; set; }
+        public string SpotRef { get; set; }
+        public string ParseMethod { get; set; }
+        public string ValidationWarning { get; set; }
+    }
+
+    public enum TradeFilter
+    {
+        Today,
+        All
     }
 }
