@@ -26,11 +26,12 @@ namespace FXOAiTranslator
         private TextBox txtDebugLog;
         private ContextMenuStrip ctxRowMenu;
         private bool debugVisible = false;
-
+        
         // Progress indicator
         private StatusStrip statusStrip;
         private ToolStripStatusLabel lblStatus;
         private ToolStripProgressBar progressBar;
+        private ToolStripStatusLabel _lblBloombergStatusStrip;
 
         // Re-entrancy guard for processing
         private bool _processing;
@@ -61,36 +62,6 @@ namespace FXOAiTranslator
             };
 
             SetupMenuBar();
-
-            // Create status bar panel
-            var pnlStatus = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 30,
-                Padding = new Padding(10, 5, 10, 5),
-                BackColor = Color.FromArgb(248, 249, 250)
-            };
-
-            // Checkbox + Bloomberg status
-            chkAutoSend = new CheckBox
-            {
-                Text = "Auto-send to Bloomberg",
-                Location = new Point(10, 5),
-                Size = new Size(180, 20),
-                Checked = true,
-                Font = new Font("Segoe UI", 9F)
-            };
-
-            lblBloombergStatus = new Label
-            {
-                Text = "● Disconnected",
-                Location = new Point(chkAutoSend.Right + 15, 5),
-                Size = new Size(200, 20),
-                ForeColor = Color.Red,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-
-            pnlStatus.Controls.AddRange(new Control[] { chkAutoSend, lblBloombergStatus });
 
             // Request Blotter Label
             var lblBlotter = new Label
@@ -217,21 +188,20 @@ namespace FXOAiTranslator
             pnlContent.Controls.Add(lblBlotter);
 
             this.Controls.Add(pnlContent);
-            this.Controls.Add(pnlStatus);
             this.Controls.Add(menuStrip);
             this.MainMenuStrip = menuStrip;
 
-            // Add status strip at bottom
+            // Add status strip at bottom with all status info
             statusStrip = new StatusStrip
             {
                 BackColor = Color.FromArgb(248, 249, 250),
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9F),
+                Padding = new Padding(5, 0, 5, 0)
             };
 
             lblStatus = new ToolStripStatusLabel
             {
                 Text = "Ready",
-                Spring = true,
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
@@ -239,11 +209,46 @@ namespace FXOAiTranslator
             {
                 Style = ProgressBarStyle.Marquee,
                 Visible = false,
-                Size = new Size(150, 16)
+                Size = new Size(100, 16),
+                MarqueeAnimationSpeed = 30
+            };
+
+            // Bloomberg status label
+            var lblBloombergStatusStrip = new ToolStripStatusLabel
+            {
+                Text = "● Disconnected",
+                ForeColor = Color.Red,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Margin = new Padding(10, 0, 0, 0)
+            };
+            lblBloombergStatus = new Label(); // Keep reference for updates
+            
+            // Auto-send checkbox as a custom control in status strip
+            var chkAutoSendHost = new ToolStripControlHost(new CheckBox
+            {
+                Text = "Auto-send",
+                Checked = true,
+                Font = new Font("Segoe UI", 9F),
+                AutoSize = true,
+                Margin = new Padding(10, 0, 0, 0)
+            });
+            chkAutoSend = (CheckBox)chkAutoSendHost.Control;
+
+            // Spring to push items to the right
+            var spring = new ToolStripStatusLabel
+            {
+                Spring = true,
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
             statusStrip.Items.Add(lblStatus);
             statusStrip.Items.Add(progressBar);
+            statusStrip.Items.Add(spring);
+            statusStrip.Items.Add(chkAutoSendHost);
+            statusStrip.Items.Add(lblBloombergStatusStrip);
+            
+            // Store reference for updates
+            _lblBloombergStatusStrip = lblBloombergStatusStrip;
 
             this.Controls.Add(statusStrip);
 
@@ -254,32 +259,32 @@ namespace FXOAiTranslator
         {
             // View Menu
             var viewMenu = new ToolStripMenuItem("View");
-
+            
             var todayMenuItem = new ToolStripMenuItem("Today's Requests");
             todayMenuItem.Click += (s, e) => { _currentFilter = TradeFilter.Today; ApplyFilter(); };
-
+            
             var allMenuItem = new ToolStripMenuItem("All Requests");
             allMenuItem.Click += (s, e) => { _currentFilter = TradeFilter.All; ApplyFilter(); };
-
+            
             viewMenu.DropDownItems.Add(todayMenuItem);
             viewMenu.DropDownItems.Add(allMenuItem);
             viewMenu.DropDownItems.Add(new ToolStripSeparator());
-
+            
             var debugMenuItem = new ToolStripMenuItem("Debug Log");
             debugMenuItem.Click += (s, e) => ToggleDebug();
             viewMenu.DropDownItems.Add(debugMenuItem);
 
             // Tools Menu
             var toolsMenu = new ToolStripMenuItem("Tools");
-
+            
             var copyOVMLMenuItem = new ToolStripMenuItem("Copy OVML");
             copyOVMLMenuItem.ShortcutKeys = Keys.Control | Keys.O;
             copyOVMLMenuItem.Click += (s, e) => CopySelectedCell("OVML");
-
+            
             var copyUBSMenuItem = new ToolStripMenuItem("Copy UBS");
             copyUBSMenuItem.ShortcutKeys = Keys.Control | Keys.U;
             copyUBSMenuItem.Click += (s, e) => CopySelectedCell("UBS");
-
+            
             toolsMenu.DropDownItems.Add(copyOVMLMenuItem);
             toolsMenu.DropDownItems.Add(copyUBSMenuItem);
 
@@ -465,13 +470,13 @@ namespace FXOAiTranslator
             string appDataPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "FXOAiTranslator");
-
+            
             Directory.CreateDirectory(appDataPath);
             _tradesFilePath = Path.Combine(appDataPath, "trades.json");
             _allTrades = new List<TradeRecord>();
 
             UpdateBloombergStatus();
-
+            
             // Setup global clipboard monitoring for paste-anywhere functionality
             SetupClipboardMonitoring();
         }
@@ -606,7 +611,7 @@ namespace FXOAiTranslator
                     // Remove from memory and grid
                     _allTrades.RemoveAll(t => t.Id == tradeId);
                     dgvTradeBlotter.Rows.Remove(row);
-
+                    
                     LogDebugMessage($"Force re-parsing with AI: {request}");
                     SetProcessingStatus(true, "Re-parsing with AI...");
 
@@ -624,7 +629,7 @@ namespace FXOAiTranslator
                                 {
                                     _bloombergService.SendOVML(parseResult.OVML);
                                 }
-
+                                
                                 SetProcessingStatus(false, "Re-parse complete");
                                 Task.Delay(2000).ContinueWith(_ => SetProcessingStatus(false, "Ready"));
                             }));
@@ -684,10 +689,10 @@ namespace FXOAiTranslator
         {
             if (_processing) return;
             _processing = true;
-
+            
             // Show progress
             SetProcessingStatus(true, "Processing trade request...");
-
+            
             try
             {
                 if (string.IsNullOrEmpty(input)) return;
@@ -702,9 +707,9 @@ namespace FXOAiTranslator
                         SetProcessingStatus(true, "Sending to Bloomberg...");
                         _bloombergService.SendOVML(result.OVML);
                     }
-
+                    
                     SetProcessingStatus(false, "Trade processed successfully");
-
+                    
                     // Reset status after 2 seconds
                     await Task.Delay(2000);
                     SetProcessingStatus(false, "Ready");
@@ -736,7 +741,7 @@ namespace FXOAiTranslator
 
             lblStatus.Text = message;
             progressBar.Visible = isProcessing;
-
+            
             // Change cursor to indicate busy state
             this.Cursor = isProcessing ? Cursors.WaitCursor : Cursors.Default;
         }
@@ -874,13 +879,13 @@ namespace FXOAiTranslator
         {
             if (_bloombergService.IsConnected)
             {
-                lblBloombergStatus.Text = "● Connected";
-                lblBloombergStatus.ForeColor = Color.Green;
+                _lblBloombergStatusStrip.Text = "● Connected";
+                _lblBloombergStatusStrip.ForeColor = Color.Green;
             }
             else
             {
-                lblBloombergStatus.Text = "● Disconnected";
-                lblBloombergStatus.ForeColor = Color.Red;
+                _lblBloombergStatusStrip.Text = "● Disconnected";
+                _lblBloombergStatusStrip.ForeColor = Color.Red;
             }
         }
 
@@ -925,7 +930,7 @@ namespace FXOAiTranslator
                                     {
                                         _bloombergService.SendOVML(parseResult.OVML);
                                     }
-
+                                    
                                     SetProcessingStatus(false, "Re-parse complete");
                                     Task.Delay(2000).ContinueWith(_ => SetProcessingStatus(false, "Ready"));
                                 }));
@@ -986,7 +991,7 @@ namespace FXOAiTranslator
                                 _ = Task.Run(async () =>
                                 {
                                     var parseResult = await _tradeParser.ParseTradeAsync(request, forceAI: true);
-
+                                    
                                     if (parseResult != null)
                                     {
                                         this.Invoke(new Action(() =>
