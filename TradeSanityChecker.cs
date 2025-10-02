@@ -82,6 +82,21 @@ namespace FXOAiTranslator
 
         private void ValidateSingleLeg(string ovml, RuleBasedCheckResult result)
         {
+            // Check for duplicate expiry dates
+            var expiryMatches = Regex.Matches(ovml, @"\d{2}/\d{2}/\d{2}|\d{1,2}[A-Z]{3}\d{2}?");
+            if (expiryMatches.Count > 1)
+            {
+                result.CriticalErrors.Add($"Multiple expiry dates found ({expiryMatches.Count}): {string.Join(", ", expiryMatches.Cast<Match>().Select(m => m.Value))}");
+            }
+            else if (expiryMatches.Count == 1)
+            {
+                result.PassedChecks.Add("Single expiry date");
+            }
+            else
+            {
+                result.CriticalErrors.Add("No expiry date found");
+            }
+
             // Option type (C/P) - must be attached to strike like 0.9500C
             if (!Regex.IsMatch(ovml, @"\d+\.\d+[CP]"))
                 result.CriticalErrors.Add("Missing option type (C or P)");
@@ -94,9 +109,9 @@ namespace FXOAiTranslator
             else
                 result.PassedChecks.Add("Direction present");
 
-            // Notional format (NxxM)
+            // Notional - must actually exist, not just format check
             if (!Regex.IsMatch(ovml, @"N\d+M\b"))
-                result.Warnings.Add("No notional in standard format (NxxM)");
+                result.CriticalErrors.Add("Missing notional (NxxM not found)");
             else
                 result.PassedChecks.Add("Notional format OK");
 

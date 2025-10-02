@@ -153,6 +153,18 @@ SINGLE LEG FORMAT:
 OVML (currency) (expiry) (direction) (strike)(C/P) N(notional)M VA [SP(spot)]
 Example: OVML NOKSEK 08/14/26 B 0.9500C N150M VA SP0.9463
 
+EXPIRY FORMAT CRITICAL RULE:
+The expiry MUST be normalized to MM/DD/YY format (e.g., 06/11/26, not 11Jun).
+Position: OVML (currency) (MM/DD/YY) (rest of trade)
+WRONG: OVML USDNOK 11Jun B 9.9000P 06/11/26 VA
+RIGHT: OVML USDNOK 06/11/26 B 9.9000P N10M VA
+
+CRITICAL: Single-leg OVML structure is ALWAYS:
+OVML (currency) (expiry) (direction) (strike)(C/P) N(notional)M VA [SP(spot)]
+
+NEVER use format: OVML (currency) (expiry) (direction) (strike)(C/P) (expiry) VA
+The expiry must appear EXACTLY ONCE - immediately after the currency pair.
+
 MULTI-LEG FORMAT:
 OVML (currency) (expiry) (legs)L (directions) (strikes) N(notionals) VA [SP(spot)]
 Example: OVML USDNOK 12/03/25 2L B,S 9.7500P,9.5000P N100M,150M VA SP10.3950
@@ -189,6 +201,9 @@ SPOT REFERENCE AND DELTA NOTATION:
 
 NOTIONAL PARSING:
 - ""150nok"" or ""150m"" or ""150 mio"" → N150M
+- ""10mil notl"" or ""10mil"" or ""10 mil"" → N10M
+- ""15x10mio"" or ""15x10m"" → N15M,10M (first number = first leg, second number = second leg)
+- ""15/10mio"" or ""15-10m"" → N15M,10M (alternative notation)
 - Always include the N prefix and M suffix
 - For multi-leg: N100M,150M (comma-separated)
 
@@ -215,6 +230,7 @@ Single: OVML USDSEK 12/12/25 B 9.6000C N10M VA SP9.4034
 Put Spread: OVML USDSEK 12/12/25 2L B,S 9.6000P,9.1500P N5M,20M VA SP9.3600
 Call Spread: OVML EURSEK 3M 2L B,S 11.2000C,11.8000C N50M,50M VA
 Risk Reversal: OVML EURSEK 04/22/26 2L B,S 10.7000P,11.1500C N10M,10M VA SP10.9250
+Risk Reversal (unequal notionals): OVML USDNOK 08/14/26 2L B,S 9.7000P,10.0000C N15M,10M VA SP9.9055
 Seagull: OVML USDSEK 02/19/26 3L B,S,S 9.2500P,8.9500P,9.5200C N40M,40M,40M VA SP9.3890
 
 Output ONLY the OVML line:";
