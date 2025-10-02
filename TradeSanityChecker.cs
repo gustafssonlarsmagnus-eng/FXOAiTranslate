@@ -82,8 +82,8 @@ namespace FXOAiTranslator
 
         private void ValidateSingleLeg(string ovml, RuleBasedCheckResult result)
         {
-            // Option type (C/P)
-            if (!Regex.IsMatch(ovml, @"\b[CP]\b"))
+            // Option type (C/P) - must be attached to strike like 0.9500C
+            if (!Regex.IsMatch(ovml, @"\d+\.\d+[CP]"))
                 result.CriticalErrors.Add("Missing option type (C or P)");
             else
                 result.PassedChecks.Add("Option type present");

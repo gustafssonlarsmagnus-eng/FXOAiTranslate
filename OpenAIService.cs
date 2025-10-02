@@ -139,15 +139,29 @@ Input: ""{input}""
 LIVE SPOT RATE for {underlying}: {spotInfo}
 
 MANDATORY OVML SYNTAX:
-- Single Leg: OVML (currency) (expiry) C/P (strike) B/S (notional) (style) [SP(spot)]
-- Multi-Leg: OVML (currency) (expiry) (legs)L (directions) (strikes) (notionals) (style) [SP(spot)]
+- Single Leg: OVML (currency) (expiry) (direction) (strike)(C/P) N(notional)M (style) [SP(spot)]
+- Multi-Leg: OVML (currency) (expiry) (legs)L (directions) (strikes) N(notionals) (style) [SP(spot)]
+
+CRITICAL FORMAT RULES:
+1. EXPIRY: Use ONLY ONE expiry - place it immediately after currency pair
+2. STRUCTURE: OVML (currency) (expiry) [legs] [directions] [strikes] [notionals] [style] [spot]
+3. NOTIONAL: Always format as N(amount)M (e.g., N150M) - NEVER omit the N prefix
+4. DIRECTION: Always B (buy) or S (sell) - place AFTER expiry, not before strikes
+5. STYLE: Always include VA (Vanilla) or EU (European) at the end before spot reference
+
+SINGLE LEG FORMAT:
+OVML (currency) (expiry) (direction) (strike)(C/P) N(notional)M VA [SP(spot)]
+Example: OVML NOKSEK 08/14/26 B 0.9500C N150M VA SP0.9463
+
+MULTI-LEG FORMAT:
+OVML (currency) (expiry) (legs)L (directions) (strikes) N(notionals) VA [SP(spot)]
+Example: OVML USDNOK 12/03/25 2L B,S 9.7500P,9.5000P N100M,150M VA SP10.3950
 
 CRITICAL MULTI-LEG RULES:
-1. EXPIRY: Use ONE expiry format only - NEVER include both tenor and date
-2. PUT SPREAD: Buy higher strike put, Sell lower strike put → B,S (strikes high,low)
-3. CALL SPREAD: Buy lower strike call, Sell higher strike call → B,S (strikes low,high)
-4. NOTIONALS: Must have format N(amount)M,(amount)M (e.g., N5M,20M)
-5. Unless explicitly stated otherwise, each leg has the SAME notional amount
+1. PUT SPREAD: Buy higher strike put, Sell lower strike put → B,S (strikes high,low)
+2. CALL SPREAD: Buy lower strike call, Sell higher strike call → B,S (strikes low,high)
+3. NOTIONALS: Format as N(amount1)M,(amount2)M (e.g., N5M,20M)
+4. Unless explicitly stated otherwise, each leg has the SAME notional amount
 
 CRITICAL STRIKE ORDERING:
 - Strikes MUST appear in the exact same order as listed in the input text
@@ -167,11 +181,16 @@ RISK REVERSAL (RR) RULES:
 - Calculate the unknown strike to achieve zero net cost
 
 SPOT REFERENCE AND DELTA NOTATION:
-- 'Sr: 10.9250' or 'delta 20m @ 9.3890' provides the spot reference for pricing
-- The @ or Sr: value becomes the SP field in OVML output
+- 'Sr: 10.9250', 'fwd ref 0.9463', or 'delta 20m @ 9.3890' provides the spot reference for pricing
+- The @ or Sr: or fwd ref value becomes the SP field in OVML output
 - CRITICAL: Spot reference (SP) is NOT an option strike - never use it as a strike price
 - Delta information is for risk management only, not for OVML structure
 - Example: 'delta 20m @ 9.3890' → use SP9.3890, but calculate actual strike prices separately
+
+NOTIONAL PARSING:
+- ""150nok"" or ""150m"" or ""150 mio"" → N150M
+- Always include the N prefix and M suffix
+- For multi-leg: N100M,150M (comma-separated)
 
 ZERO-COST CALCULATION:
 - Solve for unknown strikes so net premium = 0
@@ -182,14 +201,17 @@ ZERO-COST CALCULATION:
 - Always output calculated numeric strikes (4 decimals), never '??', 'X.xx', or the spot reference itself
 
 FORMAT ENFORCEMENT:
-- No placeholders, brackets, or tokens (e.g., <ZC_CALL>, [SP…])
-- Strikes: 4 decimals
-- Notionals: N(amount)M format
-- If SPOT provided, include as SPnumber; if not, omit SP
+- No placeholders, brackets, or tokens (e.g., <ZC_CALL>, [SP...])
+- Strikes: 4 decimals (0.9500 not 0.95)
+- Notionals: N(amount)M format - NEVER omit N prefix
+- Expiry: Only ONE expiry date in the entire OVML string
+- If SPOT provided, include as SP(number); if not, omit SP
 - Output exactly one OVML line - no quotes, no commentary
+- NEVER include expiry twice in the output
 
 EXAMPLES:
-Single: OVML USDSEK 12/12/25 C 9.6000 B N10M VA SP9.4034
+Single: OVML NOKSEK 08/14/26 B 0.9500C N150M VA SP0.9463
+Single: OVML USDSEK 12/12/25 B 9.6000C N10M VA SP9.4034
 Put Spread: OVML USDSEK 12/12/25 2L B,S 9.6000P,9.1500P N5M,20M VA SP9.3600
 Call Spread: OVML EURSEK 3M 2L B,S 11.2000C,11.8000C N50M,50M VA
 Risk Reversal: OVML EURSEK 04/22/26 2L B,S 10.7000P,11.1500C N10M,10M VA SP10.9250

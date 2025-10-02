@@ -18,18 +18,19 @@ namespace FXOAiTranslator
         private List<TradeRecord> _allTrades;
 
         // UI Controls
-        private TextBox txtTradeInput;
-        private Button btnCopyOVML;
-        private Button btnCopyUBS;
         private CheckBox chkAutoSend;
         private Label lblBloombergStatus;
         private DataGridView dgvTradeBlotter;
-        private Button btnToggleDebug;
-        private Button btnFilterMenu;
+        private MenuStrip menuStrip;
         private Panel pnlDebug;
         private TextBox txtDebugLog;
         private ContextMenuStrip ctxRowMenu;
         private bool debugVisible = false;
+
+        // Progress indicator
+        private StatusStrip statusStrip;
+        private ToolStripStatusLabel lblStatus;
+        private ToolStripProgressBar progressBar;
 
         // Re-entrancy guard for processing
         private bool _processing;
@@ -52,69 +53,55 @@ namespace FXOAiTranslator
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.White;
 
-            // Create top panel
-            var pnlTop = new Panel
+            // Create menu bar
+            menuStrip = new MenuStrip
+            {
+                BackColor = Color.White,
+                Font = new Font("Segoe UI", 9F)
+            };
+
+            SetupMenuBar();
+
+            // Create status bar panel
+            var pnlStatus = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 110,
-                Padding = new Padding(25, 15, 25, 5)
+                Height = 30,
+                Padding = new Padding(10, 5, 10, 5),
+                BackColor = Color.FromArgb(248, 249, 250)
             };
 
-            // Trade Input Section
-            txtTradeInput = new TextBox
-            {
-                Location = new Point(15, 10),
-                Size = new Size(800, 40),
-                Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "Enter trade request (e.g., eursek 4m i buy a 11.00 put in 100 mio and sell a 11.5000 call in 50 mio)",
-                Multiline = true,
-                AcceptsReturn = true,
-                ScrollBars = ScrollBars.None,
-                WordWrap = true
-            };
-
-            // Button row
-            var buttonY = 60;
-
-            btnFilterMenu = CreateBloombergButton("Filter ▼", Color.FromArgb(108, 117, 125), 15, buttonY, 90);
-            btnCopyOVML = CreateBloombergButton("OVML", Color.FromArgb(0, 200, 0), 115, buttonY);
-            btnCopyUBS = CreateBloombergButton("UBS", Color.FromArgb(200, 150, 255), 205, buttonY);
-            btnToggleDebug = CreateBloombergButton("Debug", Color.FromArgb(0, 120, 255), 295, buttonY);
-
-            // Checkbox + Bloomberg status inline
+            // Checkbox + Bloomberg status
             chkAutoSend = new CheckBox
             {
-                Text = "Auto-send",
-                Location = new Point(470, buttonY + 3),
-                Size = new Size(100, 20),
+                Text = "Auto-send to Bloomberg",
+                Location = new Point(10, 5),
+                Size = new Size(180, 20),
                 Checked = true,
                 Font = new Font("Segoe UI", 9F)
             };
 
             lblBloombergStatus = new Label
             {
-                Text = "Bloomberg: Disconnected",
-                Location = new Point(chkAutoSend.Right + 10, chkAutoSend.Top),
+                Text = "● Disconnected",
+                Location = new Point(chkAutoSend.Right + 15, 5),
                 Size = new Size(200, 20),
                 ForeColor = Color.Red,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
 
-            // Trade Blotter Label
+            pnlStatus.Controls.AddRange(new Control[] { chkAutoSend, lblBloombergStatus });
+
+            // Request Blotter Label
             var lblBlotter = new Label
             {
-                Text = "Trade Blotter (Right-click for options):",
+                Text = "Request Blotter (Right-click for options | Paste anywhere with Ctrl+V to process)",
                 Dock = DockStyle.Top,
-                Height = 20,
-                Font = new Font("Segoe UI", 9F, FontStyle.Regular)
+                Height = 25,
+                Padding = new Padding(15, 5, 0, 0),
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                BackColor = Color.White
             };
-
-            // Add all controls to top panel
-            pnlTop.Controls.AddRange(new Control[] {
-                txtTradeInput,
-                btnFilterMenu, btnCopyOVML, btnCopyUBS, btnToggleDebug,
-                chkAutoSend, lblBloombergStatus
-            });
 
             // Main content panel
             var pnlContent = new Panel
@@ -230,39 +217,80 @@ namespace FXOAiTranslator
             pnlContent.Controls.Add(lblBlotter);
 
             this.Controls.Add(pnlContent);
-            this.Controls.Add(pnlTop);
+            this.Controls.Add(pnlStatus);
+            this.Controls.Add(menuStrip);
+            this.MainMenuStrip = menuStrip;
+
+            // Add status strip at bottom
+            statusStrip = new StatusStrip
+            {
+                BackColor = Color.FromArgb(248, 249, 250),
+                Font = new Font("Segoe UI", 9F)
+            };
+
+            lblStatus = new ToolStripStatusLabel
+            {
+                Text = "Ready",
+                Spring = true,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            progressBar = new ToolStripProgressBar
+            {
+                Style = ProgressBarStyle.Marquee,
+                Visible = false,
+                Size = new Size(150, 16)
+            };
+
+            statusStrip.Items.Add(lblStatus);
+            statusStrip.Items.Add(progressBar);
+
+            this.Controls.Add(statusStrip);
 
             this.SetTabOrder();
         }
 
-        private Button CreateBloombergButton(string text, Color backColor, int x, int y, int width = 80, int height = 24)
+        private void SetupMenuBar()
         {
-            var btn = new Button
-            {
-                Text = text,
-                Location = new Point(x, y),
-                Size = new Size(width, height),
-                BackColor = backColor,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Margin = new Padding(2, 0, 2, 0),
-                TabStop = false
-            };
+            // View Menu
+            var viewMenu = new ToolStripMenuItem("View");
 
-            btn.FlatAppearance.BorderSize = 0;
-            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Light(backColor);
-            btn.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(backColor);
+            var todayMenuItem = new ToolStripMenuItem("Today's Requests");
+            todayMenuItem.Click += (s, e) => { _currentFilter = TradeFilter.Today; ApplyFilter(); };
 
-            return btn;
+            var allMenuItem = new ToolStripMenuItem("All Requests");
+            allMenuItem.Click += (s, e) => { _currentFilter = TradeFilter.All; ApplyFilter(); };
+
+            viewMenu.DropDownItems.Add(todayMenuItem);
+            viewMenu.DropDownItems.Add(allMenuItem);
+            viewMenu.DropDownItems.Add(new ToolStripSeparator());
+
+            var debugMenuItem = new ToolStripMenuItem("Debug Log");
+            debugMenuItem.Click += (s, e) => ToggleDebug();
+            viewMenu.DropDownItems.Add(debugMenuItem);
+
+            // Tools Menu
+            var toolsMenu = new ToolStripMenuItem("Tools");
+
+            var copyOVMLMenuItem = new ToolStripMenuItem("Copy OVML");
+            copyOVMLMenuItem.ShortcutKeys = Keys.Control | Keys.O;
+            copyOVMLMenuItem.Click += (s, e) => CopySelectedCell("OVML");
+
+            var copyUBSMenuItem = new ToolStripMenuItem("Copy UBS");
+            copyUBSMenuItem.ShortcutKeys = Keys.Control | Keys.U;
+            copyUBSMenuItem.Click += (s, e) => CopySelectedCell("UBS");
+
+            toolsMenu.DropDownItems.Add(copyOVMLMenuItem);
+            toolsMenu.DropDownItems.Add(copyUBSMenuItem);
+
+            menuStrip.Items.Add(viewMenu);
+            menuStrip.Items.Add(toolsMenu);
         }
 
         private void SetTabOrder()
         {
-            txtTradeInput.TabIndex = 0;
-            chkAutoSend.TabIndex = 1;
-            btnToggleDebug.TabIndex = 2;
-            dgvTradeBlotter.TabIndex = 3;
+            chkAutoSend.TabIndex = 0;
+            dgvTradeBlotter.TabIndex = 1;
         }
 
         private void SetupContextMenu()
@@ -277,6 +305,12 @@ namespace FXOAiTranslator
             ctxRowMenu.Items.Add("Delete Row", null, CtxDeleteRow_Click);
 
             dgvTradeBlotter.ContextMenuStrip = ctxRowMenu;
+        }
+
+        private void ToggleDebug()
+        {
+            debugVisible = !debugVisible;
+            pnlDebug.Visible = debugVisible;
         }
 
         private void SetupDataGridView()
@@ -437,6 +471,29 @@ namespace FXOAiTranslator
             _allTrades = new List<TradeRecord>();
 
             UpdateBloombergStatus();
+
+            // Setup global clipboard monitoring for paste-anywhere functionality
+            SetupClipboardMonitoring();
+        }
+
+        private void SetupClipboardMonitoring()
+        {
+            // Hook into form's KeyDown event to capture Ctrl+V globally
+            this.KeyPreview = true;
+            this.KeyDown += async (s, e) =>
+            {
+                if (e.Control && e.KeyCode == Keys.V)
+                {
+                    if (Clipboard.ContainsText())
+                    {
+                        string clipboardText = Clipboard.GetText().Trim();
+                        if (!string.IsNullOrEmpty(clipboardText) && clipboardText.Length > 10)
+                        {
+                            await ProcessTrade(clipboardText);
+                        }
+                    }
+                }
+            };
         }
 
         private string LoadApiKey()
@@ -453,33 +510,9 @@ namespace FXOAiTranslator
 
         private void SetupEventHandlers()
         {
-            txtTradeInput.KeyDown += TxtTradeInput_KeyDown;
-            txtTradeInput.TextChanged += TxtTradeInput_TextChanged;
-            btnCopyOVML.Click += BtnCopyOVML_Click;
-            btnCopyUBS.Click += BtnCopyUBS_Click;
-            btnToggleDebug.Click += BtnToggleDebug_Click;
-            btnFilterMenu.Click += BtnFilterMenu_Click;
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;
             dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded;
             this.FormClosing += MainForm_FormClosing;
-        }
-
-        private void BtnFilterMenu_Click(object sender, EventArgs e)
-        {
-            var filterMenu = new ContextMenuStrip();
-
-            var todayItem = new ToolStripMenuItem("Today's Requests");
-            todayItem.Checked = (_currentFilter == TradeFilter.Today);
-            todayItem.Click += (s, ev) => { _currentFilter = TradeFilter.Today; ApplyFilter(); };
-
-            var allItem = new ToolStripMenuItem("All Requests");
-            allItem.Checked = (_currentFilter == TradeFilter.All);
-            allItem.Click += (s, ev) => { _currentFilter = TradeFilter.All; ApplyFilter(); };
-
-            filterMenu.Items.Add(todayItem);
-            filterMenu.Items.Add(allItem);
-
-            filterMenu.Show(btnFilterMenu, new Point(0, btnFilterMenu.Height));
         }
 
         private void ApplyFilter()
@@ -498,13 +531,6 @@ namespace FXOAiTranslator
             {
                 AddTradeRowToGrid(trade);
             }
-
-            UpdateFilterButtonText();
-        }
-
-        private void UpdateFilterButtonText()
-        {
-            btnFilterMenu.Text = _currentFilter == TradeFilter.Today ? "Today ▼" : "All ▼";
         }
 
         private void LoadTrades()
@@ -582,6 +608,7 @@ namespace FXOAiTranslator
                     dgvTradeBlotter.Rows.Remove(row);
 
                     LogDebugMessage($"Force re-parsing with AI: {request}");
+                    SetProcessingStatus(true, "Re-parsing with AI...");
 
                     _ = Task.Run(async () =>
                     {
@@ -597,7 +624,14 @@ namespace FXOAiTranslator
                                 {
                                     _bloombergService.SendOVML(parseResult.OVML);
                                 }
+
+                                SetProcessingStatus(false, "Re-parse complete");
+                                Task.Delay(2000).ContinueWith(_ => SetProcessingStatus(false, "Ready"));
                             }));
+                        }
+                        else
+                        {
+                            this.Invoke(new Action(() => SetProcessingStatus(false, "Re-parse failed")));
                         }
                     });
                 }
@@ -646,38 +680,16 @@ namespace FXOAiTranslator
             }
         }
 
-        private async void TxtTradeInput_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Enter)
-            {
-                e.Handled = true;
-                e.SuppressKeyPress = true;
-                await ProcessTrade();
-            }
-        }
-
-        private async void TxtTradeInput_TextChanged(object sender, EventArgs e)
-        {
-            string input = txtTradeInput.Text.Trim();
-
-            if (input.Length > 10 && input.Contains(" "))
-            {
-                await Task.Delay(100);
-
-                if (txtTradeInput.Text.Trim() == input)
-                {
-                    await ProcessTrade();
-                }
-            }
-        }
-
-        private async Task ProcessTrade()
+        private async Task ProcessTrade(string input)
         {
             if (_processing) return;
             _processing = true;
+
+            // Show progress
+            SetProcessingStatus(true, "Processing trade request...");
+
             try
             {
-                string input = txtTradeInput.Text.Trim();
                 if (string.IsNullOrEmpty(input)) return;
 
                 var result = await _tradeParser.ParseTradeAsync(input);
@@ -687,14 +699,24 @@ namespace FXOAiTranslator
 
                     if (chkAutoSend.Checked && _bloombergService.IsConnected && !string.IsNullOrEmpty(result.OVML))
                     {
+                        SetProcessingStatus(true, "Sending to Bloomberg...");
                         _bloombergService.SendOVML(result.OVML);
                     }
-                }
 
-                txtTradeInput.Clear();
+                    SetProcessingStatus(false, "Trade processed successfully");
+
+                    // Reset status after 2 seconds
+                    await Task.Delay(2000);
+                    SetProcessingStatus(false, "Ready");
+                }
+                else
+                {
+                    SetProcessingStatus(false, "Failed to process trade");
+                }
             }
             catch (Exception ex)
             {
+                SetProcessingStatus(false, "Error occurred");
                 MessageBox.Show($"Error processing trade: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -702,6 +724,21 @@ namespace FXOAiTranslator
             {
                 _processing = false;
             }
+        }
+
+        private void SetProcessingStatus(bool isProcessing, string message)
+        {
+            if (statusStrip.InvokeRequired)
+            {
+                statusStrip.Invoke(new Action<bool, string>(SetProcessingStatus), isProcessing, message);
+                return;
+            }
+
+            lblStatus.Text = message;
+            progressBar.Visible = isProcessing;
+
+            // Change cursor to indicate busy state
+            this.Cursor = isProcessing ? Cursors.WaitCursor : Cursors.Default;
         }
 
         private void AddTradeToBlotter(string request, TradeParseResult result)
@@ -821,13 +858,6 @@ namespace FXOAiTranslator
             return match.Success ? match.Groups[1].Value : "";
         }
 
-        private void BtnToggleDebug_Click(object sender, EventArgs e)
-        {
-            debugVisible = !debugVisible;
-            pnlDebug.Visible = debugVisible;
-            btnToggleDebug.Text = debugVisible ? "Hide" : "Debug";
-        }
-
         private void LogDebugMessage(string message)
         {
             if (txtDebugLog.InvokeRequired)
@@ -844,55 +874,13 @@ namespace FXOAiTranslator
         {
             if (_bloombergService.IsConnected)
             {
-                lblBloombergStatus.Text = "Bloomberg: Connected";
+                lblBloombergStatus.Text = "● Connected";
                 lblBloombergStatus.ForeColor = Color.Green;
             }
             else
             {
-                lblBloombergStatus.Text = "Bloomberg: Disconnected";
+                lblBloombergStatus.Text = "● Disconnected";
                 lblBloombergStatus.ForeColor = Color.Red;
-            }
-        }
-
-        private void BtnCopyOVML_Click(object sender, EventArgs e)
-        {
-            if (dgvTradeBlotter.SelectedRows.Count > 0)
-            {
-                var ovml = dgvTradeBlotter.SelectedRows[0].Cells["OVML"].Value?.ToString();
-                if (!string.IsNullOrEmpty(ovml))
-                {
-                    Clipboard.SetText(ovml);
-                    LogDebugMessage("[UI] OVML copied to clipboard");
-                }
-            }
-            else
-            {
-                MessageBox.Show("Please select a row first.", "No Selection",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
-
-        private void BtnCopyUBS_Click(object sender, EventArgs e)
-        {
-            if (dgvTradeBlotter.SelectedRows.Count > 0)
-            {
-                var ubs = dgvTradeBlotter.SelectedRows[0].Cells["UBS"].Value?.ToString();
-
-                if (!string.IsNullOrEmpty(ubs))
-                {
-                    Clipboard.SetText(ubs);
-                    LogDebugMessage("[UI] UBS copied to clipboard");
-                }
-                else
-                {
-                    MessageBox.Show("No UBS data available for this trade.", "No Data",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-            }
-            else
-            {
-                MessageBox.Show("Please select a row first.", "No Selection",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
@@ -921,6 +909,7 @@ namespace FXOAiTranslator
                         _allTrades.RemoveAll(t => t.Id == tradeId);
                         dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
                         LogDebugMessage($"Force re-parsing with AI: {request}");
+                        SetProcessingStatus(true, "Re-parsing with AI...");
 
                         _ = Task.Run(async () =>
                         {
@@ -936,7 +925,14 @@ namespace FXOAiTranslator
                                     {
                                         _bloombergService.SendOVML(parseResult.OVML);
                                     }
+
+                                    SetProcessingStatus(false, "Re-parse complete");
+                                    Task.Delay(2000).ContinueWith(_ => SetProcessingStatus(false, "Ready"));
                                 }));
+                            }
+                            else
+                            {
+                                this.Invoke(new Action(() => SetProcessingStatus(false, "Re-parse failed")));
                             }
                         });
                     }
@@ -1038,7 +1034,7 @@ namespace FXOAiTranslator
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            txtTradeInput.Focus();
+            dgvTradeBlotter.Focus();
         }
     }
 
