@@ -188,11 +188,13 @@ SEAGULL STRUCTURE RULES:
 
 CALENDAR SPREAD RULES:
 - Different expiries per leg: list expiries separated by commas matching leg count
-- ""11.60-12.20 cs"" means TWO separate strikes (11.60 and 12.20), NOT a range
+- CRITICAL: ""9.70-9.50 ps"" or ""11.60-12.20 cs"" means TWO separate strikes, NOT a range
+  * First number is one strike, second number is another strike
+  * ""9.70-9.50"" = two strikes: 9.70 AND 9.50 (not ""between 9.70 and 9.50"")
 - ""vs"" notation indicates calendar structure with different expiries
 - Count all individual strikes/options as separate legs
-- Example: ""2m 11.80 call vs 4m 11.60-12.20 cs"" = 3 legs total (1 at 2M, 2 at 4M)
-- Format: OVML (currency) 2M,4M,4M 3L B,S,S 11.8000C,11.6000C,12.2000C N75M,75M,75M VA SP11.2450
+- Example: ""1m 9.85 put vs 2m 9.70-9.50 ps"" = 3 legs total (1 at 1M, 2 at 2M)
+- Format: OVML USDNOK 1M,2M,2M 3L B,S,S 9.8500P,9.7000P,9.5000P N100M,100M,100M VA SP10.0125
 
 RISK REVERSAL (RR) RULES:
 - 2 legs: Buy Put + Sell Call OR Buy Call + Sell Put
