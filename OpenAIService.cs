@@ -186,6 +186,14 @@ SEAGULL STRUCTURE RULES:
 - Example: '40m seagull' → N40M,40M,40M (40M on EACH leg, not 40M total)
 - For zero-cost: solve for the sold call strike that makes net premium = 0
 
+CALENDAR SPREAD RULES:
+- Different expiries per leg: list expiries separated by commas matching leg count
+- ""11.60-12.20 cs"" means TWO separate strikes (11.60 and 12.20), NOT a range
+- ""vs"" notation indicates calendar structure with different expiries
+- Count all individual strikes/options as separate legs
+- Example: ""2m 11.80 call vs 4m 11.60-12.20 cs"" = 3 legs total (1 at 2M, 2 at 4M)
+- Format: OVML (currency) 2M,4M,4M 3L B,S,S 11.8000C,11.6000C,12.2000C N75M,75M,75M VA SP11.2450
+
 RISK REVERSAL (RR) RULES:
 - 2 legs: Buy Put + Sell Call OR Buy Call + Sell Put
 - Common notation: '10.70 vs ?' means one strike given, solve for the other
@@ -222,7 +230,7 @@ FORMAT ENFORCEMENT:
 - Expiry: Only ONE expiry date in the entire OVML string
 - If SPOT provided, include as SP(number); if not, omit SP
 - Output exactly one OVML line - no quotes, no commentary
-- NEVER include expiry twice in the output
+- Expiry: Single expiry for standard trades, OR comma-separated expiries for calendar spreads (e.g., 1M,3M,3M for 3-leg calendar)
 
 EXAMPLES:
 Single: OVML NOKSEK 08/14/26 B 0.9500C N150M VA SP0.9463
@@ -232,6 +240,7 @@ Call Spread: OVML EURSEK 3M 2L B,S 11.2000C,11.8000C N50M,50M VA
 Risk Reversal: OVML EURSEK 04/22/26 2L B,S 10.7000P,11.1500C N10M,10M VA SP10.9250
 Risk Reversal (unequal notionals): OVML USDNOK 08/14/26 2L B,S 9.7000P,10.0000C N15M,10M VA SP9.9055
 Seagull: OVML USDSEK 02/19/26 3L B,S,S 9.2500P,8.9500P,9.5200C N40M,40M,40M VA SP9.3890
+Calendar Spread: OVML USDSEK 1M,3M,3M 3L B,S,S 9.5000P,9.3000P,8.9000P N50M,50M,50M VA SP9.697
 
 Output ONLY the OVML line:";
 

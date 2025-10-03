@@ -394,13 +394,14 @@ namespace FXOAiTranslator
             }
             else
             {
-                // Also check for abbreviated format: "sr 9.3600"
-                var srMatch = Regex.Match(input, @"\bsr\s+(?<spot>\d+\.?\d*)", RegexOptions.IgnoreCase);
-                if (srMatch.Success)
+                // Check for "s.r" format with space: "s.r 9.697"
+                var srDotMatch = Regex.Match(input, @"\bs\.?\s*r\.?\s+(?<spot>\d+\.?\d*)", RegexOptions.IgnoreCase);
+                if (srDotMatch.Success)
                 {
-                    explicitSpot = srMatch.Groups["spot"].Value;
-                    LogDebug($"DEBUG: Explicit spot (sr format) extracted: '{explicitSpot}'");
+                    explicitSpot = srDotMatch.Groups["spot"].Value;
+                    LogDebug($"DEBUG: Explicit spot (s.r format) extracted: '{explicitSpot}'");
                 }
+
                 else
                 {
                     // Also check for "v" format: "v9.9600"
