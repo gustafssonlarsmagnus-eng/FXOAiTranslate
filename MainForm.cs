@@ -303,6 +303,11 @@ namespace FXOAiTranslator
             ctxRowMenu.Items.Add("Copy UBS", null, (s, e) => CopySelectedCell("UBS"));
             ctxRowMenu.Items.Add("Copy Request", null, (s, e) => CopySelectedCell("Request"));
             ctxRowMenu.Items.Add(new ToolStripSeparator());
+
+            // ADD THIS NEW ITEM HERE:
+            ctxRowMenu.Items.Add("📤 Send to GFI Fenics", null, SendToGFI_Click);
+            ctxRowMenu.Items.Add(new ToolStripSeparator());
+
             ctxRowMenu.Items.Add("Re-parse with AI", null, CtxReParseAI_Click);
             ctxRowMenu.Items.Add(new ToolStripSeparator());
             ctxRowMenu.Items.Add("Delete Row", null, CtxDeleteRow_Click);
@@ -510,7 +515,50 @@ namespace FXOAiTranslator
 
             return key;
         }
+        private void SendToGFI_Click(object sender, EventArgs e)
+        {
+            if (dgvTradeBlotter.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Please select a trade first.", "No Selection",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
 
+            var row = dgvTradeBlotter.SelectedRows[0];
+
+            // Create concrete object instead of anonymous
+            var ovmlResult = new OVMLParseResult
+            {
+                OVML = row.Cells["OVML"]?.Value?.ToString() ?? "",
+                Underlying = row.Cells["Underlying"]?.Value?.ToString() ?? "",
+                Expiry = row.Cells["Expiry"]?.Value?.ToString() ?? "",
+                LegCount = int.Parse(row.Cells["Legs"]?.Value?.ToString() ?? "1")
+            };
+
+            // Validate we have required data
+            if (string.IsNullOrEmpty(ovmlResult.OVML))
+            {
+                MessageBox.Show("Selected row has no OVML data.", "Invalid Selection",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // Show GFI dialog
+                var dialog = new GFIQuoteDialog(ovmlResult);
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    MessageBox.Show("Trade executed successfully!", "Success",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error opening GFI dialog:\n\n{ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
         private void SetupEventHandlers()
         {
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;
@@ -1069,5 +1117,12 @@ namespace FXOAiTranslator
     {
         Today,
         All
+    }
+    public class OVMLParseResult
+    {
+        public string OVML { get; set; }
+        public string Underlying { get; set; }
+        public string Expiry { get; set; }
+        public int LegCount { get; set; }
     }
 }

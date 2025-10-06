@@ -13,6 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\FXOptionsSimulator\FXOptionsSimulator.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="Bloomberglp.Blpapi">
       <HintPath>..\..\..\blp\API\Office Tools\Bloomberglp.Blpapi.dll</HintPath>
     </Reference>
