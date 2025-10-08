@@ -135,6 +135,15 @@ namespace FXOAiTranslator
 
                 var prompt = $@"You are an expert FX options trader and OVML parser. Convert this natural language trading request into STRICT Bloomberg OVML format.
 
+TODAY'S DATE: {DateTime.Now:dddd, MMMM dd, yyyy}
+CRITICAL: Never generate expiry dates in the past. All expiries must be FUTURE dates after {DateTime.Now:MMMM dd, yyyy}.
+
+COMMON DATE INTERPRETATION ERRORS TO AVOID:
+- If today is October 2025, June 2025 is IN THE PAST - DO NOT USE IT
+- Unrecognized month words (like 'now') likely mean the NEXT upcoming month
+- When uncertain about a date, choose the NEXT occurrence of that date in the future
+- Example: On October 8, 2025, ""6 now 2025"" should be interpreted as November 6, 2025 (NOT June)
+
 Input: ""{input}""
 LIVE SPOT RATE for {underlying}: {spotInfo}
 
