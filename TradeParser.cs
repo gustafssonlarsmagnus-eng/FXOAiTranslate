@@ -83,6 +83,24 @@ namespace FXOAiTranslator
             LogDebug($"DEBUG: Extracted underlying: '{underlying}'");
             LogDebug($"DEBUG: Extracted expiry: '{expiry}'");
 
+            // ADD EXPIRY VALIDATION HERE - Check if expiry extraction failed
+            if (expiry == "3M" && !input.ToLower().Contains("3m") && !input.ToLower().Contains("three month") && !forceAI)
+            {
+                LogDebug("DEBUG: Expiry extraction failed, forcing AI to interpret date");
+
+                // Show warning in UI (non-blocking)
+                MessageBox.Show(
+                    "Could not extract expiry date from input.\n\n" +
+                    "Using AI to interpret the date...",
+                    "Expiry Extraction Issue",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+
+                // Force AI to handle it - recursively call with forceAI=true
+                return await ParseTradeAsync(input, forceAI: true);
+            }
+
             // Skip regex patterns if forceAI is true
             if (!forceAI)
             {
@@ -733,13 +751,22 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
                     string normalizedMonth = NormalizeMonth(month);
 
-                    int dayInt = int.Parse(day);
-                    int yearInt = int.Parse(year);
-                    int shortYear = yearInt % 100;
+                    // Validate it's a real month
+                    if (normalizedMonth.Length != 3 || Array.IndexOf(monthNames, normalizedMonth) == -1)
+                    {
+                        LogDebug($"DEBUG: Skipping - '{month}' not recognized as a valid month");
+                        // Don't return, continue to next pattern
+                    }
+                    else
+                    {
+                        int dayInt = int.Parse(day);
+                        int yearInt = int.Parse(year);
+                        int shortYear = yearInt % 100;
 
-                    string result = $"{dayInt:D2}{normalizedMonth}{shortYear:D2}";
-                    LogDebug($"DEBUG: Final expiry: '{result}'");
-                    return result;
+                        string result = $"{dayInt:D2}{normalizedMonth}{shortYear:D2}";
+                        LogDebug($"DEBUG: Final expiry: '{result}'");
+                        return result;
+                    }
                 }
 
                 // 2. Bloomberg style: 17Sep25 - with month validation (English only)
