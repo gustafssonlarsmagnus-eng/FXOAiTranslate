@@ -463,7 +463,7 @@ namespace FXOAiTranslator
             {
                 var netPrem = CalculateNetPremium(bestBid);
                 MessageBox.Show(
-                    $"Trade FILLED!\n\nLP: {bestBid.Get(Tags.OnBehalfOfCompID)}\nNet Premium: {netPrem?.ToString("N2") ?? "N/A"} pips",
+                    $"Trade FILLED!\n\nLP: {bestBid.Get(TagStrings.OnBehalfOfCompID)}\nNet Premium: {netPrem?.ToString("N2") ?? "N/A"} pips",
                     "Execution Success",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information
