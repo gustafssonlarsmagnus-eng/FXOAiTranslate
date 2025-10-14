@@ -809,18 +809,12 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     int monthIndex = Array.IndexOf(monthNames, normalizedMonth);
                     if (monthIndex >= 0)
                     {
-                        DateTime targetDate = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
-
-                        // If date is in the past, use next year
-                        if (targetDate < DateTime.Now.Date)
-                        {
+                        DateTime target = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
+                        if (target < DateTime.Now.AddDays(-5))
                             currentYear++;
-                            LogDebug($"DEBUG: Date in past, using next year: {currentYear}");
-                        }
-
-                        shortYear = currentYear % 100;
                     }
 
+                    shortYear = currentYear % 100;
                     return $"{int.Parse(day):D2}{normalizedMonth}{shortYear:D2}";
                 }
 
@@ -842,20 +836,13 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     if (monthIndex >= 0)
                     {
                         DateTime targetDate = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
-
-                        // If date is in the past, use next year
-                        if (targetDate < DateTime.Now.Date)
-                        {
+                        if (targetDate < DateTime.Now.AddDays(-30))
                             currentYear++;
-                            LogDebug($"DEBUG: Date in past, using next year: {currentYear}");
-                        }
-
                         shortYear = currentYear % 100;
                     }
 
                     return $"{int.Parse(day):D2}{month}{shortYear:D2}";
                 }
-
                 // 5. Four-digit format without year (MMDD or DDMM): exp 0612
                 LogDebug("DEBUG: Testing four-digit date format...");
                 var shortDateMatch = Regex.Match(input, @"\bexp\s*(\d{4})\b", RegexOptions.IgnoreCase);
@@ -898,12 +885,10 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
                 // More restrictive: avoid matching large numbers that are likely notionals
                 var tenorMatch = Regex.Match(
-                    input,
-                    @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>m|w|y|d|week|weeks|month|months|mth|mo|year|years|day|days)\b(?![\s\d]*\d+\.\d+)",
-                    RegexOptions.IgnoreCase
-                );
-
-                // Continue with the rest of your tenor logic...
+      input,
+      @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>m|w|y|d|week|weeks|month|months|mth|mo|year|years|day|days)\b(?![\s\d]*\d+\.\d+)",
+      RegexOptions.IgnoreCase
+  );
 
                 LogDebug($"DEBUG: Tenor regex matched: {tenorMatch.Success}");
 

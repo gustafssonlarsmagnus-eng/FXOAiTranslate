@@ -78,7 +78,7 @@ namespace FXOAiTranslator
                 bool parsed = false;
 
                 // Try multiple date formats
-                string[] formats = { "dd/MM/yy", "MM/dd/yy", "ddMMMyy", "ddMMyy" };
+                string[] formats = { "MM/dd/yy", "dd/MM/yy", "ddMMMyy", "ddMMyy" };
                 foreach (var format in formats)
                 {
                     if (DateTime.TryParseExact(expiryStr, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out expiryDate))
