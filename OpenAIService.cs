@@ -152,11 +152,10 @@ MANDATORY OVML SYNTAX:
 - Multi-Leg: OVML (currency) (expiry) (legs)L (directions) (strikes) N(notionals) (style) [SP(spot)]
 
 CRITICAL FORMAT RULES:
-1. EXPIRY: Use ONLY ONE expiry - place it immediately after currency pair
-2. STRUCTURE: OVML (currency) (expiry) [legs] [directions] [strikes] [notionals] [style] [spot]
-3. NOTIONAL: Always format as N(amount)M (e.g., N150M) - NEVER omit the N prefix
-4. DIRECTION: Always B (buy) or S (sell) - place AFTER expiry, not before strikes
-5. STYLE: Always include VA (Vanilla) or EU (European) at the end before spot reference
+1. STRUCTURE: OVML (currency) (expiry) [legs] [directions] [strikes] [notionals] [style] [spot]
+2. NOTIONAL: Always format as N(amount)M (e.g., N150M) - NEVER omit the N prefix
+3. DIRECTION: Always B (buy) or S (sell) - place AFTER expiry, not before strikes
+4. STYLE: Always include VA (Vanilla) or EU (European) at the end before spot reference
 
 SINGLE LEG FORMAT:
 OVML (currency) (expiry) (direction) (strike)(C/P) N(notional)M VA [SP(spot)]

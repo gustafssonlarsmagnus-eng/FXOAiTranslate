@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -67,6 +68,41 @@ namespace FXOAiTranslator
                 result.PassedChecks.Add("Spot reference present");
             else
                 result.Warnings.Add("No spot reference (SP) in OVML");
+
+            // 5. Check if expiry is in the past
+            var expiryStr = ExtractExpiryFromOVML(aiResult.OVML);
+            if (!string.IsNullOrEmpty(expiryStr))
+            {
+                // Try to parse the expiry date
+                DateTime expiryDate;
+                bool parsed = false;
+
+                // Try multiple date formats
+                string[] formats = { "dd/MM/yy", "MM/dd/yy", "ddMMMyy", "ddMMyy" };
+                foreach (var format in formats)
+                {
+                    if (DateTime.TryParseExact(expiryStr, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out expiryDate))
+                    {
+                        parsed = true;
+                        if (expiryDate < DateTime.Now.Date)
+                        {
+                            result.CriticalErrors.Add($"Expiry date {expiryStr} is in the past (parsed as {expiryDate:MMM dd, yyyy})");
+                        }
+                        else
+                        {
+                            result.PassedChecks.Add($"Expiry date is in the future ({expiryDate:MMM dd, yyyy})");
+                        }
+                        break;
+                    }
+                }
+
+                if (!parsed)
+                {
+                    result.Warnings.Add($"Could not parse expiry date format: {expiryStr}");
+                }
+            }
+
+    
 
             // Display results
             DisplayResults(result);
@@ -307,6 +343,14 @@ namespace FXOAiTranslator
         {
             // Nothing to dispose
         }
+
+        private string ExtractExpiryFromOVML(string ovml)
+        {
+            // Match common expiry formats in OVML
+            var match = Regex.Match(ovml, @"\b(\d{1,2}/\d{1,2}/\d{2}|\d{2}[A-Z]{3}\d{2})\b");
+            return match.Success ? match.Value : "";
+        }
+
     }
 
     public class SanityCheckResult
