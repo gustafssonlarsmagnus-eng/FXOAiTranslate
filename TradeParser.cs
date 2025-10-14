@@ -131,17 +131,20 @@ namespace FXOAiTranslator
                             Expiry = expiry
                         };
 
-                        // Spot reference
+                        // Spot reference - track if explicitly provided
                         string spot = "";
+                        bool spotExplicitlyProvided = false;
+
                         var spotMatch = RegexTradePatterns.SpotRegex.Match(input);
                         if (spotMatch.Success)
                         {
                             spot = spotMatch.Groups["spot"].Value.Replace(",", ".");
-                            LogDebug($"DEBUG: Spot reference found: '{spot}'");
+                            spotExplicitlyProvided = true;
+                            LogDebug($"DEBUG: Spot reference found in input: '{spot}'");
                         }
                         else
                         {
-                            // If no explicit spot in input, fetch live Bloomberg spot
+                            // If no explicit spot in input, fetch live Bloomberg spot FOR CALCULATIONS ONLY
                             if (_bloombergService != null && _bloombergService.IsConnected)
                             {
                                 try
@@ -151,7 +154,7 @@ namespace FXOAiTranslator
 
                                     if (liveSpot.HasValue)
                                     {
-                                        LogDebug($"DEBUG: No spot in input, using live Bloomberg spot: {liveSpot.Value}");
+                                        LogDebug($"DEBUG: Fetched Bloomberg spot for calculations (not for output): {liveSpot.Value}");
                                         spot = liveSpot.Value.ToString("0.####", CultureInfo.InvariantCulture);
                                     }
                                     else
@@ -176,7 +179,7 @@ namespace FXOAiTranslator
                                     result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
                                                   $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C,{match.Groups["strike3"].Value}P " +
                                                   $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
-                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
                                 case "Seagull_BuyPutSellPutSellCall":
@@ -185,7 +188,7 @@ namespace FXOAiTranslator
                                     result.OVML = $"OVML {result.Underlying} {result.Expiry} 3L B,S,S " +
                                                   $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P,{match.Groups["strike3"].Value}C " +
                                                   $"N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
-                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
                                 case "PutSpread_DifferentNotionals":
@@ -212,7 +215,7 @@ namespace FXOAiTranslator
                                     }
 
                                     result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {buyStrikePut}P,{sellStrikePut}P N{buyNotionalPut}M,{sellNotionalPut}M VA" +
-                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
                                 case "CallSpread_DifferentNotionals":
@@ -239,7 +242,7 @@ namespace FXOAiTranslator
                                     }
 
                                     result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {buyStrikeCall}C,{sellStrikeCall}C N{buyNotionalCall}M,{sellNotionalCall}M VA" +
-                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
                                 case "RiskReversal_PutCall":
@@ -257,7 +260,7 @@ namespace FXOAiTranslator
                                     result.OVML = $"OVML {result.Underlying} 1L {side} " +
                                                   $"{match.Groups["strike"].Value}{optionType} " +
                                                   $"{result.Expiry} N{match.Groups["notional"].Value}M" +
-                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
                                 case "Simple_Vanilla":
@@ -268,7 +271,7 @@ namespace FXOAiTranslator
                                     result.OVML = $"OVML {result.Underlying} 1L {s} " +
                                                   $"{match.Groups["strike"].Value}{t} " +
                                                   $"{result.Expiry} N{match.Groups["notional"].Value}M" +
-                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
                                 case "Straddle":
@@ -321,13 +324,13 @@ namespace FXOAiTranslator
                                     {
                                         result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
                                                       $"{strike1}C,{strike2}C N{notional}M,{notional}M VA" +
-                                                      (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                                      (spotExplicitlyProvided ? " SP" + spot : "");
                                     }
                                     else
                                     {
                                         result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
                                                       $"{strike2}C,{strike1}C N{notional}M,{notional}M VA" +
-                                                      (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                                      (spotExplicitlyProvided ? " SP" + spot : "");
                                     }
                                     break;
 
@@ -344,7 +347,7 @@ namespace FXOAiTranslator
                                     string notionalPS = match.Groups["notional"].Value;
 
                                     result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {putHigh}P,{putLow}P N{notionalPS}M,{notionalPS}M VA" +
-                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
                                 case "CallSpread_Short":
@@ -360,7 +363,7 @@ namespace FXOAiTranslator
                                     string notionalCS = match.Groups["notional"].Value;
 
                                     result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {callLow}C,{callHigh}C N{notionalCS}M,{notionalCS}M VA" +
-                                                  (string.IsNullOrEmpty(spot) ? "" : " SP" + spot);
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
                                 default:
@@ -404,10 +407,13 @@ namespace FXOAiTranslator
 
             // Try to capture explicit spot from input
             string explicitSpot = "";
+            bool aiSpotExplicit = false;  // ADD THIS LINE
+
             var aiSpotMatch = RegexTradePatterns.SpotRegex.Match(input);
             if (aiSpotMatch.Success)
             {
                 explicitSpot = aiSpotMatch.Groups["spot"].Value.Replace(",", ".");
+                aiSpotExplicit = true;  // ADD THIS LINE
                 LogDebug($"DEBUG: Explicit spot extracted for AI fallback: '{explicitSpot}'");
             }
             else
@@ -417,9 +423,9 @@ namespace FXOAiTranslator
                 if (srDotMatch.Success)
                 {
                     explicitSpot = srDotMatch.Groups["spot"].Value;
+                    aiSpotExplicit = true;  // ADD THIS LINE
                     LogDebug($"DEBUG: Explicit spot (s.r format) extracted: '{explicitSpot}'");
                 }
-
                 else
                 {
                     // Also check for "v" format: "v9.9600"
@@ -427,6 +433,7 @@ namespace FXOAiTranslator
                     if (vMatch.Success)
                     {
                         explicitSpot = vMatch.Groups["spot"].Value;
+                        aiSpotExplicit = true;  // ADD THIS LINE
                         LogDebug($"DEBUG: Explicit spot (v format) extracted: '{explicitSpot}'");
                     }
                 }
@@ -836,8 +843,15 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     if (monthIndex >= 0)
                     {
                         DateTime targetDate = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
-                        if (targetDate < DateTime.Now.AddDays(-30))
+
+                        // If date is in the past, use next year
+                        if (targetDate < DateTime.Now.Date)
+                        {
                             currentYear++;
+                            LogDebug($"DEBUG: Date in past, using next year: {currentYear}");
+                        }
+
+                        shortYear = currentYear % 100;
                         shortYear = currentYear % 100;
                     }
 
@@ -883,12 +897,12 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                 LogDebug("DEBUG: Testing tenor patterns...");
                 LogDebug($"DEBUG: Full input for tenor matching: '{input}'");
 
-                // More restrictive: avoid matching large numbers that are likely notionals
+                // More restrictive: avoid matching numbers followed by mio/mil/million
                 var tenorMatch = Regex.Match(
-      input,
-      @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>m|w|y|d|week|weeks|month|months|mth|mo|year|years|day|days)\b(?![\s\d]*\d+\.\d+)",
-      RegexOptions.IgnoreCase
-  );
+                    input,
+                    @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>m|w|y|d|week|weeks|month|months|mth|mo|year|years|day|days)\b(?!\s*(mio|mil|million))",
+                    RegexOptions.IgnoreCase
+                );
 
                 LogDebug($"DEBUG: Tenor regex matched: {tenorMatch.Success}");
 

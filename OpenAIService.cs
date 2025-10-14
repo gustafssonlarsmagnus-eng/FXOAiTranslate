@@ -135,14 +135,29 @@ namespace FXOAiTranslator
 
                 var prompt = $@"You are an expert FX options trader and OVML parser. Convert this natural language trading request into STRICT Bloomberg OVML format.
 
-TODAY'S DATE: {DateTime.Now:dddd, MMMM dd, yyyy}
-CRITICAL: Never generate expiry dates in the past. All expiries must be FUTURE dates after {DateTime.Now:MMMM dd, yyyy}.
+var spotInstruction = string.IsNullOrEmpty(explicitSpot) 
+    ? ""NO spot reference in input - do NOT include SP in output""
+    : $""Spot reference in input: {{explicitSpot}} - include SP{{explicitSpot}} in output"";
+
+var prompt = $@""You are an expert FX options trader and OVML parser. Convert this natural language trading request into STRICT Bloomberg OVML format.
+
+TODAY'S DATE: {{DateTime.Now:dddd, MMMM dd, yyyy}}
+CRITICAL: Never generate expiry dates in the past. All expiries must be FUTURE dates after {{DateTime.Now:MMMM dd, yyyy}}.
+
+Input: """"{{input}}""""
+
+SPOT REFERENCE INSTRUCTION:
+{{spotInstruction}}
+
+LIVE SPOT for pricing context only: {{spotInfo}}
+(Use this ONLY to determine if an option is a call or put when not explicitly stated. Do NOT include in output unless instructed above.)
 
 COMMON DATE INTERPRETATION ERRORS TO AVOID:
 - If today is October 2025, June 2025 is IN THE PAST - DO NOT USE IT
 - Unrecognized month words (like 'now') likely mean the NEXT upcoming month
 - When uncertain about a date, choose the NEXT occurrence of that date in the future
 - Example: On October 8, 2025, ""6 now 2025"" should be interpreted as November 6, 2025 (NOT June)
+
 
 Input: ""{input}""
 LIVE SPOT RATE for {underlying}: {spotInfo}
@@ -238,7 +253,8 @@ FORMAT ENFORCEMENT:
 - Strikes: 4 decimals (0.9500 not 0.95)
 - Notionals: N(amount)M format - NEVER omit N prefix
 - Expiry: Only ONE expiry date in the entire OVML string
-- If SPOT provided, include as SP(number); if not, omit SP
+- CRITICAL: Only include SP if explicitly mentioned in user's input (keywords: 'sp ref', 'sr', 's.r', 'fwd ref', 'spot', 'v', '@')
+- If NO spot keywords in input → omit SP entirely from output
 - Output exactly one OVML line - no quotes, no commentary
 - Expiry: Single expiry for standard trades, OR comma-separated expiries for calendar spreads (e.g., 1M,3M,3M for 3-leg calendar)
 
