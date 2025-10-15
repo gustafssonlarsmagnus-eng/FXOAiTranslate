@@ -522,6 +522,7 @@ namespace FXOAiTranslator
         { "salja", "sälja" },
         { "salj", "sälj" },
         { "forfall", "förfall" },
+      
         { "mio", "mio" }, // Already correct, but included for completeness
     };
 
