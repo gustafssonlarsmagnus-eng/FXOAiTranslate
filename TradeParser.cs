@@ -442,10 +442,13 @@ namespace FXOAiTranslator
             {
                 var aiResult = await ParseWithAI(input, explicitSpot, bypassPatternMatching: forceAI);
 
+          
                 // Correction: override AI expiry if regex extracted a better one
                 if (!string.IsNullOrWhiteSpace(expiry) &&
                     expiry != "3M" &&
-                    aiResult.Expiry != expiry)
+                    aiResult.Expiry != expiry &&
+                    !aiResult.Expiry.Contains(",") &&      // ADD THIS - Don't override calendar spreads
+                    !aiResult.OVML.Contains(","))          // ADD THIS - Don't override if OVML has multiple expiries
                 {
                     LogDebug($"DEBUG: Corrected AI expiry from {aiResult.Expiry} → {expiry}");
                     aiResult.Expiry = expiry;

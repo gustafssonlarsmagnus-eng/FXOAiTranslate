@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FXOAiTranslator", "FXOAiTra
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FXOptionsSimulator", "..\FXOptionsSimulator\FXOptionsSimulator.csproj", "{7F63DC62-2600-289A-DDFF-BEE57D917CF1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FIXTestServer", "..\FIXTestServer\FIXTestServer.csproj", "{927F0203-D6C5-41D1-921C-4621C67E6C7A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{7F63DC62-2600-289A-DDFF-BEE57D917CF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7F63DC62-2600-289A-DDFF-BEE57D917CF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7F63DC62-2600-289A-DDFF-BEE57D917CF1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{927F0203-D6C5-41D1-921C-4621C67E6C7A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{927F0203-D6C5-41D1-921C-4621C67E6C7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{927F0203-D6C5-41D1-921C-4621C67E6C7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{927F0203-D6C5-41D1-921C-4621C67E6C7A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
