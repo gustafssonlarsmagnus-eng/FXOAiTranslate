@@ -4,13 +4,12 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using FXOptionsSimulator;
-using FXOptionsSimulator.FIX;
 
 namespace FXOAiTranslator
 {
     public partial class GFIQuoteDialog : Form
     {
-        private GFIFIXSessionManager _fixSession;  // Changed from FIXSimulator
+        private FIXSimulator _simulator;
         private TradeStructure _trade;
         private string _groupId;
         private System.Windows.Forms.Timer _quoteTimer;
@@ -32,7 +31,7 @@ namespace FXOAiTranslator
             InitializeCustomComponents();
 
             _trade = OVMLBridge.ConvertToTradeStructure(ovmlResult);
-            _fixSession = GlobalFIXSession.Instance;  // Changed
+            _simulator = new FIXSimulator();
 
             Console.WriteLine($"\n=== TRADE STRUCTURE DEBUG ===");
             Console.WriteLine($"StructureType: {_trade.StructureType}");
@@ -53,9 +52,6 @@ namespace FXOAiTranslator
 
             lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
             PopulateLegGrid();
-
-            // Subscribe to quote events
-            _fixSession.Application.OnQuoteReceived += OnQuoteReceivedFromFIX;
         }
 
         private void InitializeCustomComponents()
@@ -157,6 +153,7 @@ namespace FXOAiTranslator
             };
             gbLPs.Controls.Add(chkNatwest);
 
+            // Quotes grid - will be dynamically configured
             dgvQuotes = new DataGridView
             {
                 Location = new Point(20, 300),
@@ -227,6 +224,7 @@ namespace FXOAiTranslator
             dgvQuotes.Columns.Clear();
             _selectedLegCount = legCount;
 
+            // Fixed columns
             dgvQuotes.Columns.Add("LP", "LP");
             dgvQuotes.Columns["LP"].Width = 80;
 
@@ -238,6 +236,7 @@ namespace FXOAiTranslator
             dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Format = "N2";
             dgvQuotes.Columns["NetPremOffer"].Width = 110;
 
+            // Dynamic columns for each leg
             for (int i = 1; i <= legCount; i++)
             {
                 dgvQuotes.Columns.Add($"Leg{i}BidVol", $"L{i} Bid Vol");
@@ -285,35 +284,22 @@ namespace FXOAiTranslator
                 return;
             }
 
+            // Setup quote grid with dynamic columns
             SetupQuoteGrid(selectedLegCount);
+
             UpdateTradeFromGrid();
 
-            // Generate group ID
-            _groupId = $"3-REQ{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+            (_groupId, var requests) = _simulator.SendQuoteRequest(_trade.Underlying, lps);
 
-            // Send quote request to each LP
-            foreach (var lp in lps)
-            {
-                try
-                {
-                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId);
-                    Console.WriteLine($"[Quote Request] Sent to {lp}: {quoteReqID}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Quote Request] Error sending to {lp}: {ex.Message}");
-                }
-            }
-
-            // Start timer for updates (now event-driven, but keep timer for UI refresh)
             _quoteTimer = new System.Windows.Forms.Timer();
-            _quoteTimer.Interval = 500;  // Just refresh UI every 500ms
+            _quoteTimer.Interval = 2000;
             _quoteTimer.Tick += QuoteTimer_Tick;
             _quoteTimer.Start();
 
             btnRequestQuotes.Enabled = false;
             btnExecute.Enabled = true;
 
+            _simulator.StreamQuotes(_groupId, numUpdates: 1, delayMs: 0);
             UpdateQuoteDisplay();
         }
 
@@ -351,38 +337,28 @@ namespace FXOAiTranslator
 
         private void QuoteTimer_Tick(object sender, EventArgs e)
         {
-            UpdateQuoteDisplay();
-        }
-
-        private void OnQuoteReceivedFromFIX(string quoteReqID, FIXMessage quote)
-        {
-            // Marshal to UI thread
-            if (this.InvokeRequired)
-            {
-                this.Invoke(new Action(() => OnQuoteReceivedFromFIX(quoteReqID, quote)));
-                return;
-            }
-
-            Console.WriteLine($"[UI] Quote received: {quoteReqID}");
+            _simulator.StreamQuotes(_groupId, numUpdates: 1, delayMs: 0);
             UpdateQuoteDisplay();
         }
 
         private void UpdateQuoteDisplay()
         {
             dgvQuotes.Rows.Clear();
-            var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
+            var streams = _simulator.GetActiveStreams(_groupId);
 
             foreach (var stream in streams)
             {
                 var rowData = new List<object>();
                 rowData.Add(stream.LP);
 
+                // Calculate net premiums
                 double? netPremBid = CalculateNetPremium(stream.BidQuote);
                 double? netPremOffer = CalculateNetPremium(stream.OfferQuote);
 
                 rowData.Add(netPremBid?.ToString("N2") ?? "-");
                 rowData.Add(netPremOffer?.ToString("N2") ?? "-");
 
+                // Add individual leg vols
                 for (int i = 1; i <= _selectedLegCount; i++)
                 {
                     double? bidVol = GetLegVol(stream.BidQuote, i);
@@ -396,6 +372,7 @@ namespace FXOAiTranslator
 
                 var rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
 
+                // Highlight best net premium
                 var (bestBid, bestOffer) = GetBestPremiums();
 
                 if (bestBid.HasValue && netPremBid.HasValue && Math.Abs(netPremBid.Value - bestBid.Value) < 0.01)
@@ -446,7 +423,7 @@ namespace FXOAiTranslator
 
         private (double? bestBid, double? bestOffer) GetBestPremiums()
         {
-            var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
+            var streams = _simulator.GetActiveStreams(_groupId);
 
             double? bestBid = null;
             double? bestOffer = null;
@@ -470,25 +447,9 @@ namespace FXOAiTranslator
         {
             _quoteTimer?.Stop();
 
-            // Get best bid quote
-            var streams = _fixSession.Application.GetActiveStreams(_groupId);
-            FIXMessage bestBidQuote = null;
-            double bestBidPremium = double.MinValue;
+            var (bestBid, _) = _simulator.GetBestPrices(_groupId);
 
-            foreach (var stream in streams)
-            {
-                if (stream.BidQuote != null)
-                {
-                    var prem = CalculateNetPremium(stream.BidQuote);
-                    if (prem.HasValue && prem.Value > bestBidPremium)
-                    {
-                        bestBidPremium = prem.Value;
-                        bestBidQuote = stream.BidQuote;
-                    }
-                }
-            }
-
-            if (bestBidQuote == null)
+            if (bestBid == null)
             {
                 MessageBox.Show("No valid quotes available", "Cannot Execute",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -496,27 +457,38 @@ namespace FXOAiTranslator
                 return;
             }
 
-            // Execute the trade
-            try
-            {
-                _fixSession.SendExecution(bestBidQuote, "SELL");
+            bool filled = _simulator.ExecuteTrade(bestBid, "SELL");
 
-                var netPrem = CalculateNetPremium(bestBidQuote);
+            if (filled)
+            {
+                var netPrem = CalculateNetPremium(bestBid);
                 MessageBox.Show(
-                    $"Trade SENT!\n\nLP: {bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString())}\nNet Premium: {netPrem?.ToString("N2") ?? "N/A"} pips\n\nWaiting for execution report...",
-                    "Order Sent",
+                    $"Trade FILLED!\n\nLP: {bestBid.Get(Tags.OnBehalfOfCompID.ToString())}\nNet Premium: {netPrem?.ToString("N2") ?? "N/A"} pips",
+                    "Execution Success",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information
                 );
-
                 this.DialogResult = DialogResult.OK;
                 this.Close();
             }
-            catch (Exception ex)
+            else
             {
-                MessageBox.Show($"Execution error:\n\n{ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                _quoteTimer?.Start();
+                var result = MessageBox.Show(
+                    "Trade REJECTED by LP (last-look)\n\nTry again?",
+                    "Execution Failed",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    _quoteTimer?.Start();
+                }
+                else
+                {
+                    this.DialogResult = DialogResult.Cancel;
+                    this.Close();
+                }
             }
         }
 
@@ -524,10 +496,6 @@ namespace FXOAiTranslator
         {
             _quoteTimer?.Stop();
             _quoteTimer?.Dispose();
-
-            // Unsubscribe from events
-            _fixSession.Application.OnQuoteReceived -= OnQuoteReceivedFromFIX;
-
             base.OnFormClosing(e);
         }
     }
