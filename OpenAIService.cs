@@ -210,14 +210,18 @@ SEAGULL STRUCTURE RULES:
 - For zero-cost: solve for the sold call strike that makes net premium = 0
 
 CALENDAR SPREAD RULES:
+- ""VS"" notation indicates calendar structure with different expiries
+- DEFAULT DIRECTION: Buy near expiry, Sell far expiry (B,S) unless explicitly stated otherwise
+- Example: ""12 Nov 12.15 CALL VS 20 Nov 12.23 CALL"" → B,S (buy 12 Nov, sell 20 Nov)
+- If user specifies ""buy both"" or ""sell both"", use B,B or S,S accordingly
+- Count all individual strikes/options as separate legs
 - Different expiries per leg: list expiries separated by commas matching leg count
+- Format: OVML EURNOK 11/12/25,11/20/25 2L B,S 12.1500C,12.2300C N50M,50M VA
 - CRITICAL: ""9.70-9.50 ps"" or ""11.60-12.20 cs"" means TWO separate strikes, NOT a range
   * First number is one strike, second number is another strike
   * ""9.70-9.50"" = two strikes: 9.70 AND 9.50 (not ""between 9.70 and 9.50"")
-- ""vs"" notation indicates calendar structure with different expiries
-- Count all individual strikes/options as separate legs
 - Example: ""1m 9.85 put vs 2m 9.70-9.50 ps"" = 3 legs total (1 at 1M, 2 at 2M)
-- Format: OVML USDNOK 1M,2M,2M 3L B,S,S 9.8500P,9.7000P,9.5000P N100M,100M,100M VA SP10.0125
+- Format: OVML USDNOK 1M,2M,2M 3L B,S,S 9.8500P,9.7000P,9.5000P N100M,100M,100M VA
 
 RISK REVERSAL (RR) RULES:
 - 2 legs: Buy Put + Sell Call OR Buy Call + Sell Put
