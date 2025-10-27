@@ -24,6 +24,13 @@ namespace FXOAiTranslator
         private CheckBox chkMS;
         private CheckBox chkUBS;
         private CheckBox chkNatwest;
+        private CheckBox chkGoldman;
+        private CheckBox chkBarclays;
+        private CheckBox chkHSBC;
+        private CheckBox chkBNP;
+        private CheckBox chkCIBC;
+        private CheckBox chkDeut;
+        private CheckBox chkDBS;
         private int _selectedLegCount;
 
         public GFIQuoteDialog(dynamic ovmlResult)
@@ -61,7 +68,7 @@ namespace FXOAiTranslator
         private void InitializeCustomComponents()
         {
             this.Text = "GFI Fenics - Request Quotes";
-            this.Size = new Size(1000, 650);
+            this.Size = new Size(1000, 700);  // Increased height for more LPs
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -122,14 +129,16 @@ namespace FXOAiTranslator
 
             this.Controls.Add(dgvLegs);
 
+            // LP Selection GroupBox - EXPANDED
             gbLPs = new GroupBox
             {
                 Text = "Select Liquidity Providers",
                 Location = new Point(20, 220),
-                Size = new Size(940, 60)
+                Size = new Size(940, 90)  // Increased height for 2 rows
             };
             this.Controls.Add(gbLPs);
 
+            // Row 1 - Major Banks
             chkMS = new CheckBox
             {
                 Text = "Morgan Stanley",
@@ -139,10 +148,47 @@ namespace FXOAiTranslator
             };
             gbLPs.Controls.Add(chkMS);
 
+            chkGoldman = new CheckBox
+            {
+                Text = "Goldman Sachs",
+                Location = new Point(190, 25),
+                Size = new Size(150, 25),
+                Checked = true
+            };
+            gbLPs.Controls.Add(chkGoldman);
+
+            chkBarclays = new CheckBox
+            {
+                Text = "Barclays",
+                Location = new Point(360, 25),
+                Size = new Size(150, 25),
+                Checked = true
+            };
+            gbLPs.Controls.Add(chkBarclays);
+
+            chkHSBC = new CheckBox
+            {
+                Text = "HSBC",
+                Location = new Point(530, 25),
+                Size = new Size(150, 25),
+                Checked = true
+            };
+            gbLPs.Controls.Add(chkHSBC);
+
+            chkBNP = new CheckBox
+            {
+                Text = "BNP Paribas",
+                Location = new Point(700, 25),
+                Size = new Size(150, 25),
+                Checked = true
+            };
+            gbLPs.Controls.Add(chkBNP);
+
+            // Row 2 - Additional Banks
             chkUBS = new CheckBox
             {
                 Text = "UBS",
-                Location = new Point(200, 25),
+                Location = new Point(20, 55),
                 Size = new Size(150, 25),
                 Checked = true
             };
@@ -151,16 +197,44 @@ namespace FXOAiTranslator
             chkNatwest = new CheckBox
             {
                 Text = "NatWest Markets",
-                Location = new Point(380, 25),
+                Location = new Point(190, 55),
                 Size = new Size(150, 25),
                 Checked = true
             };
             gbLPs.Controls.Add(chkNatwest);
 
+            chkCIBC = new CheckBox
+            {
+                Text = "CIBC",
+                Location = new Point(360, 55),
+                Size = new Size(150, 25),
+                Checked = true
+            };
+            gbLPs.Controls.Add(chkCIBC);
+
+            chkDeut = new CheckBox
+            {
+                Text = "Deutsche Bank",
+                Location = new Point(530, 55),
+                Size = new Size(150, 25),
+                Checked = true
+            };
+            gbLPs.Controls.Add(chkDeut);
+
+            chkDBS = new CheckBox
+            {
+                Text = "DBS Bank",
+                Location = new Point(700, 55),
+                Size = new Size(150, 25),
+                Checked = true
+            };
+            gbLPs.Controls.Add(chkDBS);
+
+            // Quotes Grid - adjusted position
             dgvQuotes = new DataGridView
             {
-                Location = new Point(20, 300),
-                Size = new Size(940, 250),
+                Location = new Point(20, 330),  // Moved down
+                Size = new Size(940, 270),      // Adjusted size
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -172,10 +246,11 @@ namespace FXOAiTranslator
 
             this.Controls.Add(dgvQuotes);
 
+            // Buttons - adjusted position
             btnRequestQuotes = new Button
             {
                 Text = "Request Quotes",
-                Location = new Point(20, 570),
+                Location = new Point(20, 620),  // Moved down
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
@@ -185,7 +260,7 @@ namespace FXOAiTranslator
             btnExecute = new Button
             {
                 Text = "Execute (Sell)",
-                Location = new Point(190, 570),
+                Location = new Point(190, 620),  // Moved down
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -196,7 +271,7 @@ namespace FXOAiTranslator
             btnCancel = new Button
             {
                 Text = "Cancel",
-                Location = new Point(810, 570),
+                Location = new Point(810, 620),  // Moved down
                 Size = new Size(150, 35),
                 DialogResult = DialogResult.Cancel
             };
@@ -256,9 +331,18 @@ namespace FXOAiTranslator
         private void BtnRequestQuotes_Click(object sender, EventArgs e)
         {
             var lps = new List<string>();
+
+            // Check all LP checkboxes
             if (chkMS.Checked) lps.Add("MS");
+            if (chkGoldman.Checked) lps.Add("GOLDMAN");
+            if (chkBarclays.Checked) lps.Add("BARCLAYS");
+            if (chkHSBC.Checked) lps.Add("HSBC");
+            if (chkBNP.Checked) lps.Add("BNP");
             if (chkUBS.Checked) lps.Add("UBS");
             if (chkNatwest.Checked) lps.Add("NATWEST");
+            if (chkCIBC.Checked) lps.Add("CIBC");
+            if (chkDeut.Checked) lps.Add("DEUT");
+            if (chkDBS.Checked) lps.Add("DBS");
 
             if (lps.Count == 0)
             {
@@ -291,6 +375,14 @@ namespace FXOAiTranslator
             // Generate group ID
             _groupId = $"3-REQ{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
+            Console.WriteLine($"\n[Quote Request] Sending {selectedLegCount} legs:");
+            for (int i = 0; i < _trade.Legs.Count; i++)
+            {
+                var leg = _trade.Legs[i];
+                Console.WriteLine($"  Leg {i}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike}");
+            }
+            Console.WriteLine();
+
             // Send quote request to each LP
             foreach (var lp in lps)
             {
@@ -304,17 +396,6 @@ namespace FXOAiTranslator
                     Console.WriteLine($"[Quote Request] Error sending to {lp}: {ex.Message}");
                 }
             }
-
-            // Start timer for updates (now event-driven, but keep timer for UI refresh)
-            _quoteTimer = new System.Windows.Forms.Timer();
-            _quoteTimer.Interval = 500;  // Just refresh UI every 500ms
-            _quoteTimer.Tick += QuoteTimer_Tick;
-            _quoteTimer.Start();
-
-            btnRequestQuotes.Enabled = false;
-            btnExecute.Enabled = true;
-
-            UpdateQuoteDisplay();
         }
 
         private void UpdateTradeFromGrid()
