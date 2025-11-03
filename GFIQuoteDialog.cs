@@ -144,7 +144,7 @@ namespace FXOAiTranslator
                 Text = "Morgan Stanley",
                 Location = new Point(20, 25),
                 Size = new Size(150, 25),
-                Checked = true
+                Checked = false
             };
             gbLPs.Controls.Add(chkMS);
 
@@ -153,7 +153,7 @@ namespace FXOAiTranslator
                 Text = "Goldman Sachs",
                 Location = new Point(190, 25),
                 Size = new Size(150, 25),
-                Checked = true
+                Checked = false
             };
             gbLPs.Controls.Add(chkGoldman);
 
@@ -162,7 +162,7 @@ namespace FXOAiTranslator
                 Text = "Barclays",
                 Location = new Point(360, 25),
                 Size = new Size(150, 25),
-                Checked = true
+                Checked = false
             };
             gbLPs.Controls.Add(chkBarclays);
 
@@ -171,7 +171,7 @@ namespace FXOAiTranslator
                 Text = "HSBC",
                 Location = new Point(530, 25),
                 Size = new Size(150, 25),
-                Checked = true
+                Checked = false
             };
             gbLPs.Controls.Add(chkHSBC);
 
@@ -180,7 +180,7 @@ namespace FXOAiTranslator
                 Text = "BNP Paribas",
                 Location = new Point(700, 25),
                 Size = new Size(150, 25),
-                Checked = true
+                Checked = false
             };
             gbLPs.Controls.Add(chkBNP);
 
@@ -190,7 +190,7 @@ namespace FXOAiTranslator
                 Text = "UBS",
                 Location = new Point(20, 55),
                 Size = new Size(150, 25),
-                Checked = true
+                Checked = false
             };
             gbLPs.Controls.Add(chkUBS);
 
@@ -199,7 +199,7 @@ namespace FXOAiTranslator
                 Text = "NatWest Markets",
                 Location = new Point(190, 55),
                 Size = new Size(150, 25),
-                Checked = true
+                Checked = false
             };
             gbLPs.Controls.Add(chkNatwest);
 
@@ -208,7 +208,7 @@ namespace FXOAiTranslator
                 Text = "CIBC",
                 Location = new Point(360, 55),
                 Size = new Size(150, 25),
-                Checked = true
+                Checked = false
             };
             gbLPs.Controls.Add(chkCIBC);
 
@@ -217,7 +217,7 @@ namespace FXOAiTranslator
                 Text = "Deutsche Bank",
                 Location = new Point(530, 55),
                 Size = new Size(150, 25),
-                Checked = true
+                Checked = false
             };
             gbLPs.Controls.Add(chkDeut);
 
@@ -226,7 +226,7 @@ namespace FXOAiTranslator
                 Text = "DBS Bank",
                 Location = new Point(700, 55),
                 Size = new Size(150, 25),
-                Checked = true
+                Checked = false
             };
             gbLPs.Controls.Add(chkDBS);
 
