@@ -238,13 +238,37 @@ namespace FXOAiTranslator
             char type1 = strike1Match.Groups[2].Value[0];
             char type2 = strike2Match.Groups[2].Value[0];
 
-            // Both strikes should be same type for a spread
+            // Check if mixed types (could be straddle/strangle)
             if (type1 != type2)
             {
-                result.Warnings.Add($"Mixed option types in spread: {type1} and {type2}");
+                // Check if it's a straddle (same strike, different types)
+                if (Math.Abs(strike1Value - strike2Value) < 0.0001)
+                {
+                    // Straddle: same strike, buy/buy or sell/sell
+                    bool isBuyBoth = directions[0] == "B" && directions[1] == "B";
+                    bool isSellBoth = directions[0] == "S" && directions[1] == "S";
+
+                    if (isBuyBoth)
+                    {
+                        result.PassedChecks.Add($"Long straddle structure detected (same strike {strike1Value}, mixed types)");
+                    }
+                    else if (isSellBoth)
+                    {
+                        result.PassedChecks.Add($"Short straddle structure detected (same strike {strike1Value}, mixed types)");
+                    }
+                    else
+                    {
+                        result.Warnings.Add($"Unusual straddle directions: {directions[0]},{directions[1]}");
+                    }
+                    return; // Valid straddle/strangle, exit
+                }
+
+                // Different strikes and different types = strangle
+                result.PassedChecks.Add($"Strangle structure detected (different strikes, mixed types)");
                 return;
             }
 
+            // Same type - validate as spread...
             // Check spread direction logic
             bool isBuyFirst = directions[0] == "B";
             bool isSellSecond = directions[1] == "S";

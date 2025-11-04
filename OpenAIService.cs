@@ -205,10 +205,24 @@ CRITICAL STRIKE ORDERING:
 - Do NOT reorder strikes by size or any other logic
 - Example: ""buy 10.40 and 10.80 put"" → B,B 10.4000P,10.8000P (NOT 10.8000P,10.4000P)
 
-STRADDLE:
-- ""STRADDLE"" indicates a straddle
-- 2 legs: Buy Call + Buy Put at SAME strike
-- Example: OVML USDSEK 1Y 2L B,B 9.3180C,9.3180P N5M,5M VA
+STRADDLE RULES:
+- Keyword ""straddle"" indicates a straddle structure
+- ALWAYS 2 legs: Buy Call + Buy Put at SAME strike (or Sell Call + Sell Put)
+- Format: OVML (currency) (expiry) 2L B,B (strike)C,(strike)P N(notional)M,(notional)M VA [SP(spot)]
+- CRITICAL: The strike value must be IDENTICAL for both legs (call and put)
+- CRITICAL: ""per leg"" means each leg has that notional (not total)
+- DEFAULT: If no buy/sell specified, assume LONG straddle (B,B)
+- Examples:
+  * ""USDSEK 1 yr straddle 9.3180 strike in 5m USD per leg"" → OVML USDSEK 1Y 2L B,B 9.3180C,9.3180P N5M,5M VA
+  * ""buy 10m EURNOK 3 month straddle at 11.50"" → OVML EURNOK 3M 2L B,B 11.5000C,11.5000P N10M,10M VA
+  * ""sell straddle GBPUSD 6M 1.2500 for 20m"" → OVML GBPUSD 6M 2L S,S 1.2500C,1.2500P N20M,20M VA
+
+STRANGLE RULES:
+- Similar to straddle but with DIFFERENT strikes
+- 2 legs: Buy/Sell Call + Buy/Sell Put at different strikes
+- Format: OVML (currency) (expiry) 2L B,B (putStrike)P,(callStrike)C N(notional)M,(notional)M VA
+- CRITICAL: Put strike < Call strike typically
+- Example: ""buy 10m strangle EURUSD 3M 1.08 put / 1.12 call"" → OVML EURUSD 3M 2L B,B 1.0800P,1.1200C N10M,10M VA
 
 SEAGULL STRUCTURE RULES:
 - 3 legs: Buy Put (protection), Sell Put (financing), Sell Call (financing)
