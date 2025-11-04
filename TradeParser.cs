@@ -173,6 +173,19 @@ namespace FXOAiTranslator
                         {
                             switch (pattern.Name)
                             {
+                                case "Vanilla_CurrencyLed":
+                                    LogDebug($"DEBUG: Processing Vanilla_CurrencyLed pattern");
+                                    result.LegCount = 1;
+
+                                    // Default to Buy (no explicit side in this pattern)
+                                    string optionType = match.Groups["type"].Value.ToUpper().StartsWith("C") ? "C" : "P";
+
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} " +
+                                                  $"B {match.Groups["strike"].Value}{optionType} " +
+                                                  $"N{match.Groups["notional"].Value}M VA" +
+                                                  spot;
+                                    break;
+
                                 case "Collar_BuyCallSellCallSellPut":
                                     LogDebug($"DEBUG: Processing Collar_BuyCallSellCallSellPut pattern");
                                     result.LegCount = 3;
@@ -256,11 +269,12 @@ namespace FXOAiTranslator
                                     LogDebug($"DEBUG: Processing Vanilla pattern");
                                     result.LegCount = 1;
                                     string side = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
-                                    string optionType = match.Groups["type"].Value.Substring(0, 1).ToUpper();
+                                    string vanillaType = match.Groups["type"].Value.Substring(0, 1).ToUpper();
                                     result.OVML = $"OVML {result.Underlying} 1L {side} " +
-                                                  $"{match.Groups["strike"].Value}{optionType} " +
+                                                  $"{match.Groups["strike"].Value}{vanillaType} " +  // ✅ Change this line
                                                   $"{result.Expiry} N{match.Groups["notional"].Value}M" +
                                                   (spotExplicitlyProvided ? " SP" + spot : "");
+                                
                                     break;
 
                                 case "Simple_Vanilla":
@@ -897,50 +911,82 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     return result;
                 }
 
-                // 6. Tenor: 3M, 5MTH, 2Y, 10D, 2W - but NOT notional amounts like "500m"
+                // 6. Tenor extraction with context awareness
                 LogDebug("DEBUG: Testing tenor patterns...");
                 LogDebug($"DEBUG: Full input for tenor matching: '{input}'");
 
-                // More restrictive: avoid matching numbers followed by mio/mil/million
-                var tenorMatch = Regex.Match(
+                // PRIORITY 1: Explicit words (ALWAYS expiry, never notional)
+                var explicitTenorMatch = Regex.Match(
                     input,
-                    @"\b(?<num>[1-9]\d{0,1})[\s-]*(?<unit>m|w|y|d|week|weeks|month|months|mth|mo|year|years|day|days)\b(?!\s*(mio|mil|million))",
+                    @"\b(?<num>\d+)[\s-]*(?<unit>year|years|yr|yrs|month|months|mth|mths|week|weeks|wk|wks|day|days)\b",
                     RegexOptions.IgnoreCase
                 );
 
-                LogDebug($"DEBUG: Tenor regex matched: {tenorMatch.Success}");
-
-                // Additional check: if number is > 99, it's likely a notional, not a tenor
-                if (tenorMatch.Success)
+                if (explicitTenorMatch.Success)
                 {
-                    LogDebug($"DEBUG: Tenor match groups - num: '{tenorMatch.Groups["num"].Value}', unit: '{tenorMatch.Groups["unit"].Value}'");
+                    string number = explicitTenorMatch.Groups["num"].Value;
+                    string unit = explicitTenorMatch.Groups["unit"].Value.ToUpper();
 
-                    string number = tenorMatch.Groups["num"].Value;
-                    string period = tenorMatch.Groups["unit"].Value.ToUpper();
+                    LogDebug($"DEBUG: Explicit tenor found - {number} {unit}");
 
-                    int numValue = int.Parse(number);
-                    if (numValue > 99)
-                    {
-                        LogDebug($"DEBUG: Skipping tenor match - number too large for tenor: {number}");
-                    }
-                    else
-                    {
-                        LogDebug($"DEBUG: Tenor match found - number: '{number}', period: '{period}'");
+                    // Normalize
+                    string period = "M";
+                    if (unit.StartsWith("Y")) period = "Y";
+                    else if (unit.StartsWith("M")) period = "M";
+                    else if (unit.StartsWith("W")) period = "W";
+                    else if (unit.StartsWith("D")) period = "D";
 
-                        // Normalize period abbreviations
-                        if (period.StartsWith("MONTH")) period = "M";
-                        else if (period == "MTH") period = "M";
-                        else if (period == "MO") period = "M";
-                        else if (period.StartsWith("YEAR")) period = "Y";
-                        else if (period.StartsWith("DAY")) period = "D";
-                        else if (period.StartsWith("WEEK") || period == "W") period = "W";  // Add this line
-
-                        return number + period;
-                    }
+                    return number + period;
                 }
-                else
+
+                // PRIORITY 2: Ambiguous single-letter with CONTEXT CHECK
+                var ambiguousTenorMatches = Regex.Matches(
+                    input,
+                    @"\b(?<num>\d+)[\s-]*(?<unit>[mMwWyYdD])\b",
+                    RegexOptions.IgnoreCase
+                );
+
+                foreach (Match match in ambiguousTenorMatches)
                 {
-                    LogDebug("DEBUG: No tenor match found");
+                    string number = match.Groups["num"].Value;
+                    string unit = match.Groups["unit"].Value.ToUpper();
+                    int matchEnd = match.Index + match.Length;
+
+                    // Look at what comes AFTER this match
+                    string afterMatch = matchEnd < input.Length
+                        ? input.Substring(matchEnd).Trim()
+                        : "";
+
+                    LogDebug($"DEBUG: Found ambiguous '{number}{unit}', checking context: '{afterMatch.Substring(0, Math.Min(20, afterMatch.Length))}'");
+
+                    // SKIP if followed by notional indicators
+                    if (Regex.IsMatch(afterMatch, @"^\s*(mio|mil|million|usd|eur|sek|nok|gbp|jpy|chf|per\s+leg)", RegexOptions.IgnoreCase))
+                    {
+                        LogDebug($"DEBUG: Skipping '{number}{unit}' - notional context detected");
+                        continue;
+                    }
+
+                    // ACCEPT if followed by expiry-related context
+                    if (Regex.IsMatch(afterMatch, @"^\s*(call|put|option|strike|straddle|spread|expir)", RegexOptions.IgnoreCase))
+                    {
+                        LogDebug($"DEBUG: Accepting '{number}{unit}' - expiry context confirmed");
+                        return number + unit;
+                    }
+
+                    // ACCEPT if number is small (tenors rarely > 36 months, 5 years)
+                    int numValue = int.Parse(number);
+                    if (unit == "M" && numValue <= 36)
+                    {
+                        LogDebug($"DEBUG: Accepting '{number}M' - reasonable tenor duration");
+                        return number + unit;
+                    }
+                    if (unit == "Y" && numValue <= 10)
+                    {
+                        LogDebug($"DEBUG: Accepting '{number}Y' - reasonable tenor duration");
+                        return number + unit;
+                    }
+
+                    LogDebug($"DEBUG: Skipping '{number}{unit}' - ambiguous without clear context");
                 }
 
                 LogDebug("DEBUG: No expiry patterns matched, using default");

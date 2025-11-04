@@ -1,4 +1,5 @@
-﻿using System;
+﻿using QuickFix.Fields;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -203,6 +204,11 @@ CRITICAL STRIKE ORDERING:
 - The first leg mentioned is used for premium pricing, so order is economically significant
 - Do NOT reorder strikes by size or any other logic
 - Example: ""buy 10.40 and 10.80 put"" → B,B 10.4000P,10.8000P (NOT 10.8000P,10.4000P)
+
+STRADDLE:
+- ""STRADDLE"" indicates a straddle
+- 2 legs: Buy Call + Buy Put at SAME strike
+- Example: OVML USDSEK 1Y 2L B,B 9.3180C,9.3180P N5M,5M VA
 
 SEAGULL STRUCTURE RULES:
 - 3 legs: Buy Put (protection), Sell Put (financing), Sell Call (financing)

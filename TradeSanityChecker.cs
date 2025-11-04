@@ -119,7 +119,7 @@ namespace FXOAiTranslator
         private void ValidateSingleLeg(string ovml, RuleBasedCheckResult result)
         {
             // Check for duplicate expiry dates
-            var expiryMatches = Regex.Matches(ovml, @"\d{2}/\d{2}/\d{2}|\d{1,2}[A-Z]{3}\d{2}?");
+            var expiryMatches = Regex.Matches(ovml, @"\d{2}/\d{2}/\d{2}|\d{1,2}[A-Z]{3}\d{2}?|\b\d+[DWMY]\b");
             if (expiryMatches.Count > 1)
             {
                 result.CriticalErrors.Add($"Multiple expiry dates found ({expiryMatches.Count}): {string.Join(", ", expiryMatches.Cast<Match>().Select(m => m.Value))}");
@@ -346,8 +346,7 @@ namespace FXOAiTranslator
 
         private string ExtractExpiryFromOVML(string ovml)
         {
-            // Match common expiry formats in OVML
-            var match = Regex.Match(ovml, @"\b(\d{1,2}/\d{1,2}/\d{2}|\d{2}[A-Z]{3}\d{2})\b");
+            var match = Regex.Match(ovml, @"\b(\d{1,2}/\d{1,2}/\d{2}|\d{2}[A-Z]{3}\d{2}|\d+[DWMY])\b");
             return match.Success ? match.Value : "";
         }
 

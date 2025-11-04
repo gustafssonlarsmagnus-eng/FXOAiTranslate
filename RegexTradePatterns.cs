@@ -6,7 +6,23 @@ namespace FXOAiTranslator
     public static class RegexTradePatterns
     {
         public static readonly List<TradePattern> Patterns = new List<TradePattern>
+
         {
+// NEW PATTERN 1: Currency-led vanilla with expiry
+// Matches: "EURUSD 1m 1.1600 call in 10 mio"
+new TradePattern(
+    "Vanilla_CurrencyLed",
+    new Regex(
+        @"[A-Z]{6}\s+" +                                      // EURUSD (ignore, extracted separately)
+        @"[\w/\-\.]+\s+" +                                    // 1m (ignore, extracted separately)
+        @"(?<strike>\d+(\.\d+)?)\s+" +                        // 1.1600
+        @"(?<type>call|put)\s+" +                             // call or put
+        @"(?:in\s+)?(?<notional>\d+)\s*(?:m|mio|million)",    // in 10 mio
+        RegexOptions.IgnoreCase
+    )
+),
+
+       
             // ==================
             // 3-Leg Collar: Buy Call + Sell Call + Sell Put
             // MUST BE FIRST - Most specific pattern
