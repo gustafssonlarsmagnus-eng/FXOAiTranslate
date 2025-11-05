@@ -311,6 +311,22 @@ Output ONLY the OVML line:";
                 }
 
                 var ovml = ovmlMatch.Value.Trim();
+
+                // Replace ATM notation with actual spot rate
+                if (!string.IsNullOrEmpty(liveSpot))
+                {
+                    var atmMatch = Regex.Match(ovml, @"ATM[A-Z]*([CP])", RegexOptions.IgnoreCase);
+                    if (atmMatch.Success)
+                    {
+                        string optionType = atmMatch.Groups[1].Value.ToUpper();
+                        string actualStrike = $"{liveSpot}{optionType}";
+
+                        ovml = Regex.Replace(ovml, @"ATM[A-Z]*[CP]", actualStrike, RegexOptions.IgnoreCase);
+
+                        Console.WriteLine($"[AI] Replaced ATM notation with spot rate: {actualStrike}");
+                    }
+                }
+
                 ovml = Regex.Replace(ovml, @"\bv(\d+\.\d+)", "SP$1");
 
                 // CLEANUP: Remove duplicate expiry formats (e.g., both "12Dec" and "12/12/25")

@@ -133,8 +133,8 @@ namespace FXOAiTranslator
                 result.CriticalErrors.Add("No expiry date found");
             }
 
-            // Option type (C/P) - must be attached to strike like 0.9500C
-            if (!Regex.IsMatch(ovml, @"\d+\.\d+[CP]"))
+            // Option type (C/P) - can be numeric strike (1.1496C) or ATM notation (ATMC, ATMP, etc.)
+            if (!Regex.IsMatch(ovml, @"(\d+\.\d+[CP]|ATM[A-Z]*[CP])", RegexOptions.IgnoreCase))
                 result.CriticalErrors.Add("Missing option type (C or P)");
             else
                 result.PassedChecks.Add("Option type present");
