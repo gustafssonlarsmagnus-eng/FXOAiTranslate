@@ -134,30 +134,28 @@ namespace FXOAiTranslator
                     : !string.IsNullOrEmpty(liveSpot) ? liveSpot
                     : "9.8000";
 
+                var spotInstruction = string.IsNullOrEmpty(explicitSpot)
+                    ? "NO spot reference in input - do NOT include SP in output"
+                    : $"Spot reference in input: {explicitSpot} - include SP{explicitSpot} in output";
+
+                // Then build the prompt ONCE
                 var prompt = $@"You are an expert FX options trader and OVML parser. Convert this natural language trading request into STRICT Bloomberg OVML format.
 
-var spotInstruction = string.IsNullOrEmpty(explicitSpot) 
-    ? ""NO spot reference in input - do NOT include SP in output""
-    : $""Spot reference in input: {{explicitSpot}} - include SP{{explicitSpot}} in output"";
+TODAY'S DATE: {DateTime.Now:dddd, MMMM dd, yyyy}
+CRITICAL: Never generate expiry dates in the past. All expiries must be FUTURE dates after {DateTime.Now:MMMM dd, yyyy}.
 
-var prompt = $@""You are an expert FX options trader and OVML parser. Convert this natural language trading request into STRICT Bloomberg OVML format.
-
-TODAY'S DATE: {{DateTime.Now:dddd, MMMM dd, yyyy}}
-CRITICAL: Never generate expiry dates in the past. All expiries must be FUTURE dates after {{DateTime.Now:MMMM dd, yyyy}}.
-
-Input: """"{{input}}""""
+Input: ""{input}""
 
 SPOT REFERENCE INSTRUCTION:
-{{spotInstruction}}
+{spotInstruction}
 
-LIVE SPOT for pricing context only: {{spotInfo}}
+LIVE SPOT RATE for {underlying}: {spotInfo}
 (Use this ONLY to determine if an option is a call or put when not explicitly stated. Do NOT include in output unless instructed above.)
 
 COMMON DATE INTERPRETATION ERRORS TO AVOID:
 - If today is October 2025, June 2025 is IN THE PAST - DO NOT USE IT
-- Unrecognized month words (like 'now') likely mean the NEXT upcoming month
+- now likely means Nov Example:  ""6 now 2025"" should be interpreted as November 6
 - When uncertain about a date, choose the NEXT occurrence of that date in the future
-- Example: On October 8, 2025, ""6 now 2025"" should be interpreted as November 6, 2025 (NOT June)
 
 
 Input: ""{input}""
@@ -264,6 +262,14 @@ NOTIONAL PARSING:
 - Always include the N prefix and M suffix
 - For multi-leg: N100M,150M (comma-separated)
 
+OPTION TYPE INFERENCE (when call/put not specified):
+- If strike > spot reference → Default to CALL (out-of-the-money call)
+- If strike < spot reference → Default to PUT (out-of-the-money put)
+- CRITICAL: Use the spot reference provided in the input (Sr:, fwd ref, @) for this comparison
+- If no spot reference in input, use the LIVE SPOT provided above
+- Rationale: Traders typically buy OTM options (cheaper premium) unless ITM is explicitly stated
+- Example: Spot ref 11.0518, Strike 11.0000 → Strike < Spot → Default to PUT
+
 ZERO-COST CALCULATION:
 - Solve for unknown strikes so net premium = 0
 - Assume typical FX implied volatility of 8-10% if not specified
@@ -277,8 +283,12 @@ FORMAT ENFORCEMENT:
 - Strikes: 4 decimals (0.9500 not 0.95)
 - Notionals: N(amount)M format - NEVER omit N prefix
 - Expiry: Only ONE expiry date in the entire OVML string
-- CRITICAL: Only include SP if explicitly mentioned in user's input (keywords: 'sp ref', 'sr', 's.r', 'fwd ref', 'spot', 'v', '@')
-- If NO spot keywords in input → omit SP entirely from output
+SPOT REFERENCE (SP) RULES:
+- If user provides spot reference (keywords: 'sr', 's.r', 'fwd ref', 'spot', 'v', '@') → Use that value for SP
+- If NO spot reference in input → Use the LIVE SPOT provided above for SP
+- CRITICAL: ALWAYS include SP in the output (either explicit or live)
+- Example: Input with ""sr 1.1535"" → SP1.1535
+- Example: Input without spot ref, live spot 1.1548 → SP1.1548
 - Output exactly one OVML line - no quotes, no commentary
 - Expiry: Single expiry for standard trades, OR comma-separated expiries for calendar spreads (e.g., 1M,3M,3M for 3-leg calendar)
 

@@ -1005,7 +1005,8 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
             if (string.IsNullOrWhiteSpace(ovml))
                 return ovml;
 
-            var parts = ovml.Split(' ');
+            var parts = ovml.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
             for (int i = 0; i < parts.Length; i++)
             {
                 if (parts[i].Contains("/") || Regex.IsMatch(parts[i], @"\d{1,2}[A-Za-z]{3}\d{2}"))
@@ -1172,46 +1173,61 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
             for (int i = 0; i < parts.Length; i++)
             {
-                if (parts[i] == "C" || parts[i] == "P")
+                var token = parts[i].Trim().TrimEnd(',', ';');
+
+                // Case 1: option type appears as a separate token ("C" or "P")
+                if (token.Equals("C", StringComparison.OrdinalIgnoreCase) ||
+                    token.Equals("P", StringComparison.OrdinalIgnoreCase))
                 {
-                    optionType = parts[i];
-                    if (i > 0) strike = parts[i - 1];
+                    optionType = token.ToUpperInvariant();
+                    if (i > 0) strike = parts[i - 1].Trim().TrimEnd(',', ';');
+                    continue;
                 }
-                else if (parts[i].StartsWith("N") && parts[i].EndsWith("M"))
+
+                // Case 2: option type is attached to the strike ("1.1625C" or "1.1625P")
+                if (token.EndsWith("C", StringComparison.OrdinalIgnoreCase) ||
+                    token.EndsWith("P", StringComparison.OrdinalIgnoreCase))
                 {
-                    notional = parts[i].Substring(1, parts[i].Length - 2);
+                    optionType = char.ToUpperInvariant(token[^1]).ToString();
+                    strike = token[..^1]; // everything except the last char
+                    continue;
+                }
+
+                // Notional like "N15M"
+                if (token.StartsWith("N", StringComparison.OrdinalIgnoreCase) &&
+                    token.EndsWith("M", StringComparison.OrdinalIgnoreCase))
+                {
+                    notional = token.Substring(1, token.Length - 2); // strip N...M
+                    continue;
                 }
             }
 
+            // Need all three to produce output
             if (string.IsNullOrEmpty(strike) || string.IsNullOrEmpty(optionType) || string.IsNullOrEmpty(notional))
                 return "";
 
-            string result;
-            if (Regex.IsMatch(formattedDate, @"^\d+[WwMmYyDd]$"))
+            bool isTenor = Regex.IsMatch(formattedDate, @"^\d+[WwMmYyDd]$");
+
+            // If tenor: "<underlying> <tenor> <C|P> <CCY>"
+            // Else:     "<underlying> <strike><C|P> <CCY>"
+            string result = isTenor
+                ? $"{underlying} {formattedDate.ToUpperInvariant()} {optionType} {currency}"
+                : $"{underlying} {strike}{optionType} {currency}";
+
+            // Notional ÷10, culture-safe, with a space before "MIO"
+            if (double.TryParse(notional, NumberStyles.Float, CultureInfo.InvariantCulture, out double amount))
             {
-                result = $"{underlying} {formattedDate} {optionType} {currency}";
-            }
-            else
-            {
-                result = $"{underlying} {strike}{optionType} {currency}";
+                double scaled = amount / 10.0;
+                result += $" {scaled.ToString("0.########", CultureInfo.InvariantCulture)} MIO";
             }
 
-            if (double.TryParse(notional, out double amount))
-            {
-                double scaledAmount = amount / 10.0;
-                result += $" {scaledAmount}MIO";
-            }
-
-            // Add expiry only if it's a real date, not tenor
-            if (!string.IsNullOrEmpty(formattedDate) && !Regex.IsMatch(formattedDate, @"^\d+[WwMmYyDd]$"))
-            {
+            // Append date only when it's a real date (not a tenor)
+            if (!isTenor && !string.IsNullOrEmpty(formattedDate))
                 result += $" {formattedDate}";
-            }
 
-            if (!string.IsNullOrEmpty(spot))
-            {
+            // Append SPOT if present
+            if (!string.IsNullOrWhiteSpace(spot))
                 result += $" SPOT {spot}";
-            }
 
             return result;
         }
@@ -1283,6 +1299,7 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
         }
 
         private string FormatDateForUBS(string expiry)
+
         {
             try
             {
