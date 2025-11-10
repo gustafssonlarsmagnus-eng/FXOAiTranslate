@@ -119,13 +119,11 @@ namespace FXOAiTranslator
             // Microphone button - embedded in text field like iPhone Messenger
             btnMicrophone = new Button
             {
-                Text = "🎤",
+                Text = "", // No text - we'll draw custom icon
                 Size = new Size(32, 24),
                 Location = new Point(pnlInputContainer.Width - 37, 2), // Position on right inside textbox
-                Font = new Font("Segoe UI", 12F),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.Transparent,
-                ForeColor = Color.Gray,
                 Cursor = Cursors.Hand,
                 TabStop = false,
                 Anchor = AnchorStyles.Right | AnchorStyles.Top
@@ -133,6 +131,7 @@ namespace FXOAiTranslator
             btnMicrophone.FlatAppearance.BorderSize = 0;
             btnMicrophone.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 240, 240);
             btnMicrophone.FlatAppearance.MouseDownBackColor = Color.FromArgb(220, 220, 220);
+            btnMicrophone.Paint += BtnMicrophone_Paint; // Custom drawing
 
             var tooltip = new ToolTip();
             tooltip.SetToolTip(btnMicrophone, "Click to speak your trade request");
@@ -699,12 +698,48 @@ namespace FXOAiTranslator
             }
         }
 
+        private void BtnMicrophone_Paint(object sender, PaintEventArgs e)
+        {
+            // Draw custom line-art microphone icon
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            // Determine color based on button state
+            Color iconColor = btnMicrophone.Enabled ?
+                (_isListening ? Color.FromArgb(0, 122, 255) : Color.Gray) :
+                Color.LightGray;
+
+            using (var pen = new Pen(iconColor, 1.8f))
+            {
+                // Center the icon in the button
+                int centerX = btnMicrophone.Width / 2;
+                int centerY = btnMicrophone.Height / 2;
+
+                // Microphone capsule (rounded rectangle using lines and arcs)
+                // Top arc
+                g.DrawArc(pen, centerX - 4, centerY - 7, 8, 8, 180, 180);
+                // Side lines
+                g.DrawLine(pen, centerX - 4, centerY - 3, centerX - 4, centerY + 2);
+                g.DrawLine(pen, centerX + 4, centerY - 3, centerX + 4, centerY + 2);
+                // Bottom arc
+                g.DrawArc(pen, centerX - 4, centerY - 2, 8, 8, 0, 180);
+
+                // Microphone stand (U-shape curve)
+                g.DrawArc(pen, centerX - 6, centerY + 2, 12, 8, 0, 180);
+
+                // Vertical line (stem to base)
+                g.DrawLine(pen, centerX, centerY + 6, centerX, centerY + 9);
+
+                // Horizontal base line
+                g.DrawLine(pen, centerX - 3, centerY + 9, centerX + 3, centerY + 9);
+            }
+        }
+
         private void StartListening()
         {
             try
             {
                 // Subtle visual feedback - iPhone Messenger style
-                btnMicrophone.ForeColor = Color.FromArgb(0, 122, 255); // iOS blue
                 btnMicrophone.BackColor = Color.FromArgb(230, 240, 255); // Very light blue
                 txtManualInput.PlaceholderText = "Listening...";
                 txtManualInput.BorderStyle = BorderStyle.FixedSingle;
@@ -712,10 +747,10 @@ namespace FXOAiTranslator
                 // Update status bar
                 SetProcessingStatus(true, "🎤 Listening for speech...");
 
-                Application.DoEvents(); // Force UI update immediately
-
                 _speechRecognizer.RecognizeAsync(RecognizeMode.Multiple);
                 _isListening = true;
+
+                btnMicrophone.Invalidate(); // Redraw icon with blue color
 
                 LogDebugMessage("Speech recognition started - listening...");
             }
@@ -724,9 +759,10 @@ namespace FXOAiTranslator
                 LogDebugMessage($"Failed to start speech recognition: {ex.Message}");
 
                 // Reset UI on error
-                btnMicrophone.ForeColor = Color.Gray;
                 btnMicrophone.BackColor = Color.Transparent;
                 txtManualInput.PlaceholderText = "Type or speak trade request...";
+                _isListening = false;
+                btnMicrophone.Invalidate();
                 SetProcessingStatus(false, "Speech recognition failed");
 
                 MessageBox.Show($"Failed to start speech recognition:\n{ex.Message}\n\nMake sure your microphone is connected and working.", "Speech Recognition Error",
@@ -742,11 +778,12 @@ namespace FXOAiTranslator
                 _isListening = false;
 
                 // Reset UI to normal state - subtle grey
-                btnMicrophone.ForeColor = Color.Gray;
                 btnMicrophone.BackColor = Color.Transparent;
                 txtManualInput.PlaceholderText = "Type or speak trade request...";
                 txtManualInput.BackColor = Color.White;
                 txtManualInput.Font = new Font("Segoe UI", 10F);
+
+                btnMicrophone.Invalidate(); // Redraw icon with grey color
 
                 SetProcessingStatus(false, "Speech recognition stopped");
 
