@@ -84,9 +84,9 @@ namespace FXOAiTranslator
             var pnlManualInput = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 40,
+                Height = 55,
                 BackColor = Color.White,
-                Padding = new Padding(15, 5, 15, 5)
+                Padding = new Padding(15, 8, 15, 8)
             };
 
             var lblManualInput = new Label
@@ -102,27 +102,33 @@ namespace FXOAiTranslator
             txtManualInput = new TextBox
             {
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10F),
+                Font = new Font("Segoe UI", 11F),
                 PlaceholderText = "Type trade request here and press Enter to process...",
                 BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(0, 2, 5, 2)
             };
 
             // Microphone button
             btnMicrophone = new Button
             {
-                Text = "🎤",
+                Text = "🎤 Speak",
                 Dock = DockStyle.Right,
-                Width = 50,
-                Font = new Font("Segoe UI", 16F),
+                Width = 100,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.White,
-                ForeColor = Color.DimGray,
+                BackColor = Color.FromArgb(240, 240, 240),
+                ForeColor = Color.DarkSlateGray,
                 Cursor = Cursors.Hand,
-                TabStop = false
+                TabStop = false,
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            btnMicrophone.FlatAppearance.BorderColor = Color.LightGray;
+            btnMicrophone.FlatAppearance.BorderColor = Color.DarkGray;
             btnMicrophone.FlatAppearance.BorderSize = 1;
+            btnMicrophone.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 220, 220);
+
+            var tooltip = new ToolTip();
+            tooltip.SetToolTip(btnMicrophone, "Click to start/stop voice input for trade requests");
 
             pnlManualInput.Controls.Add(txtManualInput);
             pnlManualInput.Controls.Add(btnMicrophone);
@@ -665,8 +671,11 @@ namespace FXOAiTranslator
             {
                 LogDebugMessage($"Speech recognition initialization failed: {ex.Message}");
                 btnMicrophone.Enabled = false;
-                btnMicrophone.Text = "🎤";
-                btnMicrophone.ForeColor = Color.LightGray;
+                btnMicrophone.Text = "🎤 N/A";
+                btnMicrophone.BackColor = Color.FromArgb(200, 200, 200);
+                btnMicrophone.ForeColor = Color.Gray;
+                var tooltip = new ToolTip();
+                tooltip.SetToolTip(btnMicrophone, $"Speech recognition unavailable: {ex.Message}");
             }
         }
 
@@ -686,21 +695,38 @@ namespace FXOAiTranslator
         {
             try
             {
+                // Immediate visual feedback BEFORE starting recognition
+                btnMicrophone.Text = "⏹ Stop";
+                btnMicrophone.BackColor = Color.FromArgb(220, 20, 60); // Crimson red
+                btnMicrophone.ForeColor = Color.White;
+                txtManualInput.PlaceholderText = "🎤 LISTENING... Speak now!";
+                txtManualInput.BackColor = Color.FromArgb(255, 255, 200); // Light yellow
+                txtManualInput.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+
+                // Update status bar
+                SetProcessingStatus(true, "🎤 Listening for speech...");
+
+                Application.DoEvents(); // Force UI update immediately
+
                 _speechRecognizer.RecognizeAsync(RecognizeMode.Multiple);
                 _isListening = true;
-
-                // Update UI to show listening state
-                btnMicrophone.BackColor = Color.LightCoral;
-                btnMicrophone.ForeColor = Color.White;
-                txtManualInput.PlaceholderText = "Listening... speak your trade request";
-                txtManualInput.BackColor = Color.LightYellow;
 
                 LogDebugMessage("Speech recognition started - listening...");
             }
             catch (Exception ex)
             {
                 LogDebugMessage($"Failed to start speech recognition: {ex.Message}");
-                MessageBox.Show($"Failed to start speech recognition:\n{ex.Message}", "Error",
+
+                // Reset UI on error
+                btnMicrophone.Text = "🎤 Speak";
+                btnMicrophone.BackColor = Color.FromArgb(240, 240, 240);
+                btnMicrophone.ForeColor = Color.DarkSlateGray;
+                txtManualInput.PlaceholderText = "Type trade request here and press Enter to process...";
+                txtManualInput.BackColor = Color.White;
+                txtManualInput.Font = new Font("Segoe UI", 11F);
+                SetProcessingStatus(false, "Speech recognition failed");
+
+                MessageBox.Show($"Failed to start speech recognition:\n{ex.Message}\n\nMake sure your microphone is connected and working.", "Speech Recognition Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -713,10 +739,14 @@ namespace FXOAiTranslator
                 _isListening = false;
 
                 // Reset UI to normal state
-                btnMicrophone.BackColor = Color.White;
-                btnMicrophone.ForeColor = Color.DimGray;
+                btnMicrophone.Text = "🎤 Speak";
+                btnMicrophone.BackColor = Color.FromArgb(240, 240, 240);
+                btnMicrophone.ForeColor = Color.DarkSlateGray;
                 txtManualInput.PlaceholderText = "Type trade request here and press Enter to process...";
                 txtManualInput.BackColor = Color.White;
+                txtManualInput.Font = new Font("Segoe UI", 11F);
+
+                SetProcessingStatus(false, "Speech recognition stopped");
 
                 LogDebugMessage("Speech recognition stopped");
             }
@@ -734,17 +764,22 @@ namespace FXOAiTranslator
                 string recognizedText = e.Result.Text;
                 LogDebugMessage($"Speech recognized (confidence: {e.Result.Confidence:P0}): {recognizedText}");
 
-                // Update the text box with recognized speech
+                // Show what was recognized immediately
                 if (txtManualInput.InvokeRequired)
                 {
                     txtManualInput.Invoke(new Action(() => {
                         txtManualInput.Text = recognizedText;
+                        txtManualInput.BackColor = Color.FromArgb(200, 255, 200); // Light green - success!
                     }));
                 }
                 else
                 {
                     txtManualInput.Text = recognizedText;
+                    txtManualInput.BackColor = Color.FromArgb(200, 255, 200); // Light green - success!
                 }
+
+                // Brief pause to let user see what was recognized
+                await Task.Delay(800);
 
                 // Stop listening after recognizing speech
                 StopListening();
@@ -764,13 +799,37 @@ namespace FXOAiTranslator
             }
             else
             {
-                LogDebugMessage($"Speech recognition confidence too low: {e.Result.Confidence:P0}");
+                LogDebugMessage($"Speech recognition confidence too low: {e.Result.Confidence:P0} - text was: {e.Result.Text}");
+
+                // Show visual feedback for low confidence
+                if (this.InvokeRequired)
+                {
+                    this.Invoke(new Action(() => {
+                        SetProcessingStatus(false, $"Speech unclear (confidence: {e.Result.Confidence:P0}) - please try again");
+                    }));
+                }
+                else
+                {
+                    SetProcessingStatus(false, $"Speech unclear (confidence: {e.Result.Confidence:P0}) - please try again");
+                }
             }
         }
 
         private void SpeechRecognizer_SpeechRecognitionRejected(object sender, SpeechRecognitionRejectedEventArgs e)
         {
-            LogDebugMessage("Speech recognition rejected - please try again");
+            LogDebugMessage("Speech recognition rejected - no clear speech detected");
+
+            // Show visual feedback for rejection
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => {
+                    SetProcessingStatus(false, "No speech detected - please speak clearly and try again");
+                }));
+            }
+            else
+            {
+                SetProcessingStatus(false, "No speech detected - please speak clearly and try again");
+            }
         }
 
         private void ApplyFilter()
