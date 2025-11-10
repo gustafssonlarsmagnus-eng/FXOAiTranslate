@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Bloomberglp.Blpapi;
+using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -19,7 +20,7 @@ namespace FXOAiTranslator
         // Try to locate Bloomberg OVML window
         public void TryConnect()
         {
-            _bloombergWindow = FindWindowByTitle("OVML");
+            _bloombergWindow = FindBloombergWindow();
             if (_bloombergWindow != IntPtr.Zero)
             {
                 IsConnected = true;
@@ -43,21 +44,43 @@ namespace FXOAiTranslator
 
             try
             {
+                // Re-verify Bloomberg window is still valid
+                string currentTitle = GetWindowTitle(_bloombergWindow);
+                if (currentTitle.Contains("Chrome", StringComparison.OrdinalIgnoreCase) ||
+                    currentTitle.Contains("Firefox", StringComparison.OrdinalIgnoreCase) ||
+                    currentTitle.Contains("Edge", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine("[Bloomberg API] ERROR: Browser window detected, reconnecting...");
+                    TryConnect();
+                    if (!IsConnected) return;
+                }
+
                 Console.WriteLine($"DEBUG: Attempting to send to Bloomberg: '{ovmlCommand}'");
+                Console.WriteLine($"DEBUG: Target window: '{currentTitle}'");
 
                 // Copy command to clipboard
                 System.Windows.Forms.Clipboard.SetText(ovmlCommand);
 
-                // Activate Bloomberg window
-                SetForegroundWindow(_bloombergWindow);
+                // Activate Bloomberg window with retry
+                for (int i = 0; i < 3; i++)
+                {
+                    SetForegroundWindow(_bloombergWindow);
+                    Task.Delay(200).Wait();
+
+                    // Verify window is in foreground
+                    if (GetForegroundWindow() == _bloombergWindow)
+                    {
+                        break;
+                    }
+                }
 
                 // Simulate CTRL+T (open new tab in Bloomberg)
                 SendKeys.SendWait("^t");
-                Task.Delay(100).Wait();
+                Task.Delay(150).Wait();
 
                 // Paste command
                 SendKeys.SendWait("^v");
-                Task.Delay(50).Wait();
+                Task.Delay(100).Wait();
 
                 // Press Enter
                 SendKeys.SendWait("{ENTER}");
@@ -71,47 +94,165 @@ namespace FXOAiTranslator
             }
         }
 
-        // Simulate fetching a spot rate (stub for Bloomberg market data API)
+        // Fetch a spot rate from Bloomberg if possible
         public async Task<double?> GetSpotRate(string underlying)
         {
             try
             {
-                // Simulate async delay
-                await Task.Delay(200);
+                Console.WriteLine($"[Bloomberg API] Requesting spot rate for {underlying}");
 
-                // This would be a real Bloomberg API call in production
-                var random = new Random();
-                double fakeSpot = 9.8000 + random.NextDouble() * 0.0500;
+                using var session = new Session();
+                if (!session.Start())
+                {
+                    Console.WriteLine("[Bloomberg API] Failed to start session");
+                    return null;
+                }
 
-                Console.WriteLine($"[Bloomberg API] Got spot rate for {underlying}: {fakeSpot:F4}");
-                return fakeSpot;
+                if (!session.OpenService("//blp/refdata"))
+                {
+                    Console.WriteLine("[Bloomberg API] Failed to open reference data service");
+                    return null;
+                }
+
+                var service = session.GetService("//blp/refdata");
+                var request = service.CreateRequest("ReferenceDataRequest");
+                request.Append("securities", $"{underlying} Curncy");
+                request.Append("fields", "PX_LAST");
+
+                session.SendRequest(request, null);
+
+                while (true)
+                {
+                    var evt = session.NextEvent(5000);
+                    if (evt == null)
+                    {
+                        Console.WriteLine("[Bloomberg API] Timeout waiting for response");
+                        break;
+                    }
+
+                    foreach (var msg in evt)
+                    {
+                        if (msg.HasElement("securityData"))
+                        {
+                            var securityDataArray = msg.GetElement("securityData");
+                            for (int i = 0; i < securityDataArray.NumValues; i++)
+                            {
+                                var securityData = securityDataArray.GetValueAsElement(i);
+
+                                if (securityData.HasElement("fieldData"))
+                                {
+                                    var fieldData = securityData.GetElement("fieldData");
+                                    if (fieldData.HasElement("PX_LAST"))
+                                    {
+                                        double spot = fieldData.GetElementAsFloat64("PX_LAST");
+                                        Console.WriteLine($"[Bloomberg API] Got spot rate for {underlying}: {spot:F4}");
+                                        return spot;
+                                    }
+                                }
+
+                                if (securityData.HasElement("securityError"))
+                                {
+                                    var error = securityData.GetElement("securityError");
+                                    Console.WriteLine($"[Bloomberg API] Security error: {error.GetElementAsString("message")}");
+                                }
+                            }
+                        }
+                    }
+
+                    if (evt.Type == Event.EventType.RESPONSE) break;
+                }
+
+                Console.WriteLine($"[Bloomberg API] No data returned for {underlying}");
+                return null;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"[Bloomberg API] Error fetching spot for {underlying}: {ex.Message}");
                 return null;
             }
         }
 
-        // ADD THIS METHOD HERE (after GetSpotRate method, before the comment "--- Helpers to find Bloomberg window ---"):
         public string DetermineCallOrPut(double strikePrice, string currencyPair)
         {
-            // Logic to determine if it's a call or put based on strike vs market data
-            // For now, simple placeholder logic:
             if (strikePrice > 1.0)
                 return "CALL";
             else
                 return "PUT";
         }
-        // --- Helpers to find Bloomberg window ---
+
+        public string DetermineCallOrPut(string tradeRequest)
+        {
+            var lowerRequest = tradeRequest.ToLower();
+
+            if (lowerRequest.Contains("call") || lowerRequest.Contains("buy option"))
+                return "C";
+            else if (lowerRequest.Contains("put") || lowerRequest.Contains("sell option"))
+                return "P";
+            else
+                return "C";
+        }
+
+        // --- Bloomberg Window Detection ---
+
+        private IntPtr FindBloombergWindow()
+        {
+            // Try to find Bloomberg by process name first (most reliable)
+            IntPtr bloombergWnd = FindWindowByProcessName("bplus");
+            if (bloombergWnd != IntPtr.Zero) return bloombergWnd;
+
+            // Fallback: Look for OVML windows (any currency pair), excluding browsers
+            IntPtr found = IntPtr.Zero;
+            EnumWindows((hWnd, lParam) =>
+            {
+                if (GetWindowText(hWnd, out string windowTitle))
+                {
+                    // Check if it contains OVML and is NOT a browser
+                    if (windowTitle.Contains("OVML", StringComparison.OrdinalIgnoreCase) &&
+                        !windowTitle.Contains("Chrome", StringComparison.OrdinalIgnoreCase) &&
+                        !windowTitle.Contains("Firefox", StringComparison.OrdinalIgnoreCase) &&
+                        !windowTitle.Contains("Edge", StringComparison.OrdinalIgnoreCase) &&
+                        !windowTitle.Contains("Safari", StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = hWnd;
+                        return false; // Stop searching
+                    }
+                }
+                return true; // Continue searching
+            }, IntPtr.Zero);
+
+            return found;
+        }
+
+        private IntPtr FindWindowByProcessName(string processName)
+        {
+            IntPtr found = IntPtr.Zero;
+
+            try
+            {
+                Process[] processes = Process.GetProcessesByName(processName);
+                if (processes.Length > 0)
+                {
+                    found = processes[0].MainWindowHandle;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Bloomberg] Error finding by process: {ex.Message}");
+            }
+
+            return found;
+        }
+
         private IntPtr FindWindowByTitle(string title)
         {
             IntPtr found = IntPtr.Zero;
             EnumWindows((hWnd, lParam) =>
             {
-                if (GetWindowText(hWnd, out string windowTitle) && windowTitle.Contains(title, StringComparison.OrdinalIgnoreCase))
+                if (GetWindowText(hWnd, out string windowTitle) &&
+                    windowTitle.Contains(title, StringComparison.OrdinalIgnoreCase))
                 {
                     found = hWnd;
-                    return false; // stop searching
+                    return false;
                 }
                 return true;
             }, IntPtr.Zero);
@@ -124,19 +265,9 @@ namespace FXOAiTranslator
                 return title;
             return "";
         }
-        public string DetermineCallOrPut(string tradeRequest)
-        {
-            // Add logic to determine if it's a Call or Put option
-            var lowerRequest = tradeRequest.ToLower();
 
-            if (lowerRequest.Contains("call") || lowerRequest.Contains("buy option"))
-                return "C";
-            else if (lowerRequest.Contains("put") || lowerRequest.Contains("sell option"))
-                return "P";
-            else
-                return "C"; // Default to Call
-        }
         // --- Win32 API Imports ---
+
         private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
         [DllImport("user32.dll")]
@@ -155,5 +286,8 @@ namespace FXOAiTranslator
 
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
     }
 }
