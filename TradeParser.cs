@@ -18,13 +18,16 @@ namespace FXOAiTranslator
 
         public TradeParser(BloombergService bloombergService, string openAIApiKey = null)
         {
+            Console.WriteLine("CONSTRUCTOR CALLED - VERSION 2024");
             _bloombergService = bloombergService;
 
             if (!string.IsNullOrEmpty(openAIApiKey))
             {
                 _openAI = new OpenAIService(openAIApiKey);
-                _patternLearner = new HybridPatternLearner(_openAI, _bloombergService, "");
+                _patternLearner = new HybridPatternLearner(_openAI, _bloombergService, "learned_patterns.json");
                 Console.WriteLine("[AI] OpenAI integration enabled");
+
+                
             }
             else
             {
@@ -38,10 +41,13 @@ namespace FXOAiTranslator
             DebugCallback?.Invoke(message);
         }
 
-        public async Task<TradeParseResult> ParseTradeAsync(string input)
+        public async Task<TradeParseResult> ParseTradeAsync(string input, bool forceAI = false)
         {
             if (string.IsNullOrWhiteSpace(input))
                 return null;
+
+            // Preprocess input to clean up common issues
+            input = PreprocessInput(input);
 
             // Prevent infinite loop: skip if it's already OVML
             if (input.StartsWith("OVML", StringComparison.OrdinalIgnoreCase))
@@ -51,17 +57,18 @@ namespace FXOAiTranslator
                 {
                     OVML = input,
                     Underlying = ExtractCurrencyPair(input),
-                    Expiry = ExtractExpiry(input),
+                    Expiry = NormalizeExpiry(ExtractExpiry(input)),
                     ParseMethod = "Already-OVML"
                 };
+                already.GenerateUBS();
                 _cache[input] = already;
                 return already;
             }
 
             input = input.Trim();
 
-            // Check cache first
-            if (_cache.TryGetValue(input, out var cached))
+            // Check cache first (skip cache if forcing AI)
+            if (!forceAI && _cache.TryGetValue(input, out var cached))
             {
                 LogDebug("DEBUG: Returning cached result for input.");
                 return cached;
@@ -76,231 +83,386 @@ namespace FXOAiTranslator
             LogDebug($"DEBUG: Extracted underlying: '{underlying}'");
             LogDebug($"DEBUG: Extracted expiry: '{expiry}'");
 
-            // Test against our known regex patterns
-            foreach (var pattern in RegexTradePatterns.Patterns)
+            // ADD EXPIRY VALIDATION HERE - Check if expiry extraction failed
+            if (expiry == "3M" && !input.ToLower().Contains("3m") && !input.ToLower().Contains("three month") && !forceAI)
             {
-                LogDebug($"DEBUG: Testing pattern: {pattern.Name}");
-                var match = pattern.Regex.Match(input);
+                LogDebug("DEBUG: Expiry extraction failed, forcing AI to interpret date");
 
-                if (match.Success)
+                // Show warning in UI (non-blocking)
+                MessageBox.Show(
+                    "Could not extract expiry date from input.\n\n" +
+                    "Using AI to interpret the date...",
+                    "Expiry Extraction Issue",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+
+                // Force AI to handle it - recursively call with forceAI=true
+                return await ParseTradeAsync(input, forceAI: true);
+            }
+
+            // Skip regex patterns if forceAI is true
+            if (!forceAI)
+            {
+                // Test against our known regex patterns
+                foreach (var pattern in RegexTradePatterns.Patterns)
                 {
-                    LogDebug($"DEBUG: MATCH FOUND for pattern: {pattern.Name}");
+                    LogDebug($"DEBUG: Testing pattern: {pattern.Name}");
+                    var match = pattern.Regex.Match(input);
 
-                    // Debug all captured groups
-                    foreach (Group group in match.Groups)
+                    if (match.Success)
                     {
-                        if (group.Success && !string.IsNullOrEmpty(group.Name) && group.Name != "0")
+                        LogDebug($"DEBUG: MATCH FOUND for pattern: {pattern.Name}");
+
+                        // Debug all captured groups
+                        foreach (string groupName in pattern.Regex.GetGroupNames())
                         {
-                            LogDebug($"DEBUG: Group '{group.Name}': '{group.Value}'");
+                            var group = match.Groups[groupName];
+                            if (group.Success && groupName != "0")
+                            {
+                                LogDebug($"DEBUG: Group '{groupName}': '{group.Value}'");
+                            }
                         }
-                    }
 
-                    var result = new TradeParseResult
-                    {
-                        ParseMethod = "Regex-" + pattern.Name,
-                        Underlying = underlying,
-                        Expiry = expiry
-                    };
+                        var result = new TradeParseResult
+                        {
+                            ParseMethod = "Regex-" + pattern.Name,
+                            Underlying = underlying,
+                            Expiry = expiry
+                        };
 
-                    // Spot reference
-                    string spot = "";
-                    var spotMatch = RegexTradePatterns.SpotRegex.Match(input);
-                    if (spotMatch.Success)
-                    {
-                        LogDebug($"DEBUG: Spot reference found: '{spotMatch.Groups["spot"].Value}'");
-                        spot = " SP" + spotMatch.Groups["spot"].Value;
+                        // Spot reference - track if explicitly provided
+                        string spot = "";
+                        bool spotExplicitlyProvided = false;
+
+                        var spotMatch = RegexTradePatterns.SpotRegex.Match(input);
+                        if (spotMatch.Success)
+                        {
+                            spot = spotMatch.Groups["spot"].Value.Replace(",", ".");
+                            spotExplicitlyProvided = true;
+                            LogDebug($"DEBUG: Spot reference found in input: '{spot}'");
+                        }
+                        else
+                        {
+                            // If no explicit spot in input, fetch live Bloomberg spot FOR CALCULATIONS ONLY
+                            if (_bloombergService != null && _bloombergService.IsConnected)
+                            {
+                                try
+                                {
+                                    var liveSpotTask = _bloombergService.GetSpotRate(underlying);
+                                    double? liveSpot = await liveSpotTask;
+
+                                    if (liveSpot.HasValue)
+                                    {
+                                        LogDebug($"DEBUG: Fetched Bloomberg spot for calculations (not for output): {liveSpot.Value}");
+                                        spot = liveSpot.Value.ToString("0.####", CultureInfo.InvariantCulture);
+                                    }
+                                    else
+                                    {
+                                        LogDebug("DEBUG: Live spot returned null, skipping spot ref.");
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    LogDebug($"DEBUG: Failed to fetch live spot: {ex.Message}");
+                                }
+                            }
+                        }
+
+                        try
+                        {
+                            switch (pattern.Name)
+                            {
+                                case "Vanilla_CurrencyLed":
+                                    LogDebug($"DEBUG: Processing Vanilla_CurrencyLed pattern");
+                                    result.LegCount = 1;
+
+                                    // Default to Buy (no explicit side in this pattern)
+                                    string optionType = match.Groups["type"].Value.ToUpper().StartsWith("C") ? "C" : "P";
+
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} " +
+                                                  $"B {match.Groups["strike"].Value}{optionType} " +
+                                                  $"N{match.Groups["notional"].Value}M VA" +
+                                                  spot;
+                                    break;
+
+                                case "Collar_BuyCallSellCallSellPut":
+                                    LogDebug($"DEBUG: Processing Collar_BuyCallSellCallSellPut pattern");
+                                    result.LegCount = 3;
+                                    result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
+                                                  $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C,{match.Groups["strike3"].Value}P " +
+                                                  $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
+                                    break;
+
+                                case "Seagull_BuyPutSellPutSellCall":
+                                    LogDebug($"DEBUG: Processing Seagull_BuyPutSellPutSellCall pattern");
+                                    result.LegCount = 3;
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 3L B,S,S " +
+                                                  $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P,{match.Groups["strike3"].Value}C " +
+                                                  $"N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
+                                    break;
+
+                                case "PutSpread_DifferentNotionals":
+                                    LogDebug("DEBUG: Processing PutSpread_DifferentNotionals pattern");
+                                    result.LegCount = 2;
+
+                                    double psd1 = double.Parse(match.Groups["strike1"].Value);
+                                    double psd2 = double.Parse(match.Groups["strike2"].Value);
+
+                                    string buyStrikePut, sellStrikePut, buyNotionalPut, sellNotionalPut;
+                                    if (psd1 > psd2)
+                                    {
+                                        buyStrikePut = match.Groups["strike1"].Value;
+                                        sellStrikePut = match.Groups["strike2"].Value;
+                                        buyNotionalPut = match.Groups["notional1"].Value;
+                                        sellNotionalPut = match.Groups["notional2"].Value;
+                                    }
+                                    else
+                                    {
+                                        buyStrikePut = match.Groups["strike2"].Value;
+                                        sellStrikePut = match.Groups["strike1"].Value;
+                                        buyNotionalPut = match.Groups["notional2"].Value;
+                                        sellNotionalPut = match.Groups["notional1"].Value;
+                                    }
+
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {buyStrikePut}P,{sellStrikePut}P N{buyNotionalPut}M,{sellNotionalPut}M VA" +
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
+                                    break;
+
+                                case "CallSpread_DifferentNotionals":
+                                    LogDebug("DEBUG: Processing CallSpread_DifferentNotionals pattern");
+                                    result.LegCount = 2;
+
+                                    double csd1 = double.Parse(match.Groups["strike1"].Value);
+                                    double csd2 = double.Parse(match.Groups["strike2"].Value);
+
+                                    string buyStrikeCall, sellStrikeCall, buyNotionalCall, sellNotionalCall;
+                                    if (csd1 < csd2)
+                                    {
+                                        buyStrikeCall = match.Groups["strike1"].Value;
+                                        sellStrikeCall = match.Groups["strike2"].Value;
+                                        buyNotionalCall = match.Groups["notional1"].Value;
+                                        sellNotionalCall = match.Groups["notional2"].Value;
+                                    }
+                                    else
+                                    {
+                                        buyStrikeCall = match.Groups["strike2"].Value;
+                                        sellStrikeCall = match.Groups["strike1"].Value;
+                                        buyNotionalCall = match.Groups["notional2"].Value;
+                                        sellNotionalCall = match.Groups["notional1"].Value;
+                                    }
+
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {buyStrikeCall}C,{sellStrikeCall}C N{buyNotionalCall}M,{sellNotionalCall}M VA" +
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
+                                    break;
+
+                                case "RiskReversal_PutCall":
+                                case "RiskReversal_CallPut":
+                                    LogDebug($"DEBUG: Processing {pattern.Name} pattern");
+                                    result.LegCount = 2;
+                                    result.OVML = RegexTradePatterns.BuildRiskReversalOVML(result.Underlying, match, result.Expiry, spot);
+                                    break;
+
+                                case "Vanilla":
+                                    LogDebug($"DEBUG: Processing Vanilla pattern");
+                                    result.LegCount = 1;
+                                    string side = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
+                                    string vanillaType = match.Groups["type"].Value.Substring(0, 1).ToUpper();
+                                    result.OVML = $"OVML {result.Underlying} 1L {side} " +
+                                                  $"{match.Groups["strike"].Value}{vanillaType} " +  // ✅ Change this line
+                                                  $"{result.Expiry} N{match.Groups["notional"].Value}M" +
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
+                                
+                                    break;
+
+                                case "Simple_Vanilla":
+                                    LogDebug($"DEBUG: Processing Simple_Vanilla pattern");
+                                    result.LegCount = 1;
+                                    string s = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
+                                    string t = match.Groups["type"].Value.Substring(0, 1).ToUpper();
+                                    result.OVML = $"OVML {result.Underlying} 1L {s} " +
+                                                  $"{match.Groups["strike"].Value}{t} " +
+                                                  $"{result.Expiry} N{match.Groups["notional"].Value}M" +
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
+                                    break;
+
+                                case "Straddle":
+                                    LogDebug("DEBUG: Processing Straddle pattern");
+                                    result.LegCount = 2;
+
+                                    {
+                                        var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
+                                        string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
+
+                                        string n1 = match.Groups["notional1"].Value;
+                                        string n2 = match.Groups["notional2"].Success ? match.Groups["notional2"].Value : n1;
+
+                                        result.OVML =
+                                            $"OVML {result.Underlying} 2L {sidePair} ATMS, ATMS C,P {result.Expiry} N{n1}M,{n2}M VA" +
+                                            (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
+                                    }
+                                    break;
+
+                                case "Strangle_Keyword":
+                                    LogDebug("DEBUG: Processing Strangle_Keyword pattern");
+                                    result.LegCount = 2;
+
+                                    {
+                                        var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
+                                        string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
+
+                                        string n = match.Groups["notional"].Value;
+                                        string kPut = match.Groups["strike1"].Value;
+                                        string kCall = match.Groups["strike2"].Value;
+
+                                        result.OVML =
+                                            $"OVML {result.Underlying} 2L {sidePair} {kPut}P,{kCall}C {result.Expiry} N{n}M,{n}M" +
+                                            (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
+                                    }
+                                    break;
+
+                                case "CallSpread_Market":
+                                    LogDebug($"DEBUG: Processing CallSpread_Market pattern");
+                                    result.LegCount = 2;
+
+                                    string notional = match.Groups["notional"].Value;
+                                    string strike1 = match.Groups["strike1"].Value;
+                                    string strike2 = match.Groups["strike2"].Value;
+
+                                    double s1 = double.Parse(strike1);
+                                    double s2 = double.Parse(strike2);
+
+                                    if (s1 < s2)
+                                    {
+                                        result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
+                                                      $"{strike1}C,{strike2}C N{notional}M,{notional}M VA" +
+                                                      (spotExplicitlyProvided ? " SP" + spot : "");
+                                    }
+                                    else
+                                    {
+                                        result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
+                                                      $"{strike2}C,{strike1}C N{notional}M,{notional}M VA" +
+                                                      (spotExplicitlyProvided ? " SP" + spot : "");
+                                    }
+                                    break;
+
+                                case "PutSpread_Short":
+                                    LogDebug("DEBUG: Processing PutSpread_Short pattern");
+                                    result.LegCount = 2;
+
+                                    double ps1 = double.Parse(match.Groups["strike1"].Value);
+                                    double ps2 = double.Parse(match.Groups["strike2"].Value);
+
+                                    string putLow = ps1 < ps2 ? match.Groups["strike1"].Value : match.Groups["strike2"].Value;
+                                    string putHigh = ps1 < ps2 ? match.Groups["strike2"].Value : match.Groups["strike1"].Value;
+
+                                    string notionalPS = match.Groups["notional"].Value;
+
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {putHigh}P,{putLow}P N{notionalPS}M,{notionalPS}M VA" +
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
+                                    break;
+
+                                case "CallSpread_Short":
+                                    LogDebug("DEBUG: Processing CallSpread_Short pattern");
+                                    result.LegCount = 2;
+
+                                    double cs1 = double.Parse(match.Groups["strike1"].Value);
+                                    double cs2 = double.Parse(match.Groups["strike2"].Value);
+
+                                    string callLow = cs1 < cs2 ? match.Groups["strike1"].Value : match.Groups["strike2"].Value;
+                                    string callHigh = cs1 < cs2 ? match.Groups["strike2"].Value : match.Groups["strike1"].Value;
+
+                                    string notionalCS = match.Groups["notional"].Value;
+
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {callLow}C,{callHigh}C N{notionalCS}M,{notionalCS}M VA" +
+                                                  (spotExplicitlyProvided ? " SP" + spot : "");
+                                    break;
+
+                                default:
+                                    LogDebug($"DEBUG: Unknown pattern name: {pattern.Name}");
+                                    throw new Exception($"Unknown pattern: {pattern.Name}");
+                            }
+
+                            // Normalize outputs
+                            result.OVML = NormalizeOVMLDates(result.OVML);
+                            result.Expiry = NormalizeExpiry(result.Expiry);
+                            result.GenerateUBS(); // Generate UBS format
+
+                            LogDebug($"DEBUG: Generated OVML: '{result.OVML}'");
+                            LogDebug($"DEBUG: Generated UBS: '{result.UBS}'");
+                            LogDebug($"[RegexParser] Matched {pattern.Name}: {result.OVML}");
+
+                            _cache[input] = result; // Cache the result
+                            return result;
+                        }
+                        catch (Exception ex)
+                        {
+                            LogDebug($"DEBUG: Exception in switch statement: {ex.Message}");
+                            LogDebug($"DEBUG: Exception stack trace: {ex.StackTrace}");
+                            throw;
+                        }
                     }
                     else
                     {
-                        // If no explicit spot in input, fetch live Bloomberg spot
-                        if (_bloombergService != null && _bloombergService.IsConnected)
-                        {
-                            try
-                            {
-                                var liveSpotTask = _bloombergService.GetSpotRate(underlying);
-                                double? liveSpot = await liveSpotTask;
-
-                                if (liveSpot.HasValue)
-                                {
-                                    LogDebug($"DEBUG: No spot in input, using live Bloomberg spot: {liveSpot.Value}");
-                                    spot = " SP" + liveSpot.Value.ToString("0.####", CultureInfo.InvariantCulture);
-                                }
-                                else
-                                {
-                                    LogDebug("DEBUG: Live spot returned null, skipping spot ref.");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                LogDebug($"DEBUG: Failed to fetch live spot: {ex.Message}");
-                            }
-                        }
+                        LogDebug($"DEBUG: No match for pattern: {pattern.Name}");
                     }
+                }
+            }
+            else
+            {
+                LogDebug("DEBUG: Force AI requested, skipping regex patterns...");
+            }
 
-                    try
-                    {
-                        switch (pattern.Name)
-                        {
-                            case "Collar_BuyCallSellCallSellPut":
-                                LogDebug($"DEBUG: Processing Collar_BuyCallSellCallSellPut pattern");
-                                result.LegCount = 3;
-                                result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
-                                              $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C,{match.Groups["strike3"].Value}P " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
-                                              spot;
-                                break;
+            // === AI fallback ===
+            LogDebug($"DEBUG: No regex patterns matched. Falling back to AI...");
+            LogDebug("[Parser] Falling back to AI...");
 
-                            case "PutSpread_Market":
-                                LogDebug($"DEBUG: Processing PutSpread_Market pattern");
-                                result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L S,B " +
-                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P " +
-                                              $"{result.Expiry} N{match.Groups["notional"].Value}M,{match.Groups["notional"].Value}M" +
-                                              spot;
-                                break;
+            // Try to capture explicit spot from input
+            string explicitSpot = "";
+            bool aiSpotExplicit = false;  // ADD THIS LINE
 
-                            case "CallSpread_Market":
-                                LogDebug($"DEBUG: Processing CallSpread_Market pattern");
-                                result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                              $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C " +
-                                              $"{result.Expiry} N{match.Groups["notional"].Value}M,{match.Groups["notional"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "RiskReversal_Market":
-                                LogDebug($"DEBUG: Processing RiskReversal_Market pattern");
-                                result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}C " +
-                                              $"{result.Expiry} N{match.Groups["notional"].Value}M,{match.Groups["notional"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "Vanilla":
-                                LogDebug($"DEBUG: Processing Vanilla pattern");
-                                result.LegCount = 1;
-                                result.OVML = $"OVML {result.Underlying} 1L " +
-                                              (match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S") +
-                                              $" {match.Groups["strike"].Value}{match.Groups["type"].Value.Substring(0, 1).ToUpper()} " +
-                                              $"{result.Expiry} N{match.Groups["notional"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "Simple_Vanilla":
-                                LogDebug($"DEBUG: Processing Simple_Vanilla pattern");
-                                result.LegCount = 1;
-                                string side = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
-                                string optionType = match.Groups["type"].Value.Substring(0, 1).ToUpper();
-                                result.OVML = $"OVML {result.Underlying} 1L {side} " +
-                                              $"{match.Groups["strike"].Value}{optionType} " +
-                                              $"{result.Expiry} N{match.Groups["notional"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "RiskReversal_PutCall":
-                                LogDebug($"DEBUG: Processing RiskReversal_PutCall pattern");
-                                LogDebug($"DEBUG: strike1='{match.Groups["strike1"].Value}', notional1='{match.Groups["notional1"].Value}'");
-                                LogDebug($"DEBUG: strike2='{match.Groups["strike2"].Value}', notional2='{match.Groups["notional2"].Value}'");
-
-                                result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}C " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "RiskReversal_CallPut":
-                                LogDebug($"DEBUG: Processing RiskReversal_CallPut pattern");
-                                result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L B,S " +
-                                              $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}P " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "Strangle_Long":
-                                LogDebug($"DEBUG: Processing Strangle_Long pattern");
-                                result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L B,B " +
-                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}C " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "Strangle_Short":
-                                LogDebug($"DEBUG: Processing Strangle_Short pattern");
-                                result.LegCount = 2;
-                                result.OVML = $"OVML {result.Underlying} 2L S,S " +
-                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}C " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "Seagull":
-                                LogDebug($"DEBUG: Processing Seagull pattern");
-                                result.LegCount = 3;
-                                result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
-                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P,{match.Groups["strike3"].Value}C " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "Seagull_CallLed":
-                                LogDebug($"DEBUG: Processing Seagull_CallLed pattern");
-                                result.LegCount = 3;
-                                result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
-                                              $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C,{match.Groups["strike3"].Value}P " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
-                                              spot;
-                                break;
-
-                            case "Seagull_BuyPutSellPutSellCall":
-                                LogDebug($"DEBUG: Processing Seagull_BuyPutSellPutSellCall pattern");
-                                result.LegCount = 3;
-                                result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
-                                              $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P,{match.Groups["strike3"].Value}C " +
-                                              $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
-                                              spot;
-                                break;
-
-                            default:
-                                LogDebug($"DEBUG: Unknown pattern name: {pattern.Name}");
-                                throw new Exception($"Unknown pattern: {pattern.Name}");
-                        }
-
-                        // Normalize date format in OVML before returning
-                        result.OVML = NormalizeOVMLDates(result.OVML);
-
-                        LogDebug($"DEBUG: Generated OVML: '{result.OVML}'");
-                        LogDebug($"[RegexParser] Matched {pattern.Name}: {result.OVML}");
-
-                        _cache[input] = result; // Cache the result
-                        return result;
-                    }
-                    catch (Exception ex)
-                    {
-                        LogDebug($"DEBUG: Exception in switch statement: {ex.Message}");
-                        LogDebug($"DEBUG: Exception stack trace: {ex.StackTrace}");
-                        throw;
-                    }
+            var aiSpotMatch = RegexTradePatterns.SpotRegex.Match(input);
+            if (aiSpotMatch.Success)
+            {
+                explicitSpot = aiSpotMatch.Groups["spot"].Value.Replace(",", ".");
+                aiSpotExplicit = true;  // ADD THIS LINE
+                LogDebug($"DEBUG: Explicit spot extracted for AI fallback: '{explicitSpot}'");
+            }
+            else
+            {
+                // Check for "s.r" format with space: "s.r 9.697"
+                var srDotMatch = Regex.Match(input, @"\bs\.?\s*r\.?\s+(?<spot>\d+\.?\d*)", RegexOptions.IgnoreCase);
+                if (srDotMatch.Success)
+                {
+                    explicitSpot = srDotMatch.Groups["spot"].Value;
+                    aiSpotExplicit = true;  // ADD THIS LINE
+                    LogDebug($"DEBUG: Explicit spot (s.r format) extracted: '{explicitSpot}'");
                 }
                 else
                 {
-                    LogDebug($"DEBUG: No match for pattern: {pattern.Name}");
+                    // Also check for "v" format: "v9.9600"
+                    var vMatch = Regex.Match(input, @"\bv\s*(?<spot>\d+\.?\d*)", RegexOptions.IgnoreCase);
+                    if (vMatch.Success)
+                    {
+                        explicitSpot = vMatch.Groups["spot"].Value;
+                        aiSpotExplicit = true;  // ADD THIS LINE
+                        LogDebug($"DEBUG: Explicit spot (v format) extracted: '{explicitSpot}'");
+                    }
                 }
             }
-
-            LogDebug($"DEBUG: No regex patterns matched. Falling back to AI...");
-            LogDebug("[Parser] Falling back to AI...");
             try
             {
-                var aiResult = await ParseWithAI(input);
+                var aiResult = await ParseWithAI(input, explicitSpot, bypassPatternMatching: forceAI);
 
+          
                 // Correction: override AI expiry if regex extracted a better one
                 if (!string.IsNullOrWhiteSpace(expiry) &&
                     expiry != "3M" &&
-                    aiResult.Expiry != expiry)
+                    aiResult.Expiry != expiry &&
+                    !aiResult.Expiry.Contains(",") &&      // ADD THIS - Don't override calendar spreads
+                    !aiResult.OVML.Contains(","))          // ADD THIS - Don't override if OVML has multiple expiries
                 {
                     LogDebug($"DEBUG: Corrected AI expiry from {aiResult.Expiry} → {expiry}");
                     aiResult.Expiry = expiry;
@@ -318,11 +480,15 @@ namespace FXOAiTranslator
                     aiResult.OVML = string.Join(" ", parts);
                 }
 
-                // Normalize OVML dates
+                // Normalize both expiry + OVML
                 aiResult.OVML = NormalizeOVMLDates(aiResult.OVML);
+                aiResult.OVML = aiResult.OVML.Trim('"', '\'');  // Remove stray quotes
+                aiResult.Expiry = NormalizeExpiry(aiResult.Expiry);
+                aiResult.GenerateUBS(); // Generate UBS format
 
                 LogDebug($"DEBUG: AI Success - ParseMethod: '{aiResult.ParseMethod}'");
                 LogDebug($"DEBUG: AI Success - OVML: '{aiResult.OVML}'");
+                LogDebug($"DEBUG: AI Success - UBS: '{aiResult.UBS}'");
 
                 _cache[input] = aiResult; // Cache AI result
                 return aiResult;
@@ -334,7 +500,7 @@ namespace FXOAiTranslator
                 {
                     OVML = "",
                     Underlying = ExtractCurrencyPair(input),
-                    Expiry = ExtractExpiry(input),
+                    Expiry = NormalizeExpiry(ExtractExpiry(input)),
                     ParseMethod = "AI-Error"
                 };
 
@@ -346,21 +512,131 @@ namespace FXOAiTranslator
             }
         }
 
-        // OpenAI integration
-        private async Task<TradeParseResult> ParseWithAI(string input)
+        private string PreprocessInput(string input)
         {
+            if (string.IsNullOrWhiteSpace(input))
+                return input;
+
+            // 1. Strip extra whitespace
+            input = Regex.Replace(input, @"\s+", " "); // Multiple spaces to single space
+            input = Regex.Replace(input, @"[\r\n]+", "\n"); // Multiple newlines to single newline
+            input = input.Trim();
+
+            // 2a. Join separated currency pairs (usd nok → USDNOK)
+            input = Regex.Replace(input, @"\b(USD|EUR|GBP|NOK|SEK)\s+(NOK|SEK|USD|EUR|GBP)\b", "$1$2", RegexOptions.IgnoreCase);
+
+            // 2b. Normalize currency pair capitalization
+            var currencyPairs = new[] { "EURSEK", "USDSEK", "USDNOK", "EURNOK", "GBPSEK", "NOKSEK", "EURUSD", "GBPUSD" };
+            foreach (var pair in currencyPairs)
+            {
+                input = Regex.Replace(input, pair, pair, RegexOptions.IgnoreCase);
+            }
+
+            // 3. Fix common Swedish/Norwegian character issues
+            var charReplacements = new Dictionary<string, string>
+    {
+        { "kopa", "köpa" },
+        { "salja", "sälja" },
+        { "salj", "sälj" },
+        { "forfall", "förfall" },
+      
+        { "mio", "mio" }, // Already correct, but included for completeness
+    };
+
+            foreach (var replacement in charReplacements)
+            {
+                input = Regex.Replace(input, $@"\b{replacement.Key}\b", replacement.Value, RegexOptions.IgnoreCase);
+            }
+
+            // 4. Normalize decimal separators in context (handle European format)
+            // Only replace commas with periods when they're clearly decimals (between digits)
+            input = Regex.Replace(input, @"(\d),(\d)", "$1.$2");
+
+            LogDebug($"DEBUG: Preprocessed input: '{input}'");
+
+            return input;
+        }
+
+        // === AI integration ===
+        private async Task<TradeParseResult> ParseWithAI(string input, string explicitSpot = "", bool bypassPatternMatching = false)
+        {
+            Console.WriteLine($"[DEBUG] _patternLearner is null: {_patternLearner == null}");
             if (_patternLearner == null)
             {
                 await Task.Delay(10);
                 throw new NotImplementedException("AI parser not configured - no OpenAI API key provided.");
             }
-
             string underlying = ExtractCurrencyPair(input);
             string expiry = ExtractExpiry(input);
-
-            return await _patternLearner.ParseWithAI(input, underlying, expiry);
+            LogDebug("[TradeParser] About to call HybridPatternLearner.ParseWithAI...");
+            var result = await _patternLearner.ParseWithAI(input, underlying, expiry, explicitSpot, bypassPatternMatching);
+            LogDebug($"[TradeParser] HybridPatternLearner returned: {result.ParseMethod}");
+            return result;
         }
 
+        // === Learning Test Method ===
+        public async Task<string> TestAILearning()
+        {
+            Console.WriteLine("=== TESTING AI LEARNING SYSTEM ===");
+
+            try
+            {
+                // Check if AI is available
+                if (_openAI == null)
+                {
+                    return "FAILED: OpenAI not initialized";
+                }
+
+                Console.WriteLine("OpenAI service is available");
+
+                // Create test input/output pair
+                string testInput = "GBPNOK: 25 mio\\n5mth gbp put nok call 20 delta";
+                string testOVML = "OVML GBPNOK 5M P DS20 B N25M VA SP13.3454";
+
+                Console.WriteLine($"Test Input: {testInput}");
+                Console.WriteLine($"Test OVML: {testOVML}");
+
+                // Test AI pattern analysis
+                var analysisPrompt = $@"Analyze this FX options parsing example and create a regex pattern:
+
+INPUT: ""{testInput}""
+OUTPUT: ""{testOVML}""
+
+Generate a regex pattern for similar inputs. Respond in JSON format:
+{{
+    ""name"": ""Test-Pattern-{DateTime.Now:yyyyMMdd-HHmmss}"",
+    ""regexPattern"": ""your regex here"",
+    ""description"": ""brief description"",
+    ""strategyType"": ""RISK_REVERSAL""
+}}";
+
+                Console.WriteLine("Calling OpenAI for pattern analysis...");
+                var response = await _openAI.GetChatCompletion(analysisPrompt, "gpt-4o-mini");
+                var aiAnalysis = response.choices[0].message.content.Trim();
+
+                Console.WriteLine($"AI Response: {aiAnalysis}");
+
+                // Try to extract JSON
+                var jsonMatch = Regex.Match(aiAnalysis, @"\{.*\}", RegexOptions.Singleline);
+                if (jsonMatch.Success)
+                {
+                    Console.WriteLine($"JSON extracted successfully: {jsonMatch.Value}");
+                    return "LEARNING TEST PASSED: AI created pattern successfully";
+                }
+                else
+                {
+                    Console.WriteLine("No valid JSON found in AI response");
+                    return "LEARNING TEST PARTIAL: AI responded but no JSON found";
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Learning Test Error: {ex.Message}");
+                return $"LEARNING TEST ERROR: {ex.Message}";
+            }
+        }
+
+        // === Currency extraction ===
         private string ExtractCurrencyPair(string input)
         {
             try
@@ -368,11 +644,11 @@ namespace FXOAiTranslator
                 LogDebug($"DEBUG: ExtractCurrencyPair input: '{input}'");
 
                 string[] commonPairs = {
-                    "EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD",
-                    "USDCAD", "NZDUSD", "EURSEK", "EURNOK", "USDNOK",
-                    "EURJPY", "GBPJPY", "AUDJPY", "EURAUD", "EURGBP",
-                    "USDSEK"
-                };
+            "EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD",
+            "USDCAD", "NZDUSD", "EURSEK", "EURNOK", "USDNOK",
+            "EURJPY", "GBPJPY", "AUDJPY", "EURAUD", "EURGBP",
+            "USDSEK", "GBPNOK", "NOKSEK", "SEKEUR", "SEKNOK"
+        };
 
                 string upper = input.ToUpper();
                 foreach (var pair in commonPairs)
@@ -384,6 +660,36 @@ namespace FXOAiTranslator
                     }
                 }
 
+                // Clean input by removing option-related words AND buy/sell variants before currency extraction
+                string cleanInput = Regex.Replace(input,
+                    @"\b(put|call|spread|option|straddle|strangle|buy|sell|köp|köpa|köper|sälj|säljer|kjøp|kjøpe|kjøper|selg|selger|prisa|cs)\b",
+                    " ",
+                    RegexOptions.IgnoreCase);
+                LogDebug($"DEBUG: Cleaned input for currency extraction: '{cleanInput}'");
+
+                // Look for two 3-letter currency codes
+                var matches = Regex.Matches(cleanInput.ToUpper(), @"\b([A-Z]{3})\b");
+                if (matches.Count >= 2)
+                {
+                    string ccy1 = matches[0].Groups[1].Value;
+                    string ccy2 = matches[1].Groups[1].Value;
+
+                    // Validate they are actual currency codes (extended list)
+                    string[] validCurrencies = {
+                "EUR", "USD", "GBP", "JPY", "CHF", "AUD", "CAD", "NZD",
+                "SEK", "NOK", "DKK", "PLN", "CZK", "HUF", "RUB", "CNY",
+                "HKD", "SGD", "THB", "MXN", "ZAR", "BRL", "KRW", "INR"
+            };
+
+                    if (validCurrencies.Contains(ccy1) && validCurrencies.Contains(ccy2))
+                    {
+                        string result = ccy1 + ccy2;
+                        LogDebug($"DEBUG: Extracted currency pair from clean input: '{result}'");
+                        return result;
+                    }
+                }
+
+                // Fallback: original regex pattern on original input
                 var match = Regex.Match(upper, @"\b([A-Z]{3})\s*[/]?\s*([A-Z]{3})\b");
                 if (match.Success)
                 {
@@ -402,122 +708,288 @@ namespace FXOAiTranslator
             }
         }
 
+        // === Expiry extraction ===
         private string ExtractExpiry(string input)
         {
             try
             {
                 LogDebug($"DEBUG: ExtractExpiry input: '{input}'");
+                LogDebug("DEBUG: EXPIRY METHOD UPDATED - Version 4.0");
 
                 var monthNames = new[] { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
                 var fullMonthNames = new[] { "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
 
-                // FIRST: Format "2 feb 2026" - Full date with year (MOVED TO FIRST POSITION)
-                var dateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})\s+(?<month>[A-Za-z]+)\s+(?<year>\d{4})\b", RegexOptions.IgnoreCase);
+                // Swedish months
+                var swedishMonths = new[] { "JANUARI", "FEBRUARI", "MARS", "APRIL", "MAJ", "JUNI", "JULI", "AUGUSTI", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DECEMBER" };
+                var swedishShortMonths = new[] { "JAN", "FEB", "MAR", "APR", "MAJ", "JUN", "JUL", "AUG", "SEP", "OKT", "NOV", "DEC" };
+
+                // Norwegian months
+                var norwegianMonths = new[] { "JANUAR", "FEBRUARI", "MARS", "APRIL", "MAI", "JUNI", "JULI", "AUGUST", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER" };
+
+                // Helper method to normalize month names
+                string NormalizeMonth(string month)
+                {
+                    month = month.ToUpper();
+
+                    // Check Norwegian months
+                    for (int i = 0; i < norwegianMonths.Length; i++)
+                    {
+                        if (month == norwegianMonths[i]) return monthNames[i];
+                    }
+
+                    // Check Swedish months
+                    for (int i = 0; i < swedishMonths.Length; i++)
+                    {
+                        if (month == swedishMonths[i]) return monthNames[i];
+                    }
+
+                    // Check Swedish short months
+                    for (int i = 0; i < swedishShortMonths.Length; i++)
+                    {
+                        if (month == swedishShortMonths[i]) return monthNames[i];
+                    }
+
+                    // Check English months
+                    for (int i = 0; i < fullMonthNames.Length; i++)
+                    {
+                        if (month == fullMonthNames[i]) return monthNames[i];
+                    }
+
+                    // If already 3-letter format, return as-is
+                    if (month.Length == 3) return month;
+                    if (month.Length > 3) return month.Substring(0, 3).ToUpper();
+
+                    return month;
+                }
+
+                // 1. Full date with year: "11 nov 2025", "12e juni 2026", "2 feb 2026"
+                LogDebug("DEBUG: Testing full date pattern...");
+                var dateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})e?\s+(?<month>[A-Za-zåäöæøé]+)\s+(?<year>\d{4})\b", RegexOptions.IgnoreCase);
                 if (dateMatch.Success)
                 {
                     string day = dateMatch.Groups["day"].Value;
-                    string month = dateMatch.Groups["month"].Value.ToUpper();
+                    string month = dateMatch.Groups["month"].Value;
                     string year = dateMatch.Groups["year"].Value;
 
+                    LogDebug($"DEBUG: Full date pattern matched: {dateMatch.Value}");
                     LogDebug($"DEBUG: Matched date - day: '{day}', month: '{month}', year: '{year}'");
 
-                    // Convert full month names to 3-letter abbreviations
-                    for (int i = 0; i < fullMonthNames.Length; i++)
+                    string normalizedMonth = NormalizeMonth(month);
+
+                    // Validate it's a real month
+                    if (normalizedMonth.Length != 3 || Array.IndexOf(monthNames, normalizedMonth) == -1)
                     {
-                        if (month == fullMonthNames[i])
-                        {
-                            month = monthNames[i];
-                            break;
-                        }
+                        LogDebug($"DEBUG: Skipping - '{month}' not recognized as a valid month");
+                        // Don't return, continue to next pattern
                     }
-
-                    // Ensure month is 3 characters max
-                    if (month.Length > 3)
+                    else
                     {
-                        month = month.Substring(0, 3).ToUpper();
+                        int dayInt = int.Parse(day);
+                        int yearInt = int.Parse(year);
+                        int shortYear = yearInt % 100;
+
+                        string result = $"{dayInt:D2}{normalizedMonth}{shortYear:D2}";
+                        LogDebug($"DEBUG: Final expiry: '{result}'");
+                        return result;
                     }
-
-                    LogDebug($"DEBUG: Converted month: '{month}'");
-
-                    int dayInt = int.Parse(day);
-                    int yearInt = int.Parse(year);
-                    int shortYear = yearInt % 100;
-
-                    string result = $"{dayInt:D2}{month}{shortYear:D2}";
-                    LogDebug($"DEBUG: Final expiry: '{result}'");
-                    return result;
                 }
 
-                // SECOND: Bloomberg-style date: 17Sep25
-                var bloombergDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>[A-Za-z]{3})(?<year>\d{2})\b", RegexOptions.IgnoreCase);
+                // 2. Bloomberg style: 17Sep25 - with month validation (English only)
+                LogDebug("DEBUG: Testing Bloomberg date pattern...");
+                var bloombergDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)(?<year>\d{2})\b", RegexOptions.IgnoreCase);
                 if (bloombergDateMatch.Success)
                 {
+                    LogDebug($"DEBUG: Bloomberg date pattern matched: {bloombergDateMatch.Value}");
                     string day = bloombergDateMatch.Groups["day"].Value;
                     string month = bloombergDateMatch.Groups["month"].Value.ToUpper();
                     string year = bloombergDateMatch.Groups["year"].Value;
 
-                    LogDebug($"DEBUG: Matched Bloomberg date - day: '{day}', month: '{month}', year: '{year}'");
+                    if (month == "SEPT") month = "SEP";
+
                     return $"{int.Parse(day):D2}{month}{year}";
                 }
 
-                // THIRD: FX Market date format: 14Oct (day + 3-letter month, no year) - MOVED TO THIRD POSITION
-                var fxDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>[A-Za-z]{3})\b", RegexOptions.IgnoreCase);
-                if (fxDateMatch.Success)
+                // 3. Day + month without year - multilingual support
+                LogDebug("DEBUG: Testing day + month pattern...");
+                var dayMonthMatches = Regex.Matches(input, @"\b(?<day>\d{1,2})e?\s+(?<month>[A-Za-zåäöæøé]{3,})\b", RegexOptions.IgnoreCase);
+
+                foreach (Match dayMonthMatch in dayMonthMatches)
                 {
-                    string day = fxDateMatch.Groups["day"].Value;
-                    string month = fxDateMatch.Groups["month"].Value.ToUpper();
+                    LogDebug($"DEBUG: Day + month pattern matched: {dayMonthMatch.Value}");
+                    string day = dayMonthMatch.Groups["day"].Value;
+                    string month = dayMonthMatch.Groups["month"].Value;
 
-                    LogDebug($"DEBUG: Matched FX date - day: '{day}', month: '{month}' (assuming current year)");
+                    string normalizedMonth = NormalizeMonth(month);
 
-                    // Get current year dynamically
+                    // Skip if month normalization failed (not a real month)
+                    if (normalizedMonth.Length != 3 || Array.IndexOf(monthNames, normalizedMonth) == -1)
+                    {
+                        LogDebug($"DEBUG: Skipping - '{month}' not recognized as a valid month");
+                        continue;
+                    }
+
                     int currentYear = DateTime.Now.Year;
                     int shortYear = currentYear % 100;
 
-                    // Handle year rollover logic
-                    DateTime currentDate = DateTime.Now;
-                    DateTime targetDate;
-
-                    // Parse the month to get the month number
-                    int monthIndex = Array.IndexOf(monthNames, month);
-                    if (monthIndex == -1)
+                    int monthIndex = Array.IndexOf(monthNames, normalizedMonth);
+                    if (monthIndex >= 0)
                     {
-                        LogDebug($"DEBUG: Invalid month '{month}', defaulting to current year");
-                        targetDate = new DateTime(currentYear, 1, int.Parse(day)); // Default to January if month not found
-                    }
-                    else
-                    {
-                        targetDate = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
+                        DateTime target = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
+                        if (target < DateTime.Now.AddDays(-5))
+                            currentYear++;
                     }
 
-                    // If the target date is in the past (more than 30 days ago), assume next year
-                    if (targetDate < currentDate.AddDays(-30))
-                    {
-                        currentYear++;
-                        shortYear = currentYear % 100;
-                        LogDebug($"DEBUG: Date appears to be in the past, using next year: {currentYear}");
-                    }
-
-                    string result = $"{int.Parse(day):D2}{month}{shortYear:D2}";
-                    LogDebug($"DEBUG: FX date result: '{result}' (year: {currentYear})");
-                    return result;
+                    shortYear = currentYear % 100;
+                    return $"{int.Parse(day):D2}{normalizedMonth}{shortYear:D2}";
                 }
 
-                // FOURTH: Tenor: 3M, 2Y, etc.
-                var tenorMatch = Regex.Match(input, @"\b(\d+)\s*(mth|[DWMY])\b", RegexOptions.IgnoreCase);
-                if (tenorMatch.Success)
+                // 4. FX date without year: 14Oct - with month validation (English only)
+                LogDebug("DEBUG: Testing FX date pattern...");
+                var fxDateMatch = Regex.Match(input, @"\b(?<day>\d{1,2})(?<month>JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)\b", RegexOptions.IgnoreCase);
+                if (fxDateMatch.Success)
                 {
-                    string number = tenorMatch.Groups[1].Value;
-                    string period = tenorMatch.Groups[2].Value.ToUpper();
+                    LogDebug($"DEBUG: FX date pattern matched: {fxDateMatch.Value}");
+                    string day = fxDateMatch.Groups["day"].Value;
+                    string month = fxDateMatch.Groups["month"].Value.ToUpper();
 
-                    // Convert "mth" to "M"
-                    if (period == "MTH") period = "M";
+                    if (month == "SEPT") month = "SEP";
 
-                    string result = number + period;
-                    LogDebug($"DEBUG: Found tenor: '{result}'");
+                    int currentYear = DateTime.Now.Year;
+                    int shortYear = currentYear % 100;
+
+                    int monthIndex = Array.IndexOf(monthNames, month);
+                    if (monthIndex >= 0)
+                    {
+                        DateTime targetDate = new DateTime(currentYear, monthIndex + 1, int.Parse(day));
+
+                        // If date is in the past, use next year
+                        if (targetDate < DateTime.Now.Date)
+                        {
+                            currentYear++;
+                            LogDebug($"DEBUG: Date in past, using next year: {currentYear}");
+                        }
+
+                        shortYear = currentYear % 100;
+                        shortYear = currentYear % 100;
+                    }
+
+                    return $"{int.Parse(day):D2}{month}{shortYear:D2}";
+                }
+                // 5. Four-digit format without year (MMDD or DDMM): exp 0612
+                LogDebug("DEBUG: Testing four-digit date format...");
+                var shortDateMatch = Regex.Match(input, @"\bexp\s*(\d{4})\b", RegexOptions.IgnoreCase);
+                if (shortDateMatch.Success)
+                {
+                    string digits = shortDateMatch.Groups[1].Value;
+                    int month = int.Parse(digits.Substring(0, 2));
+                    int day = int.Parse(digits.Substring(2, 2));
+
+                    LogDebug($"DEBUG: Four-digit format matched: {digits}");
+
+                    // Swap if month > 12 (it's DDMM format)
+                    if (month > 12)
+                    {
+                        (month, day) = (day, month);
+                        LogDebug($"DEBUG: Swapped to DDMM format - day: {day}, month: {month}");
+                    }
+
+                    // Determine year: use current year if date hasn't passed, otherwise next year
+                    int currentYear = DateTime.Now.Year;
+                    DateTime targetDate = new DateTime(currentYear, month, day);
+
+                    if (targetDate < DateTime.Now)
+                    {
+                        targetDate = targetDate.AddYears(1);
+                        LogDebug($"DEBUG: Date in past, using next year: {targetDate.Year}");
+                    }
+
+                    string monthAbbr = monthNames[month - 1];
+                    string shortYear = targetDate.Year.ToString().Substring(2);
+                    string result = $"{day:D2}{monthAbbr}{shortYear}";
+
+                    LogDebug($"DEBUG: Extracted expiry from MMDD format: {result}");
                     return result;
                 }
 
-                LogDebug($"DEBUG: No expiry found, using default: 3M");
+                // 6. Tenor extraction with context awareness
+                LogDebug("DEBUG: Testing tenor patterns...");
+                LogDebug($"DEBUG: Full input for tenor matching: '{input}'");
+
+                // PRIORITY 1: Explicit words (ALWAYS expiry, never notional)
+                var explicitTenorMatch = Regex.Match(
+                    input,
+                    @"\b(?<num>\d+)[\s-]*(?<unit>year|years|yr|yrs|month|months|mth|mths|week|weeks|wk|wks|day|days)\b",
+                    RegexOptions.IgnoreCase
+                );
+
+                if (explicitTenorMatch.Success)
+                {
+                    string number = explicitTenorMatch.Groups["num"].Value;
+                    string unit = explicitTenorMatch.Groups["unit"].Value.ToUpper();
+
+                    LogDebug($"DEBUG: Explicit tenor found - {number} {unit}");
+
+                    // Normalize
+                    string period = "M";
+                    if (unit.StartsWith("Y")) period = "Y";
+                    else if (unit.StartsWith("M")) period = "M";
+                    else if (unit.StartsWith("W")) period = "W";
+                    else if (unit.StartsWith("D")) period = "D";
+
+                    return number + period;
+                }
+
+                // PRIORITY 2: Ambiguous single-letter with CONTEXT CHECK
+                var ambiguousTenorMatches = Regex.Matches(
+                    input,
+                    @"\b(?<num>\d+)[\s-]*(?<unit>[mMwWyYdD])\b",
+                    RegexOptions.IgnoreCase
+                );
+
+                foreach (Match match in ambiguousTenorMatches)
+                {
+                    string number = match.Groups["num"].Value;
+                    string unit = match.Groups["unit"].Value.ToUpper();
+                    int matchEnd = match.Index + match.Length;
+
+                    // Look at what comes AFTER this match
+                    string afterMatch = matchEnd < input.Length
+                        ? input.Substring(matchEnd).Trim()
+                        : "";
+
+                    LogDebug($"DEBUG: Found ambiguous '{number}{unit}', checking context: '{afterMatch.Substring(0, Math.Min(20, afterMatch.Length))}'");
+
+                    // SKIP if followed by notional indicators
+                    if (Regex.IsMatch(afterMatch, @"^\s*(mio|mil|million|usd|eur|sek|nok|gbp|jpy|chf|per\s+leg)", RegexOptions.IgnoreCase))
+                    {
+                        LogDebug($"DEBUG: Skipping '{number}{unit}' - notional context detected");
+                        continue;
+                    }
+
+                    // ACCEPT if followed by expiry-related context
+                    if (Regex.IsMatch(afterMatch, @"^\s*(call|put|option|strike|straddle|spread|expir)", RegexOptions.IgnoreCase))
+                    {
+                        LogDebug($"DEBUG: Accepting '{number}{unit}' - expiry context confirmed");
+                        return number + unit;
+                    }
+
+                    // ACCEPT if number is small (tenors rarely > 36 months, 5 years)
+                    int numValue = int.Parse(number);
+                    if (unit == "M" && numValue <= 36)
+                    {
+                        LogDebug($"DEBUG: Accepting '{number}M' - reasonable tenor duration");
+                        return number + unit;
+                    }
+                    if (unit == "Y" && numValue <= 10)
+                    {
+                        LogDebug($"DEBUG: Accepting '{number}Y' - reasonable tenor duration");
+                        return number + unit;
+                    }
+
+                    LogDebug($"DEBUG: Skipping '{number}{unit}' - ambiguous without clear context");
+                }
+
+                LogDebug("DEBUG: No expiry patterns matched, using default");
                 return "3M"; // Default
             }
             catch (Exception ex)
@@ -527,12 +999,14 @@ namespace FXOAiTranslator
             }
         }
 
+        // === Normalization helpers ===
         private string NormalizeOVMLDates(string ovml)
         {
             if (string.IsNullOrWhiteSpace(ovml))
                 return ovml;
 
-            var parts = ovml.Split(' ');
+            var parts = ovml.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
             for (int i = 0; i < parts.Length; i++)
             {
                 if (parts[i].Contains("/") || Regex.IsMatch(parts[i], @"\d{1,2}[A-Za-z]{3}\d{2}"))
@@ -545,6 +1019,18 @@ namespace FXOAiTranslator
                 }
             }
             return string.Join(" ", parts);
+        }
+
+        private string NormalizeExpiry(string expiry)
+        {
+            if (string.IsNullOrWhiteSpace(expiry))
+                return expiry;
+
+            var normalized = TryNormalizeDate(expiry);
+            if (!string.IsNullOrEmpty(normalized))
+                return normalized;
+
+            return expiry;
         }
 
         private string TryNormalizeDate(string raw)
@@ -566,6 +1052,31 @@ namespace FXOAiTranslator
 
             return null;
         }
+
+        public bool RemoveLearnedPattern(string patternName)
+        {
+            try
+            {
+                Console.WriteLine($"[TradeParser] RemoveLearnedPattern called with: '{patternName}'");
+
+                if (_patternLearner != null)
+                {
+                    string fullPatternName = $"Learned-{patternName}";
+                    Console.WriteLine($"[TradeParser] Looking for pattern: '{fullPatternName}'");
+
+                    bool result = _patternLearner.RemovePattern(fullPatternName);
+                    Console.WriteLine($"[TradeParser] RemovePattern returned: {result}");
+                    return result;
+                }
+                Console.WriteLine($"[TradeParser] _patternLearner is null");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LogDebug($"Error removing pattern {patternName}: {ex.Message}");
+                return false;
+            }
+        }
     }
 
     public class MarketEnhancementResult
@@ -579,20 +1090,297 @@ namespace FXOAiTranslator
     public class TradeParseResult
     {
         public string OVML { get; set; }
+        public string UBS { get; set; }
         public string Underlying { get; set; }
         public int LegCount { get; set; }
         public string Expiry { get; set; }
         public string ParseMethod { get; set; }
-        public string AdditionalInfo { get; set; } // For AI responses, error messages, etc.
+        public string AdditionalInfo { get; set; }
+
+        // Validation properties
+        public SanityCheckResult ValidationResult { get; set; }
+        public bool IsValidated => ValidationResult?.IsValid ?? false;
+        public string ValidationWarning => ValidationResult?.IsValid == false ? ValidationResult.Reason : null;
 
         public TradeParseResult()
         {
             OVML = "";
+            UBS = "";
             Underlying = "";
             LegCount = 1;
             Expiry = "";
             ParseMethod = "";
             AdditionalInfo = "";
+        }
+
+        // Generate UBS format from OVML
+        public void GenerateUBS()
+        {
+            if (string.IsNullOrEmpty(OVML))
+            {
+                UBS = "";
+                return;
+            }
+
+            try
+            {
+                UBS = ConvertOVMLToUBS(OVML, Underlying, Expiry, LegCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error generating UBS format: {ex.Message}");
+                UBS = "";
+            }
+        }
+
+        private string ConvertOVMLToUBS(string ovml, string underlying, string expiry, int legCount)
+        {
+            var parts = ovml.Split(' ');
+            if (parts.Length < 4) return "";
+
+            string currency = ExtractBaseCurrency(underlying); // EUR from EURNOK
+            string spot = ExtractSpotFromOVML(ovml);
+
+            // 🔑 Decide if expiry is tenor or real date
+            string formattedExpiry = "";
+            if (Regex.IsMatch(expiry, @"^\d+[WwMmYyDd]$"))
+            {
+                // It’s a tenor → keep as-is
+                formattedExpiry = expiry.ToUpper();
+            }
+            else
+            {
+                // Try to format as a date
+                formattedExpiry = FormatDateForUBS(expiry);
+            }
+
+            if (legCount == 1)
+                return BuildSingleLegUBS(parts, underlying, currency, formattedExpiry, spot);
+            else
+                return BuildMultiLegUBS(parts, underlying, currency, formattedExpiry, spot, legCount);
+        }
+
+
+
+
+
+
+        private string BuildSingleLegUBS(string[] parts, string underlying, string currency, string formattedDate, string spot)
+        {
+            string strike = "";
+            string optionType = "";
+            string notional = "";
+
+            for (int i = 0; i < parts.Length; i++)
+            {
+                var token = parts[i].Trim().TrimEnd(',', ';');
+
+                // Case 1: option type appears as a separate token ("C" or "P")
+                if (token.Equals("C", StringComparison.OrdinalIgnoreCase) ||
+                    token.Equals("P", StringComparison.OrdinalIgnoreCase))
+                {
+                    optionType = token.ToUpperInvariant();
+                    if (i > 0) strike = parts[i - 1].Trim().TrimEnd(',', ';');
+                    continue;
+                }
+
+                // Case 2: option type is attached to the strike ("1.1625C" or "1.1625P")
+                if (token.EndsWith("C", StringComparison.OrdinalIgnoreCase) ||
+                    token.EndsWith("P", StringComparison.OrdinalIgnoreCase))
+                {
+                    optionType = char.ToUpperInvariant(token[^1]).ToString();
+                    strike = token[..^1]; // everything except the last char
+                    continue;
+                }
+
+                // Notional like "N15M"
+                if (token.StartsWith("N", StringComparison.OrdinalIgnoreCase) &&
+                    token.EndsWith("M", StringComparison.OrdinalIgnoreCase))
+                {
+                    notional = token.Substring(1, token.Length - 2); // strip N...M
+                    continue;
+                }
+            }
+
+            // Need all three to produce output
+            if (string.IsNullOrEmpty(strike) || string.IsNullOrEmpty(optionType) || string.IsNullOrEmpty(notional))
+                return "";
+
+            bool isTenor = Regex.IsMatch(formattedDate, @"^\d+[WwMmYyDd]$");
+
+            // If tenor: "<underlying> <tenor> <C|P> <CCY>"
+            // Else:     "<underlying> <strike><C|P> <CCY>"
+            string result = isTenor
+                ? $"{underlying} {formattedDate.ToUpperInvariant()} {optionType} {currency}"
+                : $"{underlying} {strike}{optionType} {currency}";
+
+            // Notional ÷10, culture-safe, with a space before "MIO"
+            if (double.TryParse(notional, NumberStyles.Float, CultureInfo.InvariantCulture, out double amount))
+            {
+                double scaled = amount / 10.0;
+                result += $" {scaled.ToString("0.########", CultureInfo.InvariantCulture)} MIO";
+            }
+
+            // Append date only when it's a real date (not a tenor)
+            if (!isTenor && !string.IsNullOrEmpty(formattedDate))
+                result += $" {formattedDate}";
+
+            // Append SPOT if present
+            if (!string.IsNullOrWhiteSpace(spot))
+                result += $" SPOT {spot}";
+
+            return result;
+        }
+
+        private string BuildMultiLegUBS(string[] parts, string underlying, string currency, string formattedDate, string spot, int legCount)
+        {
+            string strikes = FindStrikesInOVML(parts);
+            string notionals = FindNotionalsInOVML(parts);
+
+            if (string.IsNullOrEmpty(strikes) || string.IsNullOrEmpty(notionals))
+                return "";
+
+            var strikeList = strikes.Split(',');
+            var notionalList = notionals.Replace("N", "").Replace("M", "").Split(',');
+
+            var legs = new List<string>();
+
+            for (int i = 0; i < Math.Min(strikeList.Length, notionalList.Length); i++)
+            {
+                string strike = strikeList[i].Trim();
+                string notional = notionalList[i].Trim();
+
+                char optionType = strike.EndsWith("P") ? 'P' : 'C';
+                strike = strike.TrimEnd('C', 'P');
+
+                string leg = $"{underlying} {strike}{optionType}";
+
+                if (i == 0) leg += $" {currency}";
+
+                if (double.TryParse(notional, out double amount))
+                {
+                    double scaledAmount = amount / 10.0;
+                    leg += $" {scaledAmount}MIO";
+                }
+
+                // Only first leg gets date if it's real date (not tenor)
+                if (i == 0 && !string.IsNullOrEmpty(formattedDate) && !Regex.IsMatch(formattedDate, @"^\d+[WwMmYyDd]$"))
+                {
+                    leg += $" {formattedDate}";
+                }
+
+                legs.Add(leg);
+            }
+
+            string result = string.Join(", ", legs);
+
+            if (!string.IsNullOrEmpty(spot))
+            {
+                result += $" SPOT {spot}";
+            }
+
+            return result;
+        }
+
+
+
+
+
+
+
+        private string ExtractBaseCurrency(string currencyPair)
+        {
+            // Extract base currency (first 3 letters)
+            if (currencyPair.Length >= 3)
+            {
+                return currencyPair.Substring(0, 3);
+            }
+            return "EUR"; // Default fallback
+        }
+
+        private string FormatDateForUBS(string expiry)
+
+        {
+            try
+            {
+                // Case 1: Tenor like 1W, 2W, 3M, 1Y → return as-is
+                if (Regex.IsMatch(expiry, @"^\d+[WwDdMmYy]$"))
+                {
+                    return expiry.ToUpper();
+                }
+
+                // Case 2: MM/dd/yy (US style date)
+                if (Regex.IsMatch(expiry, @"^\d{2}/\d{2}/\d{2}$") &&
+                    DateTime.TryParseExact(expiry, "MM/dd/yy", null, DateTimeStyles.None, out DateTime dtUS))
+                {
+                    return dtUS.ToString("dd-MMM-yy", CultureInfo.InvariantCulture);
+                }
+
+                // Case 3: ddMMMyy (e.g. 11NOV25)
+                if (Regex.IsMatch(expiry, @"^\d{1,2}[A-Za-z]{3}\d{2}$") &&
+                    DateTime.TryParseExact(expiry, new[] { "ddMMMyy", "dMMMyy" },
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dtFX))
+                {
+                    return dtFX.ToString("dd-MMM-yy", CultureInfo.InvariantCulture);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error formatting date for UBS: {ex.Message}");
+            }
+
+            return ""; // no expiry fallback
+        }
+
+
+
+
+
+
+        private DateTime? CalculateFutureDate(string tenor)
+        {
+            if (string.IsNullOrEmpty(tenor)) return null;
+
+            var match = Regex.Match(tenor, @"^(\d+)([MYWWD])$");
+            if (!match.Success) return null;
+
+            int amount = int.Parse(match.Groups[1].Value);
+            char period = match.Groups[2].Value[0];
+
+            var baseDate = DateTime.Now;
+
+            return period switch
+            {
+                'D' => baseDate.AddDays(amount),
+                'W' => baseDate.AddDays(amount * 7),
+                'M' => baseDate.AddMonths(amount),
+                'Y' => baseDate.AddYears(amount),
+                _ => null
+            };
+        }
+
+        private string FindStrikesInOVML(string[] parts)
+        {
+            // Look for pattern like "11.8000C,12.1000C,11.5500P"
+            return parts.FirstOrDefault(p => p.Contains("C") || p.Contains("P")) ?? "";
+        }
+
+        private string FindDirectionsInOVML(string[] parts)
+        {
+            // Look for pattern like "B,S,S"
+            return parts.FirstOrDefault(p => p.Contains("B") || p.Contains("S")) ?? "";
+        }
+
+        private string FindNotionalsInOVML(string[] parts)
+        {
+            // Look for pattern like "N100M,125M,100M"
+            return parts.FirstOrDefault(p => p.StartsWith("N") && p.Contains("M")) ?? "";
+        }
+
+        private string ExtractSpotFromOVML(string ovml)
+        {
+            var match = Regex.Match(ovml, @"SP(\d+\.?\d*)");
+            return match.Success ? match.Groups[1].Value : "";
         }
     }
 }
