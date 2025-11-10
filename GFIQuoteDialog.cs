@@ -19,6 +19,8 @@ namespace FXOAiTranslator
         private Button btnRequestQuotes;
         private Button btnExecute;
         private Button btnCancel;
+        private Button btnBuy;    
+        private Button btnViewBlotter;
         private Label lblTradeSummary;
         private GroupBox gbLPs;
         private CheckBox chkMS;
@@ -259,14 +261,64 @@ namespace FXOAiTranslator
 
             btnExecute = new Button
             {
-                Text = "Execute (Sell)",
-                Location = new Point(190, 620),  // Moved down
+                Text = "Sell (Hit Bid)",
+                Location = new Point(190, 620),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
             };
-            btnExecute.Click += BtnExecute_Click;
+            btnExecute.Click += (s, e) => BtnExecute_Click("SELL");
             this.Controls.Add(btnExecute);
+
+            btnBuy = new Button
+            {
+                Text = "Buy (Lift Offer)",
+                Location = new Point(360, 620),
+                Size = new Size(150, 35),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Enabled = false
+            };
+            btnBuy.Click += (s, e) => BtnExecute_Click("BUY");
+            this.Controls.Add(btnBuy);
+
+            btnViewBlotter = new Button
+            {
+                Text = "View Blotter",
+                Location = new Point(530, 620),
+                Size = new Size(150, 35),
+                Font = new Font("Segoe UI", 10, FontStyle.Regular)
+            };
+            btnViewBlotter.Click += (s, e) =>
+            {
+                var blotter = new TradeBlotterForm();
+                blotter.Show();
+            };
+            this.Controls.Add(btnViewBlotter);
+
+            btnBuy = new Button
+            {
+                Text = "Buy (Lift Offer)",
+                Location = new Point(360, 620),
+                Size = new Size(150, 35),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Enabled = false
+            };
+            btnBuy.Click += (s, e) => BtnExecute_Click("BUY");
+            this.Controls.Add(btnBuy);
+
+            btnViewBlotter = new Button
+            {
+                Text = "View Blotter",
+                Location = new Point(530, 620),
+                Size = new Size(150, 35),
+                Font = new Font("Segoe UI", 10, FontStyle.Regular)
+            };
+            btnViewBlotter.Click += (s, e) =>
+            {
+                var blotter = new TradeBlotterForm();
+                blotter.Show();
+            };
+            this.Controls.Add(btnViewBlotter);
 
             btnCancel = new Button
             {
@@ -493,6 +545,12 @@ namespace FXOAiTranslator
                         new Font(dgvQuotes.Font, FontStyle.Bold);
                 }
             }
+            // Enable execute buttons if we have quotes
+            if (streams.Any(s => s.BidQuote != null || s.OfferQuote != null))
+            {
+                btnExecute.Enabled = true;
+                // Also enable the buy button (find it by iterating controls or store as field)
+            }
         }
 
         private double? CalculateNetPremium(FIXMessage quote)
@@ -547,7 +605,7 @@ namespace FXOAiTranslator
             return (bestBid, bestOffer);
         }
 
-        private void BtnExecute_Click(object sender, EventArgs e)
+        private void BtnExecute_Click(string side)
         {
             _quoteTimer?.Stop();
 
@@ -580,11 +638,60 @@ namespace FXOAiTranslator
             // Execute the trade
             try
             {
-                _fixSession.SendExecution(bestBidQuote, "SELL");
+                FIXMessage selectedQuote;
+                double selectedPremium;
+                string lpName;
 
-                var netPrem = CalculateNetPremium(bestBidQuote);
+                if (side == "SELL")
+                {
+                    // Hit the bid - find best bid
+                    selectedQuote = bestBidQuote;
+                    selectedPremium = bestBidPremium;
+                    lpName = bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString());
+                }
+                else // BUY
+                {
+                    // Lift the offer - find best offer
+                    FIXMessage bestOfferQuote = null;
+                    double bestOfferPremium = double.MaxValue;
+
+                    foreach (var stream in streams)
+                    {
+                        if (stream.OfferQuote != null)
+                        {
+                            var prem = CalculateNetPremium(stream.OfferQuote);
+                            if (prem.HasValue && prem.Value < bestOfferPremium)
+                            {
+                                bestOfferPremium = prem.Value;
+                                bestOfferQuote = stream.OfferQuote;
+                            }
+                        }
+                    }
+
+                    if (bestOfferQuote == null)
+                    {
+                        MessageBox.Show("No valid offer quotes available", "Cannot Execute",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        _quoteTimer?.Start();
+                        return;
+                    }
+
+                    selectedQuote = bestOfferQuote;
+                    selectedPremium = bestOfferPremium;
+                    lpName = bestOfferQuote.Get(Tags.OnBehalfOfCompID.ToString());
+                }
+
+                string clOrdID = _fixSession.SendExecution(selectedQuote, side, _trade);
+
+                var netPrem = CalculateNetPremium(selectedQuote);
                 MessageBox.Show(
-                    $"Trade SENT!\n\nLP: {bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString())}\nNet Premium: {netPrem?.ToString("N2") ?? "N/A"} pips\n\nWaiting for execution report...",
+                    $"Trade SENT!\n\n" +
+                    $"Order ID: {clOrdID}\n" +
+                    $"LP: {lpName}\n" +
+                    $"Side: {side}\n" +
+                    $"Net Premium: {netPrem?.ToString("N2") ?? "N/A"} pips\n\n" +
+                    $"Waiting for execution report...\n\n" +
+                    $"Check the Trade Blotter for updates.",
                     "Order Sent",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information

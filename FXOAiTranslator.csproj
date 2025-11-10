@@ -24,4 +24,10 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="quickfix.cfg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
