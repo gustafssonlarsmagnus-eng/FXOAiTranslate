@@ -24,6 +24,7 @@ namespace FXOAiTranslator
         private Panel pnlDebug;
         private TextBox txtDebugLog;
         private ContextMenuStrip ctxRowMenu;
+        private TextBox txtManualInput;
         private bool debugVisible = false;
 
         // Progress indicator
@@ -72,6 +73,37 @@ namespace FXOAiTranslator
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular),
                 BackColor = Color.White
             };
+
+            // Manual Input Panel
+            var pnlManualInput = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 40,
+                BackColor = Color.White,
+                Padding = new Padding(15, 5, 15, 5)
+            };
+
+            var lblManualInput = new Label
+            {
+                Text = "Enter trade request:",
+                Dock = DockStyle.Left,
+                Width = 130,
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.White
+            };
+
+            txtManualInput = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10F),
+                PlaceholderText = "Type trade request here and press Enter to process...",
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            pnlManualInput.Controls.Add(txtManualInput);
+            pnlManualInput.Controls.Add(lblManualInput);
 
             // Main content panel
             var pnlContent = new Panel
@@ -184,6 +216,7 @@ namespace FXOAiTranslator
             // Add controls in order
             pnlContent.Controls.Add(pnlGrid);
             pnlContent.Controls.Add(pnlDebug);
+            pnlContent.Controls.Add(pnlManualInput);
             pnlContent.Controls.Add(lblBlotter);
 
             this.Controls.Add(pnlContent);
@@ -292,8 +325,9 @@ namespace FXOAiTranslator
 
         private void SetTabOrder()
         {
-            chkAutoSend.TabIndex = 0;
-            dgvTradeBlotter.TabIndex = 1;
+            txtManualInput.TabIndex = 0;
+            chkAutoSend.TabIndex = 1;
+            dgvTradeBlotter.TabIndex = 2;
         }
 
         private void SetupContextMenu()
@@ -563,7 +597,23 @@ namespace FXOAiTranslator
         {
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;
             dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded;
+            txtManualInput.KeyDown += TxtManualInput_KeyDown;
             this.FormClosing += MainForm_FormClosing;
+        }
+
+        private async void TxtManualInput_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true; // Prevent the "ding" sound
+
+                string input = txtManualInput.Text.Trim();
+                if (!string.IsNullOrEmpty(input))
+                {
+                    await ProcessTrade(input);
+                    txtManualInput.Clear(); // Clear the input field after processing
+                }
+            }
         }
 
         private void ApplyFilter()
