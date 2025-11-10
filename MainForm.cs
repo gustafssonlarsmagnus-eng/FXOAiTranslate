@@ -27,6 +27,7 @@ namespace FXOAiTranslator
         private ContextMenuStrip ctxRowMenu;
         private TextBox txtManualInput;
         private Button btnMicrophone;
+        private ToolTip microphoneToolTip;
         private bool debugVisible = false;
 
         // Speech Recognition
@@ -139,8 +140,13 @@ namespace FXOAiTranslator
             pnlInputContainer.Controls.Add(btnMicrophone);
             btnMicrophone.BringToFront();
 
-            var tooltip = new ToolTip();
-            tooltip.SetToolTip(btnMicrophone, "Click to speak your trade request");
+            // Setup tooltip
+            microphoneToolTip = new ToolTip();
+            microphoneToolTip.AutoPopDelay = 5000;
+            microphoneToolTip.InitialDelay = 500;
+            microphoneToolTip.ReshowDelay = 100;
+            microphoneToolTip.ShowAlways = true;
+            microphoneToolTip.SetToolTip(btnMicrophone, "Click to start voice input");
 
             pnlManualInput.Controls.Add(pnlInputContainer);
             pnlManualInput.Controls.Add(lblManualInput);
@@ -683,8 +689,21 @@ namespace FXOAiTranslator
                 LogDebugMessage($"Speech recognition initialization failed: {ex.Message}");
                 btnMicrophone.Enabled = false;
                 btnMicrophone.BackColor = Color.White;
-                var tooltip = new ToolTip();
-                tooltip.SetToolTip(btnMicrophone, $"Speech recognition unavailable: {ex.Message}");
+                btnMicrophone.Invalidate(); // Redraw with disabled color
+
+                string errorMsg = "Speech recognition unavailable.\n\n" +
+                    "To enable voice input:\n" +
+                    "1. Go to Windows Settings > Time & Language > Speech\n" +
+                    "2. Turn on 'Speech Recognition'\n" +
+                    "3. Ensure your microphone is connected and working\n" +
+                    "4. Restart the application\n\n" +
+                    $"Error: {ex.Message}";
+
+                microphoneToolTip.SetToolTip(btnMicrophone, errorMsg);
+
+                // Show a one-time message
+                MessageBox.Show(errorMsg, "Speech Recognition Setup Required",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
@@ -706,12 +725,12 @@ namespace FXOAiTranslator
             var g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            // Determine color based on button state
+            // Determine color based on button state - darker for better visibility
             Color iconColor = btnMicrophone.Enabled ?
-                (_isListening ? Color.FromArgb(0, 122, 255) : Color.Gray) :
+                (_isListening ? Color.FromArgb(0, 122, 255) : Color.FromArgb(80, 80, 80)) : // Dark grey
                 Color.LightGray;
 
-            using (var pen = new Pen(iconColor, 1.4f))
+            using (var pen = new Pen(iconColor, 1.6f)) // Thicker line for better visibility
             {
                 // Center the icon in the button
                 int centerX = btnMicrophone.Width / 2;
@@ -767,7 +786,14 @@ namespace FXOAiTranslator
                 btnMicrophone.Invalidate();
                 SetProcessingStatus(false, "Speech recognition failed");
 
-                MessageBox.Show($"Failed to start speech recognition:\n{ex.Message}\n\nMake sure your microphone is connected and working.", "Speech Recognition Error",
+                string errorMsg = $"Failed to start speech recognition:\n\n{ex.Message}\n\n" +
+                    "Troubleshooting:\n" +
+                    "• Check if your microphone is connected and enabled\n" +
+                    "• Go to Windows Settings > Privacy > Microphone\n" +
+                    "• Make sure this app has microphone permission\n" +
+                    "• Try restarting the application";
+
+                MessageBox.Show(errorMsg, "Speech Recognition Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
