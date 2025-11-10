@@ -700,7 +700,7 @@ namespace FXOAiTranslator
 
         private void BtnMicrophone_Paint(object sender, PaintEventArgs e)
         {
-            // Draw custom line-art microphone icon
+            // Draw custom line-art microphone icon (compact size)
             var g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
@@ -709,29 +709,29 @@ namespace FXOAiTranslator
                 (_isListening ? Color.FromArgb(0, 122, 255) : Color.Gray) :
                 Color.LightGray;
 
-            using (var pen = new Pen(iconColor, 1.8f))
+            using (var pen = new Pen(iconColor, 1.4f))
             {
                 // Center the icon in the button
                 int centerX = btnMicrophone.Width / 2;
                 int centerY = btnMicrophone.Height / 2;
 
-                // Microphone capsule (rounded rectangle using lines and arcs)
+                // Microphone capsule (smaller, more compact)
                 // Top arc
-                g.DrawArc(pen, centerX - 4, centerY - 7, 8, 8, 180, 180);
+                g.DrawArc(pen, centerX - 2.5f, centerY - 5, 5, 5, 180, 180);
                 // Side lines
-                g.DrawLine(pen, centerX - 4, centerY - 3, centerX - 4, centerY + 2);
-                g.DrawLine(pen, centerX + 4, centerY - 3, centerX + 4, centerY + 2);
+                g.DrawLine(pen, centerX - 2.5f, centerY - 2.5f, centerX - 2.5f, centerY + 1);
+                g.DrawLine(pen, centerX + 2.5f, centerY - 2.5f, centerX + 2.5f, centerY + 1);
                 // Bottom arc
-                g.DrawArc(pen, centerX - 4, centerY - 2, 8, 8, 0, 180);
+                g.DrawArc(pen, centerX - 2.5f, centerY - 1.5f, 5, 5, 0, 180);
 
-                // Microphone stand (U-shape curve)
-                g.DrawArc(pen, centerX - 6, centerY + 2, 12, 8, 0, 180);
+                // Microphone stand (U-shape curve) - smaller
+                g.DrawArc(pen, centerX - 4, centerY + 1, 8, 5, 0, 180);
 
-                // Vertical line (stem to base)
-                g.DrawLine(pen, centerX, centerY + 6, centerX, centerY + 9);
+                // Vertical line (stem to base) - shorter
+                g.DrawLine(pen, centerX, centerY + 3.5f, centerX, centerY + 6);
 
-                // Horizontal base line
-                g.DrawLine(pen, centerX - 3, centerY + 9, centerX + 3, centerY + 9);
+                // Horizontal base line - narrower
+                g.DrawLine(pen, centerX - 2, centerY + 6, centerX + 2, centerY + 6);
             }
         }
 
