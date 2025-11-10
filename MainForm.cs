@@ -120,24 +120,27 @@ namespace FXOAiTranslator
             btnMicrophone = new Button
             {
                 Text = "", // No text - we'll draw custom icon
-                Size = new Size(32, 24),
-                Location = new Point(pnlInputContainer.Width - 37, 2), // Position on right inside textbox
+                Size = new Size(28, 20),
+                Location = new Point(pnlInputContainer.Width - 34, 3), // Position on right inside textbox
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Transparent,
+                BackColor = Color.White, // Match text field background
                 Cursor = Cursors.Hand,
                 TabStop = false,
                 Anchor = AnchorStyles.Right | AnchorStyles.Top
             };
             btnMicrophone.FlatAppearance.BorderSize = 0;
-            btnMicrophone.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 240, 240);
-            btnMicrophone.FlatAppearance.MouseDownBackColor = Color.FromArgb(220, 220, 220);
+            btnMicrophone.FlatAppearance.BorderColor = Color.White;
+            btnMicrophone.FlatAppearance.MouseOverBackColor = Color.FromArgb(245, 245, 245);
+            btnMicrophone.FlatAppearance.MouseDownBackColor = Color.FromArgb(235, 235, 235);
             btnMicrophone.Paint += BtnMicrophone_Paint; // Custom drawing
+
+            // Position button after text field so it overlays on top
+            pnlInputContainer.Controls.Add(txtManualInput);
+            pnlInputContainer.Controls.Add(btnMicrophone);
+            btnMicrophone.BringToFront();
 
             var tooltip = new ToolTip();
             tooltip.SetToolTip(btnMicrophone, "Click to speak your trade request");
-
-            pnlInputContainer.Controls.Add(btnMicrophone);
-            pnlInputContainer.Controls.Add(txtManualInput);
 
             pnlManualInput.Controls.Add(pnlInputContainer);
             pnlManualInput.Controls.Add(lblManualInput);
@@ -679,8 +682,7 @@ namespace FXOAiTranslator
             {
                 LogDebugMessage($"Speech recognition initialization failed: {ex.Message}");
                 btnMicrophone.Enabled = false;
-                btnMicrophone.ForeColor = Color.LightGray;
-                btnMicrophone.BackColor = Color.Transparent;
+                btnMicrophone.BackColor = Color.White;
                 var tooltip = new ToolTip();
                 tooltip.SetToolTip(btnMicrophone, $"Speech recognition unavailable: {ex.Message}");
             }
@@ -759,7 +761,7 @@ namespace FXOAiTranslator
                 LogDebugMessage($"Failed to start speech recognition: {ex.Message}");
 
                 // Reset UI on error
-                btnMicrophone.BackColor = Color.Transparent;
+                btnMicrophone.BackColor = Color.White;
                 txtManualInput.PlaceholderText = "Type or speak trade request...";
                 _isListening = false;
                 btnMicrophone.Invalidate();
@@ -778,7 +780,7 @@ namespace FXOAiTranslator
                 _isListening = false;
 
                 // Reset UI to normal state - subtle grey
-                btnMicrophone.BackColor = Color.Transparent;
+                btnMicrophone.BackColor = Color.White;
                 txtManualInput.PlaceholderText = "Type or speak trade request...";
                 txtManualInput.BackColor = Color.White;
                 txtManualInput.Font = new Font("Segoe UI", 10F);
