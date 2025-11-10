@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Speech.Recognition;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -25,7 +26,12 @@ namespace FXOAiTranslator
         private TextBox txtDebugLog;
         private ContextMenuStrip ctxRowMenu;
         private TextBox txtManualInput;
+        private Button btnMicrophone;
         private bool debugVisible = false;
+
+        // Speech Recognition
+        private SpeechRecognitionEngine _speechRecognizer;
+        private bool _isListening = false;
 
         // Progress indicator
         private StatusStrip statusStrip;
@@ -102,7 +108,24 @@ namespace FXOAiTranslator
                 BorderStyle = BorderStyle.FixedSingle
             };
 
+            // Microphone button
+            btnMicrophone = new Button
+            {
+                Text = "🎤",
+                Dock = DockStyle.Right,
+                Width = 50,
+                Font = new Font("Segoe UI", 16F),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.White,
+                ForeColor = Color.DimGray,
+                Cursor = Cursors.Hand,
+                TabStop = false
+            };
+            btnMicrophone.FlatAppearance.BorderColor = Color.LightGray;
+            btnMicrophone.FlatAppearance.BorderSize = 1;
+
             pnlManualInput.Controls.Add(txtManualInput);
+            pnlManualInput.Controls.Add(btnMicrophone);
             pnlManualInput.Controls.Add(lblManualInput);
 
             // Main content panel
@@ -514,6 +537,9 @@ namespace FXOAiTranslator
 
             UpdateBloombergStatus();
 
+            // Setup speech recognition
+            SetupSpeechRecognition();
+
             // Setup global clipboard monitoring for paste-anywhere functionality
             SetupClipboardMonitoring();
         }
@@ -598,6 +624,7 @@ namespace FXOAiTranslator
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;
             dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded;
             txtManualInput.KeyDown += TxtManualInput_KeyDown;
+            btnMicrophone.Click += BtnMicrophone_Click;
             this.FormClosing += MainForm_FormClosing;
         }
 
@@ -614,6 +641,136 @@ namespace FXOAiTranslator
                     txtManualInput.Clear(); // Clear the input field after processing
                 }
             }
+        }
+
+        private void SetupSpeechRecognition()
+        {
+            try
+            {
+                _speechRecognizer = new SpeechRecognitionEngine(new System.Globalization.CultureInfo("en-US"));
+
+                // Create a grammar for dictation (free-form speech)
+                _speechRecognizer.LoadGrammar(new DictationGrammar());
+
+                // Set up event handlers
+                _speechRecognizer.SpeechRecognized += SpeechRecognizer_SpeechRecognized;
+                _speechRecognizer.SpeechRecognitionRejected += SpeechRecognizer_SpeechRecognitionRejected;
+
+                // Set input to default audio device
+                _speechRecognizer.SetInputToDefaultAudioDevice();
+
+                LogDebugMessage("Speech recognition initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                LogDebugMessage($"Speech recognition initialization failed: {ex.Message}");
+                btnMicrophone.Enabled = false;
+                btnMicrophone.Text = "🎤";
+                btnMicrophone.ForeColor = Color.LightGray;
+            }
+        }
+
+        private void BtnMicrophone_Click(object sender, EventArgs e)
+        {
+            if (_isListening)
+            {
+                StopListening();
+            }
+            else
+            {
+                StartListening();
+            }
+        }
+
+        private void StartListening()
+        {
+            try
+            {
+                _speechRecognizer.RecognizeAsync(RecognizeMode.Multiple);
+                _isListening = true;
+
+                // Update UI to show listening state
+                btnMicrophone.BackColor = Color.LightCoral;
+                btnMicrophone.ForeColor = Color.White;
+                txtManualInput.PlaceholderText = "Listening... speak your trade request";
+                txtManualInput.BackColor = Color.LightYellow;
+
+                LogDebugMessage("Speech recognition started - listening...");
+            }
+            catch (Exception ex)
+            {
+                LogDebugMessage($"Failed to start speech recognition: {ex.Message}");
+                MessageBox.Show($"Failed to start speech recognition:\n{ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void StopListening()
+        {
+            try
+            {
+                _speechRecognizer.RecognizeAsyncStop();
+                _isListening = false;
+
+                // Reset UI to normal state
+                btnMicrophone.BackColor = Color.White;
+                btnMicrophone.ForeColor = Color.DimGray;
+                txtManualInput.PlaceholderText = "Type trade request here and press Enter to process...";
+                txtManualInput.BackColor = Color.White;
+
+                LogDebugMessage("Speech recognition stopped");
+            }
+            catch (Exception ex)
+            {
+                LogDebugMessage($"Error stopping speech recognition: {ex.Message}");
+            }
+        }
+
+        private async void SpeechRecognizer_SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
+        {
+            // Only process if confidence is reasonable
+            if (e.Result.Confidence > 0.5)
+            {
+                string recognizedText = e.Result.Text;
+                LogDebugMessage($"Speech recognized (confidence: {e.Result.Confidence:P0}): {recognizedText}");
+
+                // Update the text box with recognized speech
+                if (txtManualInput.InvokeRequired)
+                {
+                    txtManualInput.Invoke(new Action(() => {
+                        txtManualInput.Text = recognizedText;
+                    }));
+                }
+                else
+                {
+                    txtManualInput.Text = recognizedText;
+                }
+
+                // Stop listening after recognizing speech
+                StopListening();
+
+                // Auto-process the recognized text
+                await ProcessTrade(recognizedText);
+
+                // Clear the input field
+                if (txtManualInput.InvokeRequired)
+                {
+                    txtManualInput.Invoke(new Action(() => txtManualInput.Clear()));
+                }
+                else
+                {
+                    txtManualInput.Clear();
+                }
+            }
+            else
+            {
+                LogDebugMessage($"Speech recognition confidence too low: {e.Result.Confidence:P0}");
+            }
+        }
+
+        private void SpeechRecognizer_SpeechRecognitionRejected(object sender, SpeechRecognitionRejectedEventArgs e)
+        {
+            LogDebugMessage("Speech recognition rejected - please try again");
         }
 
         private void ApplyFilter()
@@ -672,6 +829,16 @@ namespace FXOAiTranslator
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             SaveTrades();
+
+            // Dispose speech recognizer
+            if (_speechRecognizer != null)
+            {
+                if (_isListening)
+                {
+                    _speechRecognizer.RecognizeAsyncStop();
+                }
+                _speechRecognizer.Dispose();
+            }
         }
 
         private void CopySelectedCell(string columnName)
