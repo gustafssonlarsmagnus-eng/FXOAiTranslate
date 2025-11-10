@@ -84,7 +84,7 @@ namespace FXOAiTranslator
             var pnlManualInput = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 55,
+                Height = 45,
                 BackColor = Color.White,
                 Padding = new Padding(15, 8, 15, 8)
             };
@@ -99,39 +99,48 @@ namespace FXOAiTranslator
                 BackColor = Color.White
             };
 
+            // Container for text input and microphone button (to enable overlaying)
+            var pnlInputContainer = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent
+            };
+
             txtManualInput = new TextBox
             {
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 11F),
-                PlaceholderText = "Type trade request here and press Enter to process...",
+                Font = new Font("Segoe UI", 10F),
+                PlaceholderText = "Type or speak trade request...",
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
-                Margin = new Padding(0, 2, 5, 2)
+                Padding = new Padding(5, 0, 40, 0) // Right padding for microphone button
             };
 
-            // Microphone button
+            // Microphone button - embedded in text field like iPhone Messenger
             btnMicrophone = new Button
             {
-                Text = "🎤 Speak",
-                Dock = DockStyle.Right,
-                Width = 100,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Text = "🎤",
+                Size = new Size(32, 24),
+                Location = new Point(pnlInputContainer.Width - 37, 2), // Position on right inside textbox
+                Font = new Font("Segoe UI", 12F),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(240, 240, 240),
-                ForeColor = Color.DarkSlateGray,
+                BackColor = Color.Transparent,
+                ForeColor = Color.Gray,
                 Cursor = Cursors.Hand,
                 TabStop = false,
-                TextAlign = ContentAlignment.MiddleCenter
+                Anchor = AnchorStyles.Right | AnchorStyles.Top
             };
-            btnMicrophone.FlatAppearance.BorderColor = Color.DarkGray;
-            btnMicrophone.FlatAppearance.BorderSize = 1;
-            btnMicrophone.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 220, 220);
+            btnMicrophone.FlatAppearance.BorderSize = 0;
+            btnMicrophone.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 240, 240);
+            btnMicrophone.FlatAppearance.MouseDownBackColor = Color.FromArgb(220, 220, 220);
 
             var tooltip = new ToolTip();
-            tooltip.SetToolTip(btnMicrophone, "Click to start/stop voice input for trade requests");
+            tooltip.SetToolTip(btnMicrophone, "Click to speak your trade request");
 
-            pnlManualInput.Controls.Add(txtManualInput);
-            pnlManualInput.Controls.Add(btnMicrophone);
+            pnlInputContainer.Controls.Add(btnMicrophone);
+            pnlInputContainer.Controls.Add(txtManualInput);
+
+            pnlManualInput.Controls.Add(pnlInputContainer);
             pnlManualInput.Controls.Add(lblManualInput);
 
             // Main content panel
@@ -671,9 +680,8 @@ namespace FXOAiTranslator
             {
                 LogDebugMessage($"Speech recognition initialization failed: {ex.Message}");
                 btnMicrophone.Enabled = false;
-                btnMicrophone.Text = "🎤 N/A";
-                btnMicrophone.BackColor = Color.FromArgb(200, 200, 200);
-                btnMicrophone.ForeColor = Color.Gray;
+                btnMicrophone.ForeColor = Color.LightGray;
+                btnMicrophone.BackColor = Color.Transparent;
                 var tooltip = new ToolTip();
                 tooltip.SetToolTip(btnMicrophone, $"Speech recognition unavailable: {ex.Message}");
             }
@@ -695,13 +703,11 @@ namespace FXOAiTranslator
         {
             try
             {
-                // Immediate visual feedback BEFORE starting recognition
-                btnMicrophone.Text = "⏹ Stop";
-                btnMicrophone.BackColor = Color.FromArgb(220, 20, 60); // Crimson red
-                btnMicrophone.ForeColor = Color.White;
-                txtManualInput.PlaceholderText = "🎤 LISTENING... Speak now!";
-                txtManualInput.BackColor = Color.FromArgb(255, 255, 200); // Light yellow
-                txtManualInput.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+                // Subtle visual feedback - iPhone Messenger style
+                btnMicrophone.ForeColor = Color.FromArgb(0, 122, 255); // iOS blue
+                btnMicrophone.BackColor = Color.FromArgb(230, 240, 255); // Very light blue
+                txtManualInput.PlaceholderText = "Listening...";
+                txtManualInput.BorderStyle = BorderStyle.FixedSingle;
 
                 // Update status bar
                 SetProcessingStatus(true, "🎤 Listening for speech...");
@@ -718,12 +724,9 @@ namespace FXOAiTranslator
                 LogDebugMessage($"Failed to start speech recognition: {ex.Message}");
 
                 // Reset UI on error
-                btnMicrophone.Text = "🎤 Speak";
-                btnMicrophone.BackColor = Color.FromArgb(240, 240, 240);
-                btnMicrophone.ForeColor = Color.DarkSlateGray;
-                txtManualInput.PlaceholderText = "Type trade request here and press Enter to process...";
-                txtManualInput.BackColor = Color.White;
-                txtManualInput.Font = new Font("Segoe UI", 11F);
+                btnMicrophone.ForeColor = Color.Gray;
+                btnMicrophone.BackColor = Color.Transparent;
+                txtManualInput.PlaceholderText = "Type or speak trade request...";
                 SetProcessingStatus(false, "Speech recognition failed");
 
                 MessageBox.Show($"Failed to start speech recognition:\n{ex.Message}\n\nMake sure your microphone is connected and working.", "Speech Recognition Error",
@@ -738,13 +741,12 @@ namespace FXOAiTranslator
                 _speechRecognizer.RecognizeAsyncStop();
                 _isListening = false;
 
-                // Reset UI to normal state
-                btnMicrophone.Text = "🎤 Speak";
-                btnMicrophone.BackColor = Color.FromArgb(240, 240, 240);
-                btnMicrophone.ForeColor = Color.DarkSlateGray;
-                txtManualInput.PlaceholderText = "Type trade request here and press Enter to process...";
+                // Reset UI to normal state - subtle grey
+                btnMicrophone.ForeColor = Color.Gray;
+                btnMicrophone.BackColor = Color.Transparent;
+                txtManualInput.PlaceholderText = "Type or speak trade request...";
                 txtManualInput.BackColor = Color.White;
-                txtManualInput.Font = new Font("Segoe UI", 11F);
+                txtManualInput.Font = new Font("Segoe UI", 10F);
 
                 SetProcessingStatus(false, "Speech recognition stopped");
 
@@ -764,18 +766,18 @@ namespace FXOAiTranslator
                 string recognizedText = e.Result.Text;
                 LogDebugMessage($"Speech recognized (confidence: {e.Result.Confidence:P0}): {recognizedText}");
 
-                // Show what was recognized immediately
+                // Show what was recognized immediately with subtle feedback
                 if (txtManualInput.InvokeRequired)
                 {
                     txtManualInput.Invoke(new Action(() => {
                         txtManualInput.Text = recognizedText;
-                        txtManualInput.BackColor = Color.FromArgb(200, 255, 200); // Light green - success!
+                        txtManualInput.BackColor = Color.FromArgb(240, 248, 255); // Very subtle blue tint
                     }));
                 }
                 else
                 {
                     txtManualInput.Text = recognizedText;
-                    txtManualInput.BackColor = Color.FromArgb(200, 255, 200); // Light green - success!
+                    txtManualInput.BackColor = Color.FromArgb(240, 248, 255); // Very subtle blue tint
                 }
 
                 // Brief pause to let user see what was recognized
