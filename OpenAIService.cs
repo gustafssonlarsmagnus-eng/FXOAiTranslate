@@ -227,6 +227,14 @@ SEAGULL STRUCTURE RULES:
 - Example: '40m seagull' → N40M,40M,40M (40M on EACH leg, not 40M total)
 - For zero-cost: solve for the sold call strike that makes net premium = 0
 
+VERTICAL SPREAD WITH ""VS"" NOTATION:
+- When ""VS"" appears with SAME expiry on both legs, this is a VERTICAL SPREAD (not calendar)
+- PUT SPREAD: Higher strike VS Lower strike → Buy high, Sell low → B,S
+  * Example: ""PUT 11.7 VS PUT 11.5"" (same expiry) → B,S 11.7000P,11.5000P
+- CALL SPREAD: Lower strike VS Higher strike → Buy low, Sell high → B,S
+  * Example: ""CALL 11.5 VS CALL 11.7"" (same expiry) → B,S 11.5000C,11.7000C
+- CRITICAL: Maintain input strike order, apply correct B,S directions based on spread type
+
 CALENDAR SPREAD RULES:
 - ""VS"" notation indicates calendar structure with different expiries
 - DEFAULT DIRECTION: Buy near expiry, Sell far expiry (B,S) unless explicitly stated otherwise
