@@ -866,6 +866,62 @@ namespace FXOAiTranslator
                     lpName = bestOfferQuote.Get(Tags.OnBehalfOfCompID.ToString());
                 }
 
+                // ===== QUOTE FRESHNESS VALIDATION =====
+                // Re-fetch streams to catch any in-flight quote cancels/updates
+                System.Threading.Thread.Sleep(50); // Small delay to catch any in-flight cancels
+                var refreshedStreams = _fixSession.Application.GetActiveStreams(_groupId);
+                var refreshedStream = refreshedStreams.FirstOrDefault(s => s.LP == lpName);
+
+                if (refreshedStream == null)
+                {
+                    MessageBox.Show(
+                        $"Quote from {lpName} is no longer available.\n\nPlease request fresh quotes.",
+                        "Quote No Longer Available",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+                    _quoteTimer?.Start();
+                    return;
+                }
+
+                // Check if the specific side (bid/offer) was canceled
+                FIXMessage refreshedQuote = side == "SELL" ? refreshedStream.BidQuote : refreshedStream.OfferQuote;
+
+                if (refreshedQuote == null)
+                {
+                    MessageBox.Show(
+                        $"Quote from {lpName} was just canceled.\n\nPlease request fresh quotes.",
+                        "Quote Canceled",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+                    _quoteTimer?.Start();
+                    return;
+                }
+
+                // Check if the QuoteID changed (quote was replaced)
+                string originalQuoteID = selectedQuote.Get(Tags.QuoteID.ToString());
+                string currentQuoteID = refreshedQuote.Get(Tags.QuoteID.ToString());
+
+                if (originalQuoteID != currentQuoteID)
+                {
+                    MessageBox.Show(
+                        $"Quote from {lpName} was updated.\n\nOld QuoteID: {originalQuoteID}\nNew QuoteID: {currentQuoteID}\n\nPlease review the updated price.",
+                        "Quote Updated",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information
+                    );
+
+                    // Auto-refresh display with new quote
+                    UpdateQuoteDisplay();
+                    _quoteTimer?.Start();
+                    return;
+                }
+
+                // Use the refreshed quote for execution to ensure we have the latest data
+                selectedQuote = refreshedQuote;
+                // ===== END QUOTE FRESHNESS VALIDATION =====
+
                 string clOrdID = _fixSession.SendExecution(selectedQuote, side, _trade);
 
                 // Order sent - user will see updates in the trade blotter below
