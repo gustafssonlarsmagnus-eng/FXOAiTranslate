@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FXOptionsSimulator\FXOptionsSimulator.csproj" />
+    <ProjectReference Include="FXOptionsSimulator\FXOptionsSimulator.csproj" />
   </ItemGroup>
 
   <ItemGroup>
