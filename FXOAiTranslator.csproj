@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <Reference Include="Bloomberglp.Blpapi">
-      <HintPath>bin\Debug\net8.0-windows\Bloomberglp.Blpapi.dll</HintPath>
+  <HintPath>C:\Program Files (x86)\STP\Bloomberglp.Blpapi.dll</HintPath>
     </Reference>
   </ItemGroup>
 
