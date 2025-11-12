@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "JNkHqcwP+QQ=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\p901gft\\Documents\\Visual Studio 2022\\FXOptionsSimulator\\FXOptionsSimulator.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\p901gft\\.nuget\\packages\\qlnet\\1.13.1\\qlnet.1.13.1.nupkg.sha512",
+    "C:\\Users\\p901gft\\.nuget\\packages\\quickfix.net.netcore\\1.8.1\\quickfix.net.netcore.1.8.1.nupkg.sha512",
+    "C:\\Users\\p901gft\\.nuget\\packages\\quickfix.net.netcore.fix44\\1.8.1\\quickfix.net.netcore.fix44.1.8.1.nupkg.sha512"
+  ],
+  "logs": []
+}

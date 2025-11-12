@@ -1,0 +1,176 @@
+{
+  "version": 3,
+  "targets": {
+    "net8.0": {
+      "QLNet/1.13.1": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QLNet.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/QLNet.dll": {}
+        }
+      },
+      "QuickFix.Net.NETCore/1.8.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/QuickFix.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/QuickFix.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "QuickFix.Net.NETCore.FIX44/1.8.1": {
+        "type": "package",
+        "dependencies": {
+          "QuickFix.Net.NETCore": "1.8.1"
+        },
+        "compile": {
+          "lib/netstandard2.0/QuickFix.FIX44.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/QuickFix.FIX44.dll": {
+            "related": ".xml"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "QLNet/1.13.1": {
+      "sha512": "lJrP6Dmr8bqeiqbIce/4RQPOAePFCPzOt2+Wmrqbu5q1egotXx80Flv9rCsZfb443Fi8znM65Lay/PfvJuDfRw==",
+      "type": "package",
+      "path": "qlnet/1.13.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net8.0/QLNet.dll",
+        "lib/netstandard2.0/QLNet.dll",
+        "qlnet.1.13.1.nupkg.sha512",
+        "qlnet.nuspec"
+      ]
+    },
+    "QuickFix.Net.NETCore/1.8.1": {
+      "sha512": "O5zFjO3gfnrvvbWmgH6oJYNQZYz5MlgOXnnFVO6Wt6gXa3c5CNV/EHKuYnBHyzD0TbVcR1kmr/raBhz0oFgCeg==",
+      "type": "package",
+      "path": "quickfix.net.netcore/1.8.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/netstandard2.0/QuickFix.dll",
+        "lib/netstandard2.0/QuickFix.xml",
+        "quickfix.net.netcore.1.8.1.nupkg.sha512",
+        "quickfix.net.netcore.nuspec"
+      ]
+    },
+    "QuickFix.Net.NETCore.FIX44/1.8.1": {
+      "sha512": "ee9qnsx/s1zSnWpIGJ4U6zhOxy0LLEPezcS0SPZj2c3IJtezMdi+HSDRYXFIvAqx9VsIxF2++9MbGlr9NeP7Yw==",
+      "type": "package",
+      "path": "quickfix.net.netcore.fix44/1.8.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/netstandard2.0/QuickFix.FIX44.dll",
+        "lib/netstandard2.0/QuickFix.FIX44.xml",
+        "quickfix.net.netcore.fix44.1.8.1.nupkg.sha512",
+        "quickfix.net.netcore.fix44.nuspec"
+      ]
+    }
+  },
+  "projectFileDependencyGroups": {
+    "net8.0": [
+      "QLNet >= 1.13.1",
+      "QuickFix.Net.NETCore >= 1.8.1",
+      "QuickFix.Net.NETCore.FIX44 >= 1.8.1"
+    ]
+  },
+  "packageFolders": {
+    "C:\\Users\\p901gft\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+  },
+  "project": {
+    "version": "1.0.0",
+    "restore": {
+      "projectUniqueName": "C:\\Users\\p901gft\\Documents\\Visual Studio 2022\\FXOptionsSimulator\\FXOptionsSimulator.csproj",
+      "projectName": "FXOptionsSimulator",
+      "projectPath": "C:\\Users\\p901gft\\Documents\\Visual Studio 2022\\FXOptionsSimulator\\FXOptionsSimulator.csproj",
+      "packagesPath": "C:\\Users\\p901gft\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\p901gft\\Documents\\Visual Studio 2022\\FXOptionsSimulator\\obj\\",
+      "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
+      "configFilePaths": [
+        "C:\\Users\\p901gft\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+      ],
+      "originalTargetFrameworks": [
+        "net8.0"
+      ],
+      "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "https://api.nuget.org/v3/index.json": {}
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "projectReferences": {}
+        }
+      },
+      "warningProperties": {
+        "warnAsError": [
+          "NU1605"
+        ]
+      },
+      "restoreAuditProperties": {
+        "enableAudit": "true",
+        "auditLevel": "low",
+        "auditMode": "direct"
+      },
+      "SdkAnalysisLevel": "9.0.300"
+    },
+    "frameworks": {
+      "net8.0": {
+        "targetAlias": "net8.0",
+        "dependencies": {
+          "QLNet": {
+            "target": "Package",
+            "version": "[1.13.1, )"
+          },
+          "QuickFix.Net.NETCore": {
+            "target": "Package",
+            "version": "[1.8.1, )"
+          },
+          "QuickFix.Net.NETCore.FIX44": {
+            "target": "Package",
+            "version": "[1.8.1, )"
+          }
+        },
+        "imports": [
+          "net461",
+          "net462",
+          "net47",
+          "net471",
+          "net472",
+          "net48",
+          "net481"
+        ],
+        "assetTargetFallback": true,
+        "warn": true,
+        "frameworkReferences": {
+          "Microsoft.NETCore.App": {
+            "privateAssets": "all"
+          }
+        },
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
+      }
+    }
+  }
+}
