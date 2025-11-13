@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using QuickFix;
 using QuickFix.Fields;
 
@@ -10,6 +11,7 @@ namespace FXOptionsSimulator.FIX
     {
         private readonly ConcurrentDictionary<string, StreamInfo> _quotes;
         private ConcurrentDictionary<string, string> _quoteReqToGroupID = new ConcurrentDictionary<string, string>();
+        private readonly FenicsConfig _config;
         public event Action<string, string, string> OnQuoteCanceled;
 
         public class StreamInfo
@@ -29,9 +31,10 @@ namespace FXOptionsSimulator.FIX
 
         public bool IsLoggedOn { get; private set; }
 
-        public GFIFIXApplication()
+        public GFIFIXApplication(FenicsConfig config = null)
         {
             _quotes = new ConcurrentDictionary<string, StreamInfo>();
+            _config = config ?? new FenicsConfig(); // Use provided config or create new default
             Console.WriteLine("[GFI FIX App] Initialized");
         }
 
@@ -62,10 +65,11 @@ namespace FXOptionsSimulator.FIX
 
             if (msgType == QuickFix.Fields.MsgType.LOGON)
             {
-                message.SetField(new Username("swed.obo.stg.api"));
-                message.SetField(new Password("ZQcZokEOLjb9"));
+                // Use credentials from config instead of hardcoded values
+                message.SetField(new Username(_config.Username));
+                message.SetField(new Password(_config.Password));
 
-                Console.WriteLine("[GFI FIX] >>> Sending Logon with credentials");
+                Console.WriteLine("[GFI FIX] >>> Sending Logon with credentials from config");
 
                 Console.WriteLine($"[DEBUG] Full Logon Message:");
                 Console.WriteLine($"{message.ToString()}");
@@ -613,17 +617,11 @@ namespace FXOptionsSimulator.FIX
 
         public List<StreamInfo> GetActiveStreams(string groupId)
         {
-            var result = new List<StreamInfo>();
-
-            foreach (var stream in _quotes.Values)
-            {
-                if (stream.GroupID == groupId)
-                {
-                    result.Add(stream);
-                }
-            }
-
-            return result;
+            // Use LINQ to create a safe snapshot of the concurrent dictionary
+            // This prevents InvalidOperationException if dictionary is modified during iteration
+            return _quotes.Values
+                .Where(stream => stream.GroupID == groupId)
+                .ToList();
         }
 
         private string GetQuoteStatusText(int status)

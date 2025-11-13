@@ -250,5 +250,21 @@ namespace FXOptionsSimulator
                 Console.WriteLine($"  {leg.LegID}: {direction} {leg.NotionalMM}M {leg.OptionType} @ {leg.Strike:F4} ({leg.Tenor})");
             }
         }
+
+        /// <summary>
+        /// Convert structure type string to GFI structure code
+        /// </summary>
+        public static int GetStructureCode(string structureType)
+        {
+            return structureType switch
+            {
+                "Vanilla" => 1,
+                "CallSpread" => 8,
+                "PutSpread" => 9,
+                "RiskReversal" => 5,
+                "Seagull" => 10,
+                _ => 1
+            };
+        }
     }
 }

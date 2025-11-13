@@ -80,7 +80,7 @@ public static class FxDateService
         return (cal1 == null || cal2 == null) ? null : new JointCalendar(cal1, cal2, JointCalendarRule.JoinHolidays);
     }
 
-    private static QLCal CalendarFromCcy(string ccy) => (ccy ?? "").ToUpperInvariant() switch
+    public static QLCal CalendarFromCcy(string ccy) => (ccy ?? "").ToUpperInvariant() switch
     {
         "USD" => new UnitedStates(UnitedStates.Market.Settlement),
         "EUR" => new TARGET(),

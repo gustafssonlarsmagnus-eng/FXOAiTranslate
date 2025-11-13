@@ -8,8 +8,8 @@ namespace FXOptionsSimulator
     /// </summary>
     public static class GlobalFIXSession
     {
-        private static GFIFIXSessionManager _instance;
-        private static SSLTunnelProxy _sslProxy;  // ADD THIS
+        private static volatile GFIFIXSessionManager _instance;
+        private static volatile SSLTunnelProxy _sslProxy;  // ADD THIS
         private static readonly object _lock = new object();
 
         public static GFIFIXSessionManager Instance

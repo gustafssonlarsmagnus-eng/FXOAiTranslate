@@ -18,18 +18,22 @@ namespace FXOptionsSimulator.FIX
         private SessionID _sessionID;
         private RawFIXMessageBuilder _rawBuilder;
         private readonly Dictionary<string, int> _executionCounters = new Dictionary<string, int>();
+        private readonly object _seqNumLock = new object(); // Lock for sequence number operations
 
         public GFIFIXApplication Application => _application;
         public bool IsLoggedOn => _application.IsLoggedOn;
 
-        public GFIFIXSessionManager(string configFile = "quickfix.cfg")
+        public GFIFIXSessionManager(string configFile = "quickfix.cfg", FenicsConfig fenicsConfig = null)
         {
             Console.WriteLine($"[FIX Manager] Initializing with config: {configFile}");
             Console.WriteLine($"[FIX Manager] Config file path: {System.IO.Path.GetFullPath(configFile)}");
 
             Console.WriteLine($"[FIX Manager] Config exists: {File.Exists(configFile)}");
 
-            _application = new GFIFIXApplication();
+            // Create FenicsConfig if not provided
+            var config = fenicsConfig ?? new FenicsConfig();
+
+            _application = new GFIFIXApplication(config);
             _rawBuilder = new RawFIXMessageBuilder("FIX.4.4", "WEBFENICS55", "GFI");
 
             try
@@ -235,32 +239,44 @@ namespace FXOptionsSimulator.FIX
                 Console.WriteLine($"[Dates] 75={canonical75} (TODAY) 5020={canonical5020} (T+{P.PremiumSettleDays})");
 
                 // ===== Get current sequence number and increment for next message =====
-                var session = Session.LookupSession(_sessionID);
-                int seqNum = session.NextSenderMsgSeqNum;
-                _rawBuilder.SetMsgSeqNum(seqNum);
+                // Lock to prevent race condition where multiple threads could get same sequence number
+                string rawMessage;
+                int seqNum;
+                bool sent;
 
-                // ===== Build raw message with exact field order, passing canonical overrides =====
-                string rawMessage = _rawBuilder.BuildQuoteRequest(
-                    trade, lpName, quoteReqID, groupId,
-                    tag75Override: canonical75,
-                    tag5020Override: canonical5020);
-
-                Console.WriteLine($"\n[DEBUG] Raw Quote Request Message (SeqNum={seqNum}):");
-                Console.WriteLine($"{rawMessage.Replace("\x01", "|")}");
-                Console.WriteLine($"[DEBUG] End of message\n");
-
-                // ===== Send raw message =====
-                bool sent = session.Send(rawMessage);
-
-                if (sent)
+                lock (_seqNumLock)
                 {
-                    // Manually increment the sequence number since we sent raw
-                    session.NextSenderMsgSeqNum = seqNum + 1;
-                    Console.WriteLine($"[FIX Manager] ✓ Quote Request sent to {lpName} (SeqNum={seqNum})");
-                }
-                else
-                {
-                    Console.WriteLine($"[FIX Manager] ✗ Failed to send message");
+                    var session = Session.LookupSession(_sessionID);
+                    if (session == null)
+                        throw new InvalidOperationException("FIX session not found. Ensure Start() has been called.");
+
+                    seqNum = session.NextSenderMsgSeqNum;
+                    _rawBuilder.SetMsgSeqNum(seqNum);
+
+                    // ===== Build raw message with exact field order, passing canonical overrides =====
+                    rawMessage = _rawBuilder.BuildQuoteRequest(
+                        trade, lpName, quoteReqID, groupId,
+                        tag75Override: canonical75,
+                        tag5020Override: canonical5020);
+
+                    Console.WriteLine($"\n[DEBUG] Raw Quote Request Message (SeqNum={seqNum}):");
+                    Console.WriteLine($"{rawMessage.Replace("\x01", "|")}");
+                    Console.WriteLine($"[DEBUG] End of message\n");
+
+                    // ===== Send raw message =====
+                    sent = session.Send(rawMessage);
+
+                    if (sent)
+                    {
+                        // Manually increment the sequence number since we sent raw
+                        session.NextSenderMsgSeqNum = seqNum + 1;
+                        Console.WriteLine($"[FIX Manager] ✓ Quote Request sent to {lpName} (SeqNum={seqNum})");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[FIX Manager] ✗ Failed to send message");
+                        throw new InvalidOperationException("Failed to send Quote Request message");
+                    }
                 }
 
                 for (int i = 0; i < trade.Legs.Count; i++)
@@ -279,16 +295,6 @@ namespace FXOptionsSimulator.FIX
             }
         }
 
-        private int GetStructureCode(string structureType) => structureType switch
-        {
-            "Vanilla" => 1,
-            "CallSpread" => 8,
-            "PutSpread" => 9,
-            "RiskReversal" => 5,
-            "Seagull" => 10,
-            _ => 1
-        };
-
         #endregion
 
         #region Send Execution (35=AB)
@@ -302,63 +308,76 @@ namespace FXOptionsSimulator.FIX
             string quoteReqID = quote.Get(Tags.QuoteReqID.ToString());
             string lpName = quote.Get(Tags.OnBehalfOfCompID.ToString());
 
-            // Increment execution counter for this QuoteReqID and generate ClOrdID with suffix
-            if (!_executionCounters.ContainsKey(quoteReqID))
-                _executionCounters[quoteReqID] = 0;
-
-            _executionCounters[quoteReqID]++;
-            string clOrdID = $"{quoteReqID}_{_executionCounters[quoteReqID]}";
-
-            Console.WriteLine($"\n[FIX Manager] Executing trade");
-            Console.WriteLine($"  ClOrdID: {clOrdID}");
-            Console.WriteLine($"  QuoteReqID: {quoteReqID}");
-            Console.WriteLine($"  QuoteID: {quoteID}");
-            Console.WriteLine($"  LP: {lpName}");
-            Console.WriteLine($"  Side: {side}");
+            // Use raw message builder for proper field ordering
+            // QuickFix sorts fields by tag number, but GFI requires specific order
+            if (trade == null || quote.LegPricing == null || quote.LegPricing.Count == 0)
+            {
+                Console.WriteLine($"  [WARNING] Trade is NULL or no leg pricing available!");
+                throw new InvalidOperationException("Cannot execute - missing trade or leg pricing information");
+            }
 
             try
             {
-                // Use raw message builder for proper field ordering
-                // QuickFix sorts fields by tag number, but GFI requires specific order
-                if (trade == null || quote.LegPricing == null || quote.LegPricing.Count == 0)
+                string clOrdID;
+                string rawMessage;
+                int seqNum;
+                bool sent;
+
+                // Lock to prevent race condition in sequence number and execution counter
+                lock (_seqNumLock)
                 {
-                    Console.WriteLine($"  [WARNING] Trade is NULL or no leg pricing available!");
-                    throw new InvalidOperationException("Cannot execute - missing trade or leg pricing information");
-                }
+                    // Increment execution counter for this QuoteReqID and generate ClOrdID with suffix
+                    if (!_executionCounters.ContainsKey(quoteReqID))
+                        _executionCounters[quoteReqID] = 0;
 
-                Console.WriteLine($"  [DEBUG] Building execution with {quote.LegPricing.Count} legs");
-                int structureCode = GetStructureCode(trade.StructureType);
+                    _executionCounters[quoteReqID]++;
+                    clOrdID = $"{quoteReqID}_{_executionCounters[quoteReqID]}";
 
-                // Get current sequence number and increment for next message
-                var session = Session.LookupSession(_sessionID);
-                int seqNum = session.NextSenderMsgSeqNum;
-                _rawBuilder.SetMsgSeqNum(seqNum);
+                    Console.WriteLine($"\n[FIX Manager] Executing trade");
+                    Console.WriteLine($"  ClOrdID: {clOrdID}");
+                    Console.WriteLine($"  QuoteReqID: {quoteReqID}");
+                    Console.WriteLine($"  QuoteID: {quoteID}");
+                    Console.WriteLine($"  LP: {lpName}");
+                    Console.WriteLine($"  Side: {side}");
 
-                // Build raw message with exact field order
-                string rawMessage = _rawBuilder.BuildNewOrderMultileg(
-                    clOrdID,
-                    quoteID,
-                    side,
-                    trade.Underlying,
-                    structureCode,
-                    quote);
+                    Console.WriteLine($"  [DEBUG] Building execution with {quote.LegPricing.Count} legs");
+                    int structureCode = TradeStructure.GetStructureCode(trade.StructureType);
 
-                Console.WriteLine($"\n[DEBUG] Raw Execution Message (SeqNum={seqNum}):");
-                Console.WriteLine($"{rawMessage.Replace("\x01", "|")}");
-                Console.WriteLine($"[DEBUG] End of message\n");
+                    // Get current sequence number and increment for next message
+                    var session = Session.LookupSession(_sessionID);
+                    if (session == null)
+                        throw new InvalidOperationException("FIX session not found. Ensure Start() has been called.");
 
-                // Send raw message
-                bool sent = session.Send(rawMessage);
+                    seqNum = session.NextSenderMsgSeqNum;
+                    _rawBuilder.SetMsgSeqNum(seqNum);
 
-                if (sent)
-                {
-                    // Manually increment the sequence number since we sent raw
-                    session.NextSenderMsgSeqNum = seqNum + 1;
-                    Console.WriteLine($"[FIX Manager] ✓ Execution sent (SeqNum={seqNum})");
-                }
-                else
-                {
-                    Console.WriteLine($"[FIX Manager] ✗ Failed to send message");
+                    // Build raw message with exact field order
+                    rawMessage = _rawBuilder.BuildNewOrderMultileg(
+                        clOrdID,
+                        quoteID,
+                        side,
+                        trade.Underlying,
+                        structureCode,
+                        quote);
+
+                    Console.WriteLine($"\n[DEBUG] Raw Execution Message (SeqNum={seqNum}):");
+                    Console.WriteLine($"{rawMessage.Replace("\x01", "|")}");
+                    Console.WriteLine($"[DEBUG] End of message\n");
+
+                    // Send raw message
+                    sent = session.Send(rawMessage);
+
+                    if (sent)
+                    {
+                        // Manually increment the sequence number since we sent raw
+                        session.NextSenderMsgSeqNum = seqNum + 1;
+                        Console.WriteLine($"[FIX Manager] ✓ Execution sent (SeqNum={seqNum})");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[FIX Manager] ✗ Failed to send message");
+                        throw new InvalidOperationException("Failed to send Execution message");
+                    }
                 }
 
                 // Add to blotter

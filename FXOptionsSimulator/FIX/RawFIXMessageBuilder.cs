@@ -68,8 +68,8 @@ namespace FXOptionsSimulator.FIX
             var policy = GlobalDatePolicy.Policy;
 
             var jointCal = new JointCalendar(
-                FxCalendar(ccy1),
-                FxCalendar(ccy2),
+                FxDateService.CalendarFromCcy(ccy1),
+                FxDateService.CalendarFromCcy(ccy2),
                 JointCalendarRule.JoinHolidays);
 
             var spotLag = policy.SpotLagForPair(pair);   // OneBD / TwoBD etc.
@@ -82,7 +82,7 @@ namespace FXOptionsSimulator.FIX
             AddField(5830, trade.PremiumCurrency); // PremiumCcy
             AddField(9016, "1"); // HedgeTradeType
 
-            int structureCode = GetStructureCode(trade.StructureType);
+            int structureCode = TradeStructure.GetStructureCode(trade.StructureType);
             AddField(9126, structureCode.ToString()); // Structure
             AddField(9943, "2"); // ProductQuoteType
             AddField(8051, groupId);
@@ -316,91 +316,6 @@ namespace FXOptionsSimulator.FIX
         private string GetUTCTimestamp()
         {
             return DateTime.UtcNow.ToString("yyyyMMdd-HH:mm:ss.fff");
-        }
-
-        private int GetStructureCode(string structureType)
-        {
-            return structureType switch
-            {
-                "Vanilla" => 1,
-                "CallSpread" => 8,
-                "PutSpread" => 9,
-                "RiskReversal" => 5,
-                "Seagull" => 10,
-                _ => 1
-            };
-        }
-
-        private static QLNet.Calendar FxCalendar(string ccy) => (ccy ?? "").ToUpperInvariant() switch
-        {
-            "USD" => new UnitedStates(UnitedStates.Market.Settlement),
-            "EUR" => new TARGET(),
-            "GBP" => new UnitedKingdom(UnitedKingdom.Market.Settlement),
-            "JPY" => new Japan(),
-            "CHF" => new Switzerland(),
-            "CAD" => new Canada(),
-            "AUD" => new Australia(),
-            "NZD" => new NewZealand(),
-            "SEK" => new Sweden(),
-            "NOK" => new Norway(),
-            "DKK" => new Denmark(),
-            _ => new TARGET() // safe default
-        };
-
-
-        private DateTime GetNextBusinessDay(DateTime startDate, int businessDays)
-        {
-            var result = startDate;
-            int addedDays = 0;
-
-            while (addedDays < businessDays)
-            {
-                result = result.AddDays(1);
-                // Skip weekends
-                if (result.DayOfWeek != DayOfWeek.Saturday &&
-                    result.DayOfWeek != DayOfWeek.Sunday)
-                {
-                    addedDays++;
-                }
-            }
-
-            return result;
-        }
-
-        public void OnMessage(QuickFix.FIX44.QuoteCancel message, SessionID sessionID)
-        {
-            var quoteReqID = message.IsSetQuoteReqID() ? message.QuoteReqID.getValue() : "N/A";
-            var quoteCancelType = message.IsSetQuoteCancelType() ? message.QuoteCancelType.getValue() : 0;
-
-            Console.WriteLine($"[GFI FIX] <<< Quote Cancel");
-            Console.WriteLine($"  QuoteReqID: {quoteReqID}");
-            Console.WriteLine($"  CancelType: {quoteCancelType}"); // 1=Cancel for Symbol, 4=Cancel All
-
-            // Notify UI that quote is canceled
-        }
-
-        private static DateTime AdjustFollowingWeekday(DateTime d)
-        {
-            var date = d.Date;
-            if (date.DayOfWeek == DayOfWeek.Saturday) return date.AddDays(2);
-            if (date.DayOfWeek == DayOfWeek.Sunday) return date.AddDays(1);
-            return date;
-        }
-
-        private DateTime CalculateMaturityFromTenor(string tenor)
-        {
-            var today = DateTime.UtcNow;
-
-            if (string.IsNullOrEmpty(tenor)) return today.AddMonths(1);
-
-            var number = int.Parse(tenor.TrimEnd('M', 'Y', 'W', 'D'));
-
-            if (tenor.EndsWith("M")) return today.AddMonths(number);
-            if (tenor.EndsWith("Y")) return today.AddYears(number);
-            if (tenor.EndsWith("W")) return today.AddDays(number * 7);
-            if (tenor.EndsWith("D")) return today.AddDays(number);
-
-            return today.AddMonths(1); // Default 1M
         }
     }
 }
