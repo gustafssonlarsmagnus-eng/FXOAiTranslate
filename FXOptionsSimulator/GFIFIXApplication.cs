@@ -623,6 +623,12 @@ namespace FXOptionsSimulator.FIX
                 }
             }
 
+            // Sort by LastUpdate descending (most recent first) to ensure:
+            // 1. Consistent ordering across multiple calls
+            // 2. Preference for freshest quotes
+            // 3. When multiple quotes exist for same LP, newest is selected
+            result.Sort((a, b) => b.LastUpdate.CompareTo(a.LastUpdate));
+
             return result;
         }
 

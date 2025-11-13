@@ -868,13 +868,20 @@ namespace FXOAiTranslator
 
                 // ===== QUOTE FRESHNESS VALIDATION =====
                 Console.WriteLine($"\n[VALIDATION] Starting quote freshness check for {lpName}");
-                Console.WriteLine($"[VALIDATION] Original QuoteID: {selectedQuote.Get(Tags.QuoteID.ToString())}");
+                string originalQuoteReqID = selectedQuote.Get(Tags.QuoteReqID.ToString());
+                string originalQuoteID = selectedQuote.Get(Tags.QuoteID.ToString());
+                Console.WriteLine($"[VALIDATION] Original QuoteReqID: {originalQuoteReqID}");
+                Console.WriteLine($"[VALIDATION] Original QuoteID: {originalQuoteID}");
 
                 // Re-fetch streams to check current quote state
                 // NOTE: No delay - execute as fast as possible to minimize window for LP to update quote
                 Console.WriteLine($"[VALIDATION] Re-fetching streams for GroupID: {_groupId}");
                 var refreshedStreams = _fixSession.Application.GetActiveStreams(_groupId);
-                var refreshedStream = refreshedStreams.FirstOrDefault(s => s.LP == lpName);
+
+                // CRITICAL FIX: Match by BOTH LP and QuoteReqID to get the exact stream
+                // If multiple quote requests exist for same LP, this ensures we validate the correct one
+                var refreshedStream = refreshedStreams.FirstOrDefault(s =>
+                    s.LP == lpName && s.QuoteReqID == originalQuoteReqID);
 
                 if (refreshedStream == null)
                 {
@@ -908,7 +915,6 @@ namespace FXOAiTranslator
                 Console.WriteLine($"[VALIDATION] ✓ Quote for side={side} exists");
 
                 // Check if the QuoteID changed (quote was replaced)
-                string originalQuoteID = selectedQuote.Get(Tags.QuoteID.ToString());
                 string currentQuoteID = refreshedQuote.Get(Tags.QuoteID.ToString());
 
                 if (originalQuoteID != currentQuoteID)
