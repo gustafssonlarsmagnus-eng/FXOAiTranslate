@@ -229,40 +229,31 @@ namespace FXOptionsSimulator.FIX
 
             AddField(9126, structureCode.ToString()); // Structure
 
-            // Required GFI fields for trade grouping (EMIR/regulatory)
-            string tradeGroupID = $"TG{DateTime.UtcNow:yyyyMMddHHmmssfff}";
-            AddField(8506, tradeGroupID); // TradeGroupID - unique swap link ID
-
-            // PartyIDs group - required for UAT trader identification
-            AddField(453, "1"); // NoPartyIDs
-            AddField(448, _senderCompID); // PartyID - use SenderCompID as trader ID
-            AddField(447, "D"); // PartyIDSource = PROPRIETARY_CUSTOM_CODE
-            AddField(452, "11"); // PartyRole = OrderOriginationTrader
-
             // NoLegs and leg repeating groups
-            // When executing against an RFQ quote, send ONLY identification fields, NOT pricing fields
-            // Per GFI spec: Volatility, MQSize, LegPremPrice are "not required in response to RFQ"
-            // GFI already has all pricing details from the original quote we're referencing via QuoteID
+            // Per GFI example: Must send pricing fields EXACTLY as received in Quote (S)
             if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
                 AddField(555, quote.LegPricing.Count.ToString()); // NoLegs
 
                 foreach (var legPricing in quote.LegPricing)
                 {
-                    // ONLY send leg identification fields for RFQ execution:
-                    // 1. LegSymbol (600) - Required
-                    // 2. LegStrategyID (7940) - Required for RFQ
-
-                    AddField(600, legPricing.LegSymbol ?? symbol); // LegSymbol - required
+                    // Send leg fields in order, matching GFI example format (NO LegSymbol!):
+                    // 1. LegStrategyID (7940) - Required for RFQ
+                    // 2. Volatility (5678) - Required, taken exactly from Quote (S)
+                    // 3. MQSize (5359) - Required, taken exactly from Quote (S)
+                    // 4. LegPremPrice (5844) - Required, taken exactly from Quote (S) INCLUDING sign
 
                     if (!string.IsNullOrEmpty(legPricing.LegStrategyID))
-                        AddField(7940, legPricing.LegStrategyID); // LegID - required for RFQ
+                        AddField(7940, legPricing.LegStrategyID); // LegStrategyID
 
-                    // DO NOT send pricing fields when executing RFQ quotes:
-                    // - Volatility (5678) - pricing data, not required
-                    // - MQSize (5359) - pricing data, not required
-                    // - LegPremPrice (5844) - pricing data, not required (was causing issues with sign)
-                    // GFI already knows all pricing from the QuoteID we're referencing
+                    if (!string.IsNullOrEmpty(legPricing.Volatility))
+                        AddField(5678, legPricing.Volatility); // Volatility - exact from quote
+
+                    if (!string.IsNullOrEmpty(legPricing.MQSize))
+                        AddField(5359, legPricing.MQSize); // MQSize - exact from quote
+
+                    if (!string.IsNullOrEmpty(legPricing.LegPremPrice))
+                        AddField(5844, legPricing.LegPremPrice); // LegPremPrice - exact from quote, keep sign
                 }
             }
 
