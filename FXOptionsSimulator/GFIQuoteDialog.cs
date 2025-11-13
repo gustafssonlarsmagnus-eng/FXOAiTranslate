@@ -36,6 +36,10 @@ namespace FXOAiTranslator
         private CheckBox chkDBS;
         private int _selectedLegCount;
 
+        // Retry tracking for execution failures
+        private Dictionary<string, int> _executionRetryCount = new Dictionary<string, int>();
+        private const int MAX_EXECUTION_RETRIES = 2;
+
         public GFIQuoteDialog(dynamic ovmlResult)
         {
             InitializeComponent();
@@ -66,6 +70,7 @@ namespace FXOAiTranslator
 
             // Subscribe to quote events
             _fixSession.Application.OnQuoteReceived += OnQuoteReceivedFromFIX;
+            _fixSession.Application.OnExecutionRetryNeeded += OnExecutionRetryNeeded;
         }
 
         private void InitializeCustomComponents()
@@ -1036,6 +1041,97 @@ namespace FXOAiTranslator
             }
         }
 
+        private void OnExecutionRetryNeeded(string clOrdID, int ordRejReason, string rejectText)
+        {
+            // Marshal to UI thread
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => OnExecutionRetryNeeded(clOrdID, ordRejReason, rejectText)));
+                return;
+            }
+
+            Console.WriteLine($"\n[RETRY] Execution retry requested for ClOrdID: {clOrdID}");
+            Console.WriteLine($"[RETRY] Reason: {rejectText}");
+
+            // Track retry count
+            if (!_executionRetryCount.ContainsKey(clOrdID))
+                _executionRetryCount[clOrdID] = 0;
+
+            _executionRetryCount[clOrdID]++;
+
+            if (_executionRetryCount[clOrdID] > MAX_EXECUTION_RETRIES)
+            {
+                Console.WriteLine($"[RETRY] ✗ Max retries ({MAX_EXECUTION_RETRIES}) exceeded for {clOrdID}");
+                MessageBox.Show(
+                    $"Execution failed after {MAX_EXECUTION_RETRIES} retries.\n\n" +
+                    $"Reason: {rejectText}\n\n" +
+                    $"The market may be moving too fast. Please request fresh quotes and try again.",
+                    "Execution Failed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+
+                // Update blotter with final rejection
+                TradeBlotter.Instance.UpdateTradeStatus(clOrdID, "REJECTED", "N/A", null, $"Max retries exceeded: {rejectText}");
+                return;
+            }
+
+            Console.WriteLine($"[RETRY] Attempt {_executionRetryCount[clOrdID]} of {MAX_EXECUTION_RETRIES}");
+
+            try
+            {
+                // Extract side from ClOrdID - need to look up the original trade in blotter
+                var trade = TradeBlotter.Instance.GetTradeByClOrdID(clOrdID);
+                if (trade == null)
+                {
+                    Console.WriteLine($"[RETRY] ✗ Could not find trade for ClOrdID: {clOrdID}");
+                    return;
+                }
+
+                string side = trade.Side;
+                string lpName = trade.LP;
+                Console.WriteLine($"[RETRY] Original side: {side}, LP: {lpName}");
+
+                // Re-fetch the latest quote from the stream
+                var streams = _fixSession.Application.GetActiveStreams(_groupId);
+                var stream = streams.FirstOrDefault(s => s.LP == lpName);
+
+                if (stream == null)
+                {
+                    Console.WriteLine($"[RETRY] ✗ Stream for {lpName} not found");
+                    TradeBlotter.Instance.UpdateTradeStatus(clOrdID, "REJECTED", "N/A", null, "LP stream no longer available");
+                    return;
+                }
+
+                FIXMessage latestQuote = side == "SELL" ? stream.BidQuote : stream.OfferQuote;
+
+                if (latestQuote == null)
+                {
+                    Console.WriteLine($"[RETRY] ✗ Quote for side={side} from {lpName} is NULL");
+                    TradeBlotter.Instance.UpdateTradeStatus(clOrdID, "REJECTED", "N/A", null, "Quote no longer available");
+                    return;
+                }
+
+                string latestQuoteID = latestQuote.Get(Tags.QuoteID.ToString());
+                Console.WriteLine($"[RETRY] ✓ Found latest quote: {latestQuoteID}");
+                Console.WriteLine($"[RETRY] Retrying execution with updated quote...");
+
+                // Retry execution with the latest quote
+                // Note: This will generate a new ClOrdID with incremented suffix
+                string newClOrdID = _fixSession.SendExecution(latestQuote, side, _trade);
+                Console.WriteLine($"[RETRY] ✓ Retry execution sent with new ClOrdID: {newClOrdID}");
+
+                // Transfer retry count to new ClOrdID
+                _executionRetryCount[newClOrdID] = _executionRetryCount[clOrdID];
+                _executionRetryCount.Remove(clOrdID);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RETRY] ✗ Retry failed: {ex.Message}");
+                TradeBlotter.Instance.UpdateTradeStatus(clOrdID, "REJECTED", "N/A", null, $"Retry error: {ex.Message}");
+            }
+        }
+
         private void OnTradeAddedToBlotter(TradeBlotterEntry entry)
         {
             if (dgvBlotter.InvokeRequired)
@@ -1108,12 +1204,12 @@ namespace FXOAiTranslator
             _countdownTimer?.Stop();
             _countdownTimer?.Dispose();
 
-            // Unsubscribe from blotter events
-            TradeBlotter.Instance.OnTradeAdded -= OnTradeAddedToBlotter;
-            TradeBlotter.Instance.OnTradeUpdated -= OnTradeUpdatedInBlotter;
-
             // Unsubscribe from events
             _fixSession.Application.OnQuoteReceived -= OnQuoteReceivedFromFIX;
+            _fixSession.Application.OnExecutionRetryNeeded -= OnExecutionRetryNeeded;
+
+            TradeBlotter.Instance.OnTradeAdded -= OnTradeAddedToBlotter;
+            TradeBlotter.Instance.OnTradeUpdated -= OnTradeUpdatedInBlotter;
 
             base.OnFormClosing(e);
         }

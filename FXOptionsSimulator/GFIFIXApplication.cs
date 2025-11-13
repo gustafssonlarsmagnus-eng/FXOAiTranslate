@@ -28,6 +28,7 @@ namespace FXOptionsSimulator.FIX
         public event Action<string> OnLogoutEvent;
         public event Action<string, FIXMessage> OnQuoteReceived;
         public event Action<string, string, string> OnExecutionReport; // ClOrdID, Status, ExecID
+        public event Action<string, int, string> OnExecutionRetryNeeded; // ClOrdID, OrdRejReason, RejectText
 
         public bool IsLoggedOn { get; private set; }
 
@@ -387,6 +388,23 @@ namespace FXOptionsSimulator.FIX
                 {
                     rejectReason = execReport.GetString(58);
                     Console.WriteLine($"  Reason: {rejectReason}");
+                }
+
+                // Check for retryable rejection (OrdRejReason = 1000, "quote is no longer available")
+                if (execReport.IsSetField(103)) // OrdRejReason
+                {
+                    int ordRejReason = execReport.GetInt(103);
+                    Console.WriteLine($"  OrdRejReason (103): {ordRejReason}");
+
+                    // Code 1000 = Generic error (includes "quote is no longer available, please try again")
+                    if (ordRejReason == 1000 && rejectReason != null &&
+                        (rejectReason.Contains("no longer available") || rejectReason.Contains("please try again")))
+                    {
+                        Console.WriteLine($"  🔄 RETRYABLE REJECTION - Triggering automatic retry");
+                        // Fire retry event - dialog will handle re-fetching quote and retrying
+                        OnExecutionRetryNeeded?.Invoke(clOrdID, ordRejReason, rejectReason);
+                        return; // Don't update blotter yet - wait for retry result
+                    }
                 }
             }
 
