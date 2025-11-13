@@ -6,21 +6,30 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="QLNet" Version="1.13.1" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.9" />
+    <PackageReference Include="System.Speech" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FXOptionsSimulator\FXOptionsSimulator.csproj" />
+    <ProjectReference Include="FXOptionsSimulator\FXOptionsSimulator.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="Bloomberglp.Blpapi">
-      <HintPath>bin\Debug\net8.0-windows\Bloomberglp.Blpapi.dll</HintPath>
+      <HintPath>C:\Program Files (x86)\STP\Bloomberglp.Blpapi.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="quickfix.cfg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
