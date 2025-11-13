@@ -1081,7 +1081,7 @@ namespace FXOAiTranslator
             try
             {
                 // Extract side from ClOrdID - need to look up the original trade in blotter
-                var trade = TradeBlotter.Instance.GetTradeByClOrdID(clOrdID);
+                var trade = TradeBlotter.Instance.GetTrade(clOrdID);
                 if (trade == null)
                 {
                     Console.WriteLine($"[RETRY] ✗ Could not find trade for ClOrdID: {clOrdID}");
