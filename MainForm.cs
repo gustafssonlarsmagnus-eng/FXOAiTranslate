@@ -1,6 +1,11 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Speech.Recognition;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -10,26 +15,43 @@ namespace FXOAiTranslator
     {
         private TradeParser _tradeParser;
         private BloombergService _bloombergService;
+        private string _tradesFilePath;
+        private List<TradeRecord> _allTrades;
 
         // UI Controls
-        private TextBox txtTradeInput;
-        private Button btnClearAll;
-        private Button btnCopyOVML;
-        private Button btnCopyUBS;
-        private Button btnClearPatterns;
         private CheckBox chkAutoSend;
-        private Label lblBloombergStatus;
         private DataGridView dgvTradeBlotter;
-        private Button btnToggleDebug;
+        private MenuStrip menuStrip;
         private Panel pnlDebug;
         private TextBox txtDebugLog;
+        private ContextMenuStrip ctxRowMenu;
+        private TextBox txtManualInput;
+        private Button btnMicrophone;
+        private ToolTip microphoneToolTip;
         private bool debugVisible = false;
+
+        // Speech Recognition
+        private SpeechRecognitionEngine _speechRecognizer;
+        private bool _isListening = false;
+
+        // Progress indicator
+        private StatusStrip statusStrip;
+        private ToolStripStatusLabel lblStatus;
+        private ToolStripProgressBar progressBar;
+        private ToolStripStatusLabel lblBloombergStatus;
+
+        // Re-entrancy guard for processing
+        private bool _processing;
+
+        // Current filter
+        private TradeFilter _currentFilter = TradeFilter.Today;
 
         public MainForm()
         {
             InitializeComponent();
             SetupServices();
             SetupEventHandlers();
+            LoadTrades();
         }
 
         private void InitializeComponent()
@@ -39,116 +61,107 @@ namespace FXOAiTranslator
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.White;
 
-            // Trade Input Section
-            var lblTradeInput = new Label
+            // Create menu bar
+            menuStrip = new MenuStrip
             {
-                Text = "Enter trade request:",
-                Location = new Point(20, 20),
-                Size = new Size(150, 23),
-                Font = new Font("Segoe UI", 9F, FontStyle.Regular)
-            };
-
-            txtTradeInput = new TextBox
-            {
-                Location = new Point(20, 45),
-                Size = new Size(800, 23),
-                Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "e.g., eursek 4m i buy a 11.00 put in 100 mio and sell a 11.5000 call in 50 mio"
-            };
-
-            // Bloomberg Status
-            lblBloombergStatus = new Label
-            {
-                Text = "Bloomberg: Disconnected",
-                Location = new Point(850, 20),
-                Size = new Size(200, 23),
-                ForeColor = Color.Red,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-
-            // Control Buttons
-            btnClearAll = new Button
-            {
-                Text = "Clear All",
-                Location = new Point(20, 80),
-                Size = new Size(100, 30),
-                BackColor = Color.FromArgb(220, 53, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnClearAll.FlatAppearance.BorderSize = 0;
-
-            btnCopyOVML = new Button
-            {
-                Text = "Copy OVML",
-                Location = new Point(130, 80),
-                Size = new Size(100, 30),
-                BackColor = Color.FromArgb(40, 167, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnCopyOVML.FlatAppearance.BorderSize = 0;
-
-            btnCopyUBS = new Button
-            {
-                Text = "Copy UBS",
-                Location = new Point(240, 80),
-                Size = new Size(100, 30),
-                BackColor = Color.FromArgb(40, 167, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnCopyUBS.FlatAppearance.BorderSize = 0;
-
-            btnClearPatterns = new Button
-            {
-                Text = "Clear AI Patterns",
-                Location = new Point(350, 80),
-                Size = new Size(130, 30),
-                BackColor = Color.FromArgb(220, 53, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnClearPatterns.FlatAppearance.BorderSize = 0;
-
-            chkAutoSend = new CheckBox
-            {
-                Text = "Auto-send to Bloomberg",
-                Location = new Point(500, 85),
-                Size = new Size(180, 20),
-                Checked = true,
+                BackColor = Color.White,
                 Font = new Font("Segoe UI", 9F)
             };
 
-            btnToggleDebug = new Button
-            {
-                Text = "Show Debug",
-                Location = new Point(700, 80),
-                Size = new Size(100, 30),
-                BackColor = Color.FromArgb(108, 117, 125),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnToggleDebug.FlatAppearance.BorderSize = 0;
+            SetupMenuBar();
 
-            // Trade Blotter
+            // Request Blotter Label
             var lblBlotter = new Label
             {
-                Text = "Trade Blotter (Click X to reject bad OVML patterns - good patterns auto-learn):",
-                Location = new Point(20, 125),
-                Size = new Size(500, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Regular)
+                Text = "Request Blotter (Right-click for options | Paste anywhere with Ctrl+V to process)",
+                Dock = DockStyle.Top,
+                Height = 25,
+                Padding = new Padding(15, 5, 0, 0),
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                BackColor = Color.White
             };
 
+            // Manual Input Panel
+            var pnlManualInput = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 45,
+                BackColor = Color.White,
+                Padding = new Padding(15, 8, 15, 8)
+            };
+
+            var lblManualInput = new Label
+            {
+                Text = "Enter trade request:",
+                Dock = DockStyle.Left,
+                Width = 130,
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.White
+            };
+
+            // Container for text input and microphone button (to enable overlaying)
+            var pnlInputContainer = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent
+            };
+
+            txtManualInput = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10F),
+                PlaceholderText = "Type or speak trade request...",
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(5, 0, 40, 0) // Right padding for microphone button
+            };
+
+            // Microphone button - embedded in text field like iPhone Messenger
+            btnMicrophone = new Button
+            {
+                Text = "", // No text - we'll draw custom icon
+                Size = new Size(28, 20),
+                Location = new Point(pnlInputContainer.Width - 34, 3), // Position on right inside textbox
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.White, // Match text field background
+                Cursor = Cursors.Hand,
+                TabStop = false,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top
+            };
+            btnMicrophone.FlatAppearance.BorderSize = 0;
+            btnMicrophone.FlatAppearance.BorderColor = Color.White;
+            btnMicrophone.FlatAppearance.MouseOverBackColor = Color.FromArgb(245, 245, 245);
+            btnMicrophone.FlatAppearance.MouseDownBackColor = Color.FromArgb(235, 235, 235);
+            btnMicrophone.Paint += BtnMicrophone_Paint; // Custom drawing
+
+            // Position button after text field so it overlays on top
+            pnlInputContainer.Controls.Add(txtManualInput);
+            pnlInputContainer.Controls.Add(btnMicrophone);
+            btnMicrophone.BringToFront();
+
+            // Setup tooltip
+            microphoneToolTip = new ToolTip();
+            microphoneToolTip.AutoPopDelay = 5000;
+            microphoneToolTip.InitialDelay = 500;
+            microphoneToolTip.ReshowDelay = 100;
+            microphoneToolTip.ShowAlways = true;
+            microphoneToolTip.SetToolTip(btnMicrophone, "Click to start voice input");
+
+            pnlManualInput.Controls.Add(pnlInputContainer);
+            pnlManualInput.Controls.Add(lblManualInput);
+
+            // Main content panel
+            var pnlContent = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(20, 0, 20, 0)
+            };
+
+            // Trade Blotter DataGridView
             dgvTradeBlotter = new DataGridView
             {
-                Location = new Point(20, 150),
-                Size = new Size(1150, 300),
+                Dock = DockStyle.Fill,
                 AutoGenerateColumns = false,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -160,60 +173,232 @@ namespace FXOAiTranslator
             };
 
             SetupDataGridView();
+            SetupContextMenu();
 
-            // Debug Panel (initially hidden)
+            // Debug Panel
             pnlDebug = new Panel
             {
-                Location = new Point(20, 460),
-                Size = new Size(1150, 180),
-                BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.FromArgb(248, 249, 250),
+                Dock = DockStyle.Bottom,
+                Height = 200,
+                BackColor = Color.White,
+                Padding = new Padding(5),
                 Visible = false
+            };
+
+            var headerPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 25,
+                BackColor = Color.White
             };
 
             var lblDebug = new Label
             {
                 Text = "Debug Log:",
-                Location = new Point(10, 10),
-                Size = new Size(100, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Dock = DockStyle.Left,
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.Black,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(0, 5, 0, 0)
             };
 
-            txtDebugLog = new TextBox
+            var btnCopyDebug = new Button
             {
-                Location = new Point(10, 35),
-                Size = new Size(1125, 120),
-                Multiline = true,
-                ScrollBars = ScrollBars.Vertical,
-                ReadOnly = true,
-                BackColor = Color.White,
-                Font = new Font("Consolas", 8F),
-                WordWrap = false
+                Text = "Copy Debug",
+                Dock = DockStyle.Right,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Regular),
+                BackColor = Color.Transparent,
+                ForeColor = Color.DimGray,
+                Cursor = Cursors.Hand,
+                Padding = new Padding(0, 3, 0, 0)
             };
+            btnCopyDebug.FlatAppearance.BorderSize = 0;
+            btnCopyDebug.Click += (s, e) => Clipboard.SetText(txtDebugLog.Text);
 
             var btnClearDebug = new Button
             {
                 Text = "Clear Debug",
-                Location = new Point(1050, 8),
-                Size = new Size(85, 25),
-                BackColor = Color.FromArgb(220, 53, 69),
-                ForeColor = Color.White,
+                Dock = DockStyle.Right,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 8F, FontStyle.Regular),
+                BackColor = Color.Transparent,
+                ForeColor = Color.DimGray,
+                Cursor = Cursors.Hand,
+                Padding = new Padding(0, 3, 0, 0)
             };
             btnClearDebug.FlatAppearance.BorderSize = 0;
             btnClearDebug.Click += (s, e) => txtDebugLog.Clear();
 
-            pnlDebug.Controls.Add(lblDebug);
-            pnlDebug.Controls.Add(txtDebugLog);
-            pnlDebug.Controls.Add(btnClearDebug);
+            txtDebugLog = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                ReadOnly = true,
+                BackColor = Color.White,
+                ForeColor = Color.Black,
+                Font = new Font("Consolas", 9F),
+                BorderStyle = BorderStyle.None,
+                WordWrap = false
+            };
 
-            // Add all controls to form
-            this.Controls.AddRange(new Control[] {
-                lblTradeInput, txtTradeInput, lblBloombergStatus,
-                btnClearAll, btnCopyOVML, btnCopyUBS, btnClearPatterns, chkAutoSend, btnToggleDebug,
-                lblBlotter, dgvTradeBlotter, pnlDebug
-            });
+            headerPanel.Controls.Add(btnClearDebug);
+            headerPanel.Controls.Add(btnCopyDebug);
+            headerPanel.Controls.Add(lblDebug);
+
+            pnlDebug.Controls.Add(txtDebugLog);
+            pnlDebug.Controls.Add(headerPanel);
+
+            // Inner grid panel
+            var pnlGrid = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(0, 0, 0, 5)
+            };
+            pnlGrid.Controls.Add(dgvTradeBlotter);
+
+            // Add controls in order
+            pnlContent.Controls.Add(pnlGrid);
+            pnlContent.Controls.Add(pnlDebug);
+            pnlContent.Controls.Add(pnlManualInput);
+            pnlContent.Controls.Add(lblBlotter);
+
+            this.Controls.Add(pnlContent);
+            this.Controls.Add(menuStrip);
+            this.MainMenuStrip = menuStrip;
+
+            // Add status strip at bottom with all status info
+            statusStrip = new StatusStrip
+            {
+                BackColor = Color.FromArgb(248, 249, 250),
+                Font = new Font("Segoe UI", 9F),
+                Padding = new Padding(5, 0, 5, 0),
+                SizingGrip = false
+            };
+
+            lblStatus = new ToolStripStatusLabel
+            {
+                Text = "Ready",
+                TextAlign = ContentAlignment.MiddleLeft,
+                Width = 200
+            };
+
+            // Progress bar - align to right (rightmost)
+            progressBar = new ToolStripProgressBar
+            {
+                Style = ProgressBarStyle.Marquee,
+                Visible = false,
+                Size = new Size(100, 16),
+                MarqueeAnimationSpeed = 30,
+                Alignment = ToolStripItemAlignment.Right,
+                Margin = new Padding(15, 0, 0, 0)  // Add left margin
+            };
+
+            // Auto-send checkbox - align to right
+            chkAutoSend = new CheckBox
+            {
+                Text = "Auto-send",
+                Checked = true,
+                Font = new Font("Segoe UI", 9F),
+                AutoSize = true,
+                Margin = new Padding(20, 0, 25, 0)  // Add left and right margin
+            };
+
+            var chkAutoSendHost = new ToolStripControlHost(chkAutoSend)
+            {
+                Alignment = ToolStripItemAlignment.Right
+            };
+
+            // Bloomberg status label - align to right
+            lblBloombergStatus = new ToolStripStatusLabel
+            {
+                Text = "Bloomberg: Disconnected",
+                ForeColor = Color.Red,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Alignment = ToolStripItemAlignment.Right,
+                AutoSize = true,
+                Margin = new Padding(15, 0, 0, 0)  // Add left margin
+            };
+
+            statusStrip.Items.Add(lblStatus);
+            statusStrip.Items.Add(progressBar);
+            statusStrip.Items.Add(lblBloombergStatus);
+            statusStrip.Items.Add(chkAutoSendHost);
+
+            this.Controls.Add(statusStrip);
+
+            this.SetTabOrder();
+        }
+
+        private void SetupMenuBar()
+        {
+            // View Menu
+            var viewMenu = new ToolStripMenuItem("View");
+
+            var todayMenuItem = new ToolStripMenuItem("Today's Requests");
+            todayMenuItem.Click += (s, e) => { _currentFilter = TradeFilter.Today; ApplyFilter(); };
+
+            var allMenuItem = new ToolStripMenuItem("All Requests");
+            allMenuItem.Click += (s, e) => { _currentFilter = TradeFilter.All; ApplyFilter(); };
+
+            viewMenu.DropDownItems.Add(todayMenuItem);
+            viewMenu.DropDownItems.Add(allMenuItem);
+            viewMenu.DropDownItems.Add(new ToolStripSeparator());
+
+            var debugMenuItem = new ToolStripMenuItem("Debug Log");
+            debugMenuItem.Click += (s, e) => ToggleDebug();
+            viewMenu.DropDownItems.Add(debugMenuItem);
+
+            // Tools Menu
+            var toolsMenu = new ToolStripMenuItem("Tools");
+
+            var copyOVMLMenuItem = new ToolStripMenuItem("Copy OVML");
+            copyOVMLMenuItem.ShortcutKeys = Keys.Control | Keys.O;
+            copyOVMLMenuItem.Click += (s, e) => CopySelectedCell("OVML");
+
+            var copyUBSMenuItem = new ToolStripMenuItem("Copy UBS");
+            copyUBSMenuItem.ShortcutKeys = Keys.Control | Keys.U;
+            copyUBSMenuItem.Click += (s, e) => CopySelectedCell("UBS");
+
+            toolsMenu.DropDownItems.Add(copyOVMLMenuItem);
+            toolsMenu.DropDownItems.Add(copyUBSMenuItem);
+
+            menuStrip.Items.Add(viewMenu);
+            menuStrip.Items.Add(toolsMenu);
+        }
+
+        private void SetTabOrder()
+        {
+            txtManualInput.TabIndex = 0;
+            chkAutoSend.TabIndex = 1;
+            dgvTradeBlotter.TabIndex = 2;
+        }
+
+        private void SetupContextMenu()
+        {
+            ctxRowMenu = new ContextMenuStrip();
+            ctxRowMenu.Items.Add("Copy OVML", null, (s, e) => CopySelectedCell("OVML"));
+            ctxRowMenu.Items.Add("Copy UBS", null, (s, e) => CopySelectedCell("UBS"));
+            ctxRowMenu.Items.Add("Copy Request", null, (s, e) => CopySelectedCell("Request"));
+            ctxRowMenu.Items.Add(new ToolStripSeparator());
+
+            // ADD THIS NEW ITEM HERE:
+            ctxRowMenu.Items.Add("📤 Send to GFI Fenics", null, SendToGFI_Click);
+            ctxRowMenu.Items.Add(new ToolStripSeparator());
+
+            ctxRowMenu.Items.Add("Re-parse with AI", null, CtxReParseAI_Click);
+            ctxRowMenu.Items.Add(new ToolStripSeparator());
+            ctxRowMenu.Items.Add("Delete Row", null, CtxDeleteRow_Click);
+
+            dgvTradeBlotter.ContextMenuStrip = ctxRowMenu;
+        }
+
+        private void ToggleDebug()
+        {
+            debugVisible = !debugVisible;
+            pnlDebug.Visible = debugVisible;
         }
 
         private void SetupDataGridView()
@@ -222,73 +407,103 @@ namespace FXOAiTranslator
             {
                 Name = "Time",
                 HeaderText = "Time",
-                Width = 80,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Request",
                 HeaderText = "Request",
-                Width = 300,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "OVML",
                 HeaderText = "OVML",
-                Width = 350,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Underlying",
                 HeaderText = "Underlying",
-                Width = 80,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Legs",
                 HeaderText = "Legs",
-                Width = 50,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Expiry",
                 HeaderText = "Expiry",
-                Width = 80,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "SpotRef",
                 HeaderText = "Spot Ref",
-                Width = 80,
-                ReadOnly = true
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Method",
                 HeaderText = "Method",
-                Width = 100,
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+            });
+
+            var rejectCol = new DataGridViewButtonColumn
+            {
+                Name = "Reject",
+                HeaderText = "✗",
+                UseColumnTextForButtonValue = true,
+                Text = "✗",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+            };
+            rejectCol.DefaultCellStyle.NullValue = "✗";
+            dgvTradeBlotter.Columns.Add(rejectCol);
+
+            var reParseCol = new DataGridViewButtonColumn
+            {
+                Name = "ReParseAI",
+                HeaderText = "AI",
+                UseColumnTextForButtonValue = true,
+                Text = "↻",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+            };
+            reParseCol.DefaultCellStyle.NullValue = "↻";
+            dgvTradeBlotter.Columns.Add(reParseCol);
+
+            dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "UBS",
+                HeaderText = "UBS",
+                Visible = false,
                 ReadOnly = true
             });
 
-            dgvTradeBlotter.Columns.Add(new DataGridViewButtonColumn
+            // Hidden ID column for tracking
+            dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name = "Reject",
-                HeaderText = "X Reject",
-                Width = 70,
-                Text = "X",
-                UseColumnTextForButtonValue = true
+                Name = "TradeId",
+                HeaderText = "TradeId",
+                Visible = false,
+                ReadOnly = true
             });
 
             // Style the header
@@ -297,68 +512,580 @@ namespace FXOAiTranslator
             dgvTradeBlotter.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             dgvTradeBlotter.EnableHeadersVisualStyles = false;
 
-            // Alternate row colors
             dgvTradeBlotter.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
+            dgvTradeBlotter.RowHeadersVisible = false;
+            dgvTradeBlotter.DefaultCellStyle.SelectionBackColor = Color.LightSkyBlue;
+            dgvTradeBlotter.DefaultCellStyle.SelectionForeColor = Color.Black;
+
+            foreach (DataGridViewColumn col in dgvTradeBlotter.Columns)
+            {
+                switch (col.Name)
+                {
+                    case "Time":
+                    case "Legs":
+                    case "Expiry":
+                    case "SpotRef":
+                    case "Reject":
+                    case "ReParseAI":
+                    case "Method":
+                        col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                        col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                        break;
+                    default:
+                        col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                        col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                        break;
+                }
+            }
         }
 
         private void SetupServices()
         {
             _bloombergService = new BloombergService();
-            _tradeParser = new TradeParser(_bloombergService);
 
-            // Hook into debug callback to capture parsing logs
+            string openAIApiKey = LoadApiKey();
+            Console.WriteLine($"DEBUG: OpenAI API Key loaded: {(string.IsNullOrEmpty(openAIApiKey) ? "NONE" : "YES (length: " + openAIApiKey.Length + ")")}");
+
+            _tradeParser = new TradeParser(_bloombergService, openAIApiKey);
             _tradeParser.DebugCallback = LogDebugMessage;
 
-            // Update Bloomberg status
+            // Setup trades file path
+            string appDataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "FXOAiTranslator");
+
+            Directory.CreateDirectory(appDataPath);
+            _tradesFilePath = Path.Combine(appDataPath, "trades.json");
+            _allTrades = new List<TradeRecord>();
+
             UpdateBloombergStatus();
+
+            // Setup speech recognition
+            SetupSpeechRecognition();
+
+            // Setup global clipboard monitoring for paste-anywhere functionality
+            SetupClipboardMonitoring();
         }
 
+        private void SetupClipboardMonitoring()
+        {
+            // Hook into form's KeyDown event to capture Ctrl+V globally
+            this.KeyPreview = true;
+            this.KeyDown += async (s, e) =>
+            {
+                if (e.Control && e.KeyCode == Keys.V)
+                {
+                    if (Clipboard.ContainsText())
+                    {
+                        string clipboardText = Clipboard.GetText().Trim();
+                        if (!string.IsNullOrEmpty(clipboardText) && clipboardText.Length > 10)
+                        {
+                            await ProcessTrade(clipboardText);
+                        }
+                    }
+                }
+            };
+        }
+
+        private string LoadApiKey()
+        {
+            string key = Environment.GetEnvironmentVariable("OpenAIApiKey");
+
+            if (string.IsNullOrEmpty(key) || key == "changeme")
+            {
+                key = System.Configuration.ConfigurationManager.AppSettings["OpenAIApiKey"];
+            }
+
+            return key;
+        }
+        private void SendToGFI_Click(object sender, EventArgs e)
+        {
+            if (dgvTradeBlotter.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Please select a trade first.", "No Selection",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var row = dgvTradeBlotter.SelectedRows[0];
+
+            // Create concrete object instead of anonymous
+            var ovmlResult = new OVMLParseResult
+            {
+                OVML = row.Cells["OVML"]?.Value?.ToString() ?? "",
+                Underlying = row.Cells["Underlying"]?.Value?.ToString() ?? "",
+                Expiry = row.Cells["Expiry"]?.Value?.ToString() ?? "",
+                LegCount = int.Parse(row.Cells["Legs"]?.Value?.ToString() ?? "1")
+            };
+
+            // Validate we have required data
+            if (string.IsNullOrEmpty(ovmlResult.OVML))
+            {
+                MessageBox.Show("Selected row has no OVML data.", "Invalid Selection",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // Show GFI dialog
+                var dialog = new GFIQuoteDialog(ovmlResult);
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    MessageBox.Show("Trade executed successfully!", "Success",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error opening GFI dialog:\n\n{ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
         private void SetupEventHandlers()
         {
-            txtTradeInput.KeyDown += TxtTradeInput_KeyDown;
-            txtTradeInput.TextChanged += TxtTradeInput_TextChanged;
-            btnClearAll.Click += BtnClearAll_Click;
-            btnCopyOVML.Click += BtnCopyOVML_Click;
-            btnCopyUBS.Click += BtnCopyUBS_Click;
-            btnClearPatterns.Click += BtnClearPatterns_Click;
-            btnToggleDebug.Click += BtnToggleDebug_Click;
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;
+            dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded;
+            txtManualInput.KeyDown += TxtManualInput_KeyDown;
+            btnMicrophone.Click += BtnMicrophone_Click;
+            this.FormClosing += MainForm_FormClosing;
         }
 
-        private async void TxtTradeInput_KeyDown(object sender, KeyEventArgs e)
+        private async void TxtManualInput_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
-                e.Handled = true;
-                await ProcessTrade();
-            }
-        }
+                e.SuppressKeyPress = true; // Prevent the "ding" sound
 
-        private async void TxtTradeInput_TextChanged(object sender, EventArgs e)
-        {
-            string input = txtTradeInput.Text.Trim();
-
-            // Process automatically when text is pasted (longer than typical typing)
-            if (input.Length > 10 && input.Contains(" "))
-            {
-                // Small delay to ensure paste operation is complete
-                await Task.Delay(100);
-
-                // Check if text is still there (user didn't clear it)
-                if (txtTradeInput.Text.Trim() == input)
+                string input = txtManualInput.Text.Trim();
+                if (!string.IsNullOrEmpty(input))
                 {
-                    await ProcessTrade();
+                    await ProcessTrade(input);
+                    txtManualInput.Clear(); // Clear the input field after processing
                 }
             }
         }
 
-        private async Task ProcessTrade()
+        private void SetupSpeechRecognition()
         {
-            string input = txtTradeInput.Text.Trim();
-            if (string.IsNullOrEmpty(input)) return;
+            try
+            {
+                _speechRecognizer = new SpeechRecognitionEngine(new System.Globalization.CultureInfo("en-US"));
+
+                // Create a grammar for dictation (free-form speech)
+                _speechRecognizer.LoadGrammar(new DictationGrammar());
+
+                // Set up event handlers
+                _speechRecognizer.SpeechRecognized += SpeechRecognizer_SpeechRecognized;
+                _speechRecognizer.SpeechRecognitionRejected += SpeechRecognizer_SpeechRecognitionRejected;
+
+                // Set input to default audio device
+                _speechRecognizer.SetInputToDefaultAudioDevice();
+
+                LogDebugMessage("Speech recognition initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                LogDebugMessage($"Speech recognition initialization failed: {ex.Message}");
+                btnMicrophone.Enabled = false;
+                btnMicrophone.BackColor = Color.White;
+                btnMicrophone.Invalidate(); // Redraw with disabled color
+
+                string errorMsg = "Speech recognition unavailable.\n\n" +
+                    "To enable voice input:\n" +
+                    "1. Go to Windows Settings > Time & Language > Speech\n" +
+                    "2. Turn on 'Speech Recognition'\n" +
+                    "3. Ensure your microphone is connected and working\n" +
+                    "4. Restart the application\n\n" +
+                    $"Error: {ex.Message}";
+
+                microphoneToolTip.SetToolTip(btnMicrophone, errorMsg);
+
+                // Show a one-time message
+                MessageBox.Show(errorMsg, "Speech Recognition Setup Required",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void BtnMicrophone_Click(object sender, EventArgs e)
+        {
+            if (_isListening)
+            {
+                StopListening();
+            }
+            else
+            {
+                StartListening();
+            }
+        }
+
+        private void BtnMicrophone_Paint(object sender, PaintEventArgs e)
+        {
+            // Draw custom line-art microphone icon (compact size)
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            // Determine color based on button state - darker for better visibility
+            Color iconColor = btnMicrophone.Enabled ?
+                (_isListening ? Color.FromArgb(0, 122, 255) : Color.FromArgb(80, 80, 80)) : // Dark grey
+                Color.LightGray;
+
+            using (var pen = new Pen(iconColor, 1.6f)) // Thicker line for better visibility
+            {
+                // Center the icon in the button
+                int centerX = btnMicrophone.Width / 2;
+                int centerY = btnMicrophone.Height / 2;
+
+                // Microphone capsule (smaller, more compact)
+                // Top arc
+                g.DrawArc(pen, centerX - 2.5f, centerY - 5, 5, 5, 180, 180);
+                // Side lines
+                g.DrawLine(pen, centerX - 2.5f, centerY - 2.5f, centerX - 2.5f, centerY + 1);
+                g.DrawLine(pen, centerX + 2.5f, centerY - 2.5f, centerX + 2.5f, centerY + 1);
+                // Bottom arc
+                g.DrawArc(pen, centerX - 2.5f, centerY - 1.5f, 5, 5, 0, 180);
+
+                // Microphone stand (U-shape curve) - smaller
+                g.DrawArc(pen, centerX - 4, centerY + 1, 8, 5, 0, 180);
+
+                // Vertical line (stem to base) - shorter
+                g.DrawLine(pen, centerX, centerY + 3.5f, centerX, centerY + 6);
+
+                // Horizontal base line - narrower
+                g.DrawLine(pen, centerX - 2, centerY + 6, centerX + 2, centerY + 6);
+            }
+        }
+
+        private void StartListening()
+        {
+            try
+            {
+                // Subtle visual feedback - iPhone Messenger style
+                btnMicrophone.BackColor = Color.FromArgb(230, 240, 255); // Very light blue
+                txtManualInput.PlaceholderText = "Listening...";
+                txtManualInput.BorderStyle = BorderStyle.FixedSingle;
+
+                // Update status bar
+                SetProcessingStatus(true, "🎤 Listening for speech...");
+
+                _speechRecognizer.RecognizeAsync(RecognizeMode.Multiple);
+                _isListening = true;
+
+                btnMicrophone.Invalidate(); // Redraw icon with blue color
+
+                LogDebugMessage("Speech recognition started - listening...");
+            }
+            catch (Exception ex)
+            {
+                LogDebugMessage($"Failed to start speech recognition: {ex.Message}");
+
+                // Reset UI on error
+                btnMicrophone.BackColor = Color.White;
+                txtManualInput.PlaceholderText = "Type or speak trade request...";
+                _isListening = false;
+                btnMicrophone.Invalidate();
+                SetProcessingStatus(false, "Speech recognition failed");
+
+                string errorMsg = $"Failed to start speech recognition:\n\n{ex.Message}\n\n" +
+                    "Troubleshooting:\n" +
+                    "• Check if your microphone is connected and enabled\n" +
+                    "• Go to Windows Settings > Privacy > Microphone\n" +
+                    "• Make sure this app has microphone permission\n" +
+                    "• Try restarting the application";
+
+                MessageBox.Show(errorMsg, "Speech Recognition Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void StopListening()
+        {
+            try
+            {
+                _speechRecognizer.RecognizeAsyncStop();
+                _isListening = false;
+
+                // Reset UI to normal state - subtle grey
+                btnMicrophone.BackColor = Color.White;
+                txtManualInput.PlaceholderText = "Type or speak trade request...";
+                txtManualInput.BackColor = Color.White;
+                txtManualInput.Font = new Font("Segoe UI", 10F);
+
+                btnMicrophone.Invalidate(); // Redraw icon with grey color
+
+                SetProcessingStatus(false, "Speech recognition stopped");
+
+                LogDebugMessage("Speech recognition stopped");
+            }
+            catch (Exception ex)
+            {
+                LogDebugMessage($"Error stopping speech recognition: {ex.Message}");
+            }
+        }
+
+        private async void SpeechRecognizer_SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
+        {
+            // Only process if confidence is reasonable
+            if (e.Result.Confidence > 0.5)
+            {
+                string recognizedText = e.Result.Text;
+                LogDebugMessage($"Speech recognized (confidence: {e.Result.Confidence:P0}): {recognizedText}");
+
+                // Show what was recognized immediately with subtle feedback
+                if (txtManualInput.InvokeRequired)
+                {
+                    txtManualInput.Invoke(new Action(() => {
+                        txtManualInput.Text = recognizedText;
+                        txtManualInput.BackColor = Color.FromArgb(240, 248, 255); // Very subtle blue tint
+                    }));
+                }
+                else
+                {
+                    txtManualInput.Text = recognizedText;
+                    txtManualInput.BackColor = Color.FromArgb(240, 248, 255); // Very subtle blue tint
+                }
+
+                // Brief pause to let user see what was recognized
+                await Task.Delay(800);
+
+                // Stop listening after recognizing speech
+                StopListening();
+
+                // Auto-process the recognized text
+                await ProcessTrade(recognizedText);
+
+                // Clear the input field
+                if (txtManualInput.InvokeRequired)
+                {
+                    txtManualInput.Invoke(new Action(() => txtManualInput.Clear()));
+                }
+                else
+                {
+                    txtManualInput.Clear();
+                }
+            }
+            else
+            {
+                LogDebugMessage($"Speech recognition confidence too low: {e.Result.Confidence:P0} - text was: {e.Result.Text}");
+
+                // Show visual feedback for low confidence
+                if (this.InvokeRequired)
+                {
+                    this.Invoke(new Action(() => {
+                        SetProcessingStatus(false, $"Speech unclear (confidence: {e.Result.Confidence:P0}) - please try again");
+                    }));
+                }
+                else
+                {
+                    SetProcessingStatus(false, $"Speech unclear (confidence: {e.Result.Confidence:P0}) - please try again");
+                }
+            }
+        }
+
+        private void SpeechRecognizer_SpeechRecognitionRejected(object sender, SpeechRecognitionRejectedEventArgs e)
+        {
+            LogDebugMessage("Speech recognition rejected - no clear speech detected");
+
+            // Show visual feedback for rejection
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => {
+                    SetProcessingStatus(false, "No speech detected - please speak clearly and try again");
+                }));
+            }
+            else
+            {
+                SetProcessingStatus(false, "No speech detected - please speak clearly and try again");
+            }
+        }
+
+        private void ApplyFilter()
+        {
+            dgvTradeBlotter.Rows.Clear();
+
+            IEnumerable<TradeRecord> filtered = _allTrades;
+
+            if (_currentFilter == TradeFilter.Today)
+            {
+                var today = DateTime.Today;
+                filtered = _allTrades.Where(t => t.Timestamp.Date == today);
+            }
+
+            foreach (var trade in filtered.OrderByDescending(t => t.Timestamp))
+            {
+                AddTradeRowToGrid(trade);
+            }
+        }
+
+        private void LoadTrades()
+        {
+            try
+            {
+                if (File.Exists(_tradesFilePath))
+                {
+                    string json = File.ReadAllText(_tradesFilePath);
+                    _allTrades = JsonSerializer.Deserialize<List<TradeRecord>>(json) ?? new List<TradeRecord>();
+                    LogDebugMessage($"Loaded {_allTrades.Count} trades from storage");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogDebugMessage($"Error loading trades: {ex.Message}");
+                _allTrades = new List<TradeRecord>();
+            }
+
+            ApplyFilter();
+        }
+
+        private void SaveTrades()
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(_allTrades, options);
+                File.WriteAllText(_tradesFilePath, json);
+                LogDebugMessage($"Saved {_allTrades.Count} trades to storage");
+            }
+            catch (Exception ex)
+            {
+                LogDebugMessage($"Error saving trades: {ex.Message}");
+            }
+        }
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            SaveTrades();
+
+            // Dispose speech recognizer
+            if (_speechRecognizer != null)
+            {
+                if (_isListening)
+                {
+                    _speechRecognizer.RecognizeAsyncStop();
+                }
+                _speechRecognizer.Dispose();
+            }
+        }
+
+        private void CopySelectedCell(string columnName)
+        {
+            if (dgvTradeBlotter.SelectedRows.Count > 0)
+            {
+                var value = dgvTradeBlotter.SelectedRows[0].Cells[columnName].Value?.ToString();
+                if (!string.IsNullOrEmpty(value))
+                {
+                    Clipboard.SetText(value);
+                    LogDebugMessage($"Copied {columnName} to clipboard");
+                }
+            }
+        }
+
+        private void CtxReParseAI_Click(object sender, EventArgs e)
+        {
+            if (dgvTradeBlotter.SelectedRows.Count > 0)
+            {
+                var row = dgvTradeBlotter.SelectedRows[0];
+                string request = row.Cells["Request"].Value?.ToString();
+                string tradeId = row.Cells["TradeId"].Value?.ToString();
+
+                var result = MessageBox.Show(
+                    "Re-parse this trade using AI only?\n\nCurrent result will be replaced.",
+                    "Force AI Re-parse",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    // Remove from memory and grid
+                    _allTrades.RemoveAll(t => t.Id == tradeId);
+                    dgvTradeBlotter.Rows.Remove(row);
+
+                    LogDebugMessage($"Force re-parsing with AI: {request}");
+                    SetProcessingStatus(true, "Re-parsing with AI...");
+
+                    _ = Task.Run(async () =>
+                    {
+                        var parseResult = await _tradeParser.ParseTradeAsync(request, forceAI: true);
+
+                        if (parseResult != null)
+                        {
+                            this.Invoke(new Action(() =>
+                            {
+                                AddTradeToBlotter(request, parseResult);
+
+                                if (chkAutoSend.Checked && _bloombergService.IsConnected && !string.IsNullOrEmpty(parseResult.OVML))
+                                {
+                                    _bloombergService.SendOVML(parseResult.OVML);
+                                }
+
+                                SetProcessingStatus(false, "Re-parse complete");
+                                Task.Delay(2000).ContinueWith(_ => SetProcessingStatus(false, "Ready"));
+                            }));
+                        }
+                        else
+                        {
+                            this.Invoke(new Action(() => SetProcessingStatus(false, "Re-parse failed")));
+                        }
+                    });
+                }
+            }
+        }
+
+        private void CtxDeleteRow_Click(object sender, EventArgs e)
+        {
+            if (dgvTradeBlotter.SelectedRows.Count > 0)
+            {
+                var row = dgvTradeBlotter.SelectedRows[0];
+                string tradeId = row.Cells["TradeId"].Value?.ToString();
+
+                var result = MessageBox.Show(
+                    "Delete this trade permanently?",
+                    "Confirm Delete",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    _allTrades.RemoveAll(t => t.Id == tradeId);
+                    dgvTradeBlotter.Rows.Remove(row);
+                    SaveTrades();
+                    LogDebugMessage($"Deleted trade: {tradeId}");
+                }
+            }
+        }
+
+        private void DgvTradeBlotter_CellToolTipTextNeeded(object sender, DataGridViewCellToolTipTextNeededEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                var grid = sender as DataGridView;
+                var columnName = grid.Columns[e.ColumnIndex].Name;
+
+                if (columnName == "Request" || columnName == "OVML" || columnName == "Method")
+                {
+                    var value = grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
+                    if (value != null)
+                    {
+                        e.ToolTipText = value.ToString();
+                    }
+                }
+            }
+        }
+
+        private async Task ProcessTrade(string input)
+        {
+            if (_processing) return;
+            _processing = true;
+
+            // Show progress
+            SetProcessingStatus(true, "Processing trade request...");
 
             try
             {
+                if (string.IsNullOrEmpty(input)) return;
+
                 var result = await _tradeParser.ParseTradeAsync(input);
                 if (result != null)
                 {
@@ -366,140 +1093,163 @@ namespace FXOAiTranslator
 
                     if (chkAutoSend.Checked && _bloombergService.IsConnected && !string.IsNullOrEmpty(result.OVML))
                     {
+                        SetProcessingStatus(true, "Sending to Bloomberg...");
                         _bloombergService.SendOVML(result.OVML);
                     }
-                }
 
-                // Clear the input box after processing
-                txtTradeInput.Clear();
+                    SetProcessingStatus(false, "Trade processed successfully");
+
+                    // Reset status after 2 seconds
+                    await Task.Delay(2000);
+                    SetProcessingStatus(false, "Ready");
+                }
+                else
+                {
+                    SetProcessingStatus(false, "Failed to process trade");
+                }
             }
             catch (Exception ex)
             {
+                SetProcessingStatus(false, "Error occurred");
                 MessageBox.Show($"Error processing trade: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            finally
+            {
+                _processing = false;
+            }
+        }
+
+        private void SetProcessingStatus(bool isProcessing, string message)
+        {
+            if (statusStrip.InvokeRequired)
+            {
+                statusStrip.Invoke(new Action<bool, string>(SetProcessingStatus), isProcessing, message);
+                return;
+            }
+
+            lblStatus.Text = message;
+            progressBar.Visible = isProcessing;
+
+            // Change cursor to indicate busy state
+            this.Cursor = isProcessing ? Cursors.WaitCursor : Cursors.Default;
         }
 
         private void AddTradeToBlotter(string request, TradeParseResult result)
         {
-            string spotRef = ExtractSpotFromOVML(result.OVML);
-
-            dgvTradeBlotter.Rows.Insert(0, new object[]
+            var trade = new TradeRecord
             {
-                DateTime.Now.ToString("HH:mm:ss"),
-                request.Length > 50 ? request.Substring(0, 47) + "..." : request,
-                result.OVML,
-                result.Underlying,
-                result.LegCount,
-                result.Expiry,
-                spotRef,
-                result.ParseMethod
-            });
+                Id = Guid.NewGuid().ToString(),
+                Timestamp = DateTime.Now,
+                Request = request,
+                OVML = result.OVML,
+                UBS = result.UBS ?? "",
+                Underlying = result.Underlying,
+                LegCount = result.LegCount.ToString(),
+                Expiry = result.Expiry,
+                SpotRef = ExtractSpotFromOVML(result.OVML),
+                ParseMethod = result.ParseMethod,
+                ValidationWarning = result.ValidationWarning
+            };
 
-            // Color code by method
-            var row = dgvTradeBlotter.Rows[0];
-            if (result.ParseMethod.StartsWith("Regex"))
+            _allTrades.Add(trade);
+            SaveTrades();
+
+            // Only add to grid if it matches current filter
+            if (_currentFilter == TradeFilter.All || trade.Timestamp.Date == DateTime.Today)
+            {
+                AddTradeRowToGrid(trade, insertAtTop: true);
+            }
+        }
+
+        private void AddTradeRowToGrid(TradeRecord trade, bool insertAtTop = false)
+        {
+            int rowIndex = insertAtTop ? 0 : dgvTradeBlotter.Rows.Count;
+
+            if (insertAtTop)
+            {
+                dgvTradeBlotter.Rows.Insert(0, new object[]
+                {
+                    trade.Timestamp.ToString("HH:mm:ss"),
+                    trade.Request,
+                    trade.OVML,
+                    trade.Underlying,
+                    trade.LegCount,
+                    trade.Expiry,
+                    trade.SpotRef,
+                    trade.ParseMethod,
+                    null,
+                    null,
+                    trade.UBS,
+                    trade.Id
+                });
+            }
+            else
+            {
+                dgvTradeBlotter.Rows.Add(new object[]
+                {
+                    trade.Timestamp.ToString("HH:mm:ss"),
+                    trade.Request,
+                    trade.OVML,
+                    trade.Underlying,
+                    trade.LegCount,
+                    trade.Expiry,
+                    trade.SpotRef,
+                    trade.ParseMethod,
+                    null,
+                    null,
+                    trade.UBS,
+                    trade.Id
+                });
+            }
+
+            var row = dgvTradeBlotter.Rows[rowIndex];
+
+            // Color coding
+            if (trade.ParseMethod.StartsWith("Regex"))
+            {
                 row.DefaultCellStyle.BackColor = Color.LightGreen;
-            else if (result.ParseMethod.StartsWith("AI"))
+            }
+            else if (trade.ParseMethod.StartsWith("Learned"))
+            {
+                row.DefaultCellStyle.BackColor = Color.LightYellow;
+            }
+            else if (trade.ParseMethod.Contains("AI-Success") && trade.ParseMethod.Contains("Validated"))
+            {
                 row.DefaultCellStyle.BackColor = Color.LightBlue;
-            else if (result.ParseMethod.Contains("Error"))
+            }
+            else if (trade.ParseMethod.Contains("AI-Warning"))
+            {
+                row.DefaultCellStyle.BackColor = Color.Orange;
+                if (!string.IsNullOrEmpty(trade.ValidationWarning))
+                {
+                    row.Cells["Method"].ToolTipText = trade.ValidationWarning;
+                }
+            }
+            else if (trade.ParseMethod.StartsWith("AI"))
+            {
+                row.DefaultCellStyle.BackColor = Color.LightBlue;
+            }
+            else if (trade.ParseMethod.Contains("Error"))
+            {
                 row.DefaultCellStyle.BackColor = Color.LightCoral;
+            }
+
+            if (insertAtTop)
+            {
+                dgvTradeBlotter.ClearSelection();
+                row.Selected = true;
+                dgvTradeBlotter.CurrentCell = row.Cells["Request"];
+                dgvTradeBlotter.FirstDisplayedScrollingRowIndex = 0;
+            }
         }
 
         private string ExtractSpotFromOVML(string ovml)
         {
             if (string.IsNullOrEmpty(ovml)) return "";
 
-            var match = System.Text.RegularExpressions.Regex.Match(ovml, @"SP(\d+\.?\d*)");
+            var match = Regex.Match(ovml, @"SP(\d+(?:[.,]\d+)?)");
             return match.Success ? match.Groups[1].Value : "";
-        }
-
-        private string GenerateUBSFormat(string ovml, string originalRequest)
-        {
-            if (string.IsNullOrEmpty(ovml)) return "";
-
-            try
-            {
-                // Parse OVML to extract components
-                var parts = ovml.Split(' ');
-                if (parts.Length < 6) return "";
-
-                string currency = parts[1];
-                string legs = parts[2];
-                string directions = parts[3];
-                string strikes = parts[4];
-                string expiry = parts[5];
-                string notionals = "";
-                string spotRef = "";
-
-                // Find notionals and spot ref
-                for (int i = 6; i < parts.Length; i++)
-                {
-                    if (parts[i].StartsWith("N"))
-                        notionals = parts[i].Substring(1); // Remove 'N'
-                    else if (parts[i].StartsWith("SP"))
-                        spotRef = parts[i].Substring(2); // Remove 'SP'
-                }
-
-                // Convert to UBS format
-                if (legs == "1L")
-                {
-                    // Single leg
-                    var dir = directions == "B" ? "BUY" : "SELL";
-                    var notional = notionals.Replace("M", "");
-                    var ubsNotional = (int.Parse(notional) / 10).ToString(); // Divide by 10
-                    var optionType = strikes.Contains("C") ? "CALL" : "PUT";
-                    var strike = strikes.Replace("C", "").Replace("P", "");
-
-                    return $"{currency} {expiry} {dir} {ubsNotional}M {strike} {optionType}" +
-                           (string.IsNullOrEmpty(spotRef) ? "" : $" @ SP {spotRef}");
-                }
-                else
-                {
-                    // Multi-leg
-                    var dirs = directions.Split(',');
-                    var strikeArray = strikes.Split(',');
-                    var notionalArray = notionals.Split(',');
-
-                    var ubsLegs = new string[dirs.Length];
-                    for (int i = 0; i < dirs.Length; i++)
-                    {
-                        var dir = dirs[i] == "B" ? "BUY" : "SELL";
-                        var notional = notionalArray[i].Replace("M", "");
-                        var ubsNotional = (int.Parse(notional) / 10).ToString(); // Divide by 10
-                        var optionType = strikeArray[i].Contains("C") ? "CALL" : "PUT";
-                        var strike = strikeArray[i].Replace("C", "").Replace("P", "");
-
-                        ubsLegs[i] = $"{dir} {ubsNotional}M {strike} {optionType}";
-                    }
-
-                    return $"{currency} {expiry} " + string.Join(" / ", ubsLegs) +
-                           (string.IsNullOrEmpty(spotRef) ? "" : $" @ SP {spotRef}");
-                }
-            }
-            catch
-            {
-                return $"Error converting OVML to UBS format: {ovml}";
-            }
-        }
-
-        private void BtnToggleDebug_Click(object sender, EventArgs e)
-        {
-            debugVisible = !debugVisible;
-            pnlDebug.Visible = debugVisible;
-
-            if (debugVisible)
-            {
-                btnToggleDebug.Text = "Hide Debug";
-                this.Size = new Size(1200, 700); // More reasonable expansion
-                dgvTradeBlotter.Size = new Size(1150, 300); // Slightly smaller blotter
-            }
-            else
-            {
-                btnToggleDebug.Text = "Show Debug";
-                this.Size = new Size(1200, 500); // Original size
-                dgvTradeBlotter.Size = new Size(1150, 300); // Restore blotter size
-            }
         }
 
         private void LogDebugMessage(string message)
@@ -516,6 +1266,12 @@ namespace FXOAiTranslator
 
         private void UpdateBloombergStatus()
         {
+            if (statusStrip.InvokeRequired)
+            {
+                statusStrip.Invoke(new Action(UpdateBloombergStatus));
+                return;
+            }
+
             if (_bloombergService.IsConnected)
             {
                 lblBloombergStatus.Text = "Bloomberg: Connected";
@@ -526,66 +1282,8 @@ namespace FXOAiTranslator
                 lblBloombergStatus.Text = "Bloomberg: Disconnected";
                 lblBloombergStatus.ForeColor = Color.Red;
             }
-        }
 
-        private void BtnClearAll_Click(object sender, EventArgs e)
-        {
-            dgvTradeBlotter.Rows.Clear();
-            txtTradeInput.Clear();
-        }
-
-        private void BtnCopyOVML_Click(object sender, EventArgs e)
-        {
-            if (dgvTradeBlotter.SelectedRows.Count > 0)
-            {
-                var ovml = dgvTradeBlotter.SelectedRows[0].Cells["OVML"].Value?.ToString();
-                if (!string.IsNullOrEmpty(ovml))
-                {
-                    Clipboard.SetText(ovml);
-                    MessageBox.Show("OVML copied to clipboard!", "Success",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            }
-            else
-            {
-                MessageBox.Show("Please select a row first.", "No Selection",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
-
-        private void BtnCopyUBS_Click(object sender, EventArgs e)
-        {
-            if (dgvTradeBlotter.SelectedRows.Count > 0)
-            {
-                var ovml = dgvTradeBlotter.SelectedRows[0].Cells["OVML"].Value?.ToString();
-                var request = dgvTradeBlotter.SelectedRows[0].Cells["Request"].Value?.ToString();
-
-                if (!string.IsNullOrEmpty(ovml))
-                {
-                    var ubs = GenerateUBSFormat(ovml, request);
-                    Clipboard.SetText(ubs);
-                    MessageBox.Show("UBS format copied to clipboard!", "Success",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            }
-            else
-            {
-                MessageBox.Show("Please select a row first.", "No Selection",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
-
-        private void BtnClearPatterns_Click(object sender, EventArgs e)
-        {
-            var result = MessageBox.Show("Clear all learned AI patterns?", "Confirm",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-            if (result == DialogResult.Yes)
-            {
-                // TODO: Clear learned patterns
-                MessageBox.Show("AI patterns cleared.", "Success",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+            statusStrip.Refresh();
         }
 
         private void DgvTradeBlotter_CellClick(object sender, DataGridViewCellEventArgs e)
@@ -593,14 +1291,143 @@ namespace FXOAiTranslator
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
             {
                 var column = dgvTradeBlotter.Columns[e.ColumnIndex];
-                if (column.Name == "Reject")
+                var row = dgvTradeBlotter.Rows[e.RowIndex];
+                string request = row.Cells["Request"].Value?.ToString();
+                string method = row.Cells["Method"].Value?.ToString();
+                string tradeId = row.Cells["TradeId"].Value?.ToString();
+
+                if (column.Name == "ReParseAI")
                 {
-                    var result = MessageBox.Show("Reject this trade pattern?", "Confirm",
-                        MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    var result = MessageBox.Show(
+                        "Re-parse this trade using AI only?\n\n" +
+                        "Current result will be replaced.",
+                        "Force AI Re-parse",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question
+                    );
 
                     if (result == DialogResult.Yes)
                     {
+                        _allTrades.RemoveAll(t => t.Id == tradeId);
                         dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
+                        LogDebugMessage($"Force re-parsing with AI: {request}");
+                        SetProcessingStatus(true, "Re-parsing with AI...");
+
+                        _ = Task.Run(async () =>
+                        {
+                            var parseResult = await _tradeParser.ParseTradeAsync(request, forceAI: true);
+
+                            if (parseResult != null)
+                            {
+                                this.Invoke(new Action(() =>
+                                {
+                                    AddTradeToBlotter(request, parseResult);
+
+                                    if (chkAutoSend.Checked && _bloombergService.IsConnected && !string.IsNullOrEmpty(parseResult.OVML))
+                                    {
+                                        _bloombergService.SendOVML(parseResult.OVML);
+                                    }
+
+                                    SetProcessingStatus(false, "Re-parse complete");
+                                    Task.Delay(2000).ContinueWith(_ => SetProcessingStatus(false, "Ready"));
+                                }));
+                            }
+                            else
+                            {
+                                this.Invoke(new Action(() => SetProcessingStatus(false, "Re-parse failed")));
+                            }
+                        });
+                    }
+                }
+                else if (column.Name == "Reject")
+                {
+                    string ovml = row.Cells["OVML"].Value?.ToString();
+
+                    if (method?.StartsWith("Learned-") == true)
+                    {
+                        var match = Regex.Match(method, @"Learned-Pattern-(\d{8}-\d{6})");
+                        if (match.Success)
+                        {
+                            string patternTimestamp = match.Groups[1].Value;
+
+                            var choice = MessageBox.Show(
+                                $"This trade used learned pattern '{patternTimestamp}'.\n\n" +
+                                "YES - Delete the entire pattern permanently\n" +
+                                "NO - Re-parse this trade using AI only (keeps pattern)\n" +
+                                "CANCEL - Keep as is",
+                                "Pattern Action",
+                                MessageBoxButtons.YesNoCancel,
+                                MessageBoxIcon.Question
+                            );
+
+                            if (choice == DialogResult.Yes)
+                            {
+                                bool success = _tradeParser.RemoveLearnedPattern(patternTimestamp);
+
+                                if (success)
+                                {
+                                    _allTrades.RemoveAll(t => t.Id == tradeId);
+                                    dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
+                                    SaveTrades();
+                                    LogDebugMessage($"Deleted learned pattern: {patternTimestamp}");
+                                    MessageBox.Show($"Pattern '{patternTimestamp}' deleted.\nSimilar trades will use AI.",
+                                        "Pattern Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                }
+                                else
+                                {
+                                    MessageBox.Show("Failed to delete pattern.",
+                                        "Deletion Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                }
+                            }
+                            else if (choice == DialogResult.No)
+                            {
+                                _allTrades.RemoveAll(t => t.Id == tradeId);
+                                dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
+                                LogDebugMessage($"Re-parsing trade with AI, bypassing pattern {patternTimestamp}");
+
+                                _ = Task.Run(async () =>
+                                {
+                                    var parseResult = await _tradeParser.ParseTradeAsync(request, forceAI: true);
+
+                                    if (parseResult != null)
+                                    {
+                                        this.Invoke(new Action(() =>
+                                        {
+                                            AddTradeToBlotter(request, parseResult);
+                                        }));
+                                    }
+                                });
+
+                                MessageBox.Show("Trade will be re-parsed using AI only.",
+                                    "Re-parsing", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var message = "Reject this trade?\n\n";
+                        if (method?.Contains("AI-Warning") == true)
+                        {
+                            message += "⚠ This trade already failed validation.\n" +
+                                      "• Will prevent learning similar patterns\n\n";
+                        }
+                        else if (method?.Contains("AI-Success") == true)
+                        {
+                            message += "✓ This trade passed validation.\n" +
+                                      "• Will prevent learning this specific pattern\n\n";
+                        }
+                        message += "Continue with rejection?";
+
+                        var result = MessageBox.Show(message, "Confirm Rejection",
+                            MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                        if (result == DialogResult.Yes)
+                        {
+                            _allTrades.RemoveAll(t => t.Id == tradeId);
+                            dgvTradeBlotter.Rows.RemoveAt(e.RowIndex);
+                            SaveTrades();
+                            LogDebugMessage($"Marked as problematic: {request}");
+                        }
                     }
                 }
             }
@@ -609,7 +1436,36 @@ namespace FXOAiTranslator
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            txtTradeInput.Focus();
+            dgvTradeBlotter.Focus();
         }
+    }
+
+    // Supporting classes
+    public class TradeRecord
+    {
+        public string Id { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string Request { get; set; }
+        public string OVML { get; set; }
+        public string UBS { get; set; }
+        public string Underlying { get; set; }
+        public string LegCount { get; set; }
+        public string Expiry { get; set; }
+        public string SpotRef { get; set; }
+        public string ParseMethod { get; set; }
+        public string ValidationWarning { get; set; }
+    }
+
+    public enum TradeFilter
+    {
+        Today,
+        All
+    }
+    public class OVMLParseResult
+    {
+        public string OVML { get; set; }
+        public string Underlying { get; set; }
+        public string Expiry { get; set; }
+        public int LegCount { get; set; }
     }
 }

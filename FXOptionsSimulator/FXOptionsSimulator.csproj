@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="FIX44.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="FIX44.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="QLNet" Version="1.13.1" />
+    <PackageReference Include="QuickFix.Net.NETCore" Version="1.8.1" />
+    <PackageReference Include="QuickFix.Net.NETCore.FIX44" Version="1.8.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="quickfix.cfg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
