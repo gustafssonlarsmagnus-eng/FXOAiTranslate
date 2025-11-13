@@ -722,7 +722,15 @@ namespace FXOAiTranslator
                         netPrem += prem;
                     }
                 }
-                return netPrem;
+
+                // ✅ CRITICAL: Negate premium to convert from LP perspective to client perspective
+                // GFI sends premiums from LP's cash flow view (similar to inverted Side field):
+                // - BID quote: LP pays (negative) → Client receives (should be positive)
+                // - OFFER quote: LP receives (positive) → Client pays (should be positive)
+                // By negating, we convert to client's perspective where:
+                // - When you SELL (hit BID), you RECEIVE positive premium
+                // - When you BUY (hit OFFER), you PAY positive premium
+                return -netPrem;
             }
 
             // Fallback to old field structure for backwards compatibility
@@ -741,7 +749,8 @@ namespace FXOAiTranslator
                 }
             }
 
-            return netPremOld;
+            // ✅ Negate for same reason as above - convert from LP to client perspective
+            return -netPremOld;
         }
 
         private double? GetLegVol(FIXMessage quote, int legNum)
