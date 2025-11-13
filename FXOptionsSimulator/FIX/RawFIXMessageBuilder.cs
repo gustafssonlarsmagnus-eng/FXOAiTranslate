@@ -204,11 +204,12 @@ namespace FXOptionsSimulator.FIX
             AddField(52, GetUTCTimestamp()); // SendingTime
             AddField(56, _targetCompID); // TargetCompID
 
-            // Get LP from quote
-            string lpName = quote.Get("115"); // OnBehalfOfCompID
+            // Get LP from quote and set both OnBehalfOfCompID and DeliverToCompID
+            string lpName = quote.Get("115"); // OnBehalfOfCompID from quote
             if (!string.IsNullOrEmpty(lpName))
             {
-                AddField(128, lpName); // DeliverToCompID
+                AddField(115, lpName); // OnBehalfOfCompID - per GFI spreadsheet
+                AddField(128, lpName); // DeliverToCompID - per GFI spreadsheet
             }
 
             // Body fields in EXACT order from GFI sample
