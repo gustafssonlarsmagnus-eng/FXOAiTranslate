@@ -5,7 +5,7 @@ VisualStudioVersion = 17.14.36429.23
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FXOAiTranslator", "FXOAiTranslator.csproj", "{AC19BDC1-399D-40AE-81F4-12527B7B25D3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FXOptionsSimulator", "FXOptionsSimulator\FXOptionsSimulator.csproj", "{7F63DC62-2600-289A-DDFF-BEE57D917CF1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FXOptionsSimulator", "FXOptionsSimulator\FXOptionsSimulator.csproj", "{6A5A226B-0995-3A14-09D6-93A49FCC7A2F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{AC19BDC1-399D-40AE-81F4-12527B7B25D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AC19BDC1-399D-40AE-81F4-12527B7B25D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AC19BDC1-399D-40AE-81F4-12527B7B25D3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7F63DC62-2600-289A-DDFF-BEE57D917CF1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7F63DC62-2600-289A-DDFF-BEE57D917CF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7F63DC62-2600-289A-DDFF-BEE57D917CF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7F63DC62-2600-289A-DDFF-BEE57D917CF1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6A5A226B-0995-3A14-09D6-93A49FCC7A2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6A5A226B-0995-3A14-09D6-93A49FCC7A2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6A5A226B-0995-3A14-09D6-93A49FCC7A2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6A5A226B-0995-3A14-09D6-93A49FCC7A2F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
