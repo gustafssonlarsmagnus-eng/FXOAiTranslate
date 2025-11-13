@@ -232,7 +232,6 @@ namespace FXOptionsSimulator.FIX
             // Required GFI fields for trade grouping (EMIR/regulatory)
             string tradeGroupID = $"TG{DateTime.UtcNow:yyyyMMddHHmmssfff}";
             AddField(8506, tradeGroupID); // TradeGroupID - unique swap link ID
-            AddField(6139, "1"); // TotalNumOfTrades - always 1 for single execution
 
             // PartyIDs group - required for UAT trader identification
             AddField(453, "1"); // NoPartyIDs
