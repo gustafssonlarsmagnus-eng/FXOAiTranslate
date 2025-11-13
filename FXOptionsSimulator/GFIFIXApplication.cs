@@ -134,12 +134,35 @@ namespace FXOptionsSimulator.FIX
                 string quoteReqID = quote.GetString(Tags.QuoteReqID);
                 string quoteID = quote.GetString(Tags.QuoteID);
                 string sideStr = quote.GetString(Tags.Side);
+
+                // GFI uses standard FIX convention for Quote messages:
+                // Side 1 = Bid (LP buys from you - you SELL to them at this price)
+                // Side 2 = Offer/Ask (LP sells to you - you BUY from them at this price)
                 string side = sideStr == "1" ? "BID" : "OFFER";
+
+                // CRITICAL DEBUG: Check if QuoteID suffix matches Side
+                string quoteIdSuffix = "";
+                if (quoteID.Contains("-"))
+                {
+                    quoteIdSuffix = quoteID.Substring(quoteID.LastIndexOf("-"));
+                }
 
                 Console.WriteLine($"\n[GFI FIX] <<< REAL QUOTE (35=S)");
                 Console.WriteLine($"  LP: {lpName}");
                 Console.WriteLine($"  QuoteReqID: {quoteReqID}");
-                Console.WriteLine($"  Side: {side}");
+                Console.WriteLine($"  QuoteID: {quoteID}");
+                Console.WriteLine($"  FIX Side (tag 54): {sideStr} -> Interpreted as: {side}");
+                Console.WriteLine($"  QuoteID suffix: '{quoteIdSuffix}'");
+
+                // Validate consistency
+                if (side == "BID" && quoteIdSuffix.Contains("O"))
+                {
+                    Console.WriteLine($"  [WARNING] MISMATCH! Side={side} but QuoteID ends with 'O' (Offer)");
+                }
+                else if (side == "OFFER" && quoteIdSuffix.Contains("B"))
+                {
+                    Console.WriteLine($"  [WARNING] MISMATCH! Side={side} but QuoteID ends with 'B' (Bid)");
+                }
 
                 var fixMsg = ConvertQuoteToFIXMessage(quote);
 

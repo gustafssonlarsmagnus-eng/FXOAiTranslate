@@ -911,6 +911,35 @@ namespace FXOAiTranslator
                 string originalQuoteID = selectedQuote.Get(Tags.QuoteID.ToString());
                 string currentQuoteID = refreshedQuote.Get(Tags.QuoteID.ToString());
 
+                // CRITICAL: Verify QuoteID matches the side we're executing
+                bool quoteIdMismatch = false;
+                if (side == "SELL" && currentQuoteID.Contains("-O"))
+                {
+                    Console.WriteLine($"[VALIDATION] ✗ CRITICAL ERROR: Trying to SELL but QuoteID '{currentQuoteID}' is an OFFER quote!");
+                    quoteIdMismatch = true;
+                }
+                else if (side == "BUY" && (currentQuoteID.Contains("-B") || currentQuoteID.Contains("_b")))
+                {
+                    Console.WriteLine($"[VALIDATION] ✗ CRITICAL ERROR: Trying to BUY but QuoteID '{currentQuoteID}' is a BID quote!");
+                    quoteIdMismatch = true;
+                }
+
+                if (quoteIdMismatch)
+                {
+                    MessageBox.Show(
+                        $"CRITICAL ERROR: Quote side mismatch!\n\n" +
+                        $"Trying to {side} but have wrong quote type.\n" +
+                        $"QuoteID: {currentQuoteID}\n\n" +
+                        $"This indicates a bug in quote storage.\n" +
+                        $"Please request fresh quotes and report this error.",
+                        "Quote Side Mismatch",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error
+                    );
+                    _quoteTimer?.Start();
+                    return;
+                }
+
                 if (originalQuoteID != currentQuoteID)
                 {
                     Console.WriteLine($"[VALIDATION] ✗ QuoteID CHANGED! Old={originalQuoteID}, New={currentQuoteID}");
