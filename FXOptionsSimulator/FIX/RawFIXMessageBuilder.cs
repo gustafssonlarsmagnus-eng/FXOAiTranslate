@@ -229,19 +229,28 @@ namespace FXOptionsSimulator.FIX
 
             AddField(9126, structureCode.ToString()); // Structure
 
+            // PartyIDs group - per GFI spreadsheet example
+            AddField(453, "1"); // NoPartyIDs
+            AddField(448, _senderCompID); // PartyID
+            AddField(447, "D"); // PartyIDSource = PROPRIETARY_CUSTOM_CODE
+            AddField(452, "11"); // PartyRole = OrderOriginationTrader
+
             // NoLegs and leg repeating groups
-            // Per GFI example: Must send pricing fields EXACTLY as received in Quote (S)
+            // Per GFI spreadsheet example: Must send ALL fields including LegSymbol and pricing
             if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
                 AddField(555, quote.LegPricing.Count.ToString()); // NoLegs
 
                 foreach (var legPricing in quote.LegPricing)
                 {
-                    // Send leg fields in order, matching GFI example format (NO LegSymbol!):
-                    // 1. LegStrategyID (7940) - Required for RFQ
-                    // 2. Volatility (5678) - Required, taken exactly from Quote (S)
-                    // 3. MQSize (5359) - Required, taken exactly from Quote (S)
-                    // 4. LegPremPrice (5844) - Required, taken exactly from Quote (S) INCLUDING sign
+                    // Send leg fields in EXACT order from GFI spreadsheet example:
+                    // 1. LegSymbol (600) - YES, it's in the example!
+                    // 2. LegStrategyID (7940)
+                    // 3. Volatility (5678)
+                    // 4. MQSize (5359)
+                    // 5. LegPremPrice (5844)
+
+                    AddField(600, legPricing.LegSymbol ?? symbol); // LegSymbol - per GFI example
 
                     if (!string.IsNullOrEmpty(legPricing.LegStrategyID))
                         AddField(7940, legPricing.LegStrategyID); // LegStrategyID
