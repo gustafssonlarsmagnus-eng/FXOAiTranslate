@@ -871,8 +871,8 @@ namespace FXOAiTranslator
                 Console.WriteLine($"[VALIDATION] Original QuoteID: {selectedQuote.Get(Tags.QuoteID.ToString())}");
 
                 // Re-fetch streams to catch any in-flight quote cancels/updates
-                Console.WriteLine($"[VALIDATION] Sleeping 50ms to catch in-flight cancels...");
-                System.Threading.Thread.Sleep(50); // Small delay to catch any in-flight cancels
+                Console.WriteLine($"[VALIDATION] Sleeping 150ms to catch in-flight cancels...");
+                System.Threading.Thread.Sleep(150); // Increased delay to catch network-delayed cancels
 
                 Console.WriteLine($"[VALIDATION] Re-fetching streams for GroupID: {_groupId}");
                 var refreshedStreams = _fixSession.Application.GetActiveStreams(_groupId);
