@@ -239,33 +239,30 @@ namespace FXOptionsSimulator.FIX
             AddField(447, "D"); // PartyIDSource = PROPRIETARY_CUSTOM_CODE
             AddField(452, "11"); // PartyRole = OrderOriginationTrader
 
-            // NoLegs and leg repeating groups - fields in EXACT GFI order
+            // NoLegs and leg repeating groups
+            // When executing against an RFQ quote, send ONLY identification fields, NOT pricing fields
+            // Per GFI spec: Volatility, MQSize, LegPremPrice are "not required in response to RFQ"
+            // GFI already has all pricing details from the original quote we're referencing via QuoteID
             if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
                 AddField(555, quote.LegPricing.Count.ToString()); // NoLegs
 
                 foreach (var legPricing in quote.LegPricing)
                 {
-                    // Fields in EXACT order from GFI example:
-                    // 1. LegSymbol (600)
-                    // 2. LegStrategyID (7940)
-                    // 3. Volatility (5678)
-                    // 4. MQSize (5359)
-                    // 5. LegPremPrice (5844)
+                    // ONLY send leg identification fields for RFQ execution:
+                    // 1. LegSymbol (600) - Required
+                    // 2. LegStrategyID (7940) - Required for RFQ
 
-                    AddField(600, legPricing.LegSymbol ?? symbol); // LegSymbol
+                    AddField(600, legPricing.LegSymbol ?? symbol); // LegSymbol - required
 
                     if (!string.IsNullOrEmpty(legPricing.LegStrategyID))
-                        AddField(7940, legPricing.LegStrategyID); // LegStrategyID
+                        AddField(7940, legPricing.LegStrategyID); // LegID - required for RFQ
 
-                    if (!string.IsNullOrEmpty(legPricing.Volatility))
-                        AddField(5678, legPricing.Volatility); // Volatility
-
-                    if (!string.IsNullOrEmpty(legPricing.MQSize))
-                        AddField(5359, legPricing.MQSize); // MQSize
-
-                    if (!string.IsNullOrEmpty(legPricing.LegPremPrice))
-                        AddField(5844, legPricing.LegPremPrice); // LegPremPrice
+                    // DO NOT send pricing fields when executing RFQ quotes:
+                    // - Volatility (5678) - pricing data, not required
+                    // - MQSize (5359) - pricing data, not required
+                    // - LegPremPrice (5844) - pricing data, not required (was causing issues with sign)
+                    // GFI already knows all pricing from the QuoteID we're referencing
                 }
             }
 
