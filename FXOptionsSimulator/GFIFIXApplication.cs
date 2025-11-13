@@ -135,10 +135,11 @@ namespace FXOptionsSimulator.FIX
                 string quoteID = quote.GetString(Tags.QuoteID);
                 string sideStr = quote.GetString(Tags.Side);
 
-                // GFI uses standard FIX convention for Quote messages:
-                // Side 1 = Bid (LP buys from you - you SELL to them at this price)
-                // Side 2 = Offer/Ask (LP sells to you - you BUY from them at this price)
-                string side = sideStr == "1" ? "BID" : "OFFER";
+                // GFI uses INVERTED Side convention from client perspective:
+                // Side 1 = Client BUYS from LP → This is LP's OFFER (they sell to you)
+                // Side 2 = Client SELLS to LP → This is LP's BID (they buy from you)
+                // This is OPPOSITE of standard FIX market-maker perspective!
+                string side = sideStr == "1" ? "OFFER" : "BID";  // ← INVERTED!
 
                 // CRITICAL DEBUG: Check if QuoteID suffix matches Side
                 string quoteIdSuffix = "";
