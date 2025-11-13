@@ -213,7 +213,7 @@ namespace FXOptionsSimulator.FIX
 
             // Body fields in EXACT order from GFI sample
             AddField(11, clOrdID); // ClOrdID
-            AddField(40, "D"); // OrdType = PREVIOUSLY_QUOTED (executing against a specific quote)
+            AddField(40, "1"); // OrdType = MARKET (per GFI spec for New Order - Multileg)
             AddField(54, side == "SELL" ? "2" : "1"); // Side
             AddField(55, symbol); // Symbol
             AddField(59, "3"); // TimeInForce = IMMEDIATE_OR_CANCEL
@@ -228,6 +228,11 @@ namespace FXOptionsSimulator.FIX
             }
 
             AddField(9126, structureCode.ToString()); // Structure
+
+            // Required GFI fields for trade grouping (EMIR/regulatory)
+            string tradeGroupID = $"TG{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+            AddField(8506, tradeGroupID); // TradeGroupID - unique swap link ID
+            AddField(6139, "1"); // TotalNumOfTrades - always 1 for single execution
 
             // PartyIDs group - required for UAT trader identification
             AddField(453, "1"); // NoPartyIDs
