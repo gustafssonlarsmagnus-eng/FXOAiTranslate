@@ -867,13 +867,20 @@ namespace FXOAiTranslator
                 }
 
                 // ===== QUOTE FRESHNESS VALIDATION =====
+                Console.WriteLine($"\n[VALIDATION] Starting quote freshness check for {lpName}");
+                Console.WriteLine($"[VALIDATION] Original QuoteID: {selectedQuote.Get(Tags.QuoteID.ToString())}");
+
                 // Re-fetch streams to catch any in-flight quote cancels/updates
+                Console.WriteLine($"[VALIDATION] Sleeping 50ms to catch in-flight cancels...");
                 System.Threading.Thread.Sleep(50); // Small delay to catch any in-flight cancels
+
+                Console.WriteLine($"[VALIDATION] Re-fetching streams for GroupID: {_groupId}");
                 var refreshedStreams = _fixSession.Application.GetActiveStreams(_groupId);
                 var refreshedStream = refreshedStreams.FirstOrDefault(s => s.LP == lpName);
 
                 if (refreshedStream == null)
                 {
+                    Console.WriteLine($"[VALIDATION] ✗ Stream for {lpName} NOT FOUND - quote no longer available!");
                     MessageBox.Show(
                         $"Quote from {lpName} is no longer available.\n\nPlease request fresh quotes.",
                         "Quote No Longer Available",
@@ -883,12 +890,14 @@ namespace FXOAiTranslator
                     _quoteTimer?.Start();
                     return;
                 }
+                Console.WriteLine($"[VALIDATION] ✓ Stream for {lpName} found");
 
                 // Check if the specific side (bid/offer) was canceled
                 FIXMessage refreshedQuote = side == "SELL" ? refreshedStream.BidQuote : refreshedStream.OfferQuote;
 
                 if (refreshedQuote == null)
                 {
+                    Console.WriteLine($"[VALIDATION] ✗ Quote for side={side} from {lpName} is NULL - was canceled!");
                     MessageBox.Show(
                         $"Quote from {lpName} was just canceled.\n\nPlease request fresh quotes.",
                         "Quote Canceled",
@@ -898,6 +907,7 @@ namespace FXOAiTranslator
                     _quoteTimer?.Start();
                     return;
                 }
+                Console.WriteLine($"[VALIDATION] ✓ Quote for side={side} exists");
 
                 // Check if the QuoteID changed (quote was replaced)
                 string originalQuoteID = selectedQuote.Get(Tags.QuoteID.ToString());
@@ -905,6 +915,7 @@ namespace FXOAiTranslator
 
                 if (originalQuoteID != currentQuoteID)
                 {
+                    Console.WriteLine($"[VALIDATION] ✗ QuoteID CHANGED! Old={originalQuoteID}, New={currentQuoteID}");
                     MessageBox.Show(
                         $"Quote from {lpName} was updated.\n\nOld QuoteID: {originalQuoteID}\nNew QuoteID: {currentQuoteID}\n\nPlease review the updated price.",
                         "Quote Updated",
@@ -917,6 +928,9 @@ namespace FXOAiTranslator
                     _quoteTimer?.Start();
                     return;
                 }
+
+                Console.WriteLine($"[VALIDATION] ✓ QuoteID unchanged: {currentQuoteID}");
+                Console.WriteLine($"[VALIDATION] ✓ All checks passed - proceeding with execution\n");
 
                 // Use the refreshed quote for execution to ensure we have the latest data
                 selectedQuote = refreshedQuote;
