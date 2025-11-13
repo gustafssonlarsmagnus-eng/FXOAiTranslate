@@ -930,6 +930,56 @@ namespace FXOAiTranslator
                 }
 
                 Console.WriteLine($"[VALIDATION] ✓ QuoteID unchanged: {currentQuoteID}");
+
+                // Check ValidUntilTime (tag 62) - quote expiration
+                string validUntilStr = refreshedQuote.Get("62");
+                Console.WriteLine($"[VALIDATION] ValidUntilTime (tag 62): {validUntilStr}");
+
+                if (!string.IsNullOrEmpty(validUntilStr))
+                {
+                    if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss",
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                        out DateTime validUntil))
+                    {
+                        var timeRemaining = validUntil - DateTime.UtcNow;
+                        Console.WriteLine($"[VALIDATION] Time remaining: {timeRemaining.TotalSeconds:F1}s");
+
+                        if (timeRemaining.TotalSeconds <= 0)
+                        {
+                            Console.WriteLine($"[VALIDATION] ✗ Quote EXPIRED! ValidUntil={validUntil:HH:mm:ss}, Now={DateTime.UtcNow:HH:mm:ss}");
+                            MessageBox.Show(
+                                $"Quote from {lpName} has expired.\n\nExpired: {-timeRemaining.TotalSeconds:F1}s ago\n\nPlease request fresh quotes.",
+                                "Quote Expired",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning
+                            );
+                            _quoteTimer?.Start();
+                            return;
+                        }
+
+                        if (timeRemaining.TotalSeconds < 2)
+                        {
+                            Console.WriteLine($"[VALIDATION] ⚠ Quote expiring very soon ({timeRemaining.TotalSeconds:F1}s)");
+                            var result = MessageBox.Show(
+                                $"WARNING: Quote expires in {timeRemaining.TotalSeconds:F1}s!\n\nThere may not be enough time to execute.\n\nProceed anyway?",
+                                "Quote Expiring Soon",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Warning
+                            );
+
+                            if (result == DialogResult.No)
+                            {
+                                Console.WriteLine($"[VALIDATION] User declined to execute expiring quote");
+                                _quoteTimer?.Start();
+                                return;
+                            }
+                        }
+
+                        Console.WriteLine($"[VALIDATION] ✓ Quote is valid (expires in {timeRemaining.TotalSeconds:F1}s)");
+                    }
+                }
+
                 Console.WriteLine($"[VALIDATION] ✓ All checks passed - proceeding with execution\n");
 
                 // Use the refreshed quote for execution to ensure we have the latest data
