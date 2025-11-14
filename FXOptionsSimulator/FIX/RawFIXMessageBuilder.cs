@@ -176,10 +176,10 @@ namespace FXOptionsSimulator.FIX
                 AddField(612, leg.Strike.ToString("F4", CultureInfo.InvariantCulture)); // LegStrikePrice
 
                 AddField(9019, "2"); // FXOptionStyle
-                // Position field - GFI's actual behavior (confirmed by testing):
-                // Position=1 → GFI sends BID quote (Side=2) for client to SELL into
-                // Position=2 → GFI sends OFFER quote (Side=1) for client to BUY from
-                string positionValue = leg.Direction == "SELL" ? "1" : "2";
+                // Position field - GFI's actual behavior (CORRECTED after diagnostic testing):
+                // Position=1 → GFI sends OFFER quote (Side=1) for client to BUY from
+                // Position=2 → GFI sends BID quote (Side=2) for client to SELL into
+                string positionValue = leg.Direction == "BUY" ? "1" : "2";
                 AddField(6351, positionValue); // Position
                 Console.WriteLine($"[QUOTE REQUEST] Direction={leg.Direction} → Position(6351)={positionValue}");
                 AddField(9904, "2"); // PriceIndicator
