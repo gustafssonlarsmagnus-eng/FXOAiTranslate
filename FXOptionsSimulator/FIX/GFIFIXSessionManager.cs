@@ -385,6 +385,19 @@ namespace FXOptionsSimulator.FIX
                 // Add to blotter
                 if (trade != null)
                 {
+                    // Calculate net premium from quote's leg pricing
+                    double netPremium = 0;
+                    if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+                    {
+                        foreach (var leg in quote.LegPricing)
+                        {
+                            if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
+                            {
+                                netPremium += legPrem;
+                            }
+                        }
+                    }
+
                     var blotterEntry = new TradeBlotterEntry
                     {
                         TradeTime = DateTime.Now,
@@ -394,7 +407,7 @@ namespace FXOptionsSimulator.FIX
                         Underlying = trade.Underlying,
                         StructureType = trade.StructureType,
                         LegCount = trade.Legs.Count,
-                        NetPremium = 0, // Will be set from quote
+                        NetPremium = netPremium,
                         Status = "PENDING"
                     };
                     TradeBlotter.Instance.AddTrade(blotterEntry);
