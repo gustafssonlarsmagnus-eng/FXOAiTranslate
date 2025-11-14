@@ -844,14 +844,8 @@ namespace FXOAiTranslator
 
                 if (side == "SELL")
                 {
-                    // Hit the bid - find best bid
-                    selectedQuote = bestBidQuote;
-                    selectedPremium = bestBidPremium;
-                    lpName = bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString());
-                }
-                else // BUY
-                {
-                    // Lift the offer - find best offer
+                    // GFI INVERTED CONVENTION: SELL uses OFFER quote (O_ prefix)
+                    // Find best offer - we already searched for best bid above, now search offers
                     FIXMessage bestOfferQuote = null;
                     double bestOfferPremium = double.MaxValue;
 
@@ -880,6 +874,13 @@ namespace FXOAiTranslator
                     selectedPremium = bestOfferPremium;
                     lpName = bestOfferQuote.Get(Tags.OnBehalfOfCompID.ToString());
                 }
+                else // BUY
+                {
+                    // GFI INVERTED CONVENTION: BUY uses BID quote (B_ prefix)
+                    selectedQuote = bestBidQuote;
+                    selectedPremium = bestBidPremium;
+                    lpName = bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString());
+                }
 
                 // ===== QUOTE FRESHNESS VALIDATION =====
                 Console.WriteLine($"\n[VALIDATION] Starting quote freshness check for {lpName}");
@@ -906,7 +907,8 @@ namespace FXOAiTranslator
                 Console.WriteLine($"[VALIDATION] ✓ Stream for {lpName} found");
 
                 // Check if the specific side (bid/offer) was canceled
-                FIXMessage refreshedQuote = side == "SELL" ? refreshedStream.BidQuote : refreshedStream.OfferQuote;
+                // GFI INVERTED: SELL uses OfferQuote, BUY uses BidQuote
+                FIXMessage refreshedQuote = side == "SELL" ? refreshedStream.OfferQuote : refreshedStream.BidQuote;
 
                 if (refreshedQuote == null)
                 {
@@ -927,15 +929,16 @@ namespace FXOAiTranslator
                 string currentQuoteID = refreshedQuote.Get(Tags.QuoteID.ToString());
 
                 // CRITICAL: Verify QuoteID matches the side we're executing
+                // GFI INVERTED: SELL uses OFFER quote (O_ prefix), BUY uses BID quote (B_ prefix)
                 bool quoteIdMismatch = false;
-                if (side == "SELL" && currentQuoteID.Contains("-O"))
+                if (side == "SELL" && (currentQuoteID.StartsWith("B_") || currentQuoteID.Contains("-B") || currentQuoteID.Contains("_b")))
                 {
-                    Console.WriteLine($"[VALIDATION] ✗ CRITICAL ERROR: Trying to SELL but QuoteID '{currentQuoteID}' is an OFFER quote!");
+                    Console.WriteLine($"[VALIDATION] ✗ CRITICAL ERROR: Trying to SELL but QuoteID '{currentQuoteID}' is a BID quote (should be OFFER)!");
                     quoteIdMismatch = true;
                 }
-                else if (side == "BUY" && (currentQuoteID.Contains("-B") || currentQuoteID.Contains("_b")))
+                else if (side == "BUY" && (currentQuoteID.StartsWith("O_") || currentQuoteID.Contains("-O")))
                 {
-                    Console.WriteLine($"[VALIDATION] ✗ CRITICAL ERROR: Trying to BUY but QuoteID '{currentQuoteID}' is a BID quote!");
+                    Console.WriteLine($"[VALIDATION] ✗ CRITICAL ERROR: Trying to BUY but QuoteID '{currentQuoteID}' is an OFFER quote (should be BID)!");
                     quoteIdMismatch = true;
                 }
 
@@ -1104,7 +1107,8 @@ namespace FXOAiTranslator
                     return;
                 }
 
-                FIXMessage latestQuote = side == "SELL" ? stream.BidQuote : stream.OfferQuote;
+                // GFI INVERTED: SELL uses OfferQuote, BUY uses BidQuote
+                FIXMessage latestQuote = side == "SELL" ? stream.OfferQuote : stream.BidQuote;
 
                 if (latestQuote == null)
                 {
