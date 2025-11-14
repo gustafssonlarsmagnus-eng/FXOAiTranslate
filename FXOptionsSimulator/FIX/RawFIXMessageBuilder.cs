@@ -209,15 +209,13 @@ namespace FXOptionsSimulator.FIX
         {
             Console.WriteLine($"  [DEBUG IN BuildNewOrderMultileg] side parameter: '{side}'");
 
-            // GFI requires Side=2 for ALL executions (both BUY and SELL)
-            // Confirmed by testing:
-            // - SELL with Side=2 → FILLED ✓
-            // - BUY with Side=2 → FILLED ✓
-            // - SELL with Side=1 → REJECTED ❌
-            // - BUY with Side=1 → REJECTED ❌
-            // This appears to be a GFI-specific convention (possibly "SELL" from dealer perspective)
-            string executionSide = "2";
-            Console.WriteLine($"  [DEBUG] Will set FIX Side field (54) to: {executionSide} (always 2 for GFI)");
+            // GFI requires execution Side to be OPPOSITE of quote Side (confirmed by GFI examples):
+            // - Quote Side=1 (BID) → Execution sends Side=2
+            // - Quote Side=2 (OFFER) → Execution sends Side=1
+            // Get the quote Side and flip it
+            string quoteSide = quote.Get("54"); // Side field from quote
+            string executionSide = quoteSide == "1" ? "2" : "1";
+            Console.WriteLine($"  [DEBUG] Quote Side={quoteSide} → Execution Side={executionSide} (opposite of quote)");
 
             _body.Clear();
 
