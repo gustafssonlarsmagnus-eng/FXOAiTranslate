@@ -429,18 +429,32 @@ namespace FXOptionsSimulator.FIX
                         totalNotionalMM += leg.NotionalMM;
                     }
 
-                    // GFI sends delta as absolute value - apply correct sign based on option type
+                    // GFI sends delta as absolute value - apply correct sign based on option type AND direction
+                    // Step 1: Apply option type correction
                     // CALL: positive delta, PUT: negative delta
-                    // For single-leg vanilla options, check first leg's option type
                     if (trade.Legs.Count > 0 && trade.Legs[0].OptionType == "PUT" && delta > 0)
                     {
                         delta = -delta; // Make negative for PUTs
                         Console.WriteLine($"[Delta Correction] PUT option detected, delta sign corrected to negative: {delta}%");
                     }
 
+                    // Step 2: Apply BUY/SELL direction correction
+                    // BUY: keep delta as is (you own the option's delta)
+                    // SELL: flip delta sign (you have opposite delta to the option)
+                    if (side == "SELL")
+                    {
+                        delta = -delta;
+                        Console.WriteLine($"[Delta Correction] SELL direction, flipping delta sign: {delta}%");
+                    }
+
                     // Convert delta from percentage to notional amount
-                    // Delta is in % (e.g., 41.31 for CALL, -41.31 for PUT), notional is in millions
+                    // Delta is in % (with correct sign), notional is in millions
                     // Delta Notional = (Delta / 100) × Notional × 1,000,000
+                    // Examples:
+                    //   BUY CALL (+41.31%): +4,131,000 → SELL spot to hedge
+                    //   SELL CALL (-41.31%): -4,131,000 → BUY spot to hedge
+                    //   BUY PUT (-24%): -2,400,000 → BUY spot to hedge
+                    //   SELL PUT (+24%): +2,400,000 → SELL spot to hedge
                     double deltaNotional = (delta / 100.0) * totalNotionalMM * 1000000.0;
 
                     var blotterEntry = new TradeBlotterEntry
