@@ -191,7 +191,7 @@ namespace FXOptionsSimulator.FIX
 
         #region Send Quote Request
 
-        public string SendQuoteRequest(TradeStructure trade, string lpName, string groupId)
+        public string SendQuoteRequest(TradeStructure trade, string lpName, string groupId, bool hedge = true)
         {
             if (!IsLoggedOn)
                 throw new InvalidOperationException("Cannot send quote request - not logged on!");
@@ -257,7 +257,8 @@ namespace FXOptionsSimulator.FIX
                     rawMessage = _rawBuilder.BuildQuoteRequest(
                         trade, lpName, quoteReqID, groupId,
                         tag75Override: canonical75,
-                        tag5020Override: canonical5020);
+                        tag5020Override: canonical5020,
+                        hedge: hedge);
 
                     Console.WriteLine($"\n[DEBUG] Raw Quote Request Message (SeqNum={seqNum}):");
                     Console.WriteLine($"{rawMessage.Replace("\x01", "|")}");

@@ -38,7 +38,8 @@ namespace FXOptionsSimulator.FIX
             string quoteReqID,
             string groupId,
             string tag75Override = null,
-            string tag5020Override = null)
+            string tag5020Override = null,
+            bool hedge = true)
         {
             _body.Clear();
 
@@ -82,7 +83,7 @@ namespace FXOptionsSimulator.FIX
             AddField(131, quoteReqID); // QuoteReqID
             AddField(5475, "S"); // PremDel
             AddField(5830, trade.PremiumCurrency); // PremiumCcy
-            AddField(9016, "1"); // HedgeTradeType
+            AddField(9016, hedge ? "1" : "0"); // HedgeTradeType (1=hedge, 0=no hedge)
 
             int structureCode = TradeStructure.GetStructureCode(trade.StructureType);
             AddField(9126, structureCode.ToString()); // Structure

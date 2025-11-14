@@ -34,6 +34,7 @@ namespace FXOAiTranslator
         private CheckBox chkCIBC;
         private CheckBox chkDeut;
         private CheckBox chkDBS;
+        private CheckBox chkHedge;  // Hedge checkbox
         private int _selectedLegCount;
 
         public GFIQuoteDialog(dynamic ovmlResult)
@@ -304,6 +305,17 @@ namespace FXOAiTranslator
 
             this.Controls.Add(dgvBlotter);
 
+            // Hedge checkbox
+            chkHedge = new CheckBox
+            {
+                Text = "Hedge",
+                Location = new Point(720, 735),
+                Size = new Size(100, 25),
+                Checked = true,  // Default ON
+                Font = new Font("Segoe UI", 10, FontStyle.Regular)
+            };
+            this.Controls.Add(chkHedge);
+
             // Buttons - moved down for blotter
             btnRequestQuotes = new Button
             {
@@ -467,11 +479,14 @@ namespace FXOAiTranslator
             Console.WriteLine();
 
             // Send quote request to each LP
+            bool hedge = chkHedge.Checked;
+            Console.WriteLine($"[Quote Request] Hedge: {(hedge ? "ON" : "OFF")} (9016={(hedge ? "1" : "0")})");
+
             foreach (var lp in lps)
             {
                 try
                 {
-                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId);
+                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId, hedge);
                     Console.WriteLine($"[Quote Request] Sent to {lp}: {quoteReqID}");
                 }
                 catch (Exception ex)
