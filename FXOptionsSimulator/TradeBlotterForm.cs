@@ -91,6 +91,10 @@ namespace FXOAiTranslator
             dgvBlotter.Columns["NetPremium"].DefaultCellStyle.Format = "N2";
             dgvBlotter.Columns["NetPremium"].Width = 100;
 
+            dgvBlotter.Columns.Add("Volatility", "Vol");
+            dgvBlotter.Columns["Volatility"].DefaultCellStyle.Format = "F2";
+            dgvBlotter.Columns["Volatility"].Width = 60;
+
             dgvBlotter.Columns.Add("Status", "Status");
             dgvBlotter.Columns["Status"].Width = 80;
 
@@ -123,6 +127,7 @@ namespace FXOAiTranslator
                     trade.StructureType,
                     trade.LegCount,
                     trade.NetPremium,
+                    trade.Volatility,
                     trade.Status,
                     trade.ExecID ?? "",
                     trade.RejectReason ?? ""

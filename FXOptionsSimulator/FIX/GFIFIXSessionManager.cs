@@ -390,6 +390,7 @@ namespace FXOptionsSimulator.FIX
                     // - When client SELLS (hits bid): LP pays (negative) → Client receives (positive)
                     // - When client BUYS (lifts offer): LP receives (positive) → Client pays (positive)
                     double netPremium = 0;
+                    double volatility = 0;
                     if (quote.LegPricing != null && quote.LegPricing.Count > 0)
                     {
                         foreach (var leg in quote.LegPricing)
@@ -397,6 +398,11 @@ namespace FXOptionsSimulator.FIX
                             if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
                             {
                                 netPremium += legPrem;
+                            }
+                            // Extract volatility from first leg (for single leg trades)
+                            if (volatility == 0 && !string.IsNullOrEmpty(leg.Volatility) && double.TryParse(leg.Volatility, out double vol))
+                            {
+                                volatility = vol;
                             }
                         }
                     }
@@ -412,6 +418,7 @@ namespace FXOptionsSimulator.FIX
                         StructureType = trade.StructureType,
                         LegCount = trade.Legs.Count,
                         NetPremium = netPremium,
+                        Volatility = volatility,
                         Status = "PENDING"
                     };
                     TradeBlotter.Instance.AddTrade(blotterEntry);
