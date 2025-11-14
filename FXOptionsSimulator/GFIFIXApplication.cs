@@ -183,10 +183,18 @@ namespace FXOptionsSimulator.FIX
                     },
                     (k, existing) =>
                     {
+                        // Clear opposite side to avoid showing stale quotes
+                        // GFI only sends ONE quote per request based on Position field
                         if (side == "BID")
+                        {
                             existing.BidQuote = fixMsg;
+                            existing.OfferQuote = null; // Clear stale offer
+                        }
                         else
+                        {
                             existing.OfferQuote = fixMsg;
+                            existing.BidQuote = null; // Clear stale bid
+                        }
                         existing.LastUpdate = DateTime.UtcNow;
                         return existing;
                     });
