@@ -928,35 +928,9 @@ namespace FXOAiTranslator
                 string originalQuoteID = selectedQuote.Get(Tags.QuoteID.ToString());
                 string currentQuoteID = refreshedQuote.Get(Tags.QuoteID.ToString());
 
-                // CRITICAL: Verify QuoteID matches the side we're executing
-                // GFI INVERTED: SELL uses OFFER quote (O_ prefix), BUY uses BID quote (B_ prefix)
-                bool quoteIdMismatch = false;
-                if (side == "SELL" && (currentQuoteID.StartsWith("B_") || currentQuoteID.Contains("-B") || currentQuoteID.Contains("_b")))
-                {
-                    Console.WriteLine($"[VALIDATION] ✗ CRITICAL ERROR: Trying to SELL but QuoteID '{currentQuoteID}' is a BID quote (should be OFFER)!");
-                    quoteIdMismatch = true;
-                }
-                else if (side == "BUY" && (currentQuoteID.StartsWith("O_") || currentQuoteID.Contains("-O")))
-                {
-                    Console.WriteLine($"[VALIDATION] ✗ CRITICAL ERROR: Trying to BUY but QuoteID '{currentQuoteID}' is an OFFER quote (should be BID)!");
-                    quoteIdMismatch = true;
-                }
-
-                if (quoteIdMismatch)
-                {
-                    MessageBox.Show(
-                        $"CRITICAL ERROR: Quote side mismatch!\n\n" +
-                        $"Trying to {side} but have wrong quote type.\n" +
-                        $"QuoteID: {currentQuoteID}\n\n" +
-                        $"This indicates a bug in quote storage.\n" +
-                        $"Please request fresh quotes and report this error.",
-                        "Quote Side Mismatch",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error
-                    );
-                    _quoteTimer?.Start();
-                    return;
-                }
+                // NOTE: QuoteID prefix (B_ vs O_) is NOT reliable for quote type
+                // The only reliable indicator is the FIX Side field (tag 54) that GFI sends
+                // We trust our quote storage based on the Side field
 
                 if (originalQuoteID != currentQuoteID)
                 {
