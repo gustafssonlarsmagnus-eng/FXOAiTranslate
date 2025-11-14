@@ -272,10 +272,11 @@ namespace FXOAiTranslator
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
+                MultiSelect = true,  // Allow multiple row selection
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 RowHeadersVisible = false
             };
+            dgvBlotter.KeyDown += DgvBlotter_KeyDown;
 
             // Blotter columns
             dgvBlotter.Columns.Add("Time", "Time");
@@ -1086,6 +1087,40 @@ namespace FXOAiTranslator
                 default:
                     row.DefaultCellStyle.BackColor = Color.White;
                     break;
+            }
+        }
+
+        private void DgvBlotter_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Copy selected rows to clipboard with Ctrl+C
+            if (e.Control && e.KeyCode == Keys.C)
+            {
+                if (dgvBlotter.SelectedRows.Count == 0)
+                    return;
+
+                var sb = new System.Text.StringBuilder();
+
+                // Add header row
+                var headers = new List<string>();
+                foreach (DataGridViewColumn col in dgvBlotter.Columns)
+                {
+                    headers.Add(col.HeaderText);
+                }
+                sb.AppendLine(string.Join("\t", headers));
+
+                // Add selected rows
+                foreach (DataGridViewRow row in dgvBlotter.SelectedRows)
+                {
+                    var cells = new List<string>();
+                    foreach (DataGridViewCell cell in row.Cells)
+                    {
+                        cells.Add(cell.Value?.ToString() ?? "");
+                    }
+                    sb.AppendLine(string.Join("\t", cells));
+                }
+
+                Clipboard.SetText(sb.ToString());
+                e.Handled = true;
             }
         }
 
