@@ -806,6 +806,7 @@ namespace FXOAiTranslator
 
         private void BtnExecute_Click(string side)
         {
+            Console.WriteLine($"\n[DEBUG BtnExecute_Click] ENTRY - side parameter: '{side}'");
             _quoteTimer?.Stop();
 
             // Get best bid quote
