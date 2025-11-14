@@ -189,15 +189,21 @@ namespace FXOptionsSimulator.FIX
                         {
                             existing.BidQuote = fixMsg;
                             existing.OfferQuote = null; // Clear stale offer
+                            Console.WriteLine($"  [STORAGE] Stored in BidQuote, cleared OfferQuote");
                         }
                         else
                         {
                             existing.OfferQuote = fixMsg;
                             existing.BidQuote = null; // Clear stale bid
+                            Console.WriteLine($"  [STORAGE] Stored in OfferQuote, cleared BidQuote");
                         }
                         existing.LastUpdate = DateTime.UtcNow;
                         return existing;
                     });
+
+                // Verify what's stored
+                var stored = _quotes[key];
+                Console.WriteLine($"  [VERIFY] After storage: BidQuote={(stored.BidQuote != null ? "EXISTS" : "NULL")}, OfferQuote={(stored.OfferQuote != null ? "EXISTS" : "NULL")}");
 
                 OnQuoteReceived?.Invoke(quoteReqID, fixMsg);
             }

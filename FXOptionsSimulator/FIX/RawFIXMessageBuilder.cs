@@ -96,6 +96,13 @@ namespace FXOptionsSimulator.FIX
             AddField(537, "1"); // QuoteType
             AddField(555, trade.Legs.Count.ToString()); // NoLegs
 
+            // DIAGNOSTIC: Show all leg directions before building
+            Console.WriteLine($"[QUOTE REQUEST] Building {trade.Legs.Count}-leg structure:");
+            for (int i = 0; i < trade.Legs.Count; i++)
+            {
+                Console.WriteLine($"  Leg {i+1}: Direction={trade.Legs[i].Direction} → Position={(trade.Legs[i].Direction == "SELL" ? "1" : "2")}");
+            }
+
             // Legs in EXACT GFI order from their sample
             for (int i = 0; i < trade.Legs.Count; i++)
             {

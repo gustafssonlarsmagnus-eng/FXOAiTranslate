@@ -531,8 +531,12 @@ namespace FXOAiTranslator
             dgvQuotes.Rows.Clear();
             var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
 
+            Console.WriteLine($"\n[DISPLAY] UpdateQuoteDisplay called for groupId={_groupId}, found {streams.Count} streams");
+
             foreach (var stream in streams)
             {
+                Console.WriteLine($"[DISPLAY] LP={stream.LP}: BidQuote={(stream.BidQuote != null ? "EXISTS" : "NULL")}, OfferQuote={(stream.OfferQuote != null ? "EXISTS" : "NULL")}");
+
                 var rowData = new List<object>();
                 rowData.Add(stream.LP);
 
@@ -546,6 +550,8 @@ namespace FXOAiTranslator
                 {
                     double? bidVol = GetLegVol(stream.BidQuote, i);
                     double? offerVol = GetLegVol(stream.OfferQuote, i);
+
+                    Console.WriteLine($"[DISPLAY]   Leg {i}: BidVol={bidVol?.ToString("N2") ?? "NULL"}, OfferVol={offerVol?.ToString("N2") ?? "NULL"}");
 
                     rowData.Add(bidVol?.ToString("N2") ?? "-");
                     rowData.Add(offerVol?.ToString("N2") ?? "-");
