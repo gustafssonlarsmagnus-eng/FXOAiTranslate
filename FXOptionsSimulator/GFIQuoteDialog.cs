@@ -844,8 +844,15 @@ namespace FXOAiTranslator
 
                 if (side == "SELL")
                 {
-                    // GFI INVERTED CONVENTION: SELL uses OFFER quote (O_ prefix)
-                    // Find best offer - we already searched for best bid above, now search offers
+                    // SELL uses BID quote (Side=2) - client sells TO the LP's bid
+                    selectedQuote = bestBidQuote;
+                    selectedPremium = bestBidPremium;
+                    lpName = bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString());
+                    Console.WriteLine($"[EXECUTION] Action={side} → Using BidQuote, QuoteID={selectedQuote.Get(Tags.QuoteID.ToString())}");
+                }
+                else // BUY
+                {
+                    // BUY uses OFFER quote (Side=1) - client buys FROM the LP's offer
                     FIXMessage bestOfferQuote = null;
                     double bestOfferPremium = double.MaxValue;
 
@@ -875,14 +882,6 @@ namespace FXOAiTranslator
                     lpName = bestOfferQuote.Get(Tags.OnBehalfOfCompID.ToString());
                     Console.WriteLine($"[EXECUTION] Action={side} → Using OfferQuote, QuoteID={selectedQuote.Get(Tags.QuoteID.ToString())}");
                 }
-                else // BUY
-                {
-                    // GFI INVERTED CONVENTION: BUY uses BID quote (B_ prefix)
-                    selectedQuote = bestBidQuote;
-                    selectedPremium = bestBidPremium;
-                    lpName = bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString());
-                    Console.WriteLine($"[EXECUTION] Action={side} → Using BidQuote, QuoteID={selectedQuote.Get(Tags.QuoteID.ToString())}");
-                }
 
                 // ===== QUOTE FRESHNESS VALIDATION =====
                 Console.WriteLine($"\n[VALIDATION] Starting quote freshness check for {lpName}");
@@ -909,8 +908,8 @@ namespace FXOAiTranslator
                 Console.WriteLine($"[VALIDATION] ✓ Stream for {lpName} found");
 
                 // Check if the specific side (bid/offer) was canceled
-                // GFI INVERTED: SELL uses OfferQuote, BUY uses BidQuote
-                FIXMessage refreshedQuote = side == "SELL" ? refreshedStream.OfferQuote : refreshedStream.BidQuote;
+                // SELL uses BidQuote (Side=2), BUY uses OfferQuote (Side=1)
+                FIXMessage refreshedQuote = side == "SELL" ? refreshedStream.BidQuote : refreshedStream.OfferQuote;
 
                 if (refreshedQuote == null)
                 {
@@ -1083,8 +1082,8 @@ namespace FXOAiTranslator
                     return;
                 }
 
-                // GFI INVERTED: SELL uses OfferQuote, BUY uses BidQuote
-                FIXMessage latestQuote = side == "SELL" ? stream.OfferQuote : stream.BidQuote;
+                // SELL uses BidQuote (Side=2), BUY uses OfferQuote (Side=1)
+                FIXMessage latestQuote = side == "SELL" ? stream.BidQuote : stream.OfferQuote;
 
                 if (latestQuote == null)
                 {
