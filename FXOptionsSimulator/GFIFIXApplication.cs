@@ -183,19 +183,16 @@ namespace FXOptionsSimulator.FIX
                     },
                     (k, existing) =>
                     {
-                        // Clear opposite side to avoid showing stale quotes
-                        // GFI only sends ONE quote per request based on Position field
+                        // GFI sends BOTH BID and OFFER quotes - don't clear opposite side
                         if (side == "BID")
                         {
                             existing.BidQuote = fixMsg;
-                            existing.OfferQuote = null; // Clear stale offer
-                            Console.WriteLine($"  [STORAGE] Stored in BidQuote, cleared OfferQuote");
+                            Console.WriteLine($"  [STORAGE] Stored in BidQuote (keeping existing OfferQuote)");
                         }
                         else
                         {
                             existing.OfferQuote = fixMsg;
-                            existing.BidQuote = null; // Clear stale bid
-                            Console.WriteLine($"  [STORAGE] Stored in OfferQuote, cleared BidQuote");
+                            Console.WriteLine($"  [STORAGE] Stored in OfferQuote (keeping existing BidQuote)");
                         }
                         existing.LastUpdate = DateTime.UtcNow;
                         return existing;
