@@ -15,6 +15,7 @@ namespace FXOptionsSimulator
         public string MQSize { get; set; }              // Tag 5359
         public string LegPremPrice { get; set; }        // Tag 5844
         public string LegSpotRate { get; set; }         // Tag 5235
+        public string LegDelta { get; set; }            // Tag 6035
         public string LegSymbol { get; set; }           // Tag 600 (usually same as main symbol)
     }
 

@@ -391,6 +391,8 @@ namespace FXOptionsSimulator.FIX
                     // - OFFER quote (BUY): Premium is negative (client pays)
                     double netPremium = 0;
                     double volatility = 0;
+                    double delta = 0;
+                    double spotRate = 0;
                     if (quote.LegPricing != null && quote.LegPricing.Count > 0)
                     {
                         foreach (var leg in quote.LegPricing)
@@ -403,6 +405,16 @@ namespace FXOptionsSimulator.FIX
                             if (volatility == 0 && !string.IsNullOrEmpty(leg.Volatility) && double.TryParse(leg.Volatility, out double vol))
                             {
                                 volatility = vol;
+                            }
+                            // Extract delta from first leg (for single leg trades)
+                            if (delta == 0 && !string.IsNullOrEmpty(leg.LegDelta) && double.TryParse(leg.LegDelta, out double dlt))
+                            {
+                                delta = dlt;
+                            }
+                            // Extract spot rate from first leg
+                            if (spotRate == 0 && !string.IsNullOrEmpty(leg.LegSpotRate) && double.TryParse(leg.LegSpotRate, out double spot))
+                            {
+                                spotRate = spot;
                             }
                         }
                     }
@@ -419,6 +431,8 @@ namespace FXOptionsSimulator.FIX
                         LegCount = trade.Legs.Count,
                         NetPremium = netPremium,
                         Volatility = volatility,
+                        Delta = delta,
+                        SpotRate = spotRate,
                         Status = "PENDING"
                     };
                     TradeBlotter.Instance.AddTrade(blotterEntry);

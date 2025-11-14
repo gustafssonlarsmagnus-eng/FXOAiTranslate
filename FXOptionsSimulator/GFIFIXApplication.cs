@@ -632,6 +632,13 @@ namespace FXOptionsSimulator.FIX
                 Console.WriteLine($"  [DEBUG] LegSpotRate (5235): {legPricing.LegSpotRate}");
             }
 
+            // LegDelta (6035)
+            if (quote.IsSetField(6035))
+            {
+                legPricing.LegDelta = quote.GetString(6035);
+                Console.WriteLine($"  [DEBUG] LegDelta (6035): {legPricing.LegDelta}");
+            }
+
             // LegSymbol (600)
             if (quote.IsSetField(600))
             {

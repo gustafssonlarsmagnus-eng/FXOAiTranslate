@@ -295,6 +295,10 @@ namespace FXOAiTranslator
             dgvBlotter.Columns["Premium"].Width = 80;
             dgvBlotter.Columns.Add("Vol", "Vol");
             dgvBlotter.Columns["Vol"].Width = 60;
+            dgvBlotter.Columns.Add("Delta", "Delta");
+            dgvBlotter.Columns["Delta"].Width = 60;
+            dgvBlotter.Columns.Add("Spot", "Spot");
+            dgvBlotter.Columns["Spot"].Width = 70;
             dgvBlotter.Columns.Add("Status", "Status");
             dgvBlotter.Columns["Status"].Width = 100;
 
@@ -1038,6 +1042,8 @@ namespace FXOAiTranslator
                 entry.StructureType,
                 entry.NetPremium.ToString("N2"),
                 entry.Volatility.ToString("F2"),
+                entry.Delta.ToString("F2"),
+                entry.SpotRate.ToString("F4"),
                 entry.Status
             );
 
@@ -1062,6 +1068,8 @@ namespace FXOAiTranslator
                     row.Cells["Status"].Value = entry.Status;
                     row.Cells["Premium"].Value = entry.NetPremium.ToString("N2");
                     row.Cells["Vol"].Value = entry.Volatility.ToString("F2");
+                    row.Cells["Delta"].Value = entry.Delta.ToString("F2");
+                    row.Cells["Spot"].Value = entry.SpotRate.ToString("F4");
                     ColorCodeBlotterRow(row, entry.Status);
                     break;
                 }

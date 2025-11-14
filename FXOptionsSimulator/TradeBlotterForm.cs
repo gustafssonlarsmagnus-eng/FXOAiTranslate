@@ -97,6 +97,14 @@ namespace FXOAiTranslator
             dgvBlotter.Columns["Volatility"].DefaultCellStyle.Format = "F2";
             dgvBlotter.Columns["Volatility"].Width = 60;
 
+            dgvBlotter.Columns.Add("Delta", "Delta");
+            dgvBlotter.Columns["Delta"].DefaultCellStyle.Format = "F2";
+            dgvBlotter.Columns["Delta"].Width = 60;
+
+            dgvBlotter.Columns.Add("SpotRate", "Spot");
+            dgvBlotter.Columns["SpotRate"].DefaultCellStyle.Format = "F4";
+            dgvBlotter.Columns["SpotRate"].Width = 70;
+
             dgvBlotter.Columns.Add("Status", "Status");
             dgvBlotter.Columns["Status"].Width = 80;
 
@@ -130,6 +138,8 @@ namespace FXOAiTranslator
                     trade.LegCount,
                     trade.NetPremium,
                     trade.Volatility,
+                    trade.Delta,
+                    trade.SpotRate,
                     trade.Status,
                     trade.ExecID ?? "",
                     trade.RejectReason ?? ""
