@@ -172,7 +172,9 @@ namespace FXOptionsSimulator.FIX
                 // Position indicates client's intended action:
                 // Position=1 → Client SELLS option (GFI sends BID, Side=2)
                 // Position=2 → Client BUYS option (GFI sends OFFER, Side=1)
-                AddField(6351, leg.Direction == "SELL" ? "1" : "2"); // Position
+                string positionValue = leg.Direction == "SELL" ? "1" : "2";
+                AddField(6351, positionValue); // Position
+                Console.WriteLine($"[QUOTE REQUEST] Direction={leg.Direction} → Position(6351)={positionValue}");
                 AddField(9904, "2"); // PriceIndicator
 
                 if (trade.SpotReference > 0)

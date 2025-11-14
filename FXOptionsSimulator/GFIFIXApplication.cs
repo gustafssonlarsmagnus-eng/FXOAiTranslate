@@ -141,6 +141,7 @@ namespace FXOptionsSimulator.FIX
                 // Side 2 = Client SELLS to LP → This is LP's BID (they buy from you)
                 // This is OPPOSITE of standard FIX market-maker perspective!
                 string side = sideStr == "1" ? "OFFER" : "BID";  // ← INVERTED!
+                Console.WriteLine($"[QUOTE RECEIVED] FIX Side(54)={sideStr} → Storing in {side}Quote (Client can {(side == "BID" ? "SELL" : "BUY")})");
 
                 // CRITICAL DEBUG: Check if QuoteID suffix matches Side
                 string quoteIdSuffix = "";

@@ -873,6 +873,7 @@ namespace FXOAiTranslator
                     selectedQuote = bestOfferQuote;
                     selectedPremium = bestOfferPremium;
                     lpName = bestOfferQuote.Get(Tags.OnBehalfOfCompID.ToString());
+                    Console.WriteLine($"[EXECUTION] Action={side} → Using OfferQuote, QuoteID={selectedQuote.Get(Tags.QuoteID.ToString())}");
                 }
                 else // BUY
                 {
@@ -880,6 +881,7 @@ namespace FXOAiTranslator
                     selectedQuote = bestBidQuote;
                     selectedPremium = bestBidPremium;
                     lpName = bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString());
+                    Console.WriteLine($"[EXECUTION] Action={side} → Using BidQuote, QuoteID={selectedQuote.Get(Tags.QuoteID.ToString())}");
                 }
 
                 // ===== QUOTE FRESHNESS VALIDATION =====
