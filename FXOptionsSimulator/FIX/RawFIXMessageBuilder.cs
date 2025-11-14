@@ -169,7 +169,10 @@ namespace FXOptionsSimulator.FIX
                 AddField(612, leg.Strike.ToString("F4", CultureInfo.InvariantCulture)); // LegStrikePrice
 
                 AddField(9019, "2"); // FXOptionStyle
-                AddField(6351, (i == 0 || leg.Position == "SAME") ? "1" : "2"); // Position
+                // Position indicates client's intended action:
+                // Position=1 → Client SELLS option (GFI sends BID, Side=2)
+                // Position=2 → Client BUYS option (GFI sends OFFER, Side=1)
+                AddField(6351, leg.Direction == "SELL" ? "1" : "2"); // Position
                 AddField(9904, "2"); // PriceIndicator
 
                 if (trade.SpotReference > 0)
