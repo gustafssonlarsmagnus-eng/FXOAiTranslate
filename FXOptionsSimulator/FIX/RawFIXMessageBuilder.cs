@@ -208,8 +208,12 @@ namespace FXOptionsSimulator.FIX
             FIXMessage quote)
         {
             Console.WriteLine($"  [DEBUG IN BuildNewOrderMultileg] side parameter: '{side}'");
-            Console.WriteLine($"  [DEBUG] side == \"SELL\" ? {(side == "SELL" ? "TRUE" : "FALSE")}");
-            Console.WriteLine($"  [DEBUG] Will set FIX Side field (54) to: {(side == "SELL" ? "2" : "1")}");
+
+            // Execution Side field should match the quote Side being hit:
+            // - BUY hits OFFER quote (Side=2) → Send execution Side=2
+            // - SELL hits BID quote (Side=1) → Send execution Side=1
+            string executionSide = side == "BUY" ? "2" : "1";
+            Console.WriteLine($"  [DEBUG] Will set FIX Side field (54) to: {executionSide} (matching quote Side)");
 
             _body.Clear();
 
@@ -231,7 +235,7 @@ namespace FXOptionsSimulator.FIX
             // Body fields in EXACT order from GFI sample
             AddField(11, clOrdID); // ClOrdID
             AddField(40, "1"); // OrdType = MARKET (per GFI spec for New Order - Multileg)
-            AddField(54, side == "SELL" ? "2" : "1"); // Side
+            AddField(54, executionSide); // Side - must match quote Side being hit
             AddField(55, symbol); // Symbol
             AddField(59, "3"); // TimeInForce = IMMEDIATE_OR_CANCEL
             AddField(60, GetUTCTimestamp()); // TransactTime
