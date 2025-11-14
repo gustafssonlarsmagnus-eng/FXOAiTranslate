@@ -98,8 +98,8 @@ namespace FXOAiTranslator
             dgvBlotter.Columns["Volatility"].Width = 60;
 
             dgvBlotter.Columns.Add("Delta", "Delta");
-            dgvBlotter.Columns["Delta"].DefaultCellStyle.Format = "F2";
-            dgvBlotter.Columns["Delta"].Width = 60;
+            dgvBlotter.Columns["Delta"].DefaultCellStyle.Format = "N0";  // Integer with thousand separators
+            dgvBlotter.Columns["Delta"].Width = 90;
 
             dgvBlotter.Columns.Add("SpotRate", "Spot");
             dgvBlotter.Columns["SpotRate"].DefaultCellStyle.Format = "F4";

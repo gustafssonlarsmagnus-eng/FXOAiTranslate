@@ -420,6 +420,18 @@ namespace FXOptionsSimulator.FIX
                     }
                     // No negation needed - GFI premiums are already client perspective
 
+                    // Calculate delta notional: Delta % × Notional
+                    // For multi-leg structures, sum notionals from all legs
+                    double totalNotionalMM = 0;
+                    foreach (var leg in trade.Legs)
+                    {
+                        totalNotionalMM += leg.NotionalMM;
+                    }
+                    // Convert delta from percentage to notional amount
+                    // Delta is in % (e.g., 41.31), notional is in millions
+                    // Delta Notional = (Delta / 100) × Notional × 1,000,000
+                    double deltaNotional = (delta / 100.0) * totalNotionalMM * 1000000.0;
+
                     var blotterEntry = new TradeBlotterEntry
                     {
                         TradeTime = DateTime.Now,
@@ -431,7 +443,7 @@ namespace FXOptionsSimulator.FIX
                         LegCount = trade.Legs.Count,
                         NetPremium = netPremium,
                         Volatility = volatility,
-                        Delta = delta,
+                        Delta = deltaNotional,  // Store delta notional, not percentage
                         SpotRate = spotRate,
                         Status = "PENDING"
                     };
