@@ -428,8 +428,18 @@ namespace FXOptionsSimulator.FIX
                     {
                         totalNotionalMM += leg.NotionalMM;
                     }
+
+                    // GFI sends delta as absolute value - apply correct sign based on option type
+                    // CALL: positive delta, PUT: negative delta
+                    // For single-leg vanilla options, check first leg's option type
+                    if (trade.Legs.Count > 0 && trade.Legs[0].OptionType == "PUT" && delta > 0)
+                    {
+                        delta = -delta; // Make negative for PUTs
+                        Console.WriteLine($"[Delta Correction] PUT option detected, delta sign corrected to negative: {delta}%");
+                    }
+
                     // Convert delta from percentage to notional amount
-                    // Delta is in % (e.g., 41.31), notional is in millions
+                    // Delta is in % (e.g., 41.31 for CALL, -41.31 for PUT), notional is in millions
                     // Delta Notional = (Delta / 100) × Notional × 1,000,000
                     double deltaNotional = (delta / 100.0) * totalNotionalMM * 1000000.0;
 
