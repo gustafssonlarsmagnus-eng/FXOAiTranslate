@@ -195,6 +195,10 @@ namespace FXOptionsSimulator.FIX
             int structureCode,
             FIXMessage quote)
         {
+            Console.WriteLine($"  [DEBUG IN BuildNewOrderMultileg] side parameter: '{side}'");
+            Console.WriteLine($"  [DEBUG] side == \"SELL\" ? {(side == "SELL" ? "TRUE" : "FALSE")}");
+            Console.WriteLine($"  [DEBUG] Will set FIX Side field (54) to: {(side == "SELL" ? "2" : "1")}");
+
             _body.Clear();
 
             // Standard header fields (in body) - in FIX order

@@ -351,6 +351,8 @@ namespace FXOptionsSimulator.FIX
                     seqNum = session.NextSenderMsgSeqNum;
                     _rawBuilder.SetMsgSeqNum(seqNum);
 
+                    Console.WriteLine($"  [DEBUG BEFORE BUILD] side parameter value: '{side}'");
+
                     // Build raw message with exact field order
                     rawMessage = _rawBuilder.BuildNewOrderMultileg(
                         clOrdID,
