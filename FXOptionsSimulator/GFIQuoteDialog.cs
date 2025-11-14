@@ -279,9 +279,9 @@ namespace FXOAiTranslator
 
             // Blotter columns
             dgvBlotter.Columns.Add("Time", "Time");
-            dgvBlotter.Columns["Time"].Width = 100;
+            dgvBlotter.Columns["Time"].Width = 70;
             dgvBlotter.Columns.Add("ClOrdID", "Order ID");
-            dgvBlotter.Columns["ClOrdID"].Width = 150;
+            dgvBlotter.Columns["ClOrdID"].Width = 200;
             dgvBlotter.Columns.Add("LP", "LP");
             dgvBlotter.Columns["LP"].Width = 80;
             dgvBlotter.Columns.Add("Side", "Side");
