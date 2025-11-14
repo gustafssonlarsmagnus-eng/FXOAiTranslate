@@ -386,9 +386,9 @@ namespace FXOptionsSimulator.FIX
                 if (trade != null)
                 {
                     // Calculate net premium from quote's leg pricing
-                    // Negate to convert from LP perspective to client perspective:
-                    // - When client SELLS (hits bid): LP pays (negative) → Client receives (positive)
-                    // - When client BUYS (lifts offer): LP receives (positive) → Client pays (positive)
+                    // GFI sends premiums already from client perspective:
+                    // - BID quote (SELL): Premium is positive (client receives)
+                    // - OFFER quote (BUY): Premium is negative (client pays)
                     double netPremium = 0;
                     double volatility = 0;
                     if (quote.LegPricing != null && quote.LegPricing.Count > 0)
@@ -406,7 +406,7 @@ namespace FXOptionsSimulator.FIX
                             }
                         }
                     }
-                    netPremium = -netPremium; // Negate for client perspective
+                    // No negation needed - GFI premiums are already client perspective
 
                     var blotterEntry = new TradeBlotterEntry
                     {
