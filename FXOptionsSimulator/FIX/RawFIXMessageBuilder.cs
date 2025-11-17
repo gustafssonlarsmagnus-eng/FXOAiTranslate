@@ -101,15 +101,12 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"\n========== QUOTE REQUEST DEBUG ==========");
             Console.WriteLine($"Building {trade.Legs.Count}-leg structure for {trade.Underlying}:");
             Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")}");
+            Console.WriteLine($"TESTING MODE: Position=1 (fixed) to investigate what quotes GFI sends");
             for (int i = 0; i < trade.Legs.Count; i++)
             {
                 var leg = trade.Legs[i];
-                string position = hedge
-                    ? (leg.Direction == "BUY" ? "2" : "1")  // Reversed when hedge ON
-                    : (leg.Direction == "BUY" ? "1" : "2"); // Normal when hedge OFF
-                string expectedQuote = leg.Direction == "BUY" ? "OFFER (Side=2)" : "BID (Side=1)";
                 Console.WriteLine($"  Leg {i+1}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike}");
-                Console.WriteLine($"         → Position(6351)={position} → Expecting {expectedQuote}");
+                Console.WriteLine($"         → Position(6351)=1 (fixed) → Watch for BOTH BID and OFFER quotes");
             }
             Console.WriteLine($"=========================================\n");
 
@@ -187,24 +184,9 @@ namespace FXOptionsSimulator.FIX
 
                 AddField(9019, "2"); // FXOptionStyle
 
-                // Position field - GFI's actual behavior (VERIFIED from FIX message examples):
-                // When Hedge=0 (OFF):
-                //   Position=1 → GFI sends OFFER quote (Side=2) for client to BUY from
-                //   Position=2 → GFI sends BID quote (Side=1) for client to SELL into
-                // When Hedge=1 (ON):
-                //   Position=1 → GFI sends BID quote (Side=1) - REVERSED!
-                //   Position=2 → GFI sends OFFER quote (Side=2) - REVERSED!
-                string positionValue;
-                if (hedge)
-                {
-                    // Hedge ON: Position field is REVERSED
-                    positionValue = leg.Direction == "BUY" ? "2" : "1";
-                }
-                else
-                {
-                    // Hedge OFF: Normal mapping
-                    positionValue = leg.Direction == "BUY" ? "1" : "2";
-                }
+                // Position field - TESTING: Always send Position=1 to investigate
+                // Theory: GFI might send BOTH BID and OFFER quotes, Position may mean something else
+                string positionValue = "1"; // TEMPORARY: Always 1 for testing
                 AddField(6351, positionValue); // Position
                 AddField(9904, "2"); // PriceIndicator
 
@@ -232,16 +214,13 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"TradeDate (75): {tag75}");
             Console.WriteLine($"PremiumDelivery (5020): {tag5020}");
             Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")}");
+            Console.WriteLine($"TESTING: Position=1 (fixed) - watching for which quotes GFI sends");
             Console.WriteLine($"Legs: {trade.Legs.Count}");
             for (int i = 0; i < trade.Legs.Count; i++)
             {
                 var leg = trade.Legs[i];
-                string position = hedge
-                    ? (leg.Direction == "BUY" ? "2" : "1")  // Reversed when hedge ON
-                    : (leg.Direction == "BUY" ? "1" : "2"); // Normal when hedge OFF
-                string expectedQuote = leg.Direction == "BUY" ? "OFFER" : "BID";
                 Console.WriteLine($"  Leg {i+1}: {leg.Direction,-4} {leg.NotionalMM,6}MM {leg.OptionType,-4} Strike={leg.Strike:F4} Tenor={leg.Tenor}");
-                Console.WriteLine($"         Position={position} → Expecting {expectedQuote} quote (Side={(expectedQuote == "OFFER" ? "2" : "1")})");
+                Console.WriteLine($"         Position=1 (fixed) → Action: {leg.Direction} → Need: {(leg.Direction == "BUY" ? "OFFER" : "BID")} quote");
             }
             Console.WriteLine($"===========================================\n");
 
