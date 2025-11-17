@@ -130,12 +130,18 @@ namespace FXOptionsSimulator.FIX
                 string quoteReqID = quote.GetString(Tags.QuoteReqID);
                 string quoteID = quote.GetString(Tags.QuoteID);
                 string sideStr = quote.GetString(Tags.Side);
-                string side = sideStr == "1" ? "BID" : "OFFER";
+
+                // CRITICAL FIX: GFI's tag 54 is UNRELIABLE - use QuoteID suffix instead!
+                // QuoteID ending with "-O" = OFFER (client can BUY from LP)
+                // QuoteID ending with "-B" or other = BID (client can SELL to LP)
+                string quoteIdSuffix = quoteID.Contains("-") ? quoteID.Substring(quoteID.LastIndexOf("-")) : "";
+                string side = (quoteIdSuffix.Contains("O") || quoteIdSuffix.Contains("o")) ? "OFFER" : "BID";
 
                 Console.WriteLine($"\n[GFI FIX] <<< REAL QUOTE (35=S)");
                 Console.WriteLine($"  LP: {lpName}");
                 Console.WriteLine($"  QuoteReqID: {quoteReqID}");
-                Console.WriteLine($"  Side: {side}");
+                Console.WriteLine($"  QuoteID: {quoteID} (suffix: '{quoteIdSuffix}')");
+                Console.WriteLine($"  Side: {side} (from QuoteID suffix, tag 54={sideStr})");
 
                 var fixMsg = ConvertQuoteToFIXMessage(quote);
 
