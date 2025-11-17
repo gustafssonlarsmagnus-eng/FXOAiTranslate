@@ -33,6 +33,22 @@ A complete message flow demonstrating:
 - Hedge notional calculation (delta × option notional)
 - Comparison table with no-hedge example
 
+### [Example 3: Vanilla Put - With Delta and Hedge](fix-messages/example-03-vanilla-put-with-delta-and-hedge.md)
+
+A complete message flow demonstrating:
+- Quote Request for EURUSD 1M vanilla **put** option with delta targeting (6035=50)
+- Quote Response from Deutsche Bank (DEUT) - **BID** side with negative delta (-51%)
+- Order Execution (**selling** the put, hitting bid)
+
+**Key Learning Points:**
+- Put option structure (Structure=2, LegStrategy=2)
+- Delta targeting in quote request (tag 6035)
+- Negative delta for puts (delta sign conventions)
+- Put moneyness analysis (ITM vs OTM for puts)
+- Hedge direction for puts (short EUR to offset negative delta)
+- Call vs Put comparison table
+- Put option Greeks and use cases
+
 ## Message Structure Reference
 
 All FIX messages in these examples use:
@@ -69,7 +85,16 @@ All FIX messages in these examples use:
 | 7940 | LegStrategyID | Leg strategy identifier |
 | 5359 | MQSize | Market quote size |
 | 5235 | LegSpotRate | Spot FX rate |
-| 6035 | LegDelta | Option delta % |
+| 6035 | LegDelta | Option delta % (in request: target delta, in response: actual delta) |
+| 6354 | MQStrikePrice | Strike price from quote |
+| 612 | LegStrikePrice | Strike price in request |
+
+### Option Structure Tags
+| Tag | Field Name | Values | Description |
+|-----|------------|--------|-------------|
+| 9126 | Structure | 1=Vanilla/Call, 2=Put, 5=RiskReversal, 8=CallSpread, 9=PutSpread, 10=Seagull | Structure type |
+| 6258 | Strategy | 1=Call, 2=Put | Strategy in symbol group |
+| 6714 | LegStrategy | 1=Call, 2=Put | Strategy per leg |
 
 ### Hedge Tags (When HedgeTradeType = 1)
 | Tag | Field Name | Description |
