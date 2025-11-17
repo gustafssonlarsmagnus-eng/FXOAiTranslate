@@ -100,10 +100,13 @@ namespace FXOptionsSimulator.FIX
             // DIAGNOSTIC: Show all leg directions before building
             Console.WriteLine($"\n========== QUOTE REQUEST DEBUG ==========");
             Console.WriteLine($"Building {trade.Legs.Count}-leg structure for {trade.Underlying}:");
+            Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")}");
             for (int i = 0; i < trade.Legs.Count; i++)
             {
                 var leg = trade.Legs[i];
-                string position = leg.Direction == "BUY" ? "1" : "2";
+                string position = hedge
+                    ? (leg.Direction == "BUY" ? "2" : "1")  // Reversed when hedge ON
+                    : (leg.Direction == "BUY" ? "1" : "2"); // Normal when hedge OFF
                 string expectedQuote = leg.Direction == "BUY" ? "OFFER (Side=2)" : "BID (Side=1)";
                 Console.WriteLine($"  Leg {i+1}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike}");
                 Console.WriteLine($"         → Position(6351)={position} → Expecting {expectedQuote}");
@@ -183,10 +186,25 @@ namespace FXOptionsSimulator.FIX
                 AddField(612, leg.Strike.ToString("F4", CultureInfo.InvariantCulture)); // LegStrikePrice
 
                 AddField(9019, "2"); // FXOptionStyle
-                // Position field - GFI's actual behavior (VERIFIED):
-                // Position=1 → GFI sends OFFER quote (Side=2) for client to BUY from
-                // Position=2 → GFI sends BID quote (Side=1) for client to SELL into
-                string positionValue = leg.Direction == "BUY" ? "1" : "2";
+
+                // Position field - GFI's actual behavior (VERIFIED from FIX message examples):
+                // When Hedge=0 (OFF):
+                //   Position=1 → GFI sends OFFER quote (Side=2) for client to BUY from
+                //   Position=2 → GFI sends BID quote (Side=1) for client to SELL into
+                // When Hedge=1 (ON):
+                //   Position=1 → GFI sends BID quote (Side=1) - REVERSED!
+                //   Position=2 → GFI sends OFFER quote (Side=2) - REVERSED!
+                string positionValue;
+                if (hedge)
+                {
+                    // Hedge ON: Position field is REVERSED
+                    positionValue = leg.Direction == "BUY" ? "2" : "1";
+                }
+                else
+                {
+                    // Hedge OFF: Normal mapping
+                    positionValue = leg.Direction == "BUY" ? "1" : "2";
+                }
                 AddField(6351, positionValue); // Position
                 AddField(9904, "2"); // PriceIndicator
 
@@ -218,10 +236,12 @@ namespace FXOptionsSimulator.FIX
             for (int i = 0; i < trade.Legs.Count; i++)
             {
                 var leg = trade.Legs[i];
-                string position = leg.Direction == "BUY" ? "1" : "2";
+                string position = hedge
+                    ? (leg.Direction == "BUY" ? "2" : "1")  // Reversed when hedge ON
+                    : (leg.Direction == "BUY" ? "1" : "2"); // Normal when hedge OFF
                 string expectedQuote = leg.Direction == "BUY" ? "OFFER" : "BID";
                 Console.WriteLine($"  Leg {i+1}: {leg.Direction,-4} {leg.NotionalMM,6}MM {leg.OptionType,-4} Strike={leg.Strike:F4} Tenor={leg.Tenor}");
-                Console.WriteLine($"         Position={position} → Expecting {expectedQuote} quote (Side={(position == "1" ? "2" : "1")})");
+                Console.WriteLine($"         Position={position} → Expecting {expectedQuote} quote (Side={(expectedQuote == "OFFER" ? "2" : "1")})");
             }
             Console.WriteLine($"===========================================\n");
 
