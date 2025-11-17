@@ -159,3 +159,68 @@ else
 This explains why:
 - ✅ SELL orders work (if tested without hedge)
 - ❌ BUY orders fail consistently (if tested with hedge ON)
+
+---
+
+## Example 3: PUT with Delta and Hedge ON - **CONFIRMS THE PATTERN!**
+
+### Message 1 - Quote Request (35=R)
+```
+8=FIX.4.4|9=360|35=R|34=18981|49=WEBFENICS1|52=20251114-12:47:33.280|56=GFI|115=SWES|128=DEUT|75=20251114|131=FENICS.14899.0NDHUVT0DMCSNCKW0A000382|5475=S|5830=USD|8051=9-MQFBFNRH|9016=1|9126=2|9943=2|146=1|55=EURUSD|6258=2|537=1|555=1|600=EURUSD|6714=2|9125=1|6215=1M|611=20251216|743=20251218|5020=20251118|6035=50|9019=2|6351=1|9904=2|556=EUR|687=1.000000|7940=SL|9034=EUR|10=052|
+```
+
+**Key Fields:**
+- `6351=1` → **Position=1** (Client wants to BUY the PUT option)
+- `9016=1` → **Hedge ON**
+- `6714=2` → **PUT option** (different from Examples 1-2 which were CALLs)
+- `6035=50` → Target Delta 50%
+- `9126=2` → Structure type 2 (Delta-based)
+
+### Message 2 - Quote Response (35=S)
+```
+8=FIX.4.4|9=432|35=S|34=512799|49=GFI|52=20251114-12:47:46.572|56=WEBFENICS1|115=DEUT|54=1|55=EURUSD|60=20251114-12:47:45.093135|62=20251114-12:52:37|117=B_FENICS.14899.0NDHUVT0DMCSNCKW0A000382-24|131=FENICS.14899.0NDHUVT0DMCSNCKW0A000382|6289=A|6436=9064|9126=2|6120=1|7940=SL|5678=6.49|8515=0|5359=1|5235=1.16497|5191=22.205|9073=USD|5844=90.64|6035=-51|6354=1.1675|7464=1|9074=EUR|9016=1|6666=1|6036=0.513|9657=1.16497|9112=20251118|6426=EURUSD|10=134|
+```
+
+**Key Fields:**
+- `54=1` → **Side=1 (BID)** ❌ WRONG! Should be Side=2 (OFFER) for BUY!
+- `117=B_FENICS.14899.0NDHUVT0DMCSNCKW0A000382-24` → QuoteID starts with "B_" (BID)
+- `6436=9064` → Total Premium USD +90.64 (POSITIVE - client receives)
+- `5844=90.64` → Leg Premium (POSITIVE)
+- `6035=-51` → Delta -51% (negative is correct for PUT)
+- `6354=1.1675` → Calculated strike
+
+**Analysis:**
+❌ **PUT option with Position=1 + Hedge=1 → Also gets BID quote (Side=1)**
+This confirms the pattern is NOT option-type dependent, but purely Position+Hedge dependent!
+
+### Message 3 - Execution Order (35=AB)
+```
+8=FIX.4.4|9=389|35=AB|34=19019|49=WEBFENICS1|52=20251114-12:47:48.412|56=GFI|115=SWES|128=DEUT|11=FENICS.14899.0NDHUVT0DMCSNCKW0A000382|40=1|54=2|55=EURUSD|59=3|60=20251114-12:47:48.412001|117=B_FENICS.14899.0NDHUVT0DMCSNCKW0A000382-24|131=FENICS.14899.0NDHUVT0DMCSNCKW0A000382|5830=USD|6436=9064|9126=2|453=1|448=swed.ui|447=D|452=11|555=1|600=EURUSD|7940=SL|5678=6.49|8518=9100|5359=1.000000|5844=90.64|10=221|
+```
+
+**Key Fields:**
+- `117=B_FENICS.14899.0NDHUVT0DMCSNCKW0A000382-24` → BID QuoteID
+- `54=2` → Execution Side=2 (opposite of quote)
+- `9126=2` → Structure type 2 (Delta-based PUT)
+
+**Analysis:**
+❌ Same issue - trying to BUY using a BID quote (Side=1)!
+
+---
+
+## Final Confirmation
+
+All 3 examples confirm the hedge-dependent Position field reversal:
+
+| Example | Option Type | Hedge | Position | Quote Received | Should Receive | Works? |
+|---------|------------|-------|----------|----------------|----------------|--------|
+| 1 | CALL (Strike) | OFF (0) | 1 (BUY) | OFFER (Side=2) ✅ | OFFER | YES ✅ |
+| 2 | CALL (Strike) | ON (1) | 1 (BUY) | BID (Side=1) ❌ | OFFER | NO ❌ |
+| 3 | PUT (Delta) | ON (1) | 1 (BUY) | BID (Side=1) ❌ | OFFER | NO ❌ |
+
+**Key Finding:** The reversal happens with Hedge=1 regardless of:
+- Option type (CALL vs PUT)
+- Pricing method (Strike vs Delta)
+- Only depends on: **Hedge flag + Position field value**
+
+The fix implemented correctly handles all cases by checking the hedge flag.
