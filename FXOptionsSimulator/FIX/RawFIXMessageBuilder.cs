@@ -48,7 +48,10 @@ namespace FXOptionsSimulator.FIX
             AddField(49, _senderCompID); // SenderCompID
             AddField(52, GetUTCTimestamp()); // SendingTime
             AddField(56, _targetCompID); // TargetCompID
-            AddField(115, "SWES"); // OnBehalfOfCompID - Required for trader/desk identification
+
+            // TEMPORARILY COMMENTED OUT - GFI rejecting "SWES" as invalid for WEBFENICS55 account
+            // Need to find correct OnBehalfOfCompID value for this account or remove entirely
+            // AddField(115, "SWES"); // OnBehalfOfCompID - Required for trader/desk identification
 
             // DeliverToCompID in header
             AddField(128, lpName);
@@ -210,10 +213,11 @@ namespace FXOptionsSimulator.FIX
                 throw new InvalidOperationException("Cannot execute - quote missing LP identifier (tag 115)");
             }
 
-            // Add both OnBehalfOfCompID and DeliverToCompID for proper routing
-            AddField(115, "SWES"); // OnBehalfOfCompID - Trader/desk identifier
+            // Add DeliverToCompID for proper routing to LP
+            // TEMPORARILY COMMENTED OUT - GFI rejecting "SWES" as invalid for WEBFENICS55 account
+            // AddField(115, "SWES"); // OnBehalfOfCompID - Trader/desk identifier
             AddField(128, lpName); // DeliverToCompID - Route to LP that provided quote
-            Console.WriteLine($"  [DEBUG] Execution routing: OnBehalfOf=SWES, DeliverTo={lpName}");
+            Console.WriteLine($"  [DEBUG] Execution routing: DeliverTo={lpName}");
 
             // Body fields in EXACT order from GFI sample
             AddField(11, clOrdID); // ClOrdID
