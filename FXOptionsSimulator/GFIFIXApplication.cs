@@ -264,6 +264,21 @@ namespace FXOptionsSimulator.FIX
                     }
 
                     existingStream.LastUpdate = DateTime.UtcNow;
+
+                    // ===== CANCEL SUMMARY - EASY TO FIND =====
+                    Console.WriteLine($"");
+                    Console.WriteLine($"┌────────────────────────────────────────────────────────────────");
+                    Console.WriteLine($"│ CANCEL RESULT SUMMARY");
+                    Console.WriteLine($"├────────────────────────────────────────────────────────────────");
+                    Console.WriteLine($"│ LP: {lpName}");
+                    Console.WriteLine($"│ QuoteID Canceled: {quoteIDToCancel}");
+                    Console.WriteLine($"│ BID Canceled: {canceledBid}");
+                    Console.WriteLine($"│ OFFER Canceled: {canceledOffer}");
+                    Console.WriteLine($"├────────────────────────────────────────────────────────────────");
+                    Console.WriteLine($"│ REMAINING QUOTES:");
+                    Console.WriteLine($"│   BidQuote: {(existingStream.BidQuote != null ? existingStream.BidQuote.Get(Tags.QuoteID.ToString()) : "NULL")}");
+                    Console.WriteLine($"│   OfferQuote: {(existingStream.OfferQuote != null ? existingStream.OfferQuote.Get(Tags.QuoteID.ToString()) : "NULL")}");
+                    Console.WriteLine($"└────────────────────────────────────────────────────────────────\n");
                 }
                 else
                 {

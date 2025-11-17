@@ -866,8 +866,34 @@ namespace FXOAiTranslator
                     lpName = bestOfferQuote.Get(Tags.OnBehalfOfCompID.ToString());
                 }
 
+                // ===== DEBUG SUMMARY - EASY TO FIND =====
+                Console.WriteLine($"\n");
+                Console.WriteLine($"╔════════════════════════════════════════════════════════════════");
+                Console.WriteLine($"║ EXECUTION DEBUG SUMMARY");
+                Console.WriteLine($"╠════════════════════════════════════════════════════════════════");
+                Console.WriteLine($"║ Execution Side: {side}");
+                Console.WriteLine($"║ Selected LP: {lpName}");
+                Console.WriteLine($"║ Selected QuoteID: {selectedQuote.Get(Tags.QuoteID.ToString())}");
+                Console.WriteLine($"║ Selected Premium: {selectedPremium}");
+                Console.WriteLine($"╠════════════════════════════════════════════════════════════════");
+                Console.WriteLine($"║ CURRENT QUOTE STATE FOR THIS LP:");
+
+                var debugStream = _fixSession.Application.GetActiveStreams(_groupId)
+                    .FirstOrDefault(s => s.LP == lpName);
+
+                if (debugStream != null)
+                {
+                    Console.WriteLine($"║   BidQuote: {(debugStream.BidQuote != null ? debugStream.BidQuote.Get(Tags.QuoteID.ToString()) : "NULL")}");
+                    Console.WriteLine($"║   OfferQuote: {(debugStream.OfferQuote != null ? debugStream.OfferQuote.Get(Tags.QuoteID.ToString()) : "NULL")}");
+                }
+                else
+                {
+                    Console.WriteLine($"║   [ERROR] Stream not found!");
+                }
+                Console.WriteLine($"╚════════════════════════════════════════════════════════════════\n");
+
                 // ===== QUOTE FRESHNESS VALIDATION =====
-                Console.WriteLine($"\n[VALIDATION] Starting quote freshness check for {lpName}");
+                Console.WriteLine($"[VALIDATION] Starting quote freshness check for {lpName}");
                 Console.WriteLine($"[VALIDATION] Original QuoteID: {selectedQuote.Get(Tags.QuoteID.ToString())}");
 
                 // Re-fetch streams to check current quote state
