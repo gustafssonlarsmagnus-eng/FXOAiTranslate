@@ -217,7 +217,7 @@ namespace FXOptionsSimulator.FIX
 
             // Body fields in EXACT order from GFI sample
             AddField(11, clOrdID); // ClOrdID
-            AddField(40, "D"); // OrdType = PREVIOUSLY_QUOTED (executing against a specific quote)
+            AddField(40, "1"); // OrdType = MARKET (to match reference examples)
             AddField(54, side == "SELL" ? "2" : "1"); // Side
             AddField(55, symbol); // Symbol
             AddField(59, "3"); // TimeInForce = IMMEDIATE_OR_CANCEL
