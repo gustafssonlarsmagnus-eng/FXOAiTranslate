@@ -1,6 +1,21 @@
 # FIX 4.4 Message Examples - GFI Fenics Integration
 
-This directory contains real FIX 4.4 message examples that were instrumental in identifying and fixing a critical bug in BUY order execution when Hedge=ON.
+This directory contains real FIX 4.4 message examples that were instrumental in identifying a critical bug in BUY order execution when Hedge=ON.
+
+## ⚠️ TESTING STATUS
+
+**Fix Implemented**: Yes ✅
+**Fix Tested**: No ⏳
+**Confidence Level**: High (based on analysis of 3 real FIX message examples)
+
+**The fix is based on solid evidence from captured FIX messages, but requires UAT testing to confirm it resolves the issue.**
+
+### What Needs Testing:
+1. **BUY orders with Hedge=ON** (was failing 100%)
+2. **SELL orders with Hedge=ON** (may be affected by Position change)
+3. **All order types with Hedge=OFF** (should continue working as before)
+
+---
 
 ## Quick Navigation
 
@@ -12,11 +27,17 @@ This directory contains real FIX 4.4 message examples that were instrumental in 
 
 ## Summary Table
 
-| Example | Type | Pricing | Hedge | Position | Quote Received | Expected | Result |
-|---------|------|---------|-------|----------|----------------|----------|--------|
-| 1 | CALL | Strike | OFF | 1 (BUY) | OFFER (Side=2) ✅ | OFFER | ✅ FILLED |
-| 2 | CALL | Strike | ON | 1 (BUY) | BID (Side=1) ❌ | OFFER | ❌ REJECTED |
-| 3 | PUT | Delta | ON | 1 (BUY) | BID (Side=1) ❌ | OFFER | ❌ REJECTED |
+**Note**: Examples 2 and 3 show the bug that caused rejections. The fix has been implemented but requires testing to confirm it resolves the issue.
+
+| Example | Type | Pricing | Hedge | Position (Old) | Quote Received | Result (Before Fix) |
+|---------|------|---------|-------|----------------|----------------|---------------------|
+| 1 | CALL | Strike | OFF | 1 (BUY) | OFFER (Side=2) ✅ | ✅ FILLED |
+| 2 | CALL | Strike | ON | 1 (BUY) | BID (Side=1) ❌ | ❌ REJECTED |
+| 3 | PUT | Delta | ON | 1 (BUY) | BID (Side=1) ❌ | ❌ REJECTED |
+
+**After Fix** (Position field now hedge-aware):
+- Example 2: Should send Position=2 → Expect OFFER quotes → ⏳ **Needs testing**
+- Example 3: Should send Position=2 → Expect OFFER quotes → ⏳ **Needs testing**
 
 ---
 
@@ -73,14 +94,16 @@ else
 }
 ```
 
-### Result Matrix
+### Expected Result Matrix (After Fix)
 
-| User Action | Hedge | Position Sent | Quote Received | Execution |
-|-------------|-------|---------------|----------------|-----------|
-| BUY | OFF | 1 | OFFER (Side=2) | ✅ Works |
-| BUY | ON | 2 | OFFER (Side=2) | ✅ Works |
-| SELL | OFF | 2 | BID (Side=1) | ✅ Works |
-| SELL | ON | 1 | BID (Side=1) | ✅ Works |
+| User Action | Hedge | Position Sent | Expected Quote | Status |
+|-------------|-------|---------------|----------------|--------|
+| BUY | OFF | 1 | OFFER (Side=2) | ✅ Confirmed Working (Example 1) |
+| BUY | ON | 2 | OFFER (Side=2) | ⏳ Needs Testing |
+| SELL | OFF | 2 | BID (Side=1) | ⏳ Needs Testing |
+| SELL | ON | 1 | BID (Side=1) | ⏳ Needs Testing |
+
+**Testing Required**: Only Example 1 (BUY + Hedge OFF) has been confirmed. All other scenarios need UAT testing to validate the fix.
 
 ---
 
