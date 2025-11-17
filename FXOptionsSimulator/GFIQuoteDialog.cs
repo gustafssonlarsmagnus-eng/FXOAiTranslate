@@ -826,16 +826,23 @@ namespace FXOAiTranslator
 
         private void BtnExecute_Click(string side)
         {
-            Console.WriteLine($"\n[DEBUG BtnExecute_Click] ENTRY - side parameter: '{side}'");
+            Console.WriteLine($"\n========== EXECUTION ATTEMPT ==========");
+            Console.WriteLine($"User Action: {side}");
+            Console.WriteLine($"GroupID: {_groupId}");
             _quoteTimer?.Stop();
 
             // Get best bid quote
             var streams = _fixSession.Application.GetActiveStreams(_groupId);
+            Console.WriteLine($"Available Streams: {streams.Count}");
             FIXMessage bestBidQuote = null;
             double bestBidPremium = double.MinValue;
 
             foreach (var stream in streams)
             {
+                Console.WriteLine($"  Stream: {stream.LP}");
+                Console.WriteLine($"    BidQuote: {(stream.BidQuote != null ? "AVAILABLE (QuoteID=" + stream.BidQuote.Get("117") + ")" : "NULL")}");
+                Console.WriteLine($"    OfferQuote: {(stream.OfferQuote != null ? "AVAILABLE (QuoteID=" + stream.OfferQuote.Get("117") + ")" : "NULL")}");
+
                 if (stream.BidQuote != null)
                 {
                     var prem = CalculateNetPremium(stream.BidQuote);
@@ -847,8 +854,12 @@ namespace FXOAiTranslator
                 }
             }
 
+            Console.WriteLine($"\nBest BidQuote: {(bestBidQuote != null ? "FOUND (Premium=" + bestBidPremium + ")" : "NOT FOUND")}");
+
             if (bestBidQuote == null)
             {
+                Console.WriteLine($"[ERROR] No bid quotes available - cannot execute {side}");
+                Console.WriteLine($"=======================================\n");
                 MessageBox.Show("No valid quotes available", "Cannot Execute",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _quoteTimer?.Start();
@@ -864,7 +875,7 @@ namespace FXOAiTranslator
 
                 if (side == "SELL")
                 {
-                    // SELL uses BID quote (Side=2) - client sells TO the LP's bid
+                    // SELL uses BID quote (Side=1) - client sells TO the LP's bid
                     selectedQuote = bestBidQuote;
                     selectedPremium = bestBidPremium;
                     lpName = bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString());
@@ -872,7 +883,8 @@ namespace FXOAiTranslator
                 }
                 else // BUY
                 {
-                    // BUY uses OFFER quote (Side=1) - client buys FROM the LP's offer
+                    // BUY uses OFFER quote (Side=2) - client buys FROM the LP's offer
+                    Console.WriteLine($"[EXECUTION] Searching for OFFER quotes...");
                     FIXMessage bestOfferQuote = null;
                     double bestOfferPremium = double.MaxValue;
 
@@ -881,16 +893,25 @@ namespace FXOAiTranslator
                         if (stream.OfferQuote != null)
                         {
                             var prem = CalculateNetPremium(stream.OfferQuote);
+                            Console.WriteLine($"  {stream.LP}: OfferQuote Premium={prem?.ToString("N2") ?? "NULL"}");
                             if (prem.HasValue && prem.Value < bestOfferPremium)
                             {
                                 bestOfferPremium = prem.Value;
                                 bestOfferQuote = stream.OfferQuote;
                             }
                         }
+                        else
+                        {
+                            Console.WriteLine($"  {stream.LP}: OfferQuote is NULL");
+                        }
                     }
+
+                    Console.WriteLine($"\nBest OfferQuote: {(bestOfferQuote != null ? "FOUND (Premium=" + bestOfferPremium + ")" : "NOT FOUND")}");
 
                     if (bestOfferQuote == null)
                     {
+                        Console.WriteLine($"[ERROR] No offer quotes available - cannot execute BUY");
+                        Console.WriteLine($"=======================================\n");
                         MessageBox.Show("No valid offer quotes available", "Cannot Execute",
                             MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         _quoteTimer?.Start();
@@ -928,7 +949,7 @@ namespace FXOAiTranslator
                 Console.WriteLine($"[VALIDATION] ✓ Stream for {lpName} found");
 
                 // Check if the specific side (bid/offer) was canceled
-                // SELL uses BidQuote (Side=2), BUY uses OfferQuote (Side=1)
+                // SELL uses BidQuote (Side=1), BUY uses OfferQuote (Side=2)
                 FIXMessage refreshedQuote = side == "SELL" ? refreshedStream.BidQuote : refreshedStream.OfferQuote;
 
                 if (refreshedQuote == null)
@@ -1026,7 +1047,21 @@ namespace FXOAiTranslator
                 selectedQuote = refreshedQuote;
                 // ===== END QUOTE FRESHNESS VALIDATION =====
 
+                // Final execution summary
+                Console.WriteLine($"\n========== SENDING EXECUTION ==========");
+                Console.WriteLine($"User Action: {side}");
+                Console.WriteLine($"LP: {lpName}");
+                Console.WriteLine($"QuoteID: {selectedQuote.Get(Tags.QuoteID.ToString())}");
+                Console.WriteLine($"Quote Side: {selectedQuote.Get("54")} ({(selectedQuote.Get("54") == "1" ? "BID" : "OFFER")})");
+                Console.WriteLine($"Premium: {selectedPremium:N2}");
+                Console.WriteLine($"Symbol: {_trade.Underlying}");
+                Console.WriteLine($"Structure: {_trade.StructureType}");
+                Console.WriteLine($"=======================================\n");
+
                 string clOrdID = _fixSession.SendExecution(selectedQuote, side, _trade);
+
+                Console.WriteLine($"[EXECUTION] Order sent with ClOrdID: {clOrdID}");
+                Console.WriteLine($"=======================================\n");
 
                 // Order sent - user will see updates in the trade blotter below
                 // Don't close dialog - let user see blotter updates

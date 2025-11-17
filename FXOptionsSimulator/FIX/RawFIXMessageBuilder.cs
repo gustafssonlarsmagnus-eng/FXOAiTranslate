@@ -98,11 +98,17 @@ namespace FXOptionsSimulator.FIX
             AddField(555, trade.Legs.Count.ToString()); // NoLegs
 
             // DIAGNOSTIC: Show all leg directions before building
-            Console.WriteLine($"[QUOTE REQUEST] Building {trade.Legs.Count}-leg structure:");
+            Console.WriteLine($"\n========== QUOTE REQUEST DEBUG ==========");
+            Console.WriteLine($"Building {trade.Legs.Count}-leg structure for {trade.Underlying}:");
             for (int i = 0; i < trade.Legs.Count; i++)
             {
-                Console.WriteLine($"  Leg {i+1}: Direction={trade.Legs[i].Direction} → Position={(trade.Legs[i].Direction == "SELL" ? "1" : "2")}");
+                var leg = trade.Legs[i];
+                string position = leg.Direction == "SELL" ? "1" : "2";
+                string expectedQuote = leg.Direction == "SELL" ? "BID (Side=1)" : "OFFER (Side=2)";
+                Console.WriteLine($"  Leg {i+1}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike}");
+                Console.WriteLine($"         → Position(6351)={position} → Expecting {expectedQuote}");
             }
+            Console.WriteLine($"=========================================\n");
 
             // Legs in EXACT GFI order from their sample
             for (int i = 0; i < trade.Legs.Count; i++)
@@ -177,12 +183,11 @@ namespace FXOptionsSimulator.FIX
                 AddField(612, leg.Strike.ToString("F4", CultureInfo.InvariantCulture)); // LegStrikePrice
 
                 AddField(9019, "2"); // FXOptionStyle
-                // Position field - GFI's actual behavior (CORRECTED after diagnostic testing):
-                // Position=1 → GFI sends OFFER quote (Side=1) for client to BUY from
-                // Position=2 → GFI sends BID quote (Side=2) for client to SELL into
-                string positionValue = leg.Direction == "BUY" ? "1" : "2";
+                // Position field - GFI's actual behavior (CORRECTED):
+                // Position=1 → GFI sends BID quote (Side=1) for client to SELL into
+                // Position=2 → GFI sends OFFER quote (Side=2) for client to BUY from
+                string positionValue = leg.Direction == "SELL" ? "1" : "2";
                 AddField(6351, positionValue); // Position
-                Console.WriteLine($"[QUOTE REQUEST] Direction={leg.Direction} → Position(6351)={positionValue}");
                 AddField(9904, "2"); // PriceIndicator
 
                 if (trade.SpotReference > 0)
@@ -197,7 +202,30 @@ namespace FXOptionsSimulator.FIX
             }
 
             // Build complete message with header and trailer
-            return BuildCompleteMessage(_body.ToString());
+            string completeMessage = BuildCompleteMessage(_body.ToString());
+
+            // Summary debug output for easy copy/paste
+            Console.WriteLine($"\n========== QUOTE REQUEST SUMMARY ==========");
+            Console.WriteLine($"Symbol: {trade.Underlying}");
+            Console.WriteLine($"Structure: {trade.StructureType} (Code: {structureCode})");
+            Console.WriteLine($"QuoteReqID: {quoteReqID}");
+            Console.WriteLine($"GroupID: {groupId}");
+            Console.WriteLine($"LP: {lpName}");
+            Console.WriteLine($"TradeDate (75): {tag75}");
+            Console.WriteLine($"PremiumDelivery (5020): {tag5020}");
+            Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")}");
+            Console.WriteLine($"Legs: {trade.Legs.Count}");
+            for (int i = 0; i < trade.Legs.Count; i++)
+            {
+                var leg = trade.Legs[i];
+                string position = leg.Direction == "SELL" ? "1" : "2";
+                string expectedQuote = leg.Direction == "SELL" ? "BID" : "OFFER";
+                Console.WriteLine($"  Leg {i+1}: {leg.Direction,-4} {leg.NotionalMM,6}MM {leg.OptionType,-4} Strike={leg.Strike:F4} Tenor={leg.Tenor}");
+                Console.WriteLine($"         Position={position} → Expecting {expectedQuote} quote (Side={(position == "1" ? "1" : "2")})");
+            }
+            Console.WriteLine($"===========================================\n");
+
+            return completeMessage;
         }
 
         public string BuildNewOrderMultileg(
@@ -220,16 +248,16 @@ namespace FXOptionsSimulator.FIX
 
             _body.Clear();
 
+            // Get LP from quote and set DeliverToCompID only
+            // OnBehalfOfCompID (115) appears to be auto-populated by GFI, not sent by client
+            string lpName = quote.Get("115"); // OnBehalfOfCompID from quote
+
             // Standard header fields (in body) - in FIX order
             AddField(35, "AB"); // MsgType = NewOrderMultileg
             AddField(34, _msgSeqNum.ToString()); // MsgSeqNum
             AddField(49, _senderCompID); // SenderCompID
             AddField(52, GetUTCTimestamp()); // SendingTime
             AddField(56, _targetCompID); // TargetCompID
-
-            // Get LP from quote and set DeliverToCompID only
-            // OnBehalfOfCompID (115) appears to be auto-populated by GFI, not sent by client
-            string lpName = quote.Get("115"); // OnBehalfOfCompID from quote
             if (!string.IsNullOrEmpty(lpName))
             {
                 AddField(128, lpName); // DeliverToCompID - routes to specific LP
@@ -316,7 +344,31 @@ namespace FXOptionsSimulator.FIX
             }
 
             // Build complete message with header and trailer
-            return BuildCompleteMessage(_body.ToString());
+            string completeMessage = BuildCompleteMessage(_body.ToString());
+
+            // Summary debug output for execution
+            Console.WriteLine($"\n========== EXECUTION ORDER SUMMARY ==========");
+            Console.WriteLine($"ClOrdID: {clOrdID}");
+            Console.WriteLine($"QuoteID: {quoteID}");
+            Console.WriteLine($"Action: {side} (User wants to {side})");
+            Console.WriteLine($"Quote Side (54): {quote.Get("54")} ({(quote.Get("54") == "1" ? "BID" : "OFFER")})");
+            Console.WriteLine($"Execution Side: {executionSide} (Opposite of quote)");
+            Console.WriteLine($"Symbol: {symbol}");
+            Console.WriteLine($"LP: {lpName}");
+            Console.WriteLine($"Structure Code: {structureCode}");
+            if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+            {
+                Console.WriteLine($"Total Premium: {quote.Get("6436")} {quote.Get("5830")}");
+                Console.WriteLine($"Legs: {quote.LegPricing.Count}");
+                for (int i = 0; i < quote.LegPricing.Count; i++)
+                {
+                    var leg = quote.LegPricing[i];
+                    Console.WriteLine($"  Leg {i+1}: Vol={leg.Volatility} Premium={leg.LegPremPrice} Size={leg.MQSize}");
+                }
+            }
+            Console.WriteLine($"=============================================\n");
+
+            return completeMessage;
         }
 
         private void AddField(int tag, string value)

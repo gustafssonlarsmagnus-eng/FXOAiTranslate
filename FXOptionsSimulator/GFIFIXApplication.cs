@@ -201,6 +201,27 @@ namespace FXOptionsSimulator.FIX
                 var stored = _quotes[key];
                 Console.WriteLine($"  [VERIFY] After storage: BidQuote={(stored.BidQuote != null ? "EXISTS" : "NULL")}, OfferQuote={(stored.OfferQuote != null ? "EXISTS" : "NULL")}");
 
+                // Summary for easy debugging
+                Console.WriteLine($"\n========== QUOTE RECEIVED SUMMARY ==========");
+                Console.WriteLine($"LP: {lpName}");
+                Console.WriteLine($"QuoteReqID: {quoteReqID}");
+                Console.WriteLine($"QuoteID: {quoteID}");
+                Console.WriteLine($"Type: {side} (FIX Side={sideStr})");
+                Console.WriteLine($"Client Action: {(side == "BID" ? "Can SELL into this quote" : "Can BUY from this quote")}");
+                if (fixMsg.LegPricing != null && fixMsg.LegPricing.Count > 0)
+                {
+                    Console.WriteLine($"Legs: {fixMsg.LegPricing.Count}");
+                    for (int i = 0; i < fixMsg.LegPricing.Count; i++)
+                    {
+                        var leg = fixMsg.LegPricing[i];
+                        Console.WriteLine($"  Leg {i+1}: Vol={leg.Volatility ?? "N/A"} Premium={leg.LegPremPrice ?? "N/A"}");
+                    }
+                }
+                Console.WriteLine($"Current State for {lpName}:");
+                Console.WriteLine($"  - BidQuote: {(stored.BidQuote != null ? "AVAILABLE (QuoteID=" + stored.BidQuote.Get("117") + ")" : "NULL")}");
+                Console.WriteLine($"  - OfferQuote: {(stored.OfferQuote != null ? "AVAILABLE (QuoteID=" + stored.OfferQuote.Get("117") + ")" : "NULL")}");
+                Console.WriteLine($"============================================\n");
+
                 OnQuoteReceived?.Invoke(quoteReqID, fixMsg);
             }
             catch (Exception ex)
