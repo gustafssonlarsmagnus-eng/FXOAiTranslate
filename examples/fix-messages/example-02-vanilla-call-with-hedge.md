@@ -1,6 +1,6 @@
 # Example 2: Vanilla CALL with Hedge ON
 
-**Status**: ❌ FAILED (Before Fix) / ✅ WORKS (After Fix)
+**Status**: ❌ FAILED (Before Fix) / ⏳ UNTESTED (After Fix)
 
 **Configuration**:
 - Option Type: CALL
