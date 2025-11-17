@@ -191,7 +191,9 @@ namespace FXOptionsSimulator.FIX
                 AddField(6351, positionValue); // Position
                 AddField(9904, "2"); // PriceIndicator
 
-                if (trade.SpotReference > 0)
+                // LegSpotRate (5235) is ONLY allowed when Hedge=ON
+                // GFI rejects with "LegSpotRate not supported for No Hedge" if sent when Hedge=OFF
+                if (hedge && trade.SpotReference > 0)
                 {
                     AddField(5235, trade.SpotReference.ToString("F4", CultureInfo.InvariantCulture)); // LegSpotRate
                 }
