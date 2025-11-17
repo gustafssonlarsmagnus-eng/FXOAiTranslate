@@ -320,13 +320,71 @@ namespace FXOptionsSimulator.FIX
             {
                 // Use raw message builder for proper field ordering
                 // QuickFix sorts fields by tag number, but GFI requires specific order
-                if (trade == null || quote.LegPricing == null || quote.LegPricing.Count == 0)
+
+                // ===== COMPREHENSIVE VALIDATION =====
+
+                // 1. Check for basic required data
+                if (trade == null)
                 {
-                    Console.WriteLine($"  [WARNING] Trade is NULL or no leg pricing available!");
-                    throw new InvalidOperationException("Cannot execute - missing trade or leg pricing information");
+                    Console.WriteLine($"  [ERROR] Trade structure is NULL!");
+                    throw new InvalidOperationException("Cannot execute - missing trade structure");
                 }
 
-                Console.WriteLine($"  [DEBUG] Building execution with {quote.LegPricing.Count} legs");
+                if (quote.LegPricing == null || quote.LegPricing.Count == 0)
+                {
+                    Console.WriteLine($"  [ERROR] No leg pricing available in quote!");
+                    throw new InvalidOperationException("Cannot execute - quote has no leg pricing data. Quote may be invalid or incomplete.");
+                }
+
+                // 2. Validate leg count matches
+                if (quote.LegPricing.Count != trade.Legs.Count)
+                {
+                    Console.WriteLine($"  [WARNING] Leg count mismatch: Quote has {quote.LegPricing.Count} legs, Trade has {trade.Legs.Count} legs");
+                    // Don't fail here - GFI might send consolidated pricing
+                }
+
+                // 3. Validate each leg has critical execution fields
+                int legIndex = 0;
+                foreach (var legPricing in quote.LegPricing)
+                {
+                    legIndex++;
+                    bool hasVol = !string.IsNullOrEmpty(legPricing.Volatility);
+                    bool hasPremium = !string.IsNullOrEmpty(legPricing.LegPremPrice);
+                    bool hasQty = !string.IsNullOrEmpty(legPricing.LegQty);
+
+                    if (!hasVol && !hasPremium)
+                    {
+                        Console.WriteLine($"  [ERROR] Leg {legIndex}: Missing both Volatility AND LegPremPrice - cannot execute!");
+                        throw new InvalidOperationException($"Leg {legIndex} has no pricing data (Volatility or LegPremPrice)");
+                    }
+
+                    if (!hasQty)
+                    {
+                        Console.WriteLine($"  [WARNING] Leg {legIndex}: Missing LegQty (tag 687) - execution may be rejected by GFI");
+                        // Don't throw - let GFI decide if this is fatal
+                    }
+                }
+
+                // 4. Check quote hasn't expired (tag 62 - ValidUntilTime)
+                string validUntilTime = quote.Get("62");
+                if (!string.IsNullOrEmpty(validUntilTime))
+                {
+                    try
+                    {
+                        DateTime validUntil = DateTime.ParseExact(validUntilTime, "yyyyMMdd-HH:mm:ss", null);
+                        if (DateTime.UtcNow > validUntil)
+                        {
+                            Console.WriteLine($"  [ERROR] Quote expired! ValidUntilTime={validUntilTime}, Now={DateTime.UtcNow:yyyyMMdd-HH:mm:ss}");
+                            throw new InvalidOperationException("Cannot execute - quote has expired");
+                        }
+                    }
+                    catch (FormatException)
+                    {
+                        Console.WriteLine($"  [WARNING] Could not parse ValidUntilTime: {validUntilTime}");
+                    }
+                }
+
+                Console.WriteLine($"  [DEBUG] ✓ Validation passed - Building execution with {quote.LegPricing.Count} legs");
                 int structureCode = GetStructureCode(trade.StructureType);
 
                 // Get current sequence number and increment for next message

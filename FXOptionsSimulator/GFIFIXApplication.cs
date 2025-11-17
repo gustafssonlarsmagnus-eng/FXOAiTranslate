@@ -597,15 +597,35 @@ namespace FXOptionsSimulator.FIX
                 legPricing.LegSymbol = quote.GetString(Tags.Symbol); // Default to main symbol
             }
 
-            // Add the leg pricing if we found any data
-            if (!string.IsNullOrEmpty(legPricing.Volatility) || !string.IsNullOrEmpty(legPricing.LegPremPrice))
+            // LegQty (687) - Critical for order execution
+            if (quote.IsSetField(687))
+            {
+                legPricing.LegQty = quote.GetString(687);
+                Console.WriteLine($"  [DEBUG] LegQty (687): {legPricing.LegQty}");
+            }
+
+            // Add the leg pricing if we found any meaningful data
+            // At minimum we need EITHER (Volatility AND LegQty) OR (LegPremPrice AND LegQty) for execution
+            bool hasVolatility = !string.IsNullOrEmpty(legPricing.Volatility);
+            bool hasPremium = !string.IsNullOrEmpty(legPricing.LegPremPrice);
+            bool hasQty = !string.IsNullOrEmpty(legPricing.LegQty);
+
+            if ((hasVolatility || hasPremium) && hasQty)
             {
                 msg.LegPricing.Add(legPricing);
-                Console.WriteLine($"  [DEBUG] Added leg pricing: StrategyID={legPricing.LegStrategyID}, Vol={legPricing.Volatility}, Size={legPricing.MQSize}, Premium={legPricing.LegPremPrice}");
+                Console.WriteLine($"  [DEBUG] ✓ Added leg pricing: StrategyID={legPricing.LegStrategyID}, Vol={legPricing.Volatility}, Size={legPricing.MQSize}, Premium={legPricing.LegPremPrice}, Qty={legPricing.LegQty}");
+            }
+            else if (hasVolatility || hasPremium)
+            {
+                // Have pricing but no quantity - still add it, quantity might come from elsewhere
+                msg.LegPricing.Add(legPricing);
+                Console.WriteLine($"  [WARNING] Added leg pricing WITHOUT LegQty - this may cause execution issues!");
+                Console.WriteLine($"  [DEBUG] StrategyID={legPricing.LegStrategyID}, Vol={legPricing.Volatility}, Size={legPricing.MQSize}, Premium={legPricing.LegPremPrice}");
             }
             else
             {
-                Console.WriteLine($"  [WARNING] No leg pricing fields found in quote!");
+                Console.WriteLine($"  [ERROR] No valid leg pricing fields found in quote! Cannot execute order.");
+                Console.WriteLine($"  [DEBUG] Vol={hasVolatility}, Premium={hasPremium}, Qty={hasQty}");
             }
 
             return msg;

@@ -48,7 +48,7 @@ namespace FXOptionsSimulator.FIX
             AddField(49, _senderCompID); // SenderCompID
             AddField(52, GetUTCTimestamp()); // SendingTime
             AddField(56, _targetCompID); // TargetCompID
-            // AddField(115, "SWES"); // OnBehalfOfCompID - COMMENTED OUT FOR TESTING
+            AddField(115, "SWES"); // OnBehalfOfCompID - Required for trader/desk identification
 
             // DeliverToCompID in header
             AddField(128, lpName);
@@ -202,12 +202,18 @@ namespace FXOptionsSimulator.FIX
             AddField(52, GetUTCTimestamp()); // SendingTime
             AddField(56, _targetCompID); // TargetCompID
 
-            // Get LP from quote
-            string lpName = quote.Get("115"); // OnBehalfOfCompID
-            if (!string.IsNullOrEmpty(lpName))
+            // Get LP from quote - CRITICAL for routing execution to correct LP
+            string lpName = quote.Get("115"); // OnBehalfOfCompID from quote response
+            if (string.IsNullOrEmpty(lpName))
             {
-                AddField(128, lpName); // DeliverToCompID
+                Console.WriteLine($"  [WARNING] No LP (OnBehalfOfCompID) found in quote - execution may fail!");
+                throw new InvalidOperationException("Cannot execute - quote missing LP identifier (tag 115)");
             }
+
+            // Add both OnBehalfOfCompID and DeliverToCompID for proper routing
+            AddField(115, "SWES"); // OnBehalfOfCompID - Trader/desk identifier
+            AddField(128, lpName); // DeliverToCompID - Route to LP that provided quote
+            Console.WriteLine($"  [DEBUG] Execution routing: OnBehalfOf=SWES, DeliverTo={lpName}");
 
             // Body fields in EXACT order from GFI sample
             AddField(11, clOrdID); // ClOrdID
@@ -242,12 +248,17 @@ namespace FXOptionsSimulator.FIX
                 {
                     // Fields in EXACT order from GFI example:
                     // 1. LegSymbol (600)
-                    // 2. LegStrategyID (7940)
-                    // 3. Volatility (5678)
-                    // 4. MQSize (5359)
-                    // 5. LegPremPrice (5844)
+                    // 2. LegQty (687) - CRITICAL for execution
+                    // 3. LegStrategyID (7940)
+                    // 4. Volatility (5678)
+                    // 5. MQSize (5359)
+                    // 6. LegPremPrice (5844)
 
                     AddField(600, legPricing.LegSymbol ?? symbol); // LegSymbol
+
+                    // LegQty is REQUIRED for proper order execution
+                    if (!string.IsNullOrEmpty(legPricing.LegQty))
+                        AddField(687, legPricing.LegQty); // LegQty
 
                     if (!string.IsNullOrEmpty(legPricing.LegStrategyID))
                         AddField(7940, legPricing.LegStrategyID); // LegStrategyID

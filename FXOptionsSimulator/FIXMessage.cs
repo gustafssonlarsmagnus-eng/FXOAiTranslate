@@ -16,6 +16,7 @@ namespace FXOptionsSimulator
         public string LegPremPrice { get; set; }        // Tag 5844
         public string LegSpotRate { get; set; }         // Tag 5235
         public string LegSymbol { get; set; }           // Tag 600 (usually same as main symbol)
+        public string LegQty { get; set; }              // Tag 687 (notional quantity for this leg)
     }
 
     /// <summary>
