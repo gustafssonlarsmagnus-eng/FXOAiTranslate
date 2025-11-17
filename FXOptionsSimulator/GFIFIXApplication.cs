@@ -195,11 +195,21 @@ namespace FXOptionsSimulator.FIX
                     ? message.QuoteReqID.getValue()
                     : "N/A";
 
-                // Extract QuoteID (tag 117)
+                // Extract QuoteID - GFI uses tag 9262 for the actual QuoteID being canceled
+                // Tag 117 contains a cancel-specific ID (e.g., "1CANC...")
                 string quoteID = "N/A";
+                string actualQuoteID = "N/A";
+
                 if (message.IsSetField(Tags.QuoteID))
                 {
                     quoteID = message.GetString(Tags.QuoteID);
+                }
+
+                // Tag 9262 contains the ACTUAL QuoteID being canceled
+                if (message.IsSetField(9262))
+                {
+                    actualQuoteID = message.GetString(9262);
+                    Console.WriteLine($"  [DEBUG] Found actual QuoteID in tag 9262: {actualQuoteID}");
                 }
 
                 // Extract cancel type
@@ -210,7 +220,8 @@ namespace FXOptionsSimulator.FIX
                 Console.WriteLine($"[GFI FIX] <<< Quote Cancel (35=Z)");
                 Console.WriteLine($"  LP: {lpName}");
                 Console.WriteLine($"  QuoteReqID: {quoteReqID}");
-                Console.WriteLine($"  QuoteID: {quoteID}");
+                Console.WriteLine($"  QuoteID (117): {quoteID}");
+                Console.WriteLine($"  ActualQuoteID (9262): {actualQuoteID}");
                 Console.WriteLine($"  CancelType: {cancelType}");
 
                 // Update your quotes dictionary to mark as canceled
@@ -218,6 +229,9 @@ namespace FXOptionsSimulator.FIX
 
                 if (_quotes.TryGetValue(key, out var existingStream))
                 {
+                    // Use actualQuoteID (tag 9262) if available, otherwise fall back to quoteID (tag 117)
+                    string quoteIDToCancel = actualQuoteID != "N/A" ? actualQuoteID : quoteID;
+
                     // Determine which side to cancel by checking which stored quote has the matching QuoteID
                     bool canceledBid = false;
                     bool canceledOffer = false;
@@ -225,9 +239,9 @@ namespace FXOptionsSimulator.FIX
                     if (existingStream.BidQuote != null)
                     {
                         string bidQuoteID = existingStream.BidQuote.Get(Tags.QuoteID.ToString());
-                        if (bidQuoteID == quoteID)
+                        if (bidQuoteID == quoteIDToCancel)
                         {
-                            Console.WriteLine($"  → Canceling BID quote (QuoteID match)");
+                            Console.WriteLine($"  → Canceling BID quote (QuoteID match: {quoteIDToCancel})");
                             existingStream.BidQuote = null;
                             canceledBid = true;
                         }
@@ -236,9 +250,9 @@ namespace FXOptionsSimulator.FIX
                     if (existingStream.OfferQuote != null)
                     {
                         string offerQuoteID = existingStream.OfferQuote.Get(Tags.QuoteID.ToString());
-                        if (offerQuoteID == quoteID)
+                        if (offerQuoteID == quoteIDToCancel)
                         {
-                            Console.WriteLine($"  → Canceling OFFER quote (QuoteID match)");
+                            Console.WriteLine($"  → Canceling OFFER quote (QuoteID match: {quoteIDToCancel})");
                             existingStream.OfferQuote = null;
                             canceledOffer = true;
                         }
@@ -246,7 +260,7 @@ namespace FXOptionsSimulator.FIX
 
                     if (!canceledBid && !canceledOffer)
                     {
-                        Console.WriteLine($"  → QuoteID {quoteID} not found in either BidQuote or OfferQuote (might be new/replaced already)");
+                        Console.WriteLine($"  → QuoteID {quoteIDToCancel} not found in either BidQuote or OfferQuote (might be new/replaced already)");
                     }
 
                     existingStream.LastUpdate = DateTime.UtcNow;
