@@ -218,20 +218,35 @@ namespace FXOptionsSimulator.FIX
 
                 if (_quotes.TryGetValue(key, out var existingStream))
                 {
-                    // Determine which side is being canceled based on QuoteID pattern
-                    if (quoteID.Contains("_b") || quoteID.StartsWith("B_"))
+                    // Determine which side to cancel by checking which stored quote has the matching QuoteID
+                    bool canceledBid = false;
+                    bool canceledOffer = false;
+
+                    if (existingStream.BidQuote != null)
                     {
-                        Console.WriteLine($"  → Canceling BID quote (replacement expected)");
-                        existingStream.BidQuote = null; // Clear stale bid
+                        string bidQuoteID = existingStream.BidQuote.Get(Tags.QuoteID.ToString());
+                        if (bidQuoteID == quoteID)
+                        {
+                            Console.WriteLine($"  → Canceling BID quote (QuoteID match)");
+                            existingStream.BidQuote = null;
+                            canceledBid = true;
+                        }
                     }
-                    else if (quoteID.Contains("_s") || quoteID.Contains("_o") || quoteID.Contains("-O") || quoteID.Contains("-T") || quoteID.StartsWith("O_"))
+
+                    if (existingStream.OfferQuote != null)
                     {
-                        Console.WriteLine($"  → Canceling OFFER quote (replacement expected)");
-                        existingStream.OfferQuote = null; // Clear stale offer
+                        string offerQuoteID = existingStream.OfferQuote.Get(Tags.QuoteID.ToString());
+                        if (offerQuoteID == quoteID)
+                        {
+                            Console.WriteLine($"  → Canceling OFFER quote (QuoteID match)");
+                            existingStream.OfferQuote = null;
+                            canceledOffer = true;
+                        }
                     }
-                    else
+
+                    if (!canceledBid && !canceledOffer)
                     {
-                        Console.WriteLine($"  → Quote canceled (awaiting replacement)");
+                        Console.WriteLine($"  → QuoteID {quoteID} not found in either BidQuote or OfferQuote (might be new/replaced already)");
                     }
 
                     existingStream.LastUpdate = DateTime.UtcNow;
