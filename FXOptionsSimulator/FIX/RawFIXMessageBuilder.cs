@@ -209,8 +209,16 @@ namespace FXOptionsSimulator.FIX
                 AddField(128, lpName); // DeliverToCompID
             }
 
-            // Body fields in EXACT order from GFI sample
+            // Body fields in EXACT order per FIX 4.4 specification
             AddField(11, clOrdID); // ClOrdID
+
+            // PartyIDs component - MUST come immediately after ClOrdID per FIX 4.4 spec
+            // This prevents Session Reject Reason 14/15 (tag specified out of required order)
+            AddField(453, "1"); // NoPartyIDs
+            AddField(448, _senderCompID); // PartyID - use SenderCompID as trader ID
+            AddField(447, "D"); // PartyIDSource = PROPRIETARY_CUSTOM_CODE
+            AddField(452, "11"); // PartyRole = OrderOriginationTrader
+
             AddField(40, "D"); // OrdType = PREVIOUSLY_QUOTED (executing against a specific quote)
             AddField(54, side == "SELL" ? "2" : "1"); // Side
             AddField(55, symbol); // Symbol
@@ -226,12 +234,6 @@ namespace FXOptionsSimulator.FIX
             }
 
             AddField(9126, structureCode.ToString()); // Structure
-
-            // PartyIDs group - required for UAT trader identification
-            AddField(453, "1"); // NoPartyIDs
-            AddField(448, _senderCompID); // PartyID - use SenderCompID as trader ID
-            AddField(447, "D"); // PartyIDSource = PROPRIETARY_CUSTOM_CODE
-            AddField(452, "11"); // PartyRole = OrderOriginationTrader
 
             // NoLegs and leg repeating groups - fields in EXACT GFI order
             if (quote.LegPricing != null && quote.LegPricing.Count > 0)
