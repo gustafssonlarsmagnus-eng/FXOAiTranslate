@@ -565,12 +565,6 @@ namespace FXOptionsSimulator.FIX
                 Console.WriteLine($"  [DEBUG] Volatility (5678): {legPricing.Volatility}");
             }
 
-            if (quote.IsSetField(8518)) // GFIMidPoint
-            {
-                legPricing.GFIMidPoint = quote.GetString(8518);
-                Console.WriteLine($"  [DEBUG] GFIMidPoint (8518): {legPricing.GFIMidPoint}");
-            }
-
             if (quote.IsSetField(5359)) // MQSize
             {
                 legPricing.MQSize = quote.GetString(5359);
