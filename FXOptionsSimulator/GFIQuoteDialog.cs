@@ -304,6 +304,8 @@ namespace FXOAiTranslator
             dgvBlotter.Columns["Structure"].Width = 100;
             dgvBlotter.Columns.Add("Premium", "Premium");
             dgvBlotter.Columns["Premium"].Width = 80;
+            dgvBlotter.Columns.Add("Delta", "Delta");
+            dgvBlotter.Columns["Delta"].Width = 70;
             dgvBlotter.Columns.Add("Status", "Status");
             dgvBlotter.Columns["Status"].Width = 100;
 
@@ -1030,6 +1032,7 @@ namespace FXOAiTranslator
                 entry.Underlying,
                 entry.StructureType,
                 entry.NetPremium.ToString("N2"),
+                entry.Delta.HasValue ? entry.Delta.Value.ToString("N2") : "-",
                 entry.Status
             );
 

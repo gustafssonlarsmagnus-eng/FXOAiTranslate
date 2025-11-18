@@ -366,6 +366,17 @@ namespace FXOptionsSimulator.FIX
                 // Add to blotter
                 if (trade != null)
                 {
+                    // Extract delta from quote
+                    double? delta = null;
+                    if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+                    {
+                        var firstLeg = quote.LegPricing[0];
+                        if (!string.IsNullOrEmpty(firstLeg.LegDelta) && double.TryParse(firstLeg.LegDelta, out double deltaValue))
+                        {
+                            delta = deltaValue;
+                        }
+                    }
+
                     var blotterEntry = new TradeBlotterEntry
                     {
                         TradeTime = DateTime.Now,
@@ -376,6 +387,7 @@ namespace FXOptionsSimulator.FIX
                         StructureType = trade.StructureType,
                         LegCount = trade.Legs.Count,
                         NetPremium = 0, // Will be set from quote
+                        Delta = delta,
                         Status = "PENDING"
                     };
                     TradeBlotter.Instance.AddTrade(blotterEntry);
