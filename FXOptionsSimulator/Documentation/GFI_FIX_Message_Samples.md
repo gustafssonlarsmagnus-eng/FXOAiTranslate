@@ -141,12 +141,26 @@ Each trade follows this sequence:
 
 ### The Quote Selection Problem
 
-**🚨 CRITICAL FINDING:** Both examples use `6351=1` (Position=BUY) in the quote request, but they result in different quote types:
+**🚨 CRITICAL FINDING:** ALL THREE examples use `6351=1` (Position=BUY) in the quote request, but they result in different quote types based on the HEDGE setting!
 
-| Example | Position (6351) | Quote Side | QuoteID Prefix | Premium Sign | Client Action |
-|---------|----------------|------------|----------------|--------------|---------------|
-| 1 - No Hedge | 1 (BUY) | 2 (OFFER) | `O_` | Negative (-14960) | **BUY** option |
-| 2 - With Hedge | 1 (BUY) | 1 (BID) | `B_` | Positive (+10473) | **SELL** option |
+| Example | Hedge (9016) | Position (6351) | Quote Side | QuoteID Prefix | Premium Sign | Client Action |
+|---------|--------------|----------------|------------|----------------|--------------|---------------|
+| 1 - No Hedge, CALL | 0 (OFF) | 1 (BUY) | 2 (OFFER) | `O_` | Negative (-14960) | **BUY** option |
+| 2 - With Hedge, CALL | 1 (ON) | 1 (BUY) | 1 (BID) | `B_` | Positive (+10473) | **SELL** option |
+| 3 - With Hedge, PUT | 1 (ON) | 1 (BUY) | 1 (BID) | `B_` | Positive (+9064) | **SELL** option |
+
+**THE ROOT CAUSE:**
+
+When **Hedge=OFF (9016=0)**:
+- `Position=1` means "client wants to BUY the option"
+- GFI returns OFFER quote (Side=2) with negative premium
+- This allows client to execute a BUY
+
+When **Hedge=ON (9016=1)**:
+- `Position=1` means "client position in the option leg"
+- But with hedging, GFI interprets this as client SELLING the option and BUYING the hedge
+- GFI returns BID quote (Side=1) with positive premium
+- This allows client to execute a SELL
 
 **The Pattern:**
 - To **BUY** an option:
@@ -175,6 +189,59 @@ Your UI code must:
 2. **Store both BID and OFFER quotes** when they arrive
 3. **When user clicks BUY:** Select the OFFER quote (Side=2, `O_` prefix)
 4. **When user clicks SELL:** Select the BID quote (Side=1, `B_` prefix)
+
+---
+
+## Example 3: Put with Delta - With Hedge - SELL
+
+### Quote Request (35=R)
+**Client → GFI**
+
+```
+8=FIX.4.4|9=360|35=R|34=18981|49=WEBFENICS1|52=20251114-12:47:33.280|56=GFI|115=SWES|128=DEUT|75=20251114|131=FENICS.14899.0NDHUVT0DMCSNCKW0A000382|5475=S|5830=USD|8051=9-MQFBFNRH|9016=1|9126=2|9943=2|146=1|55=EURUSD|6258=2|537=1|555=1|600=EURUSD|6714=2|9125=1|6215=1M|611=20251216|743=20251218|5020=20251118|6035=50|9019=2|6351=1|9904=2|556=EUR|687=1.000000|7940=SL|9034=EUR|10=052|
+```
+
+**Key Fields:**
+- `9016=1` - HedgeTradeType = 1 (Hedge ON)
+- `9126=2` - Structure = 2 (likely Put spread or delta-based structure)
+- `6714=2` - LegStrategy = 2 (PUT)
+- `6351=1` - Position = 1 (BUY in leg)
+- `6035=50` - Delta = 50 (requested in quote request)
+- `6215=1M` - Tenor
+- `687=1.000000` - Notional (1MM)
+
+### Quote Response (35=S)
+**GFI → Client**
+
+```
+8=FIX.4.4|9=432|35=S|34=512799|49=GFI|52=20251114-12:47:46.572|56=WEBFENICS1|115=DEUT|54=1|55=EURUSD|60=20251114-12:47:45.093135|62=20251114-12:52:37|117=B_FENICS.14899.0NDHUVT0DMCSNCKW0A000382-24|131=FENICS.14899.0NDHUVT0DMCSNCKW0A000382|6289=A|6436=9064|9126=2|6120=1|7940=SL|5678=6.49|8515=0|5359=1|5235=1.16497|5191=22.205|9073=USD|5844=90.64|6035=-51|6354=1.1675|7464=1|9074=EUR|9016=1|6666=1|6036=0.513|9657=1.16497|9112=20251118|6426=EURUSD|10=134|
+```
+
+**Key Fields:**
+- `54=1` - Side = 1 (BID) - LP is bidding to buy (client sells)
+- `117=B_FENICS.14899.0NDHUVT0DMCSNCKW0A000382-24` - QuoteID (starts with "B_" for BID)
+- `6436=9064` - Premium = +9064 USD (positive = client receives)
+- `5678=6.49` - Volatility = 6.49%
+- `5359=1` - MQSize = 1MM
+- `5844=90.64` - LegPremPrice = +90.64 USD per MM (positive)
+- `6035=-51` - Delta = -51 (negative for put)
+- `5235=1.16497` - LegSpotRate
+- `9016=1` - Hedge indicator in quote
+
+### Execution (35=AB)
+**Client → GFI**
+
+```
+8=FIX.4.4|9=389|35=AB|34=19019|49=WEBFENICS1|52=20251114-12:47:48.412|56=GFI|115=SWES|128=DEUT|11=FENICS.14899.0NDHUVT0DMCSNCKW0A000382|40=1|54=2|55=EURUSD|59=3|60=20251114-12:47:48.412001|117=B_FENICS.14899.0NDHUVT0DMCSNCKW0A000382-24|131=FENICS.14899.0NDHUVT0DMCSNCKW0A000382|5830=USD|6436=9064|9126=2|453=1|448=swed.ui|447=D|452=11|555=1|600=EURUSD|7940=SL|5678=6.49|8518=9100|5359=1.000000|5844=90.64|10=221|
+```
+
+**Key Fields:**
+- `40=1` - OrdType = 1 (MARKET)
+- `54=2` - Side = 2 (opposite of quote Side=1)
+- `117=B_FENICS.14899.0NDHUVT0DMCSNCKW0A000382-24` - QuoteID (exact match from BID quote)
+- `5830=USD` - PremiumCcy
+- `6436=9064` - Premium (exact match from quote, positive)
+- Leg pricing fields: `7940=SL|5678=6.49|5359=1.000000|5844=90.64` (exact from quote)
 
 ---
 
