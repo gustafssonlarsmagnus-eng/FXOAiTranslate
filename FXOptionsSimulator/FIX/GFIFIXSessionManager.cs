@@ -304,6 +304,17 @@ namespace FXOptionsSimulator.FIX
             string quoteReqID = quote.Get(Tags.QuoteReqID.ToString());
             string lpName = quote.Get(Tags.OnBehalfOfCompID.ToString());
 
+            // GFI QuoteID Suffix Fix:
+            // BID quotes arrive with suffix "-O" and work correctly for SELL
+            // OFFER quotes arrive with suffix "-T" but GFI expects "-O" for execution
+            // Transform OFFER quote IDs: "-T" → "-O" for BUY operations
+            if (side == "BUY" && quoteID.EndsWith("-T"))
+            {
+                string originalQuoteID = quoteID;
+                quoteID = quoteID.Substring(0, quoteID.Length - 2) + "-O";
+                Console.WriteLine($"  [QuoteID Transform] OFFER quote: {originalQuoteID} → {quoteID}");
+            }
+
             // Increment execution counter for this QuoteReqID and generate ClOrdID with suffix
             if (!_executionCounters.ContainsKey(quoteReqID))
                 _executionCounters[quoteReqID] = 0;
