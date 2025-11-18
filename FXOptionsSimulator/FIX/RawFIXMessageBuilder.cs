@@ -38,7 +38,8 @@ namespace FXOptionsSimulator.FIX
             string quoteReqID,
             string groupId,
             string tag75Override = null,
-            string tag5020Override = null)
+            string tag5020Override = null,
+            bool hedge = true)
         {
             _body.Clear();
 
@@ -59,7 +60,9 @@ namespace FXOptionsSimulator.FIX
 
             // ✅ canonical override for 75 & 5020
             var tag75 = tag75Override ?? tradeDate.ToString("yyyyMMdd");
-            var tag5020 = tag5020Override ?? GetNextBusinessDay(tradeDate, 2).ToString("yyyyMMdd");
+            // Note: tag5020Override is always provided by caller, this fallback should never be used
+            // But if it is, use T+1 from today as a safe default
+            var tag5020 = tag5020Override ?? tradeDate.AddDays(1).ToString("yyyyMMdd");
 
             // === QLNet policy & calendars for expiry/delivery ===
             var pair = trade.Underlying;               // e.g. EURUSD
@@ -68,8 +71,8 @@ namespace FXOptionsSimulator.FIX
             var policy = GlobalDatePolicy.Policy;
 
             var jointCal = new JointCalendar(
-                FxCalendar(ccy1),
-                FxCalendar(ccy2),
+                FxDateService.CalendarFromCcy(ccy1),
+                FxDateService.CalendarFromCcy(ccy2),
                 JointCalendarRule.JoinHolidays);
 
             var spotLag = policy.SpotLagForPair(pair);   // OneBD / TwoBD etc.
@@ -80,9 +83,9 @@ namespace FXOptionsSimulator.FIX
             AddField(131, quoteReqID); // QuoteReqID
             AddField(5475, "S"); // PremDel
             AddField(5830, trade.PremiumCurrency); // PremiumCcy
-            AddField(9016, "1"); // HedgeTradeType
+            AddField(9016, hedge ? "1" : "0"); // HedgeTradeType (1=hedge, 0=no hedge)
 
-            int structureCode = GetStructureCode(trade.StructureType);
+            int structureCode = TradeStructure.GetStructureCode(trade.StructureType);
             AddField(9126, structureCode.ToString()); // Structure
             AddField(9943, "2"); // ProductQuoteType
             AddField(8051, groupId);
@@ -93,6 +96,20 @@ namespace FXOptionsSimulator.FIX
             AddField(6258, structureCode.ToString()); // Strategy - MOVED HERE!
             AddField(537, "1"); // QuoteType
             AddField(555, trade.Legs.Count.ToString()); // NoLegs
+
+            // DIAGNOSTIC: Show all leg directions before building
+            Console.WriteLine($"\n========== QUOTE REQUEST DEBUG ==========");
+            Console.WriteLine($"Building {trade.Legs.Count}-leg structure for {trade.Underlying}:");
+            Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")}");
+            Console.WriteLine($"Position mapping: BUY=1, SELL=2 (ORIGINAL - no hedge consideration)");
+            for (int i = 0; i < trade.Legs.Count; i++)
+            {
+                var leg = trade.Legs[i];
+                string position = leg.Direction == "BUY" ? "1" : "2";
+                Console.WriteLine($"  Leg {i+1}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike}");
+                Console.WriteLine($"         → Position(6351)={position}");
+            }
+            Console.WriteLine($"=========================================\n");
 
             // Legs in EXACT GFI order from their sample
             for (int i = 0; i < trade.Legs.Count; i++)
@@ -167,10 +184,16 @@ namespace FXOptionsSimulator.FIX
                 AddField(612, leg.Strike.ToString("F4", CultureInfo.InvariantCulture)); // LegStrikePrice
 
                 AddField(9019, "2"); // FXOptionStyle
-                AddField(6351, (i == 0 || leg.Position == "SAME") ? "1" : "2"); // Position
+
+                // Position field - RESTORED TO ORIGINAL (before any fixes)
+                // This was getting quotes, even if wrong type for BUY+Hedge=ON
+                string positionValue = leg.Direction == "BUY" ? "1" : "2";
+                AddField(6351, positionValue); // Position
                 AddField(9904, "2"); // PriceIndicator
 
-                if (trade.SpotReference > 0)
+                // LegSpotRate (5235) is ONLY allowed when Hedge=ON
+                // GFI rejects with "LegSpotRate not supported for No Hedge" if sent when Hedge=OFF
+                if (hedge && trade.SpotReference > 0)
                 {
                     AddField(5235, trade.SpotReference.ToString("F4", CultureInfo.InvariantCulture)); // LegSpotRate
                 }
@@ -182,7 +205,30 @@ namespace FXOptionsSimulator.FIX
             }
 
             // Build complete message with header and trailer
-            return BuildCompleteMessage(_body.ToString());
+            string completeMessage = BuildCompleteMessage(_body.ToString());
+
+            // Summary debug output for easy copy/paste
+            Console.WriteLine($"\n========== QUOTE REQUEST SUMMARY ==========");
+            Console.WriteLine($"Symbol: {trade.Underlying}");
+            Console.WriteLine($"Structure: {trade.StructureType} (Code: {structureCode})");
+            Console.WriteLine($"QuoteReqID: {quoteReqID}");
+            Console.WriteLine($"GroupID: {groupId}");
+            Console.WriteLine($"LP: {lpName}");
+            Console.WriteLine($"TradeDate (75): {tag75}");
+            Console.WriteLine($"PremiumDelivery (5020): {tag5020}");
+            Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")}");
+            Console.WriteLine($"Legs: {trade.Legs.Count}");
+            for (int i = 0; i < trade.Legs.Count; i++)
+            {
+                var leg = trade.Legs[i];
+                string position = leg.Direction == "BUY" ? "1" : "2";
+                string expectedQuote = leg.Direction == "BUY" ? "OFFER" : "BID";
+                Console.WriteLine($"  Leg {i+1}: {leg.Direction,-4} {leg.NotionalMM,6}MM {leg.OptionType,-4} Strike={leg.Strike:F4} Tenor={leg.Tenor}");
+                Console.WriteLine($"         Position={position} → Need {expectedQuote} quote (Side={(expectedQuote == "OFFER" ? "2" : "1")})");
+            }
+            Console.WriteLine($"===========================================\n");
+
+            return completeMessage;
         }
 
         public string BuildNewOrderMultileg(
@@ -193,7 +239,21 @@ namespace FXOptionsSimulator.FIX
             int structureCode,
             FIXMessage quote)
         {
+            Console.WriteLine($"  [DEBUG IN BuildNewOrderMultileg] side parameter: '{side}'");
+
+            // GFI requires execution Side to be OPPOSITE of quote Side (confirmed by GFI examples):
+            // - Quote Side=1 (BID) → Execution sends Side=2
+            // - Quote Side=2 (OFFER) → Execution sends Side=1
+            // Get the quote Side and flip it
+            string quoteSide = quote.Get("54"); // Side field from quote
+            string executionSide = quoteSide == "1" ? "2" : "1";
+            Console.WriteLine($"  [DEBUG] Quote Side={quoteSide} → Execution Side={executionSide} (opposite of quote)");
+
             _body.Clear();
+
+            // Get LP from quote and set DeliverToCompID only
+            // OnBehalfOfCompID (115) appears to be auto-populated by GFI, not sent by client
+            string lpName = quote.Get("115"); // OnBehalfOfCompID from quote
 
             // Standard header fields (in body) - in FIX order
             AddField(35, "AB"); // MsgType = NewOrderMultileg
@@ -201,12 +261,9 @@ namespace FXOptionsSimulator.FIX
             AddField(49, _senderCompID); // SenderCompID
             AddField(52, GetUTCTimestamp()); // SendingTime
             AddField(56, _targetCompID); // TargetCompID
-
-            // Get LP from quote
-            string lpName = quote.Get("115"); // OnBehalfOfCompID
             if (!string.IsNullOrEmpty(lpName))
             {
-                AddField(128, lpName); // DeliverToCompID
+                AddField(128, lpName); // DeliverToCompID - routes to specific LP
             }
 
             // Body fields in EXACT order per FIX 4.4 specification
@@ -215,12 +272,12 @@ namespace FXOptionsSimulator.FIX
             // PartyIDs component - MUST come immediately after ClOrdID per FIX 4.4 spec
             // This prevents Session Reject Reason 14/15 (tag specified out of required order)
             AddField(453, "1"); // NoPartyIDs
-            AddField(448, _senderCompID); // PartyID - use SenderCompID as trader ID
+            AddField(448, _senderCompID); // PartyID
             AddField(447, "D"); // PartyIDSource = PROPRIETARY_CUSTOM_CODE
             AddField(452, "11"); // PartyRole = OrderOriginationTrader
 
-            AddField(40, "D"); // OrdType = PREVIOUSLY_QUOTED (executing against a specific quote)
-            AddField(54, side == "SELL" ? "2" : "1"); // Side
+            AddField(40, "1"); // OrdType = MARKET (per GFI spec for New Order - Multileg)
+            AddField(54, executionSide); // Side - must match quote Side being hit
             AddField(55, symbol); // Symbol
             AddField(59, "3"); // TimeInForce = IMMEDIATE_OR_CANCEL
             AddField(60, GetUTCTimestamp()); // TransactTime
@@ -235,38 +292,88 @@ namespace FXOptionsSimulator.FIX
 
             AddField(9126, structureCode.ToString()); // Structure
 
-            // NoLegs and leg repeating groups - fields in EXACT GFI order
+            // Per GFI: Must send aggregate Premium and PremiumCcy at message level
+            // Calculate total premium from all legs (preserve sign!)
+            if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+            {
+                double totalPremium = 0;
+                foreach (var leg in quote.LegPricing)
+                {
+                    if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
+                    {
+                        totalPremium += legPrem;
+                    }
+                }
+
+                // Get PremiumCcy from quote (should be same as quote currency)
+                string premiumCcy = quote.Get("5830"); // Try to get from quote first
+                if (string.IsNullOrEmpty(premiumCcy))
+                {
+                    // Fallback: for EURUSD, premium is typically in USD (term currency)
+                    premiumCcy = symbol.Length >= 6 ? symbol.Substring(3, 3) : "USD";
+                }
+
+                AddField(5830, premiumCcy); // PremiumCcy
+                AddField(6436, totalPremium.ToString("F2")); // Premium - aggregate, preserve sign
+            }
+
+            // NoLegs and leg repeating groups
+            // Per GFI spreadsheet example: Must send ALL fields including LegSymbol and pricing
             if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
                 AddField(555, quote.LegPricing.Count.ToString()); // NoLegs
 
                 foreach (var legPricing in quote.LegPricing)
                 {
-                    // Fields in EXACT order from GFI example:
-                    // 1. LegSymbol (600)
+                    // Send leg fields in EXACT order from GFI spreadsheet example:
+                    // 1. LegSymbol (600) - YES, it's in the example!
                     // 2. LegStrategyID (7940)
                     // 3. Volatility (5678)
                     // 4. MQSize (5359)
                     // 5. LegPremPrice (5844)
 
-                    AddField(600, legPricing.LegSymbol ?? symbol); // LegSymbol
+                    AddField(600, legPricing.LegSymbol ?? symbol); // LegSymbol - per GFI example
 
                     if (!string.IsNullOrEmpty(legPricing.LegStrategyID))
                         AddField(7940, legPricing.LegStrategyID); // LegStrategyID
 
                     if (!string.IsNullOrEmpty(legPricing.Volatility))
-                        AddField(5678, legPricing.Volatility); // Volatility
+                        AddField(5678, legPricing.Volatility); // Volatility - exact from quote
 
                     if (!string.IsNullOrEmpty(legPricing.MQSize))
-                        AddField(5359, legPricing.MQSize); // MQSize
+                        AddField(5359, legPricing.MQSize); // MQSize - exact from quote
 
                     if (!string.IsNullOrEmpty(legPricing.LegPremPrice))
-                        AddField(5844, legPricing.LegPremPrice); // LegPremPrice
+                        AddField(5844, legPricing.LegPremPrice); // LegPremPrice - exact from quote, keep sign
                 }
             }
 
             // Build complete message with header and trailer
-            return BuildCompleteMessage(_body.ToString());
+            string completeMessage = BuildCompleteMessage(_body.ToString());
+
+            // Summary debug output for execution
+            Console.WriteLine($"\n========== EXECUTION ORDER SUMMARY ==========");
+            Console.WriteLine($"ClOrdID: {clOrdID}");
+            Console.WriteLine($"QuoteID: {quoteID}");
+            Console.WriteLine($"Action: {side} (User wants to {side})");
+            Console.WriteLine($"Quote Side (54): {quote.Get("54")} ({(quote.Get("54") == "1" ? "BID" : "OFFER")})");
+            Console.WriteLine($"Execution Side: {executionSide} (Opposite of quote)");
+            Console.WriteLine($"Symbol: {symbol}");
+            Console.WriteLine($"LP: {lpName}");
+            Console.WriteLine($"Structure Code: {structureCode}");
+            if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+            {
+                Console.WriteLine($"Total Premium: {quote.Get("6436")} {quote.Get("5830")}");
+                Console.WriteLine($"Legs: {quote.LegPricing.Count}");
+                for (int i = 0; i < quote.LegPricing.Count; i++)
+                {
+                    var leg = quote.LegPricing[i];
+                    Console.WriteLine($"  Leg {i+1}: Vol={leg.Volatility} Premium={leg.LegPremPrice} Size={leg.MQSize}");
+                }
+            }
+            Console.WriteLine($"=============================================\n");
+
+            return completeMessage;
         }
 
         private void AddField(int tag, string value)
@@ -318,91 +425,6 @@ namespace FXOptionsSimulator.FIX
         private string GetUTCTimestamp()
         {
             return DateTime.UtcNow.ToString("yyyyMMdd-HH:mm:ss.fff");
-        }
-
-        private int GetStructureCode(string structureType)
-        {
-            return structureType switch
-            {
-                "Vanilla" => 1,
-                "CallSpread" => 8,
-                "PutSpread" => 9,
-                "RiskReversal" => 5,
-                "Seagull" => 10,
-                _ => 1
-            };
-        }
-
-        private static QLNet.Calendar FxCalendar(string ccy) => (ccy ?? "").ToUpperInvariant() switch
-        {
-            "USD" => new UnitedStates(UnitedStates.Market.Settlement),
-            "EUR" => new TARGET(),
-            "GBP" => new UnitedKingdom(UnitedKingdom.Market.Settlement),
-            "JPY" => new Japan(),
-            "CHF" => new Switzerland(),
-            "CAD" => new Canada(),
-            "AUD" => new Australia(),
-            "NZD" => new NewZealand(),
-            "SEK" => new Sweden(),
-            "NOK" => new Norway(),
-            "DKK" => new Denmark(),
-            _ => new TARGET() // safe default
-        };
-
-
-        private DateTime GetNextBusinessDay(DateTime startDate, int businessDays)
-        {
-            var result = startDate;
-            int addedDays = 0;
-
-            while (addedDays < businessDays)
-            {
-                result = result.AddDays(1);
-                // Skip weekends
-                if (result.DayOfWeek != DayOfWeek.Saturday &&
-                    result.DayOfWeek != DayOfWeek.Sunday)
-                {
-                    addedDays++;
-                }
-            }
-
-            return result;
-        }
-
-        public void OnMessage(QuickFix.FIX44.QuoteCancel message, SessionID sessionID)
-        {
-            var quoteReqID = message.IsSetQuoteReqID() ? message.QuoteReqID.getValue() : "N/A";
-            var quoteCancelType = message.IsSetQuoteCancelType() ? message.QuoteCancelType.getValue() : 0;
-
-            Console.WriteLine($"[GFI FIX] <<< Quote Cancel");
-            Console.WriteLine($"  QuoteReqID: {quoteReqID}");
-            Console.WriteLine($"  CancelType: {quoteCancelType}"); // 1=Cancel for Symbol, 4=Cancel All
-
-            // Notify UI that quote is canceled
-        }
-
-        private static DateTime AdjustFollowingWeekday(DateTime d)
-        {
-            var date = d.Date;
-            if (date.DayOfWeek == DayOfWeek.Saturday) return date.AddDays(2);
-            if (date.DayOfWeek == DayOfWeek.Sunday) return date.AddDays(1);
-            return date;
-        }
-
-        private DateTime CalculateMaturityFromTenor(string tenor)
-        {
-            var today = DateTime.UtcNow;
-
-            if (string.IsNullOrEmpty(tenor)) return today.AddMonths(1);
-
-            var number = int.Parse(tenor.TrimEnd('M', 'Y', 'W', 'D'));
-
-            if (tenor.EndsWith("M")) return today.AddMonths(number);
-            if (tenor.EndsWith("Y")) return today.AddYears(number);
-            if (tenor.EndsWith("W")) return today.AddDays(number * 7);
-            if (tenor.EndsWith("D")) return today.AddDays(number);
-
-            return today.AddMonths(1); // Default 1M
         }
     }
 }
