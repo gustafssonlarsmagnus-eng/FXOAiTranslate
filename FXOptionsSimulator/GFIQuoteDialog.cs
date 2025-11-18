@@ -34,6 +34,7 @@ namespace FXOAiTranslator
         private CheckBox chkCIBC;
         private CheckBox chkDeut;
         private CheckBox chkDBS;
+        private CheckBox chkHedge;
         private int _selectedLegCount;
 
         public GFIQuoteDialog(dynamic ovmlResult)
@@ -233,11 +234,22 @@ namespace FXOAiTranslator
             };
             gbLPs.Controls.Add(chkDBS);
 
+            // Hedge Checkbox - CRITICAL for quote type selection
+            chkHedge = new CheckBox
+            {
+                Text = "Hedge (ON = SELL/BID quotes, OFF = BUY/OFFER quotes)",
+                Location = new Point(20, 315),
+                Size = new Size(450, 25),
+                Checked = false,  // Default to OFF for OFFER quotes (BUY capability)
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            this.Controls.Add(chkHedge);
+
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
             {
-                Location = new Point(20, 330),
-                Size = new Size(940, 200),      // Reduced from 270
+                Location = new Point(20, 345),  // Moved down for hedge checkbox
+                Size = new Size(940, 185),      // Reduced height slightly
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -258,7 +270,7 @@ namespace FXOAiTranslator
             var lblBlotter = new Label
             {
                 Text = "Trade Blotter:",
-                Location = new Point(20, 540),
+                Location = new Point(20, 540),  // Same as before
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
@@ -266,8 +278,8 @@ namespace FXOAiTranslator
 
             dgvBlotter = new DataGridView
             {
-                Location = new Point(20, 565),
-                Size = new Size(940, 150),
+                Location = new Point(20, 565),  // Same as before
+                Size = new Size(940, 135),      // Reduced slightly
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -301,7 +313,7 @@ namespace FXOAiTranslator
             btnRequestQuotes = new Button
             {
                 Text = "Request Quotes",
-                Location = new Point(20, 730),
+                Location = new Point(20, 715),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
@@ -311,7 +323,7 @@ namespace FXOAiTranslator
             btnExecute = new Button
             {
                 Text = "Sell (Hit Bid)",
-                Location = new Point(190, 730),
+                Location = new Point(190, 715),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -322,7 +334,7 @@ namespace FXOAiTranslator
             btnBuy = new Button
             {
                 Text = "Buy (Lift Offer)",
-                Location = new Point(360, 730),
+                Location = new Point(360, 715),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -333,7 +345,7 @@ namespace FXOAiTranslator
             btnCancel = new Button
             {
                 Text = "Close",
-                Location = new Point(530, 730),
+                Location = new Point(530, 715),
                 Size = new Size(150, 35),
                 DialogResult = DialogResult.Cancel
             };
@@ -459,12 +471,16 @@ namespace FXOAiTranslator
             }
             Console.WriteLine();
 
+            // Get hedge setting from UI
+            bool hedgeEnabled = chkHedge.Checked;
+            Console.WriteLine($"\n[Quote Request] Hedge setting: {(hedgeEnabled ? "ON (BID quotes)" : "OFF (OFFER quotes)")}");
+
             // Send quote request to each LP
             foreach (var lp in lps)
             {
                 try
                 {
-                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId);
+                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId, hedgeEnabled);
                     Console.WriteLine($"[Quote Request] Sent to {lp}: {quoteReqID}");
                 }
                 catch (Exception ex)
