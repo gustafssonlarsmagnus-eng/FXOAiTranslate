@@ -266,15 +266,8 @@ namespace FXOptionsSimulator.FIX
                 AddField(128, lpName); // DeliverToCompID - routes to specific LP
             }
 
-            // Body fields in EXACT order per FIX 4.4 specification
+            // Body fields in EXACT order per GFI's successful execution example
             AddField(11, clOrdID); // ClOrdID
-
-            // PartyIDs component - MUST come immediately after ClOrdID per FIX 4.4 spec
-            // This prevents Session Reject Reason 14/15 (tag specified out of required order)
-            AddField(453, "1"); // NoPartyIDs
-            AddField(448, _senderCompID); // PartyID
-            AddField(447, "D"); // PartyIDSource = PROPRIETARY_CUSTOM_CODE
-            AddField(452, "11"); // PartyRole = OrderOriginationTrader
 
             AddField(40, "1"); // OrdType = MARKET (per GFI spec for New Order - Multileg)
             AddField(54, executionSide); // Side - must match quote Side being hit
@@ -290,10 +283,9 @@ namespace FXOptionsSimulator.FIX
                 AddField(131, quoteReqID); // QuoteReqID
             }
 
-            AddField(9126, structureCode.ToString()); // Structure
-
             // Per GFI: Must send aggregate Premium and PremiumCcy at message level
             // Calculate total premium from all legs (preserve sign!)
+            string premiumCcy = "USD"; // default
             if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
                 double totalPremium = 0;
@@ -306,7 +298,7 @@ namespace FXOptionsSimulator.FIX
                 }
 
                 // Get PremiumCcy from quote (should be same as quote currency)
-                string premiumCcy = quote.Get("5830"); // Try to get from quote first
+                premiumCcy = quote.Get("5830"); // Try to get from quote first
                 if (string.IsNullOrEmpty(premiumCcy))
                 {
                     // Fallback: for EURUSD, premium is typically in USD (term currency)
@@ -316,6 +308,15 @@ namespace FXOptionsSimulator.FIX
                 AddField(5830, premiumCcy); // PremiumCcy
                 AddField(6436, totalPremium.ToString("F2")); // Premium - aggregate, preserve sign
             }
+
+            AddField(9126, structureCode.ToString()); // Structure
+
+            // PartyIDs component - GFI requires this AFTER Structure, BEFORE NoLegs
+            // (Different from standard FIX 4.4 which has it after ClOrdID)
+            AddField(453, "1"); // NoPartyIDs
+            AddField(448, _senderCompID); // PartyID
+            AddField(447, "D"); // PartyIDSource = PROPRIETARY_CUSTOM_CODE
+            AddField(452, "11"); // PartyRole = OrderOriginationTrader
 
             // NoLegs and leg repeating groups
             // Per GFI spreadsheet example: Must send ALL fields including LegSymbol and pricing
