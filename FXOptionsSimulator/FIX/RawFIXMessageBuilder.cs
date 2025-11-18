@@ -39,7 +39,7 @@ namespace FXOptionsSimulator.FIX
             string groupId,
             string tag75Override = null,
             string tag5020Override = null,
-            bool hedge = true)
+            bool hedge = false)  // Default to FALSE for OFFER quotes (BUY capability)
         {
             _body.Clear();
 
