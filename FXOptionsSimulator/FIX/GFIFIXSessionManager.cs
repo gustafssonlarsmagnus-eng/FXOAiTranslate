@@ -366,10 +366,22 @@ namespace FXOptionsSimulator.FIX
                 // Add to blotter
                 if (trade != null)
                 {
-                    // Extract delta from quote
+                    // Extract delta and premium from quote
                     double? delta = null;
+                    double netPremium = 0;
+
                     if (quote.LegPricing != null && quote.LegPricing.Count > 0)
                     {
+                        // Sum up premium from all legs
+                        foreach (var leg in quote.LegPricing)
+                        {
+                            if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
+                            {
+                                netPremium += legPrem;
+                            }
+                        }
+
+                        // Get delta from first leg
                         var firstLeg = quote.LegPricing[0];
                         if (!string.IsNullOrEmpty(firstLeg.LegDelta) && double.TryParse(firstLeg.LegDelta, out double deltaValue))
                         {
@@ -386,7 +398,7 @@ namespace FXOptionsSimulator.FIX
                         Underlying = trade.Underlying,
                         StructureType = trade.StructureType,
                         LegCount = trade.Legs.Count,
-                        NetPremium = 0, // Will be set from quote
+                        NetPremium = netPremium,
                         Delta = delta,
                         Status = "PENDING"
                     };
