@@ -251,8 +251,7 @@ namespace FXOptionsSimulator.FIX
 
             _body.Clear();
 
-            // Get LP from quote and set DeliverToCompID only
-            // OnBehalfOfCompID (115) appears to be auto-populated by GFI, not sent by client
+            // Get LP from quote
             string lpName = quote.Get("115"); // OnBehalfOfCompID from quote
 
             // Standard header fields (in body) - in FIX order
@@ -261,6 +260,10 @@ namespace FXOptionsSimulator.FIX
             AddField(49, _senderCompID); // SenderCompID
             AddField(52, GetUTCTimestamp()); // SendingTime
             AddField(56, _targetCompID); // TargetCompID
+
+            // GFI Example 1 shows 115 (OnBehalfOfCompID) IS required in execution
+            AddField(115, "SWES"); // OnBehalfOfCompID - trading firm identifier
+
             if (!string.IsNullOrEmpty(lpName))
             {
                 AddField(128, lpName); // DeliverToCompID - routes to specific LP
@@ -326,12 +329,8 @@ namespace FXOptionsSimulator.FIX
 
                 foreach (var legPricing in quote.LegPricing)
                 {
-                    // Send leg fields in EXACT order from GFI spreadsheet example:
-                    // 1. LegSymbol (600) - YES, it's in the example!
-                    // 2. LegStrategyID (7940)
-                    // 3. Volatility (5678)
-                    // 4. MQSize (5359)
-                    // 5. LegPremPrice (5844)
+                    // Send leg fields in EXACT order from GFI Example 1:
+                    // 600=EURUSD|7940=SL|5678=6.51|8518=10320|5359=1.000000|5844=-149.6
 
                     AddField(600, legPricing.LegSymbol ?? symbol); // LegSymbol - per GFI example
 
@@ -340,6 +339,9 @@ namespace FXOptionsSimulator.FIX
 
                     if (!string.IsNullOrEmpty(legPricing.Volatility))
                         AddField(5678, legPricing.Volatility); // Volatility - exact from quote
+
+                    if (!string.IsNullOrEmpty(legPricing.GFIMidPoint))
+                        AddField(8518, legPricing.GFIMidPoint); // GFIMidPoint - REQUIRED by GFI
 
                     if (!string.IsNullOrEmpty(legPricing.MQSize))
                         AddField(5359, legPricing.MQSize); // MQSize - exact from quote

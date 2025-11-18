@@ -12,6 +12,7 @@ namespace FXOptionsSimulator
     {
         public string LegStrategyID { get; set; }      // Tag 7940
         public string Volatility { get; set; }          // Tag 5678
+        public string GFIMidPoint { get; set; }         // Tag 8518 (required for execution)
         public string MQSize { get; set; }              // Tag 5359
         public string LegPremPrice { get; set; }        // Tag 5844
         public string LegSpotRate { get; set; }         // Tag 5235
