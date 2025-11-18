@@ -1024,6 +1024,14 @@ namespace FXOAiTranslator
                 return;
             }
 
+            // Format delta in millions for readability
+            string deltaDisplay = "-";
+            if (entry.Delta.HasValue)
+            {
+                double deltaInMillions = entry.Delta.Value / 1_000_000.0;
+                deltaDisplay = deltaInMillions.ToString("N2") + "M";
+            }
+
             dgvBlotter.Rows.Add(
                 entry.TradeTime.ToString("HH:mm:ss"),
                 entry.ClOrdID,
@@ -1032,7 +1040,7 @@ namespace FXOAiTranslator
                 entry.Underlying,
                 entry.StructureType,
                 entry.NetPremium.ToString("N2"),
-                entry.Delta.HasValue ? entry.Delta.Value.ToString("N2") : "-",
+                deltaDisplay,
                 entry.Status
             );
 

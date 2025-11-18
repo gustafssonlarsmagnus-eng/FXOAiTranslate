@@ -381,11 +381,17 @@ namespace FXOptionsSimulator.FIX
                             }
                         }
 
-                        // Get delta from first leg
+                        // Calculate nominal delta (Delta × Notional)
                         var firstLeg = quote.LegPricing[0];
-                        if (!string.IsNullOrEmpty(firstLeg.LegDelta) && double.TryParse(firstLeg.LegDelta, out double deltaValue))
+                        if (!string.IsNullOrEmpty(firstLeg.LegDelta) && double.TryParse(firstLeg.LegDelta, out double deltaPercent))
                         {
-                            delta = deltaValue;
+                            // Get notional from trade (in millions)
+                            double notionalMM = trade.Legs.Count > 0 ? trade.Legs[0].NotionalMM : 1.0;
+
+                            // Delta is typically in percentage (e.g., 42.246 = 42.246%)
+                            // Nominal Delta = (Delta% / 100) × Notional in full units
+                            double notionalFull = notionalMM * 1_000_000; // Convert millions to full units
+                            delta = (deltaPercent / 100.0) * notionalFull;
                         }
                     }
 
