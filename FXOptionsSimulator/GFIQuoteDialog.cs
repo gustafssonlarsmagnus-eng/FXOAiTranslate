@@ -872,6 +872,8 @@ namespace FXOAiTranslator
                 // ===== QUOTE FRESHNESS VALIDATION =====
                 Console.WriteLine($"\n[VALIDATION] Starting quote freshness check for {lpName}");
                 Console.WriteLine($"[VALIDATION] Original QuoteID: {selectedQuote.Get(Tags.QuoteID.ToString())}");
+                Console.WriteLine($"[VALIDATION] Selected Quote Side (tag 54): {selectedQuote.Get("54")} ({(selectedQuote.Get("54") == "1" ? "BID" : selectedQuote.Get("54") == "2" ? "OFFER" : "UNKNOWN")})");
+                Console.WriteLine($"[VALIDATION] User Action: {side}");
 
                 // Re-fetch streams to check current quote state
                 // NOTE: No delay - execute as fast as possible to minimize window for LP to update quote
@@ -985,6 +987,8 @@ namespace FXOAiTranslator
 
                 // Use the refreshed quote for execution to ensure we have the latest data
                 selectedQuote = refreshedQuote;
+                Console.WriteLine($"[VALIDATION] FINAL Quote Side before execution: {selectedQuote.Get("54")} ({(selectedQuote.Get("54") == "1" ? "BID" : selectedQuote.Get("54") == "2" ? "OFFER" : "UNKNOWN")})");
+                Console.WriteLine($"[VALIDATION] FINAL QuoteID before execution: {selectedQuote.Get(Tags.QuoteID.ToString())}");
                 // ===== END QUOTE FRESHNESS VALIDATION =====
 
                 string clOrdID = _fixSession.SendExecution(selectedQuote, side, _trade);
