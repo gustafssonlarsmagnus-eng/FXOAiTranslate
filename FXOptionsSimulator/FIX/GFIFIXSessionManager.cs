@@ -200,7 +200,7 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"  GroupID: {groupId}");
             Console.WriteLine($"  Underlying: {trade.Underlying}");
             Console.WriteLine($"  Legs: {trade.Legs.Count}");
-            Console.WriteLine($"  Hedge: {(hedge ? "ON (BID quotes)" : "OFF (OFFER quotes)")}");
+            Console.WriteLine($"  Hedge: {(hedge ? "ON" : "OFF")}");
 
             try
             {

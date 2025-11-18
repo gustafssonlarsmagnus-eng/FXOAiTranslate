@@ -100,8 +100,8 @@ namespace FXOptionsSimulator.FIX
             // DIAGNOSTIC: Show all leg directions before building
             Console.WriteLine($"\n========== QUOTE REQUEST DEBUG ==========");
             Console.WriteLine($"Building {trade.Legs.Count}-leg structure for {trade.Underlying}:");
-            Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")}");
-            Console.WriteLine($"Position mapping: BUY=1, SELL=2 (ORIGINAL - no hedge consideration)");
+            Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")} (Note: GFI sends both BID and OFFER quotes regardless)");
+            Console.WriteLine($"Position mapping: BUY=1, SELL=2");
             for (int i = 0; i < trade.Legs.Count; i++)
             {
                 var leg = trade.Legs[i];
@@ -222,9 +222,8 @@ namespace FXOptionsSimulator.FIX
             {
                 var leg = trade.Legs[i];
                 string position = leg.Direction == "BUY" ? "1" : "2";
-                string expectedQuote = leg.Direction == "BUY" ? "OFFER" : "BID";
                 Console.WriteLine($"  Leg {i+1}: {leg.Direction,-4} {leg.NotionalMM,6}MM {leg.OptionType,-4} Strike={leg.Strike:F4} Tenor={leg.Tenor}");
-                Console.WriteLine($"         Position={position} → Need {expectedQuote} quote (Side={(expectedQuote == "OFFER" ? "2" : "1")})");
+                Console.WriteLine($"         Position={position}");
             }
             Console.WriteLine($"===========================================\n");
 

@@ -34,7 +34,6 @@ namespace FXOAiTranslator
         private CheckBox chkCIBC;
         private CheckBox chkDeut;
         private CheckBox chkDBS;
-        private CheckBox chkHedge;
         private int _selectedLegCount;
 
         public GFIQuoteDialog(dynamic ovmlResult)
@@ -234,22 +233,11 @@ namespace FXOAiTranslator
             };
             gbLPs.Controls.Add(chkDBS);
 
-            // Hedge Checkbox - CRITICAL for quote type selection
-            chkHedge = new CheckBox
-            {
-                Text = "Hedge (ON = SELL/BID quotes, OFF = BUY/OFFER quotes)",
-                Location = new Point(20, 315),
-                Size = new Size(450, 25),
-                Checked = false,  // Default to OFF for OFFER quotes (BUY capability)
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
-            };
-            this.Controls.Add(chkHedge);
-
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
             {
-                Location = new Point(20, 345),  // Moved down for hedge checkbox
-                Size = new Size(940, 185),      // Reduced height slightly
+                Location = new Point(20, 330),
+                Size = new Size(940, 200),      // Reduced from 270
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -473,16 +461,13 @@ namespace FXOAiTranslator
             }
             Console.WriteLine();
 
-            // Get hedge setting from UI
-            bool hedgeEnabled = chkHedge.Checked;
-            Console.WriteLine($"\n[Quote Request] Hedge setting: {(hedgeEnabled ? "ON (BID quotes)" : "OFF (OFFER quotes)")}");
-
             // Send quote request to each LP
+            // Note: hedge parameter defaults to false - GFI sends both BID and OFFER quotes regardless
             foreach (var lp in lps)
             {
                 try
                 {
-                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId, hedgeEnabled);
+                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId);
                     Console.WriteLine($"[Quote Request] Sent to {lp}: {quoteReqID}");
                 }
                 catch (Exception ex)
