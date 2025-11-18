@@ -71,8 +71,8 @@ namespace FXOptionsSimulator.FIX
             var policy = GlobalDatePolicy.Policy;
 
             var jointCal = new JointCalendar(
-                FxDateService.CalendarFromCcy(ccy1),
-                FxDateService.CalendarFromCcy(ccy2),
+                FxCalendar(ccy1),
+                FxCalendar(ccy2),
                 JointCalendarRule.JoinHolidays);
 
             var spotLag = policy.SpotLagForPair(pair);   // OneBD / TwoBD etc.
@@ -85,7 +85,7 @@ namespace FXOptionsSimulator.FIX
             AddField(5830, trade.PremiumCurrency); // PremiumCcy
             AddField(9016, hedge ? "1" : "0"); // HedgeTradeType (1=hedge, 0=no hedge)
 
-            int structureCode = TradeStructure.GetStructureCode(trade.StructureType);
+            int structureCode = GetStructureCode(trade.StructureType);
             AddField(9126, structureCode.ToString()); // Structure
             AddField(9943, "2"); // ProductQuoteType
             AddField(8051, groupId);
@@ -426,5 +426,34 @@ namespace FXOptionsSimulator.FIX
         {
             return DateTime.UtcNow.ToString("yyyyMMdd-HH:mm:ss.fff");
         }
+
+        private int GetStructureCode(string structureType)
+        {
+            return structureType switch
+            {
+                "Vanilla" => 1,
+                "CallSpread" => 8,
+                "PutSpread" => 9,
+                "RiskReversal" => 5,
+                "Seagull" => 10,
+                _ => 1
+            };
+        }
+
+        private static QLNet.Calendar FxCalendar(string ccy) => (ccy ?? "").ToUpperInvariant() switch
+        {
+            "USD" => new UnitedStates(UnitedStates.Market.Settlement),
+            "EUR" => new TARGET(),
+            "GBP" => new UnitedKingdom(UnitedKingdom.Market.Settlement),
+            "JPY" => new Japan(),
+            "CHF" => new Switzerland(),
+            "CAD" => new Canada(),
+            "AUD" => new Australia(),
+            "NZD" => new NewZealand(),
+            "SEK" => new Sweden(),
+            "NOK" => new Norway(),
+            "DKK" => new Denmark(),
+            _ => new TARGET() // safe default
+        };
     }
 }
