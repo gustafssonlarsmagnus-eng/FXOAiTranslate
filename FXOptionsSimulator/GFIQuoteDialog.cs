@@ -745,7 +745,16 @@ namespace FXOAiTranslator
                 Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Tag 6436={tag6436}");
             }
 
-            // Use new LegPricing structure
+            // PREFER Tag 6436 (Premium) if available - it's in consistent units across all LPs
+            // Tag 6436 appears to be in hundredths of basis points (divide by 1000 for basis points)
+            if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
+            {
+                double basisPoints = premium6436 / 1000.0;
+                Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Using Tag 6436: {tag6436} / 1000 = {basisPoints} bps");
+                return basisPoints;
+            }
+
+            // FALLBACK: Use LegPricing structure (less reliable due to PriceIndicator differences)
             if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
                 double netPrem = 0;
