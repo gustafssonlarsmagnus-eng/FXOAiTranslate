@@ -739,6 +739,7 @@ namespace FXOAiTranslator
 
             // Get LP name to check for LP-specific premium units
             string lpName = quote.Get(Tags.OnBehalfOfCompID.ToString()) ?? "";
+            string side = quote.Get("54") == "1" ? "BID" : "OFFER";
 
             // PREFER Tag 6436 (Premium) if available - it's in consistent units across all LPs
             // Tag 6436 appears to be in hundredths of basis points (divide by 1000 for basis points)
@@ -746,6 +747,7 @@ namespace FXOAiTranslator
             if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
             {
                 double basisPoints = premium6436 / 1000.0;
+                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={tag6436} -> Display={basisPoints:F2}");
                 return basisPoints;
             }
 
