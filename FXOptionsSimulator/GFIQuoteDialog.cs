@@ -740,25 +740,12 @@ namespace FXOAiTranslator
             // Get LP name to check for LP-specific premium units
             string lpName = quote.Get(Tags.OnBehalfOfCompID.ToString()) ?? "";
 
-            // DEBUG: Log raw Premium (tag 6436) and PriceIndicator (tag 9904)
-            string tag6436 = quote.Get("6436");
-            string priceIndicator = quote.Get("9904");
-            string side = quote.Get("54") == "1" ? "BID" : "OFFER";
-            string priceUnit = priceIndicator == "1" ? "PCT" : priceIndicator == "2" ? "PTS" : "UNKNOWN";
-
-            Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, PriceIndicator(9904)={priceIndicator} ({priceUnit})");
-
-            if (!string.IsNullOrEmpty(tag6436))
-            {
-                Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Tag 6436={tag6436}");
-            }
-
             // PREFER Tag 6436 (Premium) if available - it's in consistent units across all LPs
             // Tag 6436 appears to be in hundredths of basis points (divide by 1000 for basis points)
+            string tag6436 = quote.Get("6436");
             if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
             {
                 double basisPoints = premium6436 / 1000.0;
-                Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Using Tag 6436: {tag6436} / 1000 = {basisPoints} bps");
                 return basisPoints;
             }
 
@@ -770,8 +757,6 @@ namespace FXOAiTranslator
                 {
                     if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
                     {
-                        Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Leg LegPremPrice={leg.LegPremPrice} (raw value before conversion)");
-
                         // HSBC sends premiums in percentage, others in basis points
                         // Convert HSBC from % to bps by multiplying by 100
                         if (lpName == "HSBC")
@@ -781,7 +766,6 @@ namespace FXOAiTranslator
                         netPrem += prem;
                     }
                 }
-                Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Calculated NetPrem={netPrem} (sum after conversions)");
                 return netPrem;
             }
 
