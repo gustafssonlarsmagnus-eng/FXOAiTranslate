@@ -255,6 +255,9 @@ namespace FXOAiTranslator
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
                 null, dgvQuotes, new object[] { true });
 
+            // Use CellFormatting event for dynamic styling (reduces flicker)
+            dgvQuotes.CellFormatting += DgvQuotes_CellFormatting;
+
             this.Controls.Add(dgvQuotes);
 
             // Trade Blotter Grid - NEW
@@ -635,14 +638,10 @@ namespace FXOAiTranslator
                             var remainingTime = validUntil - nowUtc;
                             var ttlCell = row.Cells["TTL"];
                             string newValue;
-                            Color newBackColor;
-                            Color newForeColor;
 
                             if (remainingTime.TotalSeconds <= 0)
                             {
                                 newValue = "EXPIRED";
-                                newBackColor = Color.LightGray;
-                                newForeColor = Color.DarkRed;
                             }
                             else
                             {
@@ -650,39 +649,12 @@ namespace FXOAiTranslator
                                 int minutes = (int)remainingTime.TotalMinutes;
                                 int seconds = remainingTime.Seconds;
                                 newValue = $"{minutes}:{seconds:D2}";
-
-                                // Color code based on time remaining
-                                if (remainingTime.TotalSeconds > 60)
-                                {
-                                    newBackColor = Color.LightGreen;
-                                    newForeColor = Color.Black;
-                                }
-                                else if (remainingTime.TotalSeconds > 30)
-                                {
-                                    newBackColor = Color.Yellow;
-                                    newForeColor = Color.Black;
-                                }
-                                else
-                                {
-                                    newBackColor = Color.LightCoral;
-                                    newForeColor = Color.White;
-                                }
                             }
 
                             // Only update if value changed (reduces redraws)
                             if (ttlCell.Value?.ToString() != newValue)
                             {
                                 ttlCell.Value = newValue;
-                            }
-
-                            // Only update colors if they changed
-                            if (ttlCell.Style.BackColor != newBackColor)
-                            {
-                                ttlCell.Style.BackColor = newBackColor;
-                            }
-                            if (ttlCell.Style.ForeColor != newForeColor)
-                            {
-                                ttlCell.Style.ForeColor = newForeColor;
                             }
                         }
                         else
@@ -701,6 +673,55 @@ namespace FXOAiTranslator
             finally
             {
                 dgvQuotes.ResumeLayout();
+            }
+        }
+
+        private void DgvQuotes_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            // Only format TTL column
+            if (dgvQuotes.Columns[e.ColumnIndex].Name != "TTL")
+                return;
+
+            if (e.Value == null)
+                return;
+
+            string ttlValue = e.Value.ToString();
+
+            // Apply colors based on TTL value
+            if (ttlValue == "EXPIRED")
+            {
+                e.CellStyle.BackColor = Color.LightGray;
+                e.CellStyle.ForeColor = Color.DarkRed;
+            }
+            else if (ttlValue == "-")
+            {
+                e.CellStyle.BackColor = Color.White;
+                e.CellStyle.ForeColor = Color.Black;
+            }
+            else
+            {
+                // Parse time to determine color
+                string[] parts = ttlValue.Split(':');
+                if (parts.Length == 2 && int.TryParse(parts[0], out int minutes) && int.TryParse(parts[1], out int seconds))
+                {
+                    int totalSeconds = minutes * 60 + seconds;
+
+                    if (totalSeconds > 60)
+                    {
+                        e.CellStyle.BackColor = Color.LightGreen;
+                        e.CellStyle.ForeColor = Color.Black;
+                    }
+                    else if (totalSeconds > 30)
+                    {
+                        e.CellStyle.BackColor = Color.Yellow;
+                        e.CellStyle.ForeColor = Color.Black;
+                    }
+                    else
+                    {
+                        e.CellStyle.BackColor = Color.LightCoral;
+                        e.CellStyle.ForeColor = Color.White;
+                    }
+                }
             }
         }
 
