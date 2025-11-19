@@ -732,9 +732,14 @@ namespace FXOAiTranslator
             // Get LP name to check for LP-specific premium units
             string lpName = quote.Get(Tags.OnBehalfOfCompID.ToString()) ?? "";
 
-            // DEBUG: Log raw Premium (tag 6436) if present
+            // DEBUG: Log raw Premium (tag 6436) and PriceIndicator (tag 9904)
             string tag6436 = quote.Get("6436");
+            string priceIndicator = quote.Get("9904");
             string side = quote.Get("54") == "1" ? "BID" : "OFFER";
+            string priceUnit = priceIndicator == "1" ? "PCT" : priceIndicator == "2" ? "PTS" : "UNKNOWN";
+
+            Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, PriceIndicator(9904)={priceIndicator} ({priceUnit})");
+
             if (!string.IsNullOrEmpty(tag6436))
             {
                 Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Tag 6436={tag6436}");
@@ -748,7 +753,7 @@ namespace FXOAiTranslator
                 {
                     if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
                     {
-                        Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Leg LegPremPrice={leg.LegPremPrice}");
+                        Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Leg LegPremPrice={leg.LegPremPrice} (raw value before conversion)");
 
                         // HSBC sends premiums in percentage, others in basis points
                         // Convert HSBC from % to bps by multiplying by 100
@@ -759,7 +764,7 @@ namespace FXOAiTranslator
                         netPrem += prem;
                     }
                 }
-                Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Calculated NetPrem={netPrem}");
+                Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Calculated NetPrem={netPrem} (sum after conversions)");
                 return netPrem;
             }
 
