@@ -103,7 +103,7 @@ namespace FXOAiTranslator
                 AllowUserToDeleteRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells,
                 RowHeadersVisible = false
             };
 
@@ -111,22 +111,25 @@ namespace FXOAiTranslator
             {
                 Name = "Include",
                 HeaderText = "Include",
-                Width = 60,
+                Width = 35,
                 TrueValue = true,
                 FalseValue = false
             };
             dgvLegs.Columns.Add(chkCol);
             dgvLegs.Columns.Add("Leg", "Leg");
-            dgvLegs.Columns["Leg"].Width = 50;
+            dgvLegs.Columns["Leg"].Width = 35;
             dgvLegs.Columns.Add("Direction", "Direction");
+            dgvLegs.Columns["Direction"].Width = 35;
             dgvLegs.Columns.Add("Type", "Type");
+            dgvLegs.Columns["Type"].Width = 35;
             dgvLegs.Columns.Add("Strike", "Strike");
+            dgvLegs.Columns["Strike"].Width = 35;
 
             var notionalCol = new DataGridViewTextBoxColumn
             {
                 Name = "NotionalMM",
                 HeaderText = "Notional (MM)",
-                Width = 100
+                Width = 35
             };
             dgvLegs.Columns.Add(notionalCol);
 
