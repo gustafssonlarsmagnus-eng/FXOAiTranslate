@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using FXOptionsSimulator;
 using FXOptionsSimulator.FIX;
@@ -10,6 +11,11 @@ namespace FXOAiTranslator
 {
     public partial class GFIQuoteDialog : Form
     {
+        // WinAPI for preventing flicker during grid updates
+        [DllImport("user32.dll")]
+        private static extern int SendMessage(IntPtr hWnd, int wMsg, bool wParam, int lParam);
+        private const int WM_SETREDRAW = 0x000B;
+
         private GFIFIXSessionManager _fixSession;  // Changed from FIXSimulator
         private TradeStructure _trade;
         private string _groupId;
@@ -612,8 +618,8 @@ namespace FXOAiTranslator
 
             var nowUtc = DateTime.UtcNow;
 
-            // Suspend painting to reduce flicker
-            dgvQuotes.SuspendLayout();
+            // Completely suspend painting using WinAPI (more aggressive than SuspendLayout)
+            SendMessage(dgvQuotes.Handle, WM_SETREDRAW, false, 0);
 
             try
             {
@@ -672,7 +678,9 @@ namespace FXOAiTranslator
             }
             finally
             {
-                dgvQuotes.ResumeLayout();
+                // Resume painting and refresh only the TTL column
+                SendMessage(dgvQuotes.Handle, WM_SETREDRAW, true, 0);
+                dgvQuotes.Invalidate(dgvQuotes.GetColumnDisplayRectangle(dgvQuotes.Columns["TTL"].Index, false));
             }
         }
 
