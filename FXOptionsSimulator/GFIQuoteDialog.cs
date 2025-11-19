@@ -840,10 +840,12 @@ namespace FXOAiTranslator
                 var bid = CalculateNetPremium(stream.BidQuote);
                 var offer = CalculateNetPremium(stream.OfferQuote);
 
+                // Best BID = highest (client sells at best price)
                 if (bid.HasValue && (!bestBid.HasValue || bid.Value > bestBid.Value))
                     bestBid = bid.Value;
 
-                if (offer.HasValue && (!bestOffer.HasValue || offer.Value < bestOffer.Value))
+                // Best OFFER = least negative / closest to zero (client buys at lowest price)
+                if (offer.HasValue && (!bestOffer.HasValue || offer.Value > bestOffer.Value))
                     bestOffer = offer.Value;
             }
 
