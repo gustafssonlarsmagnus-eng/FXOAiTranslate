@@ -732,6 +732,14 @@ namespace FXOAiTranslator
             // Get LP name to check for LP-specific premium units
             string lpName = quote.Get(Tags.OnBehalfOfCompID.ToString()) ?? "";
 
+            // DEBUG: Log raw Premium (tag 6436) if present
+            string tag6436 = quote.Get("6436");
+            string side = quote.Get("54") == "1" ? "BID" : "OFFER";
+            if (!string.IsNullOrEmpty(tag6436))
+            {
+                Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Tag 6436={tag6436}");
+            }
+
             // Use new LegPricing structure
             if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
@@ -740,6 +748,8 @@ namespace FXOAiTranslator
                 {
                     if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
                     {
+                        Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Leg LegPremPrice={leg.LegPremPrice}");
+
                         // HSBC sends premiums in percentage, others in basis points
                         // Convert HSBC from % to bps by multiplying by 100
                         if (lpName == "HSBC")
@@ -749,6 +759,7 @@ namespace FXOAiTranslator
                         netPrem += prem;
                     }
                 }
+                Console.WriteLine($"[PREMIUM DEBUG] LP={lpName}, Side={side}, Calculated NetPrem={netPrem}");
                 return netPrem;
             }
 
