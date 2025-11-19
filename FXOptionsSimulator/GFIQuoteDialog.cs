@@ -741,13 +741,18 @@ namespace FXOAiTranslator
             string lpName = quote.Get(Tags.OnBehalfOfCompID.ToString()) ?? "";
             string side = quote.Get("54") == "1" ? "BID" : "OFFER";
 
+            // Extract spot reference from first leg (tag 5235)
+            string spotRef = quote.LegPricing != null && quote.LegPricing.Count > 0
+                ? quote.LegPricing[0].LegSpotRate
+                : null;
+
             // PREFER Tag 6436 (Premium) if available - it's in consistent units across all LPs
             // Tag 6436 appears to be in hundredths of basis points (divide by 1000 for basis points)
             string tag6436 = quote.Get("6436");
             if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
             {
                 double basisPoints = premium6436 / 1000.0;
-                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={tag6436} -> Display={basisPoints:F2}");
+                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={tag6436} -> Display={basisPoints:F2}, Spot={spotRef ?? "N/A"}");
                 return basisPoints;
             }
 
