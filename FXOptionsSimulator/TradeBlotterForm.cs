@@ -67,7 +67,7 @@ namespace FXOAiTranslator
 
             dgvBlotter.Columns.Add("TradeTime", "Time");
             dgvBlotter.Columns["TradeTime"].DefaultCellStyle.Format = "HH:mm:ss";
-            dgvBlotter.Columns["TradeTime"].Width = 70;
+            dgvBlotter.Columns["TradeTime"].Width = 35;
 
             dgvBlotter.Columns.Add("ClOrdID", "Order ID");
             dgvBlotter.Columns["ClOrdID"].Width = 150;
