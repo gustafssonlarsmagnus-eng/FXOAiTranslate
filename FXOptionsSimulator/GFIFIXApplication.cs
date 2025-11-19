@@ -529,6 +529,22 @@ namespace FXOptionsSimulator.FIX
                 Console.WriteLine($"  [DEBUG] ValidUntilTime (tag 62): {validUntilTime}");
             }
 
+            // Extract Premium (tag 6436) - GFI sends this as integer
+            if (quote.IsSetField(6436))
+            {
+                string premium = quote.GetString(6436);
+                msg.Set("6436", premium);
+                Console.WriteLine($"  [DEBUG] Premium (tag 6436): {premium}");
+            }
+
+            // Extract PremiumCcy (tag 5830)
+            if (quote.IsSetField(5830))
+            {
+                string premiumCcy = quote.GetString(5830);
+                msg.Set("5830", premiumCcy);
+                Console.WriteLine($"  [DEBUG] PremiumCcy (tag 5830): {premiumCcy}");
+            }
+
             // For debugging - print the full raw message
             Console.WriteLine($"  [DEBUG] Raw quote message:");
             Console.WriteLine($"  {quote.ToString().Replace("\x01", "|")}");

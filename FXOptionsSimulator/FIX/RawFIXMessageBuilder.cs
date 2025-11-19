@@ -282,10 +282,10 @@ namespace FXOptionsSimulator.FIX
                 AddField(131, quoteReqID); // QuoteReqID
             }
 
-            // Premium and PremiumCcy - use EXACT values from quote
-            // GFI sends Premium (6436) as integer, NOT decimal - echo it back exactly
-            string quotePremium = quote.Get("6436"); // Premium from quote
-            string premiumCcy = quote.Get("5830"); // PremiumCcy from quote
+            // Premium and PremiumCcy
+            // Try to get Premium (6436) from quote first
+            string quotePremium = quote.Get("6436");
+            string premiumCcy = quote.Get("5830");
 
             if (string.IsNullOrEmpty(premiumCcy))
             {
@@ -295,10 +295,30 @@ namespace FXOptionsSimulator.FIX
 
             AddField(5830, premiumCcy); // PremiumCcy
 
+            // If Premium not in quote, calculate from leg pricing
+            // GFI sends Premium as INTEGER (e.g., -53600, not -536.00)
+            if (string.IsNullOrEmpty(quotePremium))
+            {
+                // Calculate from legs if needed
+                if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+                {
+                    double totalPremium = 0;
+                    foreach (var leg in quote.LegPricing)
+                    {
+                        if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
+                        {
+                            totalPremium += legPrem;
+                        }
+                    }
+                    // Format as decimal with 2 places (fallback format)
+                    quotePremium = totalPremium.ToString("F2");
+                }
+            }
+
             if (!string.IsNullOrEmpty(quotePremium))
             {
-                // Use premium EXACTLY as received from quote - do NOT recalculate!
-                AddField(6436, quotePremium); // Premium - exact value from quote
+                // Use premium exactly as received from quote, or calculated if not available
+                AddField(6436, quotePremium);
             }
 
             AddField(9126, structureCode.ToString()); // Structure
