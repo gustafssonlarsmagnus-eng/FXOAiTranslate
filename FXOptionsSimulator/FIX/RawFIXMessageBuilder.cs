@@ -282,30 +282,23 @@ namespace FXOptionsSimulator.FIX
                 AddField(131, quoteReqID); // QuoteReqID
             }
 
-            // Per GFI: Must send aggregate Premium and PremiumCcy at message level
-            // Calculate total premium from all legs (preserve sign!)
-            string premiumCcy = "USD"; // default
-            if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+            // Premium and PremiumCcy - use EXACT values from quote
+            // GFI sends Premium (6436) as integer, NOT decimal - echo it back exactly
+            string quotePremium = quote.Get("6436"); // Premium from quote
+            string premiumCcy = quote.Get("5830"); // PremiumCcy from quote
+
+            if (string.IsNullOrEmpty(premiumCcy))
             {
-                double totalPremium = 0;
-                foreach (var leg in quote.LegPricing)
-                {
-                    if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
-                    {
-                        totalPremium += legPrem;
-                    }
-                }
+                // Fallback: for EURUSD, premium is typically in USD (term currency)
+                premiumCcy = symbol.Length >= 6 ? symbol.Substring(3, 3) : "USD";
+            }
 
-                // Get PremiumCcy from quote (should be same as quote currency)
-                premiumCcy = quote.Get("5830"); // Try to get from quote first
-                if (string.IsNullOrEmpty(premiumCcy))
-                {
-                    // Fallback: for EURUSD, premium is typically in USD (term currency)
-                    premiumCcy = symbol.Length >= 6 ? symbol.Substring(3, 3) : "USD";
-                }
+            AddField(5830, premiumCcy); // PremiumCcy
 
-                AddField(5830, premiumCcy); // PremiumCcy
-                AddField(6436, totalPremium.ToString("F2")); // Premium - aggregate, preserve sign
+            if (!string.IsNullOrEmpty(quotePremium))
+            {
+                // Use premium EXACTLY as received from quote - do NOT recalculate!
+                AddField(6436, quotePremium); // Premium - exact value from quote
             }
 
             AddField(9126, structureCode.ToString()); // Structure
