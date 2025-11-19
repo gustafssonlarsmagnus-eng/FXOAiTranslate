@@ -132,10 +132,9 @@ namespace FXOptionsSimulator.FIX
                 string sideStr = quote.GetString(Tags.Side);
                 string side = sideStr == "1" ? "BID" : "OFFER";
 
-                Console.WriteLine($"\n[GFI FIX] <<< REAL QUOTE (35=S)");
-                Console.WriteLine($"  LP: {lpName}");
-                Console.WriteLine($"  QuoteReqID: {quoteReqID}");
-                Console.WriteLine($"  Side: {side}");
+                // Compact trace for easy timeline analysis
+                string timestamp = quote.Header.GetString(Tags.SendingTime);
+                Console.WriteLine($"[TRACE] {timestamp} | QUOTE_RCV | {side,5} {quoteID} | LP={lpName}");
 
                 var fixMsg = ConvertQuoteToFIXMessage(quote);
 
@@ -207,11 +206,16 @@ namespace FXOptionsSimulator.FIX
                     ? message.QuoteCancelType.getValue()
                     : 0;
 
-                Console.WriteLine($"[GFI FIX] <<< Quote Cancel (35=Z)");
-                Console.WriteLine($"  LP: {lpName}");
-                Console.WriteLine($"  QuoteReqID: {quoteReqID}");
-                Console.WriteLine($"  QuoteID: {quoteID}");
-                Console.WriteLine($"  CancelType: {cancelType}");
+                // Extract the actual QuoteID being cancelled from tag 9262
+                string cancelledQuoteID = "N/A";
+                if (message.IsSetField(9262))
+                {
+                    cancelledQuoteID = message.GetString(9262);
+                }
+
+                // Compact trace for quote cancellations
+                string timestamp = message.Header.GetString(Tags.SendingTime);
+                Console.WriteLine($"[TRACE] {timestamp} | QUOTE_CXL | {cancelledQuoteID}");
 
                 // Update your quotes dictionary to mark as canceled
                 string key = $"{quoteReqID}_{lpName}";
@@ -337,30 +341,27 @@ namespace FXOptionsSimulator.FIX
             string ordStatus = execReport.GetString(Tags.OrdStatus);
             string execID = execReport.IsSetField(Tags.ExecID) ? execReport.GetString(Tags.ExecID) : "N/A";
 
-            Console.WriteLine($"\n[GFI FIX] <<< Execution Report (35=8)");
-            Console.WriteLine($"  ClOrdID: {clOrdID}");
-            Console.WriteLine($"  ExecID: {execID}");
-            Console.WriteLine($"  Status: {ordStatus}");
-
             string statusText = "PENDING";
             string rejectReason = null;
 
             if (ordStatus == "2")
             {
-                Console.WriteLine("  ✓ FILLED!");
                 statusText = "FILLED";
             }
             else if (ordStatus == "8")
             {
-                Console.WriteLine("  ✗ REJECTED");
                 statusText = "REJECTED";
 
                 if (execReport.IsSetField(58))
                 {
                     rejectReason = execReport.GetString(58);
-                    Console.WriteLine($"  Reason: {rejectReason}");
                 }
             }
+
+            // Compact trace for execution results
+            string timestamp = execReport.Header.GetString(Tags.SendingTime);
+            string reason = rejectReason != null ? $" | {rejectReason}" : "";
+            Console.WriteLine($"[TRACE] {timestamp} | EXEC_RPT  | {statusText} {clOrdID}{reason}");
 
             // Update blotter
             TradeBlotter.Instance.UpdateTradeStatus(clOrdID, statusText, execID, null, rejectReason);

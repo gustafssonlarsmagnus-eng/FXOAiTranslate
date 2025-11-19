@@ -362,7 +362,10 @@ namespace FXOptionsSimulator.FIX
                 {
                     // Manually increment the sequence number since we sent raw
                     session.NextSenderMsgSeqNum = seqNum + 1;
-                    Console.WriteLine($"[FIX Manager] ✓ Execution sent (SeqNum={seqNum})");
+
+                    // Compact trace for execution sends
+                    string timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HH:mm:ss.fff");
+                    Console.WriteLine($"[TRACE] {timestamp} | EXEC_SEND | {side,4} using {quoteID} | ClOrdID={clOrdID}");
                 }
                 else
                 {
