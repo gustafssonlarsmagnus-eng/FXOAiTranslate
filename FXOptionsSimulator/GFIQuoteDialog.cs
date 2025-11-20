@@ -71,6 +71,9 @@ namespace FXOAiTranslator
             lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
             PopulateLegGrid();
 
+            // Initialize currency conversion checkbox (needs _trade to be set first)
+            InitializeCurrencyConversionCheckbox();
+
             // Subscribe to quote events
             _fixSession.Application.OnQuoteReceived += OnQuoteReceivedFromFIX;
         }
@@ -353,20 +356,6 @@ namespace FXOAiTranslator
             };
             gbLPs.Controls.Add(chkDBS);
 
-            // Premium currency toggle - dynamically set text based on pair
-            string baseCcy = _trade.Underlying.Substring(0, 3);  // e.g., "EUR" from "EURUSD"
-            string termCcy = _trade.Underlying.Substring(3, 3);  // e.g., "USD" from "EURUSD"
-
-            chkShowPremiumInUSD = new CheckBox
-            {
-                Text = $"Show Premiums in {baseCcy} (convert from {termCcy} if needed)",
-                Location = new Point(20, 315),
-                Size = new Size(450, 20),
-                Checked = false  // Default: show in original currency
-            };
-            chkShowPremiumInUSD.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh display when toggled
-            this.Controls.Add(chkShowPremiumInUSD);
-
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
             {
@@ -489,6 +478,23 @@ namespace FXOAiTranslator
             _countdownTimer = new System.Windows.Forms.Timer();
             _countdownTimer.Interval = 1000; // Update every second
             _countdownTimer.Tick += CountdownTimer_Tick;
+        }
+
+        private void InitializeCurrencyConversionCheckbox()
+        {
+            // Premium currency toggle - dynamically set text based on pair
+            string baseCcy = _trade.Underlying.Substring(0, 3);  // e.g., "EUR" from "EURUSD"
+            string termCcy = _trade.Underlying.Substring(3, 3);  // e.g., "USD" from "EURUSD"
+
+            chkShowPremiumInUSD = new CheckBox
+            {
+                Text = $"Show Premiums in {baseCcy} (convert from {termCcy} if needed)",
+                Location = new Point(20, 315),
+                Size = new Size(450, 20),
+                Checked = false  // Default: show in original currency
+            };
+            chkShowPremiumInUSD.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh display when toggled
+            this.Controls.Add(chkShowPremiumInUSD);
         }
 
         private void PopulateLegGrid()
