@@ -563,30 +563,26 @@ namespace FXOAiTranslator
             if (!dgvQuotes.Columns.Contains("NetPremBid") || !dgvQuotes.Columns.Contains("NetPremOffer"))
                 return;
 
+            // Get base and term currencies from the pair
+            string baseCcy = _trade.Underlying.Substring(0, 3);  // EUR or USD
+            string termCcy = _trade.Underlying.Substring(3, 3);  // USD or SEK
+
             // Determine currency to display
             string displayCcy = "";
             if (chkShowPremiumInUSD != null && chkShowPremiumInUSD.Checked)
             {
-                // When checked, showing in base currency
-                displayCcy = _trade.Underlying.Substring(0, 3);  // EUR, USD, etc.
+                // When checked, showing in base currency (converted)
+                displayCcy = baseCcy;
             }
             else
             {
-                // When unchecked, showing original currency (could be mixed)
-                displayCcy = ""; // Don't show specific currency as it could be mixed
+                // When unchecked, showing in term currency (what LPs typically send)
+                displayCcy = termCcy;
             }
 
             // Update column headers
-            if (!string.IsNullOrEmpty(displayCcy))
-            {
-                dgvQuotes.Columns["NetPremBid"].HeaderText = $"Rec {displayCcy}";
-                dgvQuotes.Columns["NetPremOffer"].HeaderText = $"Pay {displayCcy}";
-            }
-            else
-            {
-                dgvQuotes.Columns["NetPremBid"].HeaderText = "Rec";
-                dgvQuotes.Columns["NetPremOffer"].HeaderText = "Pay";
-            }
+            dgvQuotes.Columns["NetPremBid"].HeaderText = $"Rec {displayCcy}";
+            dgvQuotes.Columns["NetPremOffer"].HeaderText = $"Pay {displayCcy}";
         }
 
         private void BtnRequestQuotes_Click(object sender, EventArgs e)
@@ -993,6 +989,8 @@ namespace FXOAiTranslator
 
             // Currency conversion if checkbox is checked
             // When checked: always show in BASE currency (convert from TERM if needed)
+            Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: Checkbox={(chkShowPremiumInUSD?.Checked ?? false)}, PremCcy='{premiumCcy}', Spot='{spotRef ?? "null"}'");
+
             if (chkShowPremiumInUSD != null && chkShowPremiumInUSD.Checked && !string.IsNullOrEmpty(spotRef))
             {
                 // Get base and term currencies from the pair
@@ -1000,9 +998,12 @@ namespace FXOAiTranslator
                 string baseCcy = pair.Substring(0, 3);  // EUR or USD
                 string termCcy = pair.Substring(3, 3);  // USD or SEK
 
+                Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: Pair={pair}, BaseCcy={baseCcy}, TermCcy={termCcy}");
+
                 if (double.TryParse(spotRef, out double spot))
                 {
                     string premCcy = premiumCcy.ToUpperInvariant();
+                    Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: PremCcy.Upper='{premCcy}', Comparing with TermCcy='{termCcy.ToUpperInvariant()}', BaseCcy='{baseCcy.ToUpperInvariant()}'");
 
                     // If premium is in term currency, convert to base currency
                     if (premCcy == termCcy.ToUpperInvariant())
@@ -1020,6 +1021,14 @@ namespace FXOAiTranslator
                         Console.WriteLine($"[PREMIUM CONVERT] {lpName} {side}: Already in {baseCcy} {rawPremium.Value:F2}, no conversion needed");
                         return rawPremium.Value;
                     }
+                    else
+                    {
+                        Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: PremCcy '{premCcy}' doesn't match BaseCcy '{baseCcy}' or TermCcy '{termCcy}' - no conversion");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: Failed to parse spot rate '{spotRef}'");
                 }
             }
 
