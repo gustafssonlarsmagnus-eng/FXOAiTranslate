@@ -618,6 +618,10 @@ namespace FXOAiTranslator
                 return;
             }
 
+            // Check if columns exist (grid might be recreating)
+            if (!dgvQuotes.Columns.Contains("TTL") || !dgvQuotes.Columns.Contains("ValidUntilTime"))
+                return;
+
             var nowUtc = DateTime.UtcNow;
 
             // Completely suspend painting using WinAPI (more aggressive than SuspendLayout)
@@ -1088,6 +1092,12 @@ namespace FXOAiTranslator
                 dgvBlotter.Invoke(new Action(() => OnTradeUpdatedInBlotter(entry)));
                 return;
             }
+
+            // Check if columns exist (grid might be recreating)
+            if (!dgvBlotter.Columns.Contains("ClOrdID") ||
+                !dgvBlotter.Columns.Contains("Status") ||
+                !dgvBlotter.Columns.Contains("Premium"))
+                return;
 
             // Find the row with matching ClOrdID and update it
             foreach (DataGridViewRow row in dgvBlotter.Rows)
