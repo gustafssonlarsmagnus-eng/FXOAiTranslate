@@ -51,23 +51,6 @@ namespace FXOAiTranslator
             _trade = OVMLBridge.ConvertToTradeStructure(ovmlResult);
             _fixSession = GlobalFIXSession.Instance;  // Changed
 
-            Console.WriteLine($"\n=== TRADE STRUCTURE DEBUG ===");
-            Console.WriteLine($"StructureType: {_trade.StructureType}");
-            Console.WriteLine($"Underlying: {_trade.Underlying}");
-            Console.WriteLine($"Leg Count: {_trade.Legs.Count}");
-
-            for (int i = 0; i < _trade.Legs.Count; i++)
-            {
-                var leg = _trade.Legs[i];
-                Console.WriteLine($"\nLeg {i}:");
-                Console.WriteLine($"  Direction: {leg.Direction}");
-                Console.WriteLine($"  OptionType: {leg.OptionType}");
-                Console.WriteLine($"  Strike: {leg.Strike}");
-                Console.WriteLine($"  NotionalMM: {leg.NotionalMM}");
-                Console.WriteLine($"  Tenor: {leg.Tenor}");
-            }
-            Console.WriteLine($"=========================\n");
-
             lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
             PopulateLegGrid();
 
@@ -238,7 +221,7 @@ namespace FXOAiTranslator
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[Tenor Change] Error recalculating expiry: {ex.Message}");
+                            // Silently handle expiry recalculation errors
                         }
                     }
                 }
@@ -634,14 +617,6 @@ namespace FXOAiTranslator
             // Generate group ID
             _groupId = $"3-REQ{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
-            Console.WriteLine($"\n[Quote Request] Sending {selectedLegCount} legs:");
-            for (int i = 0; i < _trade.Legs.Count; i++)
-            {
-                var leg = _trade.Legs[i];
-                Console.WriteLine($"  Leg {i}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike}");
-            }
-            Console.WriteLine();
-
             // Send quote request to each LP
             // Note: hedge parameter defaults to false - GFI sends both BID and OFFER quotes regardless
             foreach (var lp in lps)
@@ -649,11 +624,10 @@ namespace FXOAiTranslator
                 try
                 {
                     string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId);
-                    Console.WriteLine($"[Quote Request] Sent to {lp}: {quoteReqID}");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Quote Request] Error sending to {lp}: {ex.Message}");
+                    // Silently handle errors
                 }
             }
         }
@@ -705,13 +679,6 @@ namespace FXOAiTranslator
             }
 
             _trade.Legs = selectedLegs;
-
-            Console.WriteLine($"\n[Quote Request] Sending {selectedLegs.Count} legs:");
-            for (int i = 0; i < selectedLegs.Count; i++)
-            {
-                var leg = selectedLegs[i];
-                Console.WriteLine($"  Leg {i}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike}");
-            }
         }
 
         private void QuoteTimer_Tick(object sender, EventArgs e)
@@ -728,7 +695,6 @@ namespace FXOAiTranslator
                 return;
             }
 
-            Console.WriteLine($"[UI] Quote received: {quoteReqID}");
             UpdateQuoteDisplay();
         }
 
@@ -1168,20 +1134,13 @@ namespace FXOAiTranslator
                 }
 
                 // ===== QUOTE FRESHNESS VALIDATION =====
-                Console.WriteLine($"\n[VALIDATION] Starting quote freshness check for {lpName}");
-                Console.WriteLine($"[VALIDATION] Original QuoteID: {selectedQuote.Get(Tags.QuoteID.ToString())}");
-                Console.WriteLine($"[VALIDATION] Selected Quote Side (tag 54): {selectedQuote.Get("54")} ({(selectedQuote.Get("54") == "1" ? "BID" : selectedQuote.Get("54") == "2" ? "OFFER" : "UNKNOWN")})");
-                Console.WriteLine($"[VALIDATION] User Action: {side}");
-
                 // Re-fetch streams to check current quote state
                 // NOTE: No delay - execute as fast as possible to minimize window for LP to update quote
-                Console.WriteLine($"[VALIDATION] Re-fetching streams for GroupID: {_groupId}");
                 var refreshedStreams = _fixSession.Application.GetActiveStreams(_groupId);
                 var refreshedStream = refreshedStreams.FirstOrDefault(s => s.LP == lpName);
 
                 if (refreshedStream == null)
                 {
-                    Console.WriteLine($"[VALIDATION] ✗ Stream for {lpName} NOT FOUND - quote no longer available!");
                     MessageBox.Show(
                         $"Quote from {lpName} is no longer available.\n\nPlease request fresh quotes.",
                         "Quote No Longer Available",
@@ -1191,14 +1150,12 @@ namespace FXOAiTranslator
                     _quoteTimer?.Start();
                     return;
                 }
-                Console.WriteLine($"[VALIDATION] ✓ Stream for {lpName} found");
 
                 // Check if the specific side (bid/offer) was canceled
                 FIXMessage refreshedQuote = side == "SELL" ? refreshedStream.BidQuote : refreshedStream.OfferQuote;
 
                 if (refreshedQuote == null)
                 {
-                    Console.WriteLine($"[VALIDATION] ✗ Quote for side={side} from {lpName} is NULL - was canceled!");
                     MessageBox.Show(
                         $"Quote from {lpName} was just canceled.\n\nPlease request fresh quotes.",
                         "Quote Canceled",
@@ -1208,7 +1165,6 @@ namespace FXOAiTranslator
                     _quoteTimer?.Start();
                     return;
                 }
-                Console.WriteLine($"[VALIDATION] ✓ Quote for side={side} exists");
 
                 // Check if the QuoteID changed (quote was replaced)
                 string originalQuoteID = selectedQuote.Get(Tags.QuoteID.ToString());
@@ -1216,7 +1172,6 @@ namespace FXOAiTranslator
 
                 if (originalQuoteID != currentQuoteID)
                 {
-                    Console.WriteLine($"[VALIDATION] ✗ QuoteID CHANGED! Old={originalQuoteID}, New={currentQuoteID}");
                     MessageBox.Show(
                         $"Quote from {lpName} was updated.\n\nOld QuoteID: {originalQuoteID}\nNew QuoteID: {currentQuoteID}\n\nPlease review the updated price.",
                         "Quote Updated",
@@ -1230,11 +1185,8 @@ namespace FXOAiTranslator
                     return;
                 }
 
-                Console.WriteLine($"[VALIDATION] ✓ QuoteID unchanged: {currentQuoteID}");
-
                 // Check ValidUntilTime (tag 62) - quote expiration
                 string validUntilStr = refreshedQuote.Get("62");
-                Console.WriteLine($"[VALIDATION] ValidUntilTime (tag 62): {validUntilStr}");
 
                 if (!string.IsNullOrEmpty(validUntilStr))
                 {
@@ -1244,11 +1196,9 @@ namespace FXOAiTranslator
                         out DateTime validUntil))
                     {
                         var timeRemaining = validUntil - DateTime.UtcNow;
-                        Console.WriteLine($"[VALIDATION] Time remaining: {timeRemaining.TotalSeconds:F1}s");
 
                         if (timeRemaining.TotalSeconds <= 0)
                         {
-                            Console.WriteLine($"[VALIDATION] ✗ Quote EXPIRED! ValidUntil={validUntil:HH:mm:ss}, Now={DateTime.UtcNow:HH:mm:ss}");
                             MessageBox.Show(
                                 $"Quote from {lpName} has expired.\n\nExpired: {-timeRemaining.TotalSeconds:F1}s ago\n\nPlease request fresh quotes.",
                                 "Quote Expired",
@@ -1261,7 +1211,6 @@ namespace FXOAiTranslator
 
                         if (timeRemaining.TotalSeconds < 2)
                         {
-                            Console.WriteLine($"[VALIDATION] ⚠ Quote expiring very soon ({timeRemaining.TotalSeconds:F1}s)");
                             var result = MessageBox.Show(
                                 $"WARNING: Quote expires in {timeRemaining.TotalSeconds:F1}s!\n\nThere may not be enough time to execute.\n\nProceed anyway?",
                                 "Quote Expiring Soon",
@@ -1271,22 +1220,15 @@ namespace FXOAiTranslator
 
                             if (result == DialogResult.No)
                             {
-                                Console.WriteLine($"[VALIDATION] User declined to execute expiring quote");
                                 _quoteTimer?.Start();
                                 return;
                             }
                         }
-
-                        Console.WriteLine($"[VALIDATION] ✓ Quote is valid (expires in {timeRemaining.TotalSeconds:F1}s)");
                     }
                 }
 
-                Console.WriteLine($"[VALIDATION] ✓ All checks passed - proceeding with execution\n");
-
                 // Use the refreshed quote for execution to ensure we have the latest data
                 selectedQuote = refreshedQuote;
-                Console.WriteLine($"[VALIDATION] FINAL Quote Side before execution: {selectedQuote.Get("54")} ({(selectedQuote.Get("54") == "1" ? "BID" : selectedQuote.Get("54") == "2" ? "OFFER" : "UNKNOWN")})");
-                Console.WriteLine($"[VALIDATION] FINAL QuoteID before execution: {selectedQuote.Get(Tags.QuoteID.ToString())}");
                 // ===== END QUOTE FRESHNESS VALIDATION =====
 
                 string clOrdID = _fixSession.SendExecution(selectedQuote, side, _trade);
