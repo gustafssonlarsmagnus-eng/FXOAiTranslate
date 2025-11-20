@@ -484,14 +484,13 @@ namespace FXOAiTranslator
         {
             // Premium currency toggle - dynamically set text based on pair
             string baseCcy = _trade.Underlying.Substring(0, 3);  // e.g., "EUR" from "EURUSD"
-            string termCcy = _trade.Underlying.Substring(3, 3);  // e.g., "USD" from "EURUSD"
 
             chkShowPremiumInUSD = new CheckBox
             {
-                Text = $"Show Premiums in {baseCcy} (convert from {termCcy} if needed)",
+                Text = $"Premium {baseCcy}",
                 Location = new Point(20, 315),
-                Size = new Size(450, 20),
-                Checked = false  // Default: show in original currency
+                Size = new Size(150, 20),
+                Checked = false  // Default: show in term currency (unchecked)
             };
             chkShowPremiumInUSD.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh display when toggled
             this.Controls.Add(chkShowPremiumInUSD);
