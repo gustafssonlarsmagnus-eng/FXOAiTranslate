@@ -785,14 +785,14 @@ namespace FXOAiTranslator
                     var bidStr = dgvQuotes.Rows[i].Cells["NetPremBid"].Value?.ToString();
                     var offerStr = dgvQuotes.Rows[i].Cells["NetPremOffer"].Value?.ToString();
 
-                    if (bestBid.HasValue && double.TryParse(bidStr, System.Globalization.NumberStyles.AllowThousands, null, out double bidVal) &&
+                    if (bestBid.HasValue && double.TryParse(bidStr?.Replace(",", ""), out double bidVal) &&
                         Math.Abs(bidVal - bestBid.Value) < 0.01)
                     {
                         dgvQuotes.Rows[i].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
                         dgvQuotes.Rows[i].Cells["NetPremBid"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
                     }
 
-                    if (bestOffer.HasValue && double.TryParse(offerStr, System.Globalization.NumberStyles.AllowThousands, null, out double offerVal) &&
+                    if (bestOffer.HasValue && double.TryParse(offerStr?.Replace(",", ""), out double offerVal) &&
                         Math.Abs(offerVal - bestOffer.Value) < 0.01)
                     {
                         dgvQuotes.Rows[i].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
