@@ -488,8 +488,8 @@ namespace FXOAiTranslator
 
             togglePremiumCurrency = new ToggleSwitch
             {
-                Location = new Point(350, 300),  // Centered above quote grid
-                Size = new Size(300, 40),         // Larger and more prominent
+                Location = new Point(20, 315),    // Left-aligned with other controls
+                Size = new Size(120, 24),         // Compact size (2/3 of previous)
                 LeftText = termCcy,               // Off state shows term currency (USD for EURUSD)
                 RightText = baseCcy,              // On state shows base currency (EUR for EURUSD)
                 Checked = false                   // Default: show in term currency (unchecked)
