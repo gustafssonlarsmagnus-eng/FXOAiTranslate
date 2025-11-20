@@ -488,11 +488,11 @@ namespace FXOAiTranslator
 
             togglePremiumCurrency = new ToggleSwitch
             {
-                Location = new Point(20, 310),
-                Size = new Size(200, 30),
-                LeftText = termCcy,   // Off state shows term currency (USD for EURUSD)
-                RightText = baseCcy,  // On state shows base currency (EUR for EURUSD)
-                Checked = false       // Default: show in term currency (unchecked)
+                Location = new Point(350, 300),  // Centered above quote grid
+                Size = new Size(300, 40),         // Larger and more prominent
+                LeftText = termCcy,               // Off state shows term currency (USD for EURUSD)
+                RightText = baseCcy,              // On state shows base currency (EUR for EURUSD)
+                Checked = false                   // Default: show in term currency (unchecked)
             };
             togglePremiumCurrency.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh display when toggled
             this.Controls.Add(togglePremiumCurrency);

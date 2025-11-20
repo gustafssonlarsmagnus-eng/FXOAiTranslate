@@ -81,15 +81,31 @@ namespace FXOptionsSimulator
         {
             base.OnPaint(e);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            // Calculate dimensions
-            int switchWidth = 50;
-            int switchHeight = 24;
-            int thumbSize = 20;
+            // Draw background panel with highlight when EUR is selected
+            if (_checked)
+            {
+                using (var panelBrush = new SolidBrush(Color.FromArgb(230, 240, 255))) // Light blue background
+                using (var panelPath = GetRoundedRect(0, 0, this.Width, this.Height, 5))
+                {
+                    e.Graphics.FillPath(panelBrush, panelPath);
+                }
+                using (var borderPen = new Pen(Color.FromArgb(0, 120, 215), 2)) // Blue border
+                using (var borderPath = GetRoundedRect(1, 1, this.Width - 2, this.Height - 2, 5))
+                {
+                    e.Graphics.DrawPath(borderPen, borderPath);
+                }
+            }
+
+            // Calculate dimensions - LARGER switch
+            int switchWidth = 70;
+            int switchHeight = 32;
+            int thumbSize = 28;
             int padding = 2;
 
-            // Calculate positions
-            int switchX = this.Width - switchWidth;
+            // Calculate positions - CENTER the switch
+            int switchX = (this.Width - switchWidth) / 2;
             int switchY = (this.Height - switchHeight) / 2;
             int thumbX = (int)(switchX + padding + (switchWidth - thumbSize - padding * 2) * _thumbPosition);
             int thumbY = switchY + padding;
@@ -102,36 +118,40 @@ namespace FXOptionsSimulator
                 e.Graphics.FillPath(brush, path);
             }
 
-            // Draw thumb
+            // Draw thumb with shadow for depth
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(50, 0, 0, 0)))
+            {
+                e.Graphics.FillEllipse(shadowBrush, thumbX + 1, thumbY + 2, thumbSize, thumbSize);
+            }
             using (var brush = new SolidBrush(Color.White))
             {
                 e.Graphics.FillEllipse(brush, thumbX, thumbY, thumbSize, thumbSize);
             }
 
-            // Draw text labels
-            using (var font = new Font("Segoe UI", 9F))
-            using (var brush = new SolidBrush(this.ForeColor))
+            // Draw text labels - LARGER and BOLDER
+            using (var font = new Font("Segoe UI", 11F, _checked ? FontStyle.Regular : FontStyle.Bold))
+            using (var fontChecked = new Font("Segoe UI", 11F, _checked ? FontStyle.Bold : FontStyle.Regular))
             {
                 // Left text (unchecked state)
                 string leftLabel = _leftText;
                 SizeF leftSize = e.Graphics.MeasureString(leftLabel, font);
-                float leftX = switchX - leftSize.Width - 10;
+                float leftX = switchX - leftSize.Width - 15;
                 float leftY = (this.Height - leftSize.Height) / 2;
 
-                using (var leftBrush = new SolidBrush(_checked ? Color.Gray : this.ForeColor))
+                using (var leftBrush = new SolidBrush(_checked ? Color.FromArgb(150, 150, 150) : Color.Black))
                 {
                     e.Graphics.DrawString(leftLabel, font, leftBrush, leftX, leftY);
                 }
 
-                // Right text (checked state)
+                // Right text (checked state) - HIGHLIGHTED when checked
                 string rightLabel = _rightText;
-                SizeF rightSize = e.Graphics.MeasureString(rightLabel, font);
-                float rightX = switchX + switchWidth + 10;
+                SizeF rightSize = e.Graphics.MeasureString(rightLabel, fontChecked);
+                float rightX = switchX + switchWidth + 15;
                 float rightY = (this.Height - rightSize.Height) / 2;
 
-                using (var rightBrush = new SolidBrush(_checked ? this.ForeColor : Color.Gray))
+                using (var rightBrush = new SolidBrush(_checked ? Color.FromArgb(0, 100, 180) : Color.FromArgb(150, 150, 150)))
                 {
-                    e.Graphics.DrawString(rightLabel, font, rightBrush, rightX, rightY);
+                    e.Graphics.DrawString(rightLabel, fontChecked, rightBrush, rightX, rightY);
                 }
             }
         }
