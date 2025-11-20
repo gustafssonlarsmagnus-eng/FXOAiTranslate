@@ -525,13 +525,17 @@ namespace FXOAiTranslator
             dgvQuotes.Columns.Add("LP", "LP");
             dgvQuotes.Columns["LP"].Width = 80;
 
-            dgvQuotes.Columns.Add("NetPremBid", "Net Prem (Bid)");
+            // Will be updated dynamically based on currency display mode
+            dgvQuotes.Columns.Add("NetPremBid", "Rec");
             dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.Format = "N0"; // Raw integer values
             dgvQuotes.Columns["NetPremBid"].Width = 100;
 
-            dgvQuotes.Columns.Add("NetPremOffer", "Net Prem (Offer)");
+            dgvQuotes.Columns.Add("NetPremOffer", "Pay");
             dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Format = "N0"; // Raw integer values
             dgvQuotes.Columns["NetPremOffer"].Width = 110;
+
+            // Update headers with currency
+            UpdatePremiumColumnHeaders();
 
             for (int i = 1; i <= legCount; i++)
             {
@@ -551,6 +555,38 @@ namespace FXOAiTranslator
             dgvQuotes.Columns["TTL"].Width = 90;
             dgvQuotes.Columns.Add("ValidUntilTime", "ValidUntilTime");  // Hidden column to store expiry time
             dgvQuotes.Columns["ValidUntilTime"].Visible = false;
+        }
+
+        private void UpdatePremiumColumnHeaders()
+        {
+            // Check if columns exist
+            if (!dgvQuotes.Columns.Contains("NetPremBid") || !dgvQuotes.Columns.Contains("NetPremOffer"))
+                return;
+
+            // Determine currency to display
+            string displayCcy = "";
+            if (chkShowPremiumInUSD != null && chkShowPremiumInUSD.Checked)
+            {
+                // When checked, showing in base currency
+                displayCcy = _trade.Underlying.Substring(0, 3);  // EUR, USD, etc.
+            }
+            else
+            {
+                // When unchecked, showing original currency (could be mixed)
+                displayCcy = ""; // Don't show specific currency as it could be mixed
+            }
+
+            // Update column headers
+            if (!string.IsNullOrEmpty(displayCcy))
+            {
+                dgvQuotes.Columns["NetPremBid"].HeaderText = $"Rec {displayCcy}";
+                dgvQuotes.Columns["NetPremOffer"].HeaderText = $"Pay {displayCcy}";
+            }
+            else
+            {
+                dgvQuotes.Columns["NetPremBid"].HeaderText = "Rec";
+                dgvQuotes.Columns["NetPremOffer"].HeaderText = "Pay";
+            }
         }
 
         private void BtnRequestQuotes_Click(object sender, EventArgs e)
@@ -700,6 +736,9 @@ namespace FXOAiTranslator
 
         private void UpdateQuoteDisplay()
         {
+            // Update column headers based on currency display mode
+            UpdatePremiumColumnHeaders();
+
             dgvQuotes.Rows.Clear();
             var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
 
