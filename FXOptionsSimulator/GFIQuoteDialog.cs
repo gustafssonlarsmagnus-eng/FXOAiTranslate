@@ -41,7 +41,7 @@ namespace FXOAiTranslator
         private CheckBox chkDeut;
         private CheckBox chkDBS;
         private int _selectedLegCount;
-        private CheckBox chkShowPremiumInUSD;  // Toggle for premium currency display
+        private ToggleSwitch togglePremiumCurrency;  // Toggle for premium currency display
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -484,16 +484,18 @@ namespace FXOAiTranslator
         {
             // Premium currency toggle - dynamically set text based on pair
             string baseCcy = _trade.Underlying.Substring(0, 3);  // e.g., "EUR" from "EURUSD"
+            string termCcy = _trade.Underlying.Substring(3, 3);  // e.g., "USD" from "EURUSD"
 
-            chkShowPremiumInUSD = new CheckBox
+            togglePremiumCurrency = new ToggleSwitch
             {
-                Text = $"Premium {baseCcy}",
-                Location = new Point(20, 315),
-                Size = new Size(150, 20),
-                Checked = false  // Default: show in term currency (unchecked)
+                Location = new Point(20, 310),
+                Size = new Size(200, 30),
+                LeftText = termCcy,   // Off state shows term currency (USD for EURUSD)
+                RightText = baseCcy,  // On state shows base currency (EUR for EURUSD)
+                Checked = false       // Default: show in term currency (unchecked)
             };
-            chkShowPremiumInUSD.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh display when toggled
-            this.Controls.Add(chkShowPremiumInUSD);
+            togglePremiumCurrency.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh display when toggled
+            this.Controls.Add(togglePremiumCurrency);
         }
 
         private void PopulateLegGrid()
@@ -568,7 +570,7 @@ namespace FXOAiTranslator
 
             // Determine currency to display
             string displayCcy = "";
-            if (chkShowPremiumInUSD != null && chkShowPremiumInUSD.Checked)
+            if (togglePremiumCurrency != null && togglePremiumCurrency.Checked)
             {
                 // When checked, showing in base currency (converted)
                 displayCcy = baseCcy;
@@ -986,11 +988,11 @@ namespace FXOAiTranslator
             if (!rawPremium.HasValue)
                 return null;
 
-            // Currency conversion if checkbox is checked
+            // Currency conversion if toggle is checked
             // When checked: always show in BASE currency (convert from TERM if needed)
-            Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: Checkbox={(chkShowPremiumInUSD?.Checked ?? false)}, PremCcy='{premiumCcy}', Spot='{spotRef ?? "null"}'");
+            Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: Toggle={(togglePremiumCurrency?.Checked ?? false)}, PremCcy='{premiumCcy}', Spot='{spotRef ?? "null"}'");
 
-            if (chkShowPremiumInUSD != null && chkShowPremiumInUSD.Checked && !string.IsNullOrEmpty(spotRef))
+            if (togglePremiumCurrency != null && togglePremiumCurrency.Checked && !string.IsNullOrEmpty(spotRef))
             {
                 // Get base and term currencies from the pair
                 string pair = _trade.Underlying;  // e.g., "EURUSD" or "USDSEK"
