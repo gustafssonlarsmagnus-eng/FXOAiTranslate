@@ -20,6 +20,7 @@ namespace FXOAiTranslator
         private TradeStructure _trade;
         private string _groupId;
         private System.Windows.Forms.Timer _quoteTimer;
+        private System.Windows.Forms.Timer _countdownTimer;
         private DataGridView dgvQuotes;
         private DataGridView dgvLegs;
         private DataGridView dgvBlotter;  // NEW: Trade blotter grid
@@ -472,6 +473,11 @@ namespace FXOAiTranslator
             // Subscribe to blotter events to update grid
             TradeBlotter.Instance.OnTradeAdded += OnTradeAddedToBlotter;
             TradeBlotter.Instance.OnTradeUpdated += OnTradeUpdatedInBlotter;
+
+            // Countdown timer for quote expiry
+            _countdownTimer = new System.Windows.Forms.Timer();
+            _countdownTimer.Interval = 1000; // Update every second
+            _countdownTimer.Tick += CountdownTimer_Tick;
         }
 
         private void InitializeCurrencyConversionCheckbox()
@@ -757,42 +763,7 @@ namespace FXOAiTranslator
                 // Extract ValidUntilTime (tag 62) from the quote
                 string validUntilStr = stream.OfferQuote?.Get("62") ?? stream.BidQuote?.Get("62");
 
-                // Calculate TTL immediately
-                string ttlDisplay = "-";
-                if (!string.IsNullOrEmpty(validUntilStr))
-                {
-                    Console.WriteLine($"[TTL DEBUG] LP={stream.LP}, ValidUntilTime (tag 62)='{validUntilStr}', Now={DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-
-                    // Try different date formats
-                    DateTime validUntil;
-                    bool parsed = DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out validUntil);
-                    if (!parsed)
-                    {
-                        parsed = DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss.fff", null, System.Globalization.DateTimeStyles.None, out validUntil);
-                    }
-
-                    if (parsed)
-                    {
-                        Console.WriteLine($"[TTL DEBUG] Parsed ValidUntil={validUntil:yyyy-MM-dd HH:mm:ss}");
-                        TimeSpan remaining = validUntil - DateTime.Now;
-                        Console.WriteLine($"[TTL DEBUG] Remaining seconds={remaining.TotalSeconds}");
-
-                        if (remaining.TotalSeconds > 0)
-                        {
-                            ttlDisplay = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
-                        }
-                        else
-                        {
-                            ttlDisplay = "EXPIRED";
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[TTL DEBUG] Failed to parse ValidUntilTime format");
-                    }
-                }
-
-                rowData.Add(ttlDisplay); // TTL
+                rowData.Add(""); // TTL - will be calculated by countdown timer
                 rowData.Add(validUntilStr ?? ""); // Hidden ValidUntilTime column
 
                 var rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
@@ -822,6 +793,43 @@ namespace FXOAiTranslator
 
             // Clear selection so best price highlighting is visible (not covered by blue selection)
             dgvQuotes.ClearSelection();
+
+            // Start countdown timer
+            if (!_countdownTimer.Enabled)
+                _countdownTimer.Start();
+        }
+
+        private void CountdownTimer_Tick(object sender, EventArgs e)
+        {
+            // Update TTL for each row
+            for (int i = 0; i < dgvQuotes.Rows.Count; i++)
+            {
+                var validUntilStr = dgvQuotes.Rows[i].Cells["ValidUntilTime"].Value?.ToString();
+                if (string.IsNullOrEmpty(validUntilStr))
+                {
+                    dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
+                    continue;
+                }
+
+                // Parse ValidUntilTime
+                if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime validUntil))
+                {
+                    TimeSpan remaining = validUntil - DateTime.Now;
+
+                    if (remaining.TotalSeconds > 0)
+                    {
+                        dgvQuotes.Rows[i].Cells["TTL"].Value = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
+                    }
+                    else
+                    {
+                        dgvQuotes.Rows[i].Cells["TTL"].Value = "EXPIRED";
+                    }
+                }
+                else
+                {
+                    dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
+                }
+            }
         }
 
 
@@ -1310,6 +1318,9 @@ namespace FXOAiTranslator
         {
             _quoteTimer?.Stop();
             _quoteTimer?.Dispose();
+
+            _countdownTimer?.Stop();
+            _countdownTimer?.Dispose();
 
             // Unsubscribe from blotter events
             TradeBlotter.Instance.OnTradeAdded -= OnTradeAddedToBlotter;
