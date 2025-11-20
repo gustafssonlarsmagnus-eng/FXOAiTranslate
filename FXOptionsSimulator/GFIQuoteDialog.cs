@@ -811,10 +811,29 @@ namespace FXOAiTranslator
                     continue;
                 }
 
-                // Parse ValidUntilTime
-                if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime validUntil))
+                // Debug: Print first time only for first row
+                if (i == 0)
+                {
+                    Console.WriteLine($"[TTL] ValidUntilTime='{validUntilStr}', Now={DateTime.Now:yyyyMMdd-HH:mm:ss}");
+                }
+
+                // Parse ValidUntilTime - try multiple formats
+                DateTime validUntil;
+                bool parsed = DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out validUntil);
+
+                if (!parsed)
+                {
+                    parsed = DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss.fff", null, System.Globalization.DateTimeStyles.None, out validUntil);
+                }
+
+                if (parsed)
                 {
                     TimeSpan remaining = validUntil - DateTime.Now;
+
+                    if (i == 0)
+                    {
+                        Console.WriteLine($"[TTL] Parsed={validUntil:yyyyMMdd-HH:mm:ss}, Remaining={remaining.TotalSeconds}s");
+                    }
 
                     if (remaining.TotalSeconds > 0)
                     {
@@ -827,6 +846,10 @@ namespace FXOAiTranslator
                 }
                 else
                 {
+                    if (i == 0)
+                    {
+                        Console.WriteLine($"[TTL] Failed to parse format");
+                    }
                     dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
                 }
             }
