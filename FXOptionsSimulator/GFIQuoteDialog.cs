@@ -801,8 +801,8 @@ namespace FXOAiTranslator
 
         private void CountdownTimer_Tick(object sender, EventArgs e)
         {
-            // Suspend painting to reduce flicker
-            dgvQuotes.SuspendLayout();
+            // Suspend drawing completely using WM_SETREDRAW
+            SendMessage(dgvQuotes.Handle, WM_SETREDRAW, false, 0);
 
             try
             {
@@ -812,9 +812,7 @@ namespace FXOAiTranslator
                     var validUntilStr = dgvQuotes.Rows[i].Cells["ValidUntilTime"].Value?.ToString();
                     if (string.IsNullOrEmpty(validUntilStr))
                     {
-                        string currentValue = dgvQuotes.Rows[i].Cells["TTL"].Value?.ToString();
-                        if (currentValue != "-")
-                            dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
+                        dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
                         continue;
                     }
 
@@ -826,34 +824,26 @@ namespace FXOAiTranslator
                         // Compare with UTC time
                         TimeSpan remaining = validUntilUtc - DateTime.UtcNow;
 
-                        string newValue;
                         if (remaining.TotalSeconds > 0)
                         {
-                            newValue = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
+                            dgvQuotes.Rows[i].Cells["TTL"].Value = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
                         }
                         else
                         {
-                            newValue = "EXPIRED";
-                        }
-
-                        // Only update if value changed
-                        string currentValue = dgvQuotes.Rows[i].Cells["TTL"].Value?.ToString();
-                        if (currentValue != newValue)
-                        {
-                            dgvQuotes.Rows[i].Cells["TTL"].Value = newValue;
+                            dgvQuotes.Rows[i].Cells["TTL"].Value = "EXPIRED";
                         }
                     }
                     else
                     {
-                        string currentValue = dgvQuotes.Rows[i].Cells["TTL"].Value?.ToString();
-                        if (currentValue != "-")
-                            dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
+                        dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
                     }
                 }
             }
             finally
             {
-                dgvQuotes.ResumeLayout();
+                // Resume drawing and refresh once
+                SendMessage(dgvQuotes.Handle, WM_SETREDRAW, true, 0);
+                dgvQuotes.Refresh();
             }
         }
 
