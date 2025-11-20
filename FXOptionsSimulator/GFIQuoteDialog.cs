@@ -577,21 +577,16 @@ namespace FXOAiTranslator
 
                 var rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
 
-                // Highlight based on BEST VOLS (not premiums)
-                var (bestBidVol, bestOfferVol) = GetBestVols();
-                var bidVol = GetAvgVol(stream.BidQuote);
-                var offerVol = GetAvgVol(stream.OfferQuote);
+                var (bestBid, bestOffer) = GetBestPremiums();
 
-                // Highlight BID if this LP has best (highest) bid vol
-                if (bestBidVol.HasValue && bidVol.HasValue && Math.Abs(bidVol.Value - bestBidVol.Value) < 0.01)
+                if (bestBid.HasValue && netPremBid.HasValue && Math.Abs(netPremBid.Value - bestBid.Value) < 0.01)
                 {
                     dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
                     dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.Font =
                         new Font(dgvQuotes.Font, FontStyle.Bold);
                 }
 
-                // Highlight OFFER if this LP has best (lowest) offer vol
-                if (bestOfferVol.HasValue && offerVol.HasValue && Math.Abs(offerVol.Value - bestOfferVol.Value) < 0.01)
+                if (bestOffer.HasValue && netPremOffer.HasValue && Math.Abs(netPremOffer.Value - bestOffer.Value) < 0.01)
                 {
                     dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
                     dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.Font =
@@ -824,50 +819,6 @@ namespace FXOAiTranslator
             return null;
         }
 
-        private double? GetAvgVol(FIXMessage quote)
-        {
-            if (quote == null || quote.LegPricing == null || quote.LegPricing.Count == 0)
-                return null;
-
-            double totalVol = 0;
-            int count = 0;
-
-            foreach (var leg in quote.LegPricing)
-            {
-                if (!string.IsNullOrEmpty(leg.Volatility) && double.TryParse(leg.Volatility, out double vol))
-                {
-                    totalVol += vol;
-                    count++;
-                }
-            }
-
-            return count > 0 ? totalVol / count : (double?)null;
-        }
-
-        private (double? bestBidVol, double? bestOfferVol) GetBestVols()
-        {
-            var streams = _fixSession.Application.GetActiveStreams(_groupId);
-
-            double? bestBidVol = null;
-            double? bestOfferVol = null;
-
-            foreach (var stream in streams)
-            {
-                var bidVol = GetAvgVol(stream.BidQuote);
-                var offerVol = GetAvgVol(stream.OfferQuote);
-
-                // Best BID vol = HIGHEST (seller gets better price with higher vol)
-                if (bidVol.HasValue && (!bestBidVol.HasValue || bidVol.Value > bestBidVol.Value))
-                    bestBidVol = bidVol.Value;
-
-                // Best OFFER vol = LOWEST (buyer pays less with lower vol)
-                if (offerVol.HasValue && (!bestOfferVol.HasValue || offerVol.Value < bestOfferVol.Value))
-                    bestOfferVol = offerVol.Value;
-            }
-
-            return (bestBidVol, bestOfferVol);
-        }
-
         private (double? bestBid, double? bestOffer) GetBestPremiums()
         {
             var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
@@ -896,19 +847,19 @@ namespace FXOAiTranslator
         {
             _quoteTimer?.Stop();
 
-            // Get best bid quote based on VOL (not premium)
+            // Get best bid quote
             var streams = _fixSession.Application.GetActiveStreams(_groupId);
             FIXMessage bestBidQuote = null;
-            double bestBidVol = double.MinValue;
+            double bestBidPremium = double.MinValue;
 
             foreach (var stream in streams)
             {
                 if (stream.BidQuote != null)
                 {
-                    var vol = GetAvgVol(stream.BidQuote);
-                    if (vol.HasValue && vol.Value > bestBidVol)
+                    var prem = CalculateNetPremium(stream.BidQuote);
+                    if (prem.HasValue && prem.Value > bestBidPremium)
                     {
-                        bestBidVol = vol.Value;
+                        bestBidPremium = prem.Value;
                         bestBidQuote = stream.BidQuote;
                     }
                 }
@@ -926,31 +877,30 @@ namespace FXOAiTranslator
             try
             {
                 FIXMessage selectedQuote;
-                double selectedVol;
+                double selectedPremium;
                 string lpName;
 
                 if (side == "SELL")
                 {
-                    // Hit the bid - find best bid (HIGHEST vol)
+                    // Hit the bid - find best bid
                     selectedQuote = bestBidQuote;
-                    selectedVol = bestBidVol;
+                    selectedPremium = bestBidPremium;
                     lpName = bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString());
-                    Console.WriteLine($"[EXECUTION] Selected SELL quote from {lpName} with avgVol={selectedVol:F2}");
                 }
                 else // BUY
                 {
-                    // Lift the offer - find best offer (LOWEST vol)
+                    // Lift the offer - find best offer
                     FIXMessage bestOfferQuote = null;
-                    double bestOfferVol = double.MaxValue;
+                    double bestOfferPremium = double.MaxValue;
 
                     foreach (var stream in streams)
                     {
                         if (stream.OfferQuote != null)
                         {
-                            var vol = GetAvgVol(stream.OfferQuote);
-                            if (vol.HasValue && vol.Value < bestOfferVol)
+                            var prem = CalculateNetPremium(stream.OfferQuote);
+                            if (prem.HasValue && prem.Value < bestOfferPremium)
                             {
-                                bestOfferVol = vol.Value;
+                                bestOfferPremium = prem.Value;
                                 bestOfferQuote = stream.OfferQuote;
                             }
                         }
@@ -965,9 +915,8 @@ namespace FXOAiTranslator
                     }
 
                     selectedQuote = bestOfferQuote;
-                    selectedVol = bestOfferVol;
+                    selectedPremium = bestOfferPremium;
                     lpName = bestOfferQuote.Get(Tags.OnBehalfOfCompID.ToString());
-                    Console.WriteLine($"[EXECUTION] Selected BUY quote from {lpName} with avgVol={selectedVol:F2}");
                 }
 
                 // ===== QUOTE FRESHNESS VALIDATION =====
