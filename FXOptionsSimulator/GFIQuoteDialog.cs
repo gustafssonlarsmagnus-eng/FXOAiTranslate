@@ -760,11 +760,12 @@ namespace FXOAiTranslator
                     rowData.Add(offerVol?.ToString("N2") ?? "-");
                 }
 
-                // Extract ValidUntilTime (tag 62) from the quote
-                string validUntilStr = stream.OfferQuote?.Get("62") ?? stream.BidQuote?.Get("62");
+                // Use LastUpdate + 5 minutes as expiry time (tag 62 has stale data)
+                DateTime expiryTime = stream.LastUpdate.AddMinutes(5);
+                string expiryTimeStr = expiryTime.ToString("yyyyMMdd-HH:mm:ss");
 
                 rowData.Add(""); // TTL - will be calculated by countdown timer
-                rowData.Add(validUntilStr ?? ""); // Hidden ValidUntilTime column
+                rowData.Add(expiryTimeStr); // Hidden ValidUntilTime column - calculated from LastUpdate + 5min
 
                 var rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
 
@@ -811,29 +812,10 @@ namespace FXOAiTranslator
                     continue;
                 }
 
-                // Debug: Print first time only for first row
-                if (i == 0)
-                {
-                    Console.WriteLine($"[TTL] ValidUntilTime='{validUntilStr}', Now={DateTime.Now:yyyyMMdd-HH:mm:ss}");
-                }
-
-                // Parse ValidUntilTime - try multiple formats
-                DateTime validUntil;
-                bool parsed = DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out validUntil);
-
-                if (!parsed)
-                {
-                    parsed = DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss.fff", null, System.Globalization.DateTimeStyles.None, out validUntil);
-                }
-
-                if (parsed)
+                // Parse ValidUntilTime
+                if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime validUntil))
                 {
                     TimeSpan remaining = validUntil - DateTime.Now;
-
-                    if (i == 0)
-                    {
-                        Console.WriteLine($"[TTL] Parsed={validUntil:yyyyMMdd-HH:mm:ss}, Remaining={remaining.TotalSeconds}s");
-                    }
 
                     if (remaining.TotalSeconds > 0)
                     {
@@ -846,10 +828,6 @@ namespace FXOAiTranslator
                 }
                 else
                 {
-                    if (i == 0)
-                    {
-                        Console.WriteLine($"[TTL] Failed to parse format");
-                    }
                     dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
                 }
             }
