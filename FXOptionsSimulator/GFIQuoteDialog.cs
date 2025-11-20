@@ -186,6 +186,69 @@ namespace FXOAiTranslator
                 }
             };
 
+            // Add event handler for tenor changes - auto-calculate expiry date
+            dgvLegs.CellValueChanged += (s, e) =>
+            {
+                if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+                var colName = dgvLegs.Columns[e.ColumnIndex].Name;
+                if (colName == "Tenor")
+                {
+                    // Recalculate expiry date when tenor changes
+                    var tenorStr = dgvLegs.Rows[e.RowIndex].Cells["Tenor"].Value?.ToString();
+                    if (!string.IsNullOrEmpty(tenorStr))
+                    {
+                        try
+                        {
+                            // Use FxDateService to calculate proper expiry date
+                            var pair = _trade.Underlying;
+                            var premiumCcy = _trade.PremiumCurrency;
+                            var policy = GlobalDatePolicy.Policy;
+
+                            var rules = new FxDateRules
+                            {
+                                Ccy1 = pair.Substring(0, 3),
+                                Ccy2 = pair.Substring(3, 3),
+                                SpotLag = policy.SpotLagForPair(pair),
+                                ExpiryConvention = policy.ExpiryConvention,
+                                ExpiryEOM = policy.ExpiryEOM,
+                                PremiumSettleDays = policy.PremiumSettleDays,
+                                PremiumCalMode = policy.PremiumCalendarMode,
+                                PremiumConvention = policy.PremiumConvention
+                            };
+
+                            var nowUtc = DateTime.UtcNow;
+                            var (_, _, expiryDate, deliveryDate, _) =
+                                FxDateService.ComputeDates(nowUtc, pair, tenorStr.Trim().ToUpperInvariant(), premiumCcy, rules);
+
+                            // Update the expiry date cell
+                            dgvLegs.Rows[e.RowIndex].Cells["ExpiryDate"].Value = expiryDate.ToString("dd MMM yyyy");
+
+                            // Also update the underlying trade object
+                            if (e.RowIndex < _trade.Legs.Count)
+                            {
+                                _trade.Legs[e.RowIndex].Tenor = tenorStr.Trim().ToUpperInvariant();
+                                _trade.Legs[e.RowIndex].ExpiryDate = expiryDate;
+                                _trade.Legs[e.RowIndex].DeliveryDate = deliveryDate;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[Tenor Change] Error recalculating expiry: {ex.Message}");
+                        }
+                    }
+                }
+            };
+
+            // Enable edit notifications
+            dgvLegs.CurrentCellDirtyStateChanged += (s, e) =>
+            {
+                if (dgvLegs.IsCurrentCellDirty)
+                {
+                    dgvLegs.CommitEdit(DataGridViewDataErrorContexts.Commit);
+                }
+            };
+
             this.Controls.Add(dgvLegs);
 
             // LP Selection GroupBox - EXPANDED
