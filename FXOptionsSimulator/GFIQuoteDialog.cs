@@ -107,37 +107,84 @@ namespace FXOAiTranslator
                 Size = new Size(940, 120),
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                SelectionMode = DataGridViewSelectionMode.CellSelect,  // Allow cell editing
                 MultiSelect = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells,
-                RowHeadersVisible = false
+                RowHeadersVisible = false,
+                EditMode = DataGridViewEditMode.EditOnEnter  // Enable editing
             };
 
             var chkCol = new DataGridViewCheckBoxColumn
             {
                 Name = "Include",
                 HeaderText = "Include",
-                Width = 35,
+                Width = 60,
                 TrueValue = true,
                 FalseValue = false
             };
             dgvLegs.Columns.Add(chkCol);
+
             dgvLegs.Columns.Add("Leg", "Leg");
-            dgvLegs.Columns["Leg"].Width = 35;
+            dgvLegs.Columns["Leg"].Width = 50;
+            dgvLegs.Columns["Leg"].ReadOnly = true;  // Not editable
+
             dgvLegs.Columns.Add("Direction", "Direction");
-            dgvLegs.Columns["Direction"].Width = 35;
+            dgvLegs.Columns["Direction"].Width = 70;
+            dgvLegs.Columns["Direction"].ReadOnly = true;  // Not editable
+
             dgvLegs.Columns.Add("Type", "Type");
-            dgvLegs.Columns["Type"].Width = 35;
-            dgvLegs.Columns.Add("Strike", "Strike");
-            dgvLegs.Columns["Strike"].Width = 35;
+            dgvLegs.Columns["Type"].Width = 50;
+            dgvLegs.Columns["Type"].ReadOnly = true;  // Not editable
+
+            // Editable columns
+            var strikeCol = new DataGridViewTextBoxColumn
+            {
+                Name = "Strike",
+                HeaderText = "Strike",
+                Width = 80,
+                ReadOnly = false  // EDITABLE
+            };
+            dgvLegs.Columns.Add(strikeCol);
+
+            var tenorCol = new DataGridViewTextBoxColumn
+            {
+                Name = "Tenor",
+                HeaderText = "Tenor",
+                Width = 60,
+                ReadOnly = false  // EDITABLE
+            };
+            dgvLegs.Columns.Add(tenorCol);
+
+            var expiryCol = new DataGridViewTextBoxColumn
+            {
+                Name = "ExpiryDate",
+                HeaderText = "Expiry Date",
+                Width = 100,
+                ReadOnly = false  // EDITABLE
+            };
+            dgvLegs.Columns.Add(expiryCol);
 
             var notionalCol = new DataGridViewTextBoxColumn
             {
                 Name = "NotionalMM",
                 HeaderText = "Notional (MM)",
-                Width = 35
+                Width = 90,
+                ReadOnly = false  // EDITABLE
             };
             dgvLegs.Columns.Add(notionalCol);
+
+            // Add cell formatting to highlight editable cells
+            dgvLegs.CellFormatting += (s, e) =>
+            {
+                if (e.RowIndex < 0) return;
+
+                // Highlight editable columns with light yellow background
+                var colName = dgvLegs.Columns[e.ColumnIndex].Name;
+                if (colName == "Strike" || colName == "Tenor" || colName == "ExpiryDate" || colName == "NotionalMM")
+                {
+                    e.CellStyle.BackColor = Color.LightYellow;
+                }
+            };
 
             this.Controls.Add(dgvLegs);
 
@@ -374,12 +421,14 @@ namespace FXOAiTranslator
             {
                 var leg = _trade.Legs[i];
                 dgvLegs.Rows.Add(
-                    true,
-                    $"Leg {i + 1}",
-                    leg.Direction,
-                    leg.OptionType,
-                    leg.Strike.ToString("F4"),
-                    leg.NotionalMM.ToString("F1")
+                    true,                                  // Include checkbox
+                    $"Leg {i + 1}",                        // Leg number
+                    leg.Direction,                         // BUY/SELL
+                    leg.OptionType,                        // CALL/PUT
+                    leg.Strike.ToString("F4"),             // Strike (EDITABLE)
+                    leg.Tenor,                             // Tenor (EDITABLE)
+                    leg.ExpiryDate.ToString("dd MMM yyyy"), // Expiry Date (EDITABLE)
+                    leg.NotionalMM.ToString("F1")          // Notional (EDITABLE)
                 );
             }
         }
@@ -502,8 +551,32 @@ namespace FXOAiTranslator
                 if (include)
                 {
                     var originalLeg = _trade.Legs[i];
-                    var notionalStr = dgvLegs.Rows[i].Cells["NotionalMM"].Value?.ToString();
 
+                    // Read Strike
+                    var strikeStr = dgvLegs.Rows[i].Cells["Strike"].Value?.ToString();
+                    if (double.TryParse(strikeStr, out double strike))
+                    {
+                        originalLeg.Strike = strike;
+                    }
+
+                    // Read Tenor
+                    var tenor = dgvLegs.Rows[i].Cells["Tenor"].Value?.ToString();
+                    if (!string.IsNullOrEmpty(tenor))
+                    {
+                        originalLeg.Tenor = tenor.Trim().ToUpperInvariant();
+                    }
+
+                    // Read Expiry Date
+                    var expiryStr = dgvLegs.Rows[i].Cells["ExpiryDate"].Value?.ToString();
+                    if (DateTime.TryParse(expiryStr, out DateTime expiryDate))
+                    {
+                        originalLeg.ExpiryDate = expiryDate;
+                        // Also update delivery date (T+2 from expiry)
+                        originalLeg.DeliveryDate = expiryDate.AddDays(2);
+                    }
+
+                    // Read Notional
+                    var notionalStr = dgvLegs.Rows[i].Cells["NotionalMM"].Value?.ToString();
                     if (double.TryParse(notionalStr, out double notionalMM))
                     {
                         originalLeg.NotionalMM = notionalMM;
