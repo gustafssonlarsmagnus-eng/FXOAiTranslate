@@ -820,9 +820,12 @@ namespace FXOAiTranslator
                 return;
 
             var nowUtc = DateTime.UtcNow;
+            int ttlColumnIndex = dgvQuotes.Columns["TTL"].Index;
 
             // Completely suspend painting using WinAPI (more aggressive than SuspendLayout)
             SendMessage(dgvQuotes.Handle, WM_SETREDRAW, false, 0);
+
+            var cellsToInvalidate = new List<Rectangle>();
 
             try
             {
@@ -834,7 +837,10 @@ namespace FXOAiTranslator
                         if (string.IsNullOrEmpty(validUntilStr))
                         {
                             if (row.Cells["TTL"].Value?.ToString() != "-")
+                            {
                                 row.Cells["TTL"].Value = "-";
+                                cellsToInvalidate.Add(dgvQuotes.GetCellDisplayRectangle(ttlColumnIndex, row.Index, false));
+                            }
                             continue;
                         }
 
@@ -864,26 +870,42 @@ namespace FXOAiTranslator
                             if (ttlCell.Value?.ToString() != newValue)
                             {
                                 ttlCell.Value = newValue;
+                                cellsToInvalidate.Add(dgvQuotes.GetCellDisplayRectangle(ttlColumnIndex, row.Index, false));
                             }
                         }
                         else
                         {
                             if (row.Cells["TTL"].Value?.ToString() != "-")
+                            {
                                 row.Cells["TTL"].Value = "-";
+                                cellsToInvalidate.Add(dgvQuotes.GetCellDisplayRectangle(ttlColumnIndex, row.Index, false));
+                            }
                         }
                     }
                     catch
                     {
                         if (row.Cells["TTL"].Value?.ToString() != "-")
+                        {
                             row.Cells["TTL"].Value = "-";
+                            cellsToInvalidate.Add(dgvQuotes.GetCellDisplayRectangle(ttlColumnIndex, row.Index, false));
+                        }
                     }
                 }
             }
             finally
             {
-                // Resume painting and refresh only the TTL column
+                // Resume painting
                 SendMessage(dgvQuotes.Handle, WM_SETREDRAW, true, 0);
-                dgvQuotes.Invalidate(dgvQuotes.GetColumnDisplayRectangle(dgvQuotes.Columns["TTL"].Index, false));
+
+                // Only invalidate the specific cells that changed
+                if (cellsToInvalidate.Count > 0)
+                {
+                    foreach (var rect in cellsToInvalidate)
+                    {
+                        if (!rect.IsEmpty)
+                            dgvQuotes.Invalidate(rect);
+                    }
+                }
             }
         }
 
