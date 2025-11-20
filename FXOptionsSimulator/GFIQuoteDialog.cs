@@ -581,6 +581,10 @@ namespace FXOAiTranslator
                 displayCcy = termCcy;
             }
 
+            // Lock column widths to prevent resizing when header text changes
+            dgvQuotes.Columns["NetPremBid"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dgvQuotes.Columns["NetPremOffer"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+
             // Update column headers
             dgvQuotes.Columns["NetPremBid"].HeaderText = $"Rec {displayCcy}";
             dgvQuotes.Columns["NetPremOffer"].HeaderText = $"Pay {displayCcy}";

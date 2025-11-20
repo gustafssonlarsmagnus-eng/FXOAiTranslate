@@ -26,7 +26,7 @@ namespace FXOptionsSimulator
                 if (_checked != value)
                 {
                     _checked = value;
-                    Invalidate(); // Instant redraw, no animation needed for segmented control
+                    _animationTimer.Start(); // Start sliding animation
                     CheckedChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
@@ -87,6 +87,7 @@ namespace FXOptionsSimulator
             int height = this.Height;
             int halfWidth = width / 2;
             int cornerRadius = 4;
+            int padding = 2;
 
             // Define colors
             Color borderColor = Color.FromArgb(200, 200, 200);
@@ -95,6 +96,13 @@ namespace FXOptionsSimulator
             Color blueText = Color.White;
             Color grayText = Color.FromArgb(100, 100, 100);
 
+            // Draw white background for entire control
+            using (var bgBrush = new SolidBrush(whiteBackground))
+            using (var bgPath = GetRoundedRect(0, 0, width, height, cornerRadius))
+            {
+                e.Graphics.FillPath(bgBrush, bgPath);
+            }
+
             // Draw outer border
             using (var borderPath = GetRoundedRect(0, 0, width, height, cornerRadius))
             using (var borderPen = new Pen(borderColor, 1))
@@ -102,40 +110,23 @@ namespace FXOptionsSimulator
                 e.Graphics.DrawPath(borderPen, borderPath);
             }
 
-            // Draw left section background
-            Color leftBgColor = !_checked ? blueBackground : whiteBackground;
-            using (var leftBrush = new SolidBrush(leftBgColor))
-            {
-                // Left half with rounded corners on left side only
-                GraphicsPath leftPath = new GraphicsPath();
-                leftPath.AddArc(0, 0, cornerRadius * 2, cornerRadius * 2, 180, 90);
-                leftPath.AddLine(cornerRadius, 0, halfWidth, 0);
-                leftPath.AddLine(halfWidth, 0, halfWidth, height);
-                leftPath.AddLine(halfWidth, height, cornerRadius, height);
-                leftPath.AddArc(0, height - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 90, 90);
-                leftPath.CloseFigure();
-                e.Graphics.FillPath(leftBrush, leftPath);
-            }
-
-            // Draw right section background
-            Color rightBgColor = _checked ? blueBackground : whiteBackground;
-            using (var rightBrush = new SolidBrush(rightBgColor))
-            {
-                // Right half with rounded corners on right side only
-                GraphicsPath rightPath = new GraphicsPath();
-                rightPath.AddLine(halfWidth, 0, width - cornerRadius, 0);
-                rightPath.AddArc(width - cornerRadius * 2, 0, cornerRadius * 2, cornerRadius * 2, 270, 90);
-                rightPath.AddArc(width - cornerRadius * 2, height - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 0, 90);
-                rightPath.AddLine(width - cornerRadius, height, halfWidth, height);
-                rightPath.AddLine(halfWidth, height, halfWidth, 0);
-                rightPath.CloseFigure();
-                e.Graphics.FillPath(rightBrush, rightPath);
-            }
-
             // Draw center divider line
             using (var dividerPen = new Pen(borderColor, 1))
             {
                 e.Graphics.DrawLine(dividerPen, halfWidth, 1, halfWidth, height - 1);
+            }
+
+            // Calculate sliding selector position
+            int selectorWidth = halfWidth - padding * 2;
+            int selectorX = (int)(padding + (_thumbPosition * halfWidth));
+            int selectorY = padding;
+            int selectorHeight = height - padding * 2;
+
+            // Draw sliding blue selector
+            using (var selectorBrush = new SolidBrush(blueBackground))
+            using (var selectorPath = GetRoundedRect(selectorX, selectorY, selectorWidth, selectorHeight, cornerRadius - 1))
+            {
+                e.Graphics.FillPath(selectorBrush, selectorPath);
             }
 
             // Draw text
@@ -147,8 +138,13 @@ namespace FXOptionsSimulator
                     LineAlignment = StringAlignment.Center
                 };
 
+                // Determine text colors based on selector position
+                // When selector is on left (position 0-0.5), left text is white
+                // When selector is on right (position 0.5-1), right text is white
+                Color leftTextColor = _thumbPosition < 0.5f ? blueText : grayText;
+                Color rightTextColor = _thumbPosition >= 0.5f ? blueText : grayText;
+
                 // Left text
-                Color leftTextColor = !_checked ? blueText : grayText;
                 using (var leftTextBrush = new SolidBrush(leftTextColor))
                 {
                     RectangleF leftRect = new RectangleF(0, 0, halfWidth, height);
@@ -156,7 +152,6 @@ namespace FXOptionsSimulator
                 }
 
                 // Right text
-                Color rightTextColor = _checked ? blueText : grayText;
                 using (var rightTextBrush = new SolidBrush(rightTextColor))
                 {
                     RectangleF rightRect = new RectangleF(halfWidth, 0, halfWidth, height);
