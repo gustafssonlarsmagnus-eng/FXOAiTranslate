@@ -801,37 +801,59 @@ namespace FXOAiTranslator
 
         private void CountdownTimer_Tick(object sender, EventArgs e)
         {
-            // Update TTL for each row
-            for (int i = 0; i < dgvQuotes.Rows.Count; i++)
+            // Suspend painting to reduce flicker
+            dgvQuotes.SuspendLayout();
+
+            try
             {
-                var validUntilStr = dgvQuotes.Rows[i].Cells["ValidUntilTime"].Value?.ToString();
-                if (string.IsNullOrEmpty(validUntilStr))
+                // Update TTL for each row
+                for (int i = 0; i < dgvQuotes.Rows.Count; i++)
                 {
-                    dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
-                    continue;
-                }
-
-                // Parse ValidUntilTime as UTC (FIX timestamps are in UTC)
-                if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null,
-                    System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
-                    out DateTime validUntilUtc))
-                {
-                    // Compare with UTC time
-                    TimeSpan remaining = validUntilUtc - DateTime.UtcNow;
-
-                    if (remaining.TotalSeconds > 0)
+                    var validUntilStr = dgvQuotes.Rows[i].Cells["ValidUntilTime"].Value?.ToString();
+                    if (string.IsNullOrEmpty(validUntilStr))
                     {
-                        dgvQuotes.Rows[i].Cells["TTL"].Value = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
+                        string currentValue = dgvQuotes.Rows[i].Cells["TTL"].Value?.ToString();
+                        if (currentValue != "-")
+                            dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
+                        continue;
+                    }
+
+                    // Parse ValidUntilTime as UTC (FIX timestamps are in UTC)
+                    if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null,
+                        System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                        out DateTime validUntilUtc))
+                    {
+                        // Compare with UTC time
+                        TimeSpan remaining = validUntilUtc - DateTime.UtcNow;
+
+                        string newValue;
+                        if (remaining.TotalSeconds > 0)
+                        {
+                            newValue = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
+                        }
+                        else
+                        {
+                            newValue = "EXPIRED";
+                        }
+
+                        // Only update if value changed
+                        string currentValue = dgvQuotes.Rows[i].Cells["TTL"].Value?.ToString();
+                        if (currentValue != newValue)
+                        {
+                            dgvQuotes.Rows[i].Cells["TTL"].Value = newValue;
+                        }
                     }
                     else
                     {
-                        dgvQuotes.Rows[i].Cells["TTL"].Value = "EXPIRED";
+                        string currentValue = dgvQuotes.Rows[i].Cells["TTL"].Value?.ToString();
+                        if (currentValue != "-")
+                            dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
                     }
                 }
-                else
-                {
-                    dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
-                }
+            }
+            finally
+            {
+                dgvQuotes.ResumeLayout();
             }
         }
 
