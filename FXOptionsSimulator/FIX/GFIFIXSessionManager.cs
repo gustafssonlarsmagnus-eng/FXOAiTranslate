@@ -227,7 +227,7 @@ namespace FXOptionsSimulator.FIX
                 // GFI explicitly requires: "Trade date has to be current date"
                 var canonical75 = nowUtc.ToString("yyyyMMdd");
 
-                // Tag 5020 (PremiumDelivery) is T+1 business day from today
+                // Tag 5020 (PremiumDelivery) is T+2 business days (spot settlement)
                 var (_, _, _, _, premiumDt) =
                     FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
                 var canonical5020 = FxDateService.Ymd(premiumDt);
