@@ -512,10 +512,12 @@ namespace FXOAiTranslator
             // Will be updated dynamically based on currency display mode
             dgvQuotes.Columns.Add("NetPremBid", "Rec");
             dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.Format = "N0"; // Raw integer values
+            dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             dgvQuotes.Columns["NetPremBid"].Width = 100;
 
             dgvQuotes.Columns.Add("NetPremOffer", "Pay");
             dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Format = "N0"; // Raw integer values
+            dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             dgvQuotes.Columns["NetPremOffer"].Width = 110;
 
             // Update headers with currency
@@ -525,14 +527,17 @@ namespace FXOAiTranslator
             {
                 dgvQuotes.Columns.Add($"Leg{i}BidVol", $"L{i} Bid Vol");
                 dgvQuotes.Columns[$"Leg{i}BidVol"].DefaultCellStyle.Format = "N2";
+                dgvQuotes.Columns[$"Leg{i}BidVol"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 dgvQuotes.Columns[$"Leg{i}BidVol"].Width = 80;
 
                 dgvQuotes.Columns.Add($"Leg{i}OfferVol", $"L{i} Offer Vol");
                 dgvQuotes.Columns[$"Leg{i}OfferVol"].DefaultCellStyle.Format = "N2";
+                dgvQuotes.Columns[$"Leg{i}OfferVol"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 dgvQuotes.Columns[$"Leg{i}OfferVol"].Width = 90;
             }
 
             dgvQuotes.Columns.Add("TTL", "Expires In");
+            dgvQuotes.Columns["TTL"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             dgvQuotes.Columns["TTL"].Width = 90;
             dgvQuotes.Columns.Add("ValidUntilTime", "ValidUntilTime");  // Hidden column to store expiry time
             dgvQuotes.Columns["ValidUntilTime"].Visible = false;
