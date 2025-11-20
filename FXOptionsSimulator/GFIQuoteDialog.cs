@@ -759,16 +759,36 @@ namespace FXOAiTranslator
 
                 // Calculate TTL immediately
                 string ttlDisplay = "-";
-                if (!string.IsNullOrEmpty(validUntilStr) && DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime validUntil))
+                if (!string.IsNullOrEmpty(validUntilStr))
                 {
-                    TimeSpan remaining = validUntil - DateTime.Now;
-                    if (remaining.TotalSeconds > 0)
+                    Console.WriteLine($"[TTL DEBUG] LP={stream.LP}, ValidUntilTime (tag 62)='{validUntilStr}', Now={DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+                    // Try different date formats
+                    DateTime validUntil;
+                    bool parsed = DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out validUntil);
+                    if (!parsed)
                     {
-                        ttlDisplay = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
+                        parsed = DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss.fff", null, System.Globalization.DateTimeStyles.None, out validUntil);
+                    }
+
+                    if (parsed)
+                    {
+                        Console.WriteLine($"[TTL DEBUG] Parsed ValidUntil={validUntil:yyyy-MM-dd HH:mm:ss}");
+                        TimeSpan remaining = validUntil - DateTime.Now;
+                        Console.WriteLine($"[TTL DEBUG] Remaining seconds={remaining.TotalSeconds}");
+
+                        if (remaining.TotalSeconds > 0)
+                        {
+                            ttlDisplay = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
+                        }
+                        else
+                        {
+                            ttlDisplay = "EXPIRED";
+                        }
                     }
                     else
                     {
-                        ttlDisplay = "EXPIRED";
+                        Console.WriteLine($"[TTL DEBUG] Failed to parse ValidUntilTime format");
                     }
                 }
 
