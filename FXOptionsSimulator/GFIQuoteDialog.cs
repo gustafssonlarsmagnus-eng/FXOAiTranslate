@@ -42,7 +42,6 @@ namespace FXOAiTranslator
         private CheckBox chkDBS;
         private int _selectedLegCount;
         private ToggleSwitch togglePremiumCurrency;  // Toggle for premium currency display
-        private Dictionary<int, string> _ttlCache = new Dictionary<int, string>(); // Cache TTL values for custom painting
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -378,9 +377,6 @@ namespace FXOAiTranslator
 
             // Use CellFormatting event for dynamic styling (reduces flicker)
             dgvQuotes.CellFormatting += DgvQuotes_CellFormatting;
-
-            // Use CellPainting for TTL column to avoid flicker
-            dgvQuotes.CellPainting += DgvQuotes_CellPainting;
 
             this.Controls.Add(dgvQuotes);
 
@@ -745,7 +741,6 @@ namespace FXOAiTranslator
             UpdatePremiumColumnHeaders();
 
             dgvQuotes.Rows.Clear();
-            _ttlCache.Clear(); // Clear countdown cache when refreshing grid
             var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
 
             foreach (var stream in streams)
@@ -814,150 +809,57 @@ namespace FXOAiTranslator
 
         private void CountdownTimer_Tick(object sender, EventArgs e)
         {
-            if (dgvQuotes.InvokeRequired)
-            {
-                dgvQuotes.Invoke(new Action(() => CountdownTimer_Tick(sender, e)));
-                return;
-            }
-
-            // Check if columns exist (grid might be recreating)
-            if (!dgvQuotes.Columns.Contains("TTL") || !dgvQuotes.Columns.Contains("ValidUntilTime"))
-                return;
-
-            var nowUtc = DateTime.UtcNow;
-            int ttlColumnIndex = dgvQuotes.Columns["TTL"].Index;
-            bool anyChanged = false;
-
-            // Update the cache without touching cell values
-            foreach (DataGridViewRow row in dgvQuotes.Rows)
-            {
-                try
-                {
-                    string validUntilStr = row.Cells["ValidUntilTime"].Value?.ToString();
-                    string newValue = "-";
-
-                    if (!string.IsNullOrEmpty(validUntilStr))
-                    {
-                        // Parse ValidUntilTime: format is "YYYYMMDD-HH:mm:ss" (already in UTC)
-                        if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss",
-                            System.Globalization.CultureInfo.InvariantCulture,
-                            System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
-                            out DateTime validUntil))
-                        {
-                            var remainingTime = validUntil - nowUtc;
-
-                            if (remainingTime.TotalSeconds <= 0)
-                            {
-                                newValue = "EXPIRED";
-                            }
-                            else
-                            {
-                                // Format as MM:SS
-                                int minutes = (int)remainingTime.TotalMinutes;
-                                int seconds = remainingTime.Seconds;
-                                newValue = $"{minutes}:{seconds:D2}";
-                            }
-                        }
-                    }
-
-                    // Update cache if changed
-                    if (!_ttlCache.ContainsKey(row.Index) || _ttlCache[row.Index] != newValue)
-                    {
-                        _ttlCache[row.Index] = newValue;
-                        anyChanged = true;
-                    }
-                }
-                catch
-                {
-                    if (!_ttlCache.ContainsKey(row.Index) || _ttlCache[row.Index] != "-")
-                    {
-                        _ttlCache[row.Index] = "-";
-                        anyChanged = true;
-                    }
-                }
-            }
-
-            // Only invalidate the TTL column if something actually changed
-            if (anyChanged && dgvQuotes.Columns.Contains("TTL"))
-            {
-                var ttlRect = dgvQuotes.GetColumnDisplayRectangle(ttlColumnIndex, false);
-                if (!ttlRect.IsEmpty)
-                    dgvQuotes.Invalidate(ttlRect);
-            }
-        }
-
-        private void DgvQuotes_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
-        {
-            // Only custom paint the TTL column
-            if (e.ColumnIndex >= 0 && e.RowIndex >= 0 &&
-                dgvQuotes.Columns[e.ColumnIndex].Name == "TTL")
-            {
-                // Get the cached value
-                string ttlValue = _ttlCache.ContainsKey(e.RowIndex) ? _ttlCache[e.RowIndex] : "-";
-
-                // Determine colors based on value
-                Color bgColor = Color.White;
-                Color textColor = Color.Black;
-
-                if (ttlValue == "EXPIRED")
-                {
-                    bgColor = Color.LightGray;
-                    textColor = Color.DarkRed;
-                }
-                else if (ttlValue != "-")
-                {
-                    // Parse time to determine color
-                    string[] parts = ttlValue.Split(':');
-                    if (parts.Length == 2 && int.TryParse(parts[0], out int minutes) && int.TryParse(parts[1], out int seconds))
-                    {
-                        int totalSeconds = minutes * 60 + seconds;
-
-                        if (totalSeconds > 60)
-                        {
-                            bgColor = Color.LightGreen;
-                            textColor = Color.Black;
-                        }
-                        else if (totalSeconds > 30)
-                        {
-                            bgColor = Color.Yellow;
-                            textColor = Color.Black;
-                        }
-                        else
-                        {
-                            bgColor = Color.LightCoral;
-                            textColor = Color.White;
-                        }
-                    }
-                }
-
-                // Paint background
-                using (var bgBrush = new SolidBrush(bgColor))
-                {
-                    e.Graphics.FillRectangle(bgBrush, e.CellBounds);
-                }
-
-                // Paint border
-                e.Paint(e.CellBounds, DataGridViewPaintParts.Border);
-
-                // Draw the text
-                using (var brush = new SolidBrush(textColor))
-                {
-                    var sf = new StringFormat
-                    {
-                        Alignment = StringAlignment.Center,
-                        LineAlignment = StringAlignment.Center
-                    };
-                    e.Graphics.DrawString(ttlValue, e.CellStyle.Font, brush, e.CellBounds, sf);
-                }
-
-                e.Handled = true;
-            }
+            // Countdown timer disabled to prevent flicker
+            // TTL values are set once when quotes arrive and don't update
         }
 
         private void DgvQuotes_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            // TTL column is now handled by CellPainting event to eliminate flicker
-            // This method can be used for other columns if needed in the future
+            // Format TTL column colors
+            if (dgvQuotes.Columns[e.ColumnIndex].Name != "TTL")
+                return;
+
+            if (e.Value == null)
+                return;
+
+            string ttlValue = e.Value.ToString();
+
+            // Apply colors based on TTL value
+            if (ttlValue == "EXPIRED")
+            {
+                e.CellStyle.BackColor = Color.LightGray;
+                e.CellStyle.ForeColor = Color.DarkRed;
+            }
+            else if (ttlValue == "-")
+            {
+                e.CellStyle.BackColor = Color.White;
+                e.CellStyle.ForeColor = Color.Black;
+            }
+            else
+            {
+                // Parse time to determine color
+                string[] parts = ttlValue.Split(':');
+                if (parts.Length == 2 && int.TryParse(parts[0], out int minutes) && int.TryParse(parts[1], out int seconds))
+                {
+                    int totalSeconds = minutes * 60 + seconds;
+
+                    if (totalSeconds > 60)
+                    {
+                        e.CellStyle.BackColor = Color.LightGreen;
+                        e.CellStyle.ForeColor = Color.Black;
+                    }
+                    else if (totalSeconds > 30)
+                    {
+                        e.CellStyle.BackColor = Color.Yellow;
+                        e.CellStyle.ForeColor = Color.Black;
+                    }
+                    else
+                    {
+                        e.CellStyle.BackColor = Color.LightCoral;
+                        e.CellStyle.ForeColor = Color.White;
+                    }
+                }
+            }
         }
 
         private double? CalculateNetPremium(FIXMessage quote)
@@ -983,7 +885,6 @@ namespace FXOAiTranslator
             if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
             {
                 rawPremium = premium6436;
-                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={premium6436} (raw), Ccy={premiumCcy}, Spot={spotRef ?? "N/A"}");
             }
             // FALLBACK: Use LegPricing structure - display raw values
             else if (quote.LegPricing != null && quote.LegPricing.Count > 0)
@@ -1018,8 +919,6 @@ namespace FXOAiTranslator
 
             // Currency conversion if toggle is checked
             // When checked: always show in BASE currency (convert from TERM if needed)
-            Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: Toggle={(togglePremiumCurrency?.Checked ?? false)}, PremCcy='{premiumCcy}', Spot='{spotRef ?? "null"}'");
-
             if (togglePremiumCurrency != null && togglePremiumCurrency.Checked && !string.IsNullOrEmpty(spotRef))
             {
                 // Get base and term currencies from the pair
@@ -1027,12 +926,9 @@ namespace FXOAiTranslator
                 string baseCcy = pair.Substring(0, 3);  // EUR or USD
                 string termCcy = pair.Substring(3, 3);  // USD or SEK
 
-                Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: Pair={pair}, BaseCcy={baseCcy}, TermCcy={termCcy}");
-
                 if (double.TryParse(spotRef, out double spot))
                 {
                     string premCcy = premiumCcy.ToUpperInvariant();
-                    Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: PremCcy.Upper='{premCcy}', Comparing with TermCcy='{termCcy.ToUpperInvariant()}', BaseCcy='{baseCcy.ToUpperInvariant()}'");
 
                     // If premium is in term currency, convert to base currency
                     if (premCcy == termCcy.ToUpperInvariant())
@@ -1041,23 +937,13 @@ namespace FXOAiTranslator
                         // Example: USD/SEK with premium in SEK: SEK 1000 / 10.5 = USD 95.24
                         // Example: EUR/USD with premium in USD: USD 1000 / 1.15 = EUR 869.57
                         double convertedPremium = rawPremium.Value / spot;
-                        Console.WriteLine($"[PREMIUM CONVERT] {lpName} {side}: {termCcy} {rawPremium.Value:F2} / Spot {spot:F5} = {baseCcy} {convertedPremium:F2}");
                         return convertedPremium;
                     }
                     // If premium is already in base currency, no conversion needed
                     else if (premCcy == baseCcy.ToUpperInvariant())
                     {
-                        Console.WriteLine($"[PREMIUM CONVERT] {lpName} {side}: Already in {baseCcy} {rawPremium.Value:F2}, no conversion needed");
                         return rawPremium.Value;
                     }
-                    else
-                    {
-                        Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: PremCcy '{premCcy}' doesn't match BaseCcy '{baseCcy}' or TermCcy '{termCcy}' - no conversion");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine($"[CONVERSION DEBUG] {lpName} {side}: Failed to parse spot rate '{spotRef}'");
                 }
             }
 
