@@ -760,12 +760,11 @@ namespace FXOAiTranslator
                     rowData.Add(offerVol?.ToString("N2") ?? "-");
                 }
 
-                // Use LastUpdate + 5 minutes as expiry time (tag 62 has stale data)
-                DateTime expiryTime = stream.LastUpdate.AddMinutes(5);
-                string expiryTimeStr = expiryTime.ToString("yyyyMMdd-HH:mm:ss");
+                // Extract ValidUntilTime (tag 62) from the quote
+                string validUntilStr = stream.OfferQuote?.Get("62") ?? stream.BidQuote?.Get("62");
 
                 rowData.Add(""); // TTL - will be calculated by countdown timer
-                rowData.Add(expiryTimeStr); // Hidden ValidUntilTime column - calculated from LastUpdate + 5min
+                rowData.Add(validUntilStr ?? ""); // Hidden ValidUntilTime column
 
                 var rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
 
@@ -812,10 +811,13 @@ namespace FXOAiTranslator
                     continue;
                 }
 
-                // Parse ValidUntilTime
-                if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime validUntil))
+                // Parse ValidUntilTime as UTC (FIX timestamps are in UTC)
+                if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null,
+                    System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                    out DateTime validUntilUtc))
                 {
-                    TimeSpan remaining = validUntil - DateTime.Now;
+                    // Compare with UTC time
+                    TimeSpan remaining = validUntilUtc - DateTime.UtcNow;
 
                     if (remaining.TotalSeconds > 0)
                     {
