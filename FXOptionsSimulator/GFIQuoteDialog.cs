@@ -953,6 +953,7 @@ namespace FXOAiTranslator
                 return null;
 
             // Currency conversion if checkbox is checked
+            // When checked: always show in BASE currency (convert from TERM if needed)
             if (chkShowPremiumInUSD != null && chkShowPremiumInUSD.Checked && !string.IsNullOrEmpty(spotRef))
             {
                 // Get base and term currencies from the pair
@@ -974,15 +975,11 @@ namespace FXOAiTranslator
                         Console.WriteLine($"[PREMIUM CONVERT] {lpName} {side}: {termCcy} {rawPremium.Value:F2} / Spot {spot:F5} = {baseCcy} {convertedPremium:F2}");
                         return convertedPremium;
                     }
-                    // If premium is in base currency, convert to term currency
+                    // If premium is already in base currency, no conversion needed
                     else if (premCcy == baseCcy.ToUpperInvariant())
                     {
-                        // Formula: Base Premium × Spot = Term Premium
-                        // Example: USD/SEK with premium in USD: USD 100 × 10.5 = SEK 1050
-                        // Example: EUR/USD with premium in EUR: EUR 100 × 1.15 = USD 115
-                        double convertedPremium = rawPremium.Value * spot;
-                        Console.WriteLine($"[PREMIUM CONVERT] {lpName} {side}: {baseCcy} {rawPremium.Value:F2} * Spot {spot:F5} = {termCcy} {convertedPremium:F2}");
-                        return convertedPremium;
+                        Console.WriteLine($"[PREMIUM CONVERT] {lpName} {side}: Already in {baseCcy} {rawPremium.Value:F2}, no conversion needed");
+                        return rawPremium.Value;
                     }
                 }
             }
