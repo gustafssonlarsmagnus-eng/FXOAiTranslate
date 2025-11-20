@@ -353,12 +353,15 @@ namespace FXOAiTranslator
             };
             gbLPs.Controls.Add(chkDBS);
 
-            // Premium currency toggle
+            // Premium currency toggle - dynamically set text based on pair
+            string baseCcy = _trade.Underlying.Substring(0, 3);  // e.g., "EUR" from "EURUSD"
+            string termCcy = _trade.Underlying.Substring(3, 3);  // e.g., "USD" from "EURUSD"
+
             chkShowPremiumInUSD = new CheckBox
             {
-                Text = "Show Premiums in USD (convert from EUR if needed)",
+                Text = $"Show Premiums in {baseCcy} (convert from {termCcy} if needed)",
                 Location = new Point(20, 315),
-                Size = new Size(400, 20),
+                Size = new Size(450, 20),
                 Checked = false  // Default: show in original currency
             };
             chkShowPremiumInUSD.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh display when toggled
@@ -944,23 +947,41 @@ namespace FXOAiTranslator
                 return null;
 
             // Currency conversion if checkbox is checked
-            if (chkShowPremiumInUSD != null && chkShowPremiumInUSD.Checked)
+            if (chkShowPremiumInUSD != null && chkShowPremiumInUSD.Checked && !string.IsNullOrEmpty(spotRef))
             {
-                // For EURUSD: if premium is in EUR, convert to USD
-                if (premiumCcy.ToUpperInvariant() == "EUR" && !string.IsNullOrEmpty(spotRef))
+                // Get base and term currencies from the pair
+                string pair = _trade.Underlying;  // e.g., "EURUSD" or "USDSEK"
+                string baseCcy = pair.Substring(0, 3);  // EUR or USD
+                string termCcy = pair.Substring(3, 3);  // USD or SEK
+
+                if (double.TryParse(spotRef, out double spot))
                 {
-                    if (double.TryParse(spotRef, out double spot))
+                    string premCcy = premiumCcy.ToUpperInvariant();
+
+                    // If premium is in term currency, convert to base currency
+                    if (premCcy == termCcy.ToUpperInvariant())
                     {
+                        // Formula: Term Premium / Spot = Base Premium
+                        // Example: USD/SEK with premium in SEK: SEK 1000 / 10.5 = USD 95.24
+                        // Example: EUR/USD with premium in USD: USD 1000 / 1.15 = EUR 869.57
+                        double convertedPremium = rawPremium.Value / spot;
+                        Console.WriteLine($"[PREMIUM CONVERT] {lpName} {side}: {termCcy} {rawPremium.Value:F2} / Spot {spot:F5} = {baseCcy} {convertedPremium:F2}");
+                        return convertedPremium;
+                    }
+                    // If premium is in base currency, convert to term currency
+                    else if (premCcy == baseCcy.ToUpperInvariant())
+                    {
+                        // Formula: Base Premium × Spot = Term Premium
+                        // Example: USD/SEK with premium in USD: USD 100 × 10.5 = SEK 1050
+                        // Example: EUR/USD with premium in EUR: EUR 100 × 1.15 = USD 115
                         double convertedPremium = rawPremium.Value * spot;
-                        Console.WriteLine($"[PREMIUM CONVERT] {lpName} {side}: EUR {rawPremium.Value:F2} * Spot {spot:F5} = USD {convertedPremium:F2}");
+                        Console.WriteLine($"[PREMIUM CONVERT] {lpName} {side}: {baseCcy} {rawPremium.Value:F2} * Spot {spot:F5} = {termCcy} {convertedPremium:F2}");
                         return convertedPremium;
                     }
                 }
-                // If premium is already in USD or conversion not possible, return raw
-                return rawPremium.Value;
             }
 
-            // Return raw premium (original currency)
+            // Return raw premium (original currency or conversion not possible)
             return rawPremium.Value;
         }
 
