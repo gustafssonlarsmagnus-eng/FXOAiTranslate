@@ -88,7 +88,7 @@ namespace FXOAiTranslator
             dgvBlotter.Columns["LegCount"].Width = 50;
 
             dgvBlotter.Columns.Add("NetPremium", "Net Premium");
-            dgvBlotter.Columns["NetPremium"].DefaultCellStyle.Format = "N2";
+            dgvBlotter.Columns["NetPremium"].DefaultCellStyle.Format = "N0"; // Raw integer values
             dgvBlotter.Columns["NetPremium"].Width = 100;
 
             dgvBlotter.Columns.Add("Status", "Status");

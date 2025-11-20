@@ -391,11 +391,11 @@ namespace FXOAiTranslator
             dgvQuotes.Columns["LP"].Width = 80;
 
             dgvQuotes.Columns.Add("NetPremBid", "Net Prem (Bid)");
-            dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.Format = "N2";
+            dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.Format = "N0"; // Raw integer values
             dgvQuotes.Columns["NetPremBid"].Width = 100;
 
             dgvQuotes.Columns.Add("NetPremOffer", "Net Prem (Offer)");
-            dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Format = "N2";
+            dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Format = "N0"; // Raw integer values
             dgvQuotes.Columns["NetPremOffer"].Width = 110;
 
             for (int i = 1; i <= legCount; i++)
@@ -552,8 +552,8 @@ namespace FXOAiTranslator
                 double? netPremBid = CalculateNetPremium(stream.BidQuote);
                 double? netPremOffer = CalculateNetPremium(stream.OfferQuote);
 
-                rowData.Add(netPremBid?.ToString("N2") ?? "-");
-                rowData.Add(netPremOffer?.ToString("N2") ?? "-");
+                rowData.Add(netPremBid?.ToString("N0") ?? "-"); // Raw integer values
+                rowData.Add(netPremOffer?.ToString("N0") ?? "-"); // Raw integer values
 
                 for (int i = 1; i <= _selectedLegCount; i++)
                 {
@@ -746,17 +746,15 @@ namespace FXOAiTranslator
                 ? quote.LegPricing[0].LegSpotRate
                 : null;
 
-            // PREFER Tag 6436 (Premium) if available - it's in consistent units across all LPs
-            // Tag 6436 appears to be in hundredths of basis points (divide by 1000 for basis points)
+            // PREFER Tag 6436 (Premium) if available - display raw value without conversion
             string tag6436 = quote.Get("6436");
             if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
             {
-                double basisPoints = premium6436 / 1000.0;
-                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={tag6436} -> Display={basisPoints:F2}, Spot={spotRef ?? "N/A"}");
-                return basisPoints;
+                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={premium6436} (raw), Spot={spotRef ?? "N/A"}");
+                return premium6436;
             }
 
-            // FALLBACK: Use LegPricing structure (less reliable due to PriceIndicator differences)
+            // FALLBACK: Use LegPricing structure - display raw values without conversion
             if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
                 double netPrem = 0;
@@ -764,30 +762,19 @@ namespace FXOAiTranslator
                 {
                     if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
                     {
-                        // HSBC sends premiums in percentage, others in basis points
-                        // Convert HSBC from % to bps by multiplying by 100
-                        if (lpName == "HSBC")
-                        {
-                            prem *= 100.0;
-                        }
                         netPrem += prem;
                     }
                 }
                 return netPrem;
             }
 
-            // Fallback to old field structure for backwards compatibility
+            // Fallback to old field structure for backwards compatibility - display raw values
             double netPremOld = 0;
             for (int i = 1; i <= _selectedLegCount; i++)
             {
                 var premStr = quote.Get($"leg{i}_5844");
                 if (!string.IsNullOrEmpty(premStr) && double.TryParse(premStr, out double prem))
                 {
-                    // HSBC sends premiums in percentage, others in basis points
-                    if (lpName == "HSBC")
-                    {
-                        prem *= 100.0;
-                    }
                     netPremOld += prem;
                 }
             }
@@ -1078,7 +1065,7 @@ namespace FXOAiTranslator
                 entry.Side,
                 entry.Underlying,
                 entry.StructureType,
-                entry.NetPremium.ToString("N2"),
+                entry.NetPremium.ToString("N0"), // Raw integer value
                 deltaDisplay,
                 entry.Status
             );
@@ -1102,7 +1089,7 @@ namespace FXOAiTranslator
                 if (row.Cells["ClOrdID"].Value?.ToString() == entry.ClOrdID)
                 {
                     row.Cells["Status"].Value = entry.Status;
-                    row.Cells["Premium"].Value = entry.NetPremium.ToString("N2");
+                    row.Cells["Premium"].Value = entry.NetPremium.ToString("N0"); // Raw integer value
                     ColorCodeBlotterRow(row, entry.Status);
                     break;
                 }

@@ -379,32 +379,25 @@ namespace FXOptionsSimulator.FIX
                     double? delta = null;
                     double netPremium = 0;
 
-                    // PREFER Tag 6436 (Premium) for consistency with quote grid display
-                    // Tag 6436 is in hundredths of basis points (divide by 1000 for basis points)
+                    // PREFER Tag 6436 (Premium) for consistency with quote grid display - raw value
                     string tag6436 = quote.Get("6436");
                     if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
                     {
-                        netPremium = premium6436 / 1000.0;
-                        Console.WriteLine($"[BLOTTER] Using Tag 6436: {tag6436} -> {netPremium:F2} bps");
+                        netPremium = premium6436;
+                        Console.WriteLine($"[BLOTTER] Using Tag 6436: {premium6436} (raw)");
                     }
-                    // FALLBACK: Use LegPricing if Tag 6436 not available
+                    // FALLBACK: Use LegPricing if Tag 6436 not available - raw values
                     else if (quote.LegPricing != null && quote.LegPricing.Count > 0)
                     {
-                        // Sum up premium from all legs
+                        // Sum up premium from all legs - no conversions
                         foreach (var leg in quote.LegPricing)
                         {
                             if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
                             {
-                                // HSBC sends premiums in percentage, others in basis points
-                                // (lpName already declared in outer scope)
-                                if (lpName == "HSBC")
-                                {
-                                    legPrem *= 100.0;
-                                }
                                 netPremium += legPrem;
                             }
                         }
-                        Console.WriteLine($"[BLOTTER] Using LegPremPrice fallback: {netPremium:F2} bps");
+                        Console.WriteLine($"[BLOTTER] Using LegPremPrice fallback: {netPremium} (raw)");
                     }
 
                     // Calculate nominal delta (Delta × Notional)
