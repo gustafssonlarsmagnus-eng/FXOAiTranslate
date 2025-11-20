@@ -42,6 +42,7 @@ namespace FXOAiTranslator
         private CheckBox chkDBS;
         private int _selectedLegCount;
         private ToggleSwitch togglePremiumCurrency;  // Toggle for premium currency display
+        private Dictionary<int, string> _ttlCache = new Dictionary<int, string>(); // Cache TTL values for custom painting
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -377,6 +378,9 @@ namespace FXOAiTranslator
 
             // Use CellFormatting event for dynamic styling (reduces flicker)
             dgvQuotes.CellFormatting += DgvQuotes_CellFormatting;
+
+            // Use CellPainting for TTL column to avoid flicker
+            dgvQuotes.CellPainting += DgvQuotes_CellPainting;
 
             this.Controls.Add(dgvQuotes);
 
@@ -741,6 +745,7 @@ namespace FXOAiTranslator
             UpdatePremiumColumnHeaders();
 
             dgvQuotes.Rows.Clear();
+            _ttlCache.Clear(); // Clear countdown cache when refreshing grid
             var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
 
             foreach (var stream in streams)
@@ -821,29 +826,18 @@ namespace FXOAiTranslator
 
             var nowUtc = DateTime.UtcNow;
             int ttlColumnIndex = dgvQuotes.Columns["TTL"].Index;
+            bool anyChanged = false;
 
-            // Completely suspend painting using WinAPI (more aggressive than SuspendLayout)
-            SendMessage(dgvQuotes.Handle, WM_SETREDRAW, false, 0);
-
-            var cellsToInvalidate = new List<Rectangle>();
-
-            try
+            // Update the cache without touching cell values
+            foreach (DataGridViewRow row in dgvQuotes.Rows)
             {
-                foreach (DataGridViewRow row in dgvQuotes.Rows)
+                try
                 {
-                    try
-                    {
-                        string validUntilStr = row.Cells["ValidUntilTime"].Value?.ToString();
-                        if (string.IsNullOrEmpty(validUntilStr))
-                        {
-                            if (row.Cells["TTL"].Value?.ToString() != "-")
-                            {
-                                row.Cells["TTL"].Value = "-";
-                                cellsToInvalidate.Add(dgvQuotes.GetCellDisplayRectangle(ttlColumnIndex, row.Index, false));
-                            }
-                            continue;
-                        }
+                    string validUntilStr = row.Cells["ValidUntilTime"].Value?.ToString();
+                    string newValue = "-";
 
+                    if (!string.IsNullOrEmpty(validUntilStr))
+                    {
                         // Parse ValidUntilTime: format is "YYYYMMDD-HH:mm:ss" (already in UTC)
                         if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss",
                             System.Globalization.CultureInfo.InvariantCulture,
@@ -851,8 +845,6 @@ namespace FXOAiTranslator
                             out DateTime validUntil))
                         {
                             var remainingTime = validUntil - nowUtc;
-                            var ttlCell = row.Cells["TTL"];
-                            string newValue;
 
                             if (remainingTime.TotalSeconds <= 0)
                             {
@@ -865,97 +857,107 @@ namespace FXOAiTranslator
                                 int seconds = remainingTime.Seconds;
                                 newValue = $"{minutes}:{seconds:D2}";
                             }
-
-                            // Only update if value changed (reduces redraws)
-                            if (ttlCell.Value?.ToString() != newValue)
-                            {
-                                ttlCell.Value = newValue;
-                                cellsToInvalidate.Add(dgvQuotes.GetCellDisplayRectangle(ttlColumnIndex, row.Index, false));
-                            }
-                        }
-                        else
-                        {
-                            if (row.Cells["TTL"].Value?.ToString() != "-")
-                            {
-                                row.Cells["TTL"].Value = "-";
-                                cellsToInvalidate.Add(dgvQuotes.GetCellDisplayRectangle(ttlColumnIndex, row.Index, false));
-                            }
                         }
                     }
-                    catch
+
+                    // Update cache if changed
+                    if (!_ttlCache.ContainsKey(row.Index) || _ttlCache[row.Index] != newValue)
                     {
-                        if (row.Cells["TTL"].Value?.ToString() != "-")
-                        {
-                            row.Cells["TTL"].Value = "-";
-                            cellsToInvalidate.Add(dgvQuotes.GetCellDisplayRectangle(ttlColumnIndex, row.Index, false));
-                        }
+                        _ttlCache[row.Index] = newValue;
+                        anyChanged = true;
+                    }
+                }
+                catch
+                {
+                    if (!_ttlCache.ContainsKey(row.Index) || _ttlCache[row.Index] != "-")
+                    {
+                        _ttlCache[row.Index] = "-";
+                        anyChanged = true;
                     }
                 }
             }
-            finally
-            {
-                // Resume painting
-                SendMessage(dgvQuotes.Handle, WM_SETREDRAW, true, 0);
 
-                // Only invalidate the specific cells that changed
-                if (cellsToInvalidate.Count > 0)
+            // Only invalidate the TTL column if something actually changed
+            if (anyChanged && dgvQuotes.Columns.Contains("TTL"))
+            {
+                var ttlRect = dgvQuotes.GetColumnDisplayRectangle(ttlColumnIndex, false);
+                if (!ttlRect.IsEmpty)
+                    dgvQuotes.Invalidate(ttlRect);
+            }
+        }
+
+        private void DgvQuotes_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            // Only custom paint the TTL column
+            if (e.ColumnIndex >= 0 && e.RowIndex >= 0 &&
+                dgvQuotes.Columns[e.ColumnIndex].Name == "TTL")
+            {
+                // Get the cached value
+                string ttlValue = _ttlCache.ContainsKey(e.RowIndex) ? _ttlCache[e.RowIndex] : "-";
+
+                // Determine colors based on value
+                Color bgColor = Color.White;
+                Color textColor = Color.Black;
+
+                if (ttlValue == "EXPIRED")
                 {
-                    foreach (var rect in cellsToInvalidate)
+                    bgColor = Color.LightGray;
+                    textColor = Color.DarkRed;
+                }
+                else if (ttlValue != "-")
+                {
+                    // Parse time to determine color
+                    string[] parts = ttlValue.Split(':');
+                    if (parts.Length == 2 && int.TryParse(parts[0], out int minutes) && int.TryParse(parts[1], out int seconds))
                     {
-                        if (!rect.IsEmpty)
-                            dgvQuotes.Invalidate(rect);
+                        int totalSeconds = minutes * 60 + seconds;
+
+                        if (totalSeconds > 60)
+                        {
+                            bgColor = Color.LightGreen;
+                            textColor = Color.Black;
+                        }
+                        else if (totalSeconds > 30)
+                        {
+                            bgColor = Color.Yellow;
+                            textColor = Color.Black;
+                        }
+                        else
+                        {
+                            bgColor = Color.LightCoral;
+                            textColor = Color.White;
+                        }
                     }
                 }
+
+                // Paint background
+                using (var bgBrush = new SolidBrush(bgColor))
+                {
+                    e.Graphics.FillRectangle(bgBrush, e.CellBounds);
+                }
+
+                // Paint border
+                e.Paint(e.CellBounds, DataGridViewPaintParts.Border);
+
+                // Draw the text
+                using (var brush = new SolidBrush(textColor))
+                {
+                    var sf = new StringFormat
+                    {
+                        Alignment = StringAlignment.Center,
+                        LineAlignment = StringAlignment.Center
+                    };
+                    e.Graphics.DrawString(ttlValue, e.CellStyle.Font, brush, e.CellBounds, sf);
+                }
+
+                e.Handled = true;
             }
         }
 
         private void DgvQuotes_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            // Only format TTL column
-            if (dgvQuotes.Columns[e.ColumnIndex].Name != "TTL")
-                return;
-
-            if (e.Value == null)
-                return;
-
-            string ttlValue = e.Value.ToString();
-
-            // Apply colors based on TTL value
-            if (ttlValue == "EXPIRED")
-            {
-                e.CellStyle.BackColor = Color.LightGray;
-                e.CellStyle.ForeColor = Color.DarkRed;
-            }
-            else if (ttlValue == "-")
-            {
-                e.CellStyle.BackColor = Color.White;
-                e.CellStyle.ForeColor = Color.Black;
-            }
-            else
-            {
-                // Parse time to determine color
-                string[] parts = ttlValue.Split(':');
-                if (parts.Length == 2 && int.TryParse(parts[0], out int minutes) && int.TryParse(parts[1], out int seconds))
-                {
-                    int totalSeconds = minutes * 60 + seconds;
-
-                    if (totalSeconds > 60)
-                    {
-                        e.CellStyle.BackColor = Color.LightGreen;
-                        e.CellStyle.ForeColor = Color.Black;
-                    }
-                    else if (totalSeconds > 30)
-                    {
-                        e.CellStyle.BackColor = Color.Yellow;
-                        e.CellStyle.ForeColor = Color.Black;
-                    }
-                    else
-                    {
-                        e.CellStyle.BackColor = Color.LightCoral;
-                        e.CellStyle.ForeColor = Color.White;
-                    }
-                }
-            }
+            // TTL column is now handled by CellPainting event to eliminate flicker
+            // This method can be used for other columns if needed in the future
         }
 
         private double? CalculateNetPremium(FIXMessage quote)
