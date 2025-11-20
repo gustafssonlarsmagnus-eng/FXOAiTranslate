@@ -401,6 +401,7 @@ namespace FXOptionsSimulator.FIX
                     }
 
                     // Calculate nominal delta (Delta × Notional)
+                    double? volatility = null;
                     if (quote.LegPricing != null && quote.LegPricing.Count > 0)
                     {
                         var firstLeg = quote.LegPricing[0];
@@ -413,6 +414,23 @@ namespace FXOptionsSimulator.FIX
                             // Nominal Delta = (Delta% / 100) × Notional in full units
                             double notionalFull = notionalMM * 1_000_000; // Convert millions to full units
                             delta = (deltaPercent / 100.0) * notionalFull;
+                        }
+
+                        // Calculate average volatility across all legs
+                        double volSum = 0;
+                        int volCount = 0;
+                        foreach (var leg in quote.LegPricing)
+                        {
+                            if (!string.IsNullOrEmpty(leg.Volatility) && double.TryParse(leg.Volatility, out double legVol))
+                            {
+                                volSum += legVol;
+                                volCount++;
+                            }
+                        }
+                        if (volCount > 0)
+                        {
+                            volatility = volSum / volCount;
+                            Console.WriteLine($"[BLOTTER] Executed volatility: {volatility:F2} (avg of {volCount} legs)");
                         }
                     }
 
@@ -427,6 +445,7 @@ namespace FXOptionsSimulator.FIX
                         LegCount = trade.Legs.Count,
                         NetPremium = netPremium,
                         Delta = delta,
+                        Volatility = volatility,
                         Status = "PENDING"
                     };
                     TradeBlotter.Instance.AddTrade(blotterEntry);

@@ -306,6 +306,8 @@ namespace FXOAiTranslator
             dgvBlotter.Columns["Premium"].Width = 80;
             dgvBlotter.Columns.Add("Delta", "Delta");
             dgvBlotter.Columns["Delta"].Width = 70;
+            dgvBlotter.Columns.Add("Volatility", "Vol");
+            dgvBlotter.Columns["Volatility"].Width = 70;
             dgvBlotter.Columns.Add("Status", "Status");
             dgvBlotter.Columns["Status"].Width = 100;
 
@@ -1058,6 +1060,9 @@ namespace FXOAiTranslator
                 deltaDisplay = deltaInMillions.ToString("N2") + "M";
             }
 
+            // Format volatility
+            string volDisplay = entry.Volatility.HasValue ? entry.Volatility.Value.ToString("N2") : "-";
+
             dgvBlotter.Rows.Add(
                 entry.TradeTime.ToString("HH:mm:ss"),
                 entry.ClOrdID,
@@ -1067,6 +1072,7 @@ namespace FXOAiTranslator
                 entry.StructureType,
                 entry.NetPremium.ToString("N0"), // Raw integer value
                 deltaDisplay,
+                volDisplay,
                 entry.Status
             );
 

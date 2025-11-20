@@ -15,6 +15,7 @@ namespace FXOptionsSimulator
         public int LegCount { get; set; }
         public double NetPremium { get; set; }
         public double? Delta { get; set; }  // Option delta from quote
+        public double? Volatility { get; set; }  // Executed volatility (average for multi-leg)
         public string Status { get; set; } // PENDING, FILLED, REJECTED
         public string RejectReason { get; set; }
         public string ExecID { get; set; }
