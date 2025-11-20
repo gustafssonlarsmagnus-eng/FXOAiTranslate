@@ -948,8 +948,8 @@ namespace FXOAiTranslator
                 ? quote.LegPricing[0].LegSpotRate
                 : null;
 
-            // Get premium currency from tag 5830
-            string premiumCcy = quote.Get("5830") ?? "";
+            // Get premium currency from tag 9073 (inbound quote) or tag 5830 (fallback)
+            string premiumCcy = quote.Get("9073") ?? quote.Get("5830") ?? "";
 
             double? rawPremium = null;
 
