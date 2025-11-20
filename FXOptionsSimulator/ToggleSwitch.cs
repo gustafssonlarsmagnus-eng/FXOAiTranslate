@@ -12,7 +12,7 @@ namespace FXOptionsSimulator
         private string _rightText = "EUR";
         private readonly Color _onColor = Color.FromArgb(0, 120, 215); // Windows blue
         private readonly Color _offColor = Color.FromArgb(200, 200, 200); // Gray
-        private readonly Timer _animationTimer;
+        private readonly System.Windows.Forms.Timer _animationTimer;
         private float _thumbPosition = 0; // 0 = left (off), 1 = right (on)
         private const float AnimationSpeed = 0.15f;
 
@@ -54,7 +54,7 @@ namespace FXOptionsSimulator
             this.Size = new Size(200, 30);
             this.Cursor = Cursors.Hand;
 
-            _animationTimer = new Timer { Interval = 10 };
+            _animationTimer = new System.Windows.Forms.Timer { Interval = 10 };
             _animationTimer.Tick += (s, e) =>
             {
                 float target = _checked ? 1f : 0f;
