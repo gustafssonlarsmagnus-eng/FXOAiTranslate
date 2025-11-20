@@ -737,66 +737,123 @@ namespace FXOAiTranslator
             // Update column headers based on currency display mode
             UpdatePremiumColumnHeaders();
 
-            dgvQuotes.Rows.Clear();
-            var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
+            // Suspend drawing to prevent flicker
+            SendMessage(dgvQuotes.Handle, WM_SETREDRAW, false, 0);
 
-            foreach (var stream in streams)
+            try
             {
-                var rowData = new List<object>();
-                rowData.Add(stream.LP);
+                var streams = _fixSession.Application.GetActiveStreams(_groupId);
 
-                double? netPremBid = CalculateNetPremium(stream.BidQuote);
-                double? netPremOffer = CalculateNetPremium(stream.OfferQuote);
-
-                rowData.Add(netPremBid?.ToString("N0") ?? "-"); // Raw integer values
-                rowData.Add(netPremOffer?.ToString("N0") ?? "-"); // Raw integer values
-
-                for (int i = 1; i <= _selectedLegCount; i++)
+                // Update existing rows or add new ones (don't clear and rebuild)
+                foreach (var stream in streams)
                 {
-                    double? bidVol = GetLegVol(stream.BidQuote, i);
-                    double? offerVol = GetLegVol(stream.OfferQuote, i);
+                    // Find existing row for this LP
+                    int rowIndex = -1;
+                    for (int i = 0; i < dgvQuotes.Rows.Count; i++)
+                    {
+                        if (dgvQuotes.Rows[i].Cells["LP"].Value?.ToString() == stream.LP)
+                        {
+                            rowIndex = i;
+                            break;
+                        }
+                    }
 
-                    rowData.Add(bidVol?.ToString("N2") ?? "-");
-                    rowData.Add(offerVol?.ToString("N2") ?? "-");
+                    double? netPremBid = CalculateNetPremium(stream.BidQuote);
+                    double? netPremOffer = CalculateNetPremium(stream.OfferQuote);
+
+                    // If row doesn't exist, create it
+                    if (rowIndex == -1)
+                    {
+                        var rowData = new List<object>();
+                        rowData.Add(stream.LP);
+                        rowData.Add(netPremBid?.ToString("N0") ?? "-");
+                        rowData.Add(netPremOffer?.ToString("N0") ?? "-");
+
+                        for (int i = 1; i <= _selectedLegCount; i++)
+                        {
+                            double? bidVol = GetLegVol(stream.BidQuote, i);
+                            double? offerVol = GetLegVol(stream.OfferQuote, i);
+                            rowData.Add(bidVol?.ToString("N2") ?? "-");
+                            rowData.Add(offerVol?.ToString("N2") ?? "-");
+                        }
+
+                        string validUntilStr = stream.OfferQuote?.Get("62") ?? stream.BidQuote?.Get("62");
+                        rowData.Add(""); // TTL - handled by timer
+                        rowData.Add(validUntilStr ?? "");
+
+                        rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
+                    }
+                    else
+                    {
+                        // Update existing row (don't touch TTL column - let timer handle it)
+                        dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Value = netPremBid?.ToString("N0") ?? "-";
+                        dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Value = netPremOffer?.ToString("N0") ?? "-";
+
+                        for (int i = 1; i <= _selectedLegCount; i++)
+                        {
+                            double? bidVol = GetLegVol(stream.BidQuote, i);
+                            double? offerVol = GetLegVol(stream.OfferQuote, i);
+                            dgvQuotes.Rows[rowIndex].Cells[$"Leg{i}BidVol"].Value = bidVol?.ToString("N2") ?? "-";
+                            dgvQuotes.Rows[rowIndex].Cells[$"Leg{i}OfferVol"].Value = offerVol?.ToString("N2") ?? "-";
+                        }
+
+                        // Update ValidUntilTime only (TTL is handled by timer)
+                        string validUntilStr = stream.OfferQuote?.Get("62") ?? stream.BidQuote?.Get("62");
+                        if (!string.IsNullOrEmpty(validUntilStr))
+                        {
+                            dgvQuotes.Rows[rowIndex].Cells["ValidUntilTime"].Value = validUntilStr;
+                        }
+                    }
+
+                    // Reset cell styles
+                    dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.BackColor = Color.White;
+                    dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.Font = dgvQuotes.Font;
+                    dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.BackColor = Color.White;
+                    dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.Font = dgvQuotes.Font;
                 }
 
-                // Extract ValidUntilTime (tag 62) from the quote
-                string validUntilStr = stream.OfferQuote?.Get("62") ?? stream.BidQuote?.Get("62");
-
-                rowData.Add(""); // TTL - will be calculated by countdown timer
-                rowData.Add(validUntilStr ?? ""); // Hidden ValidUntilTime column
-
-                var rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
-
+                // Apply best price highlighting
                 var (bestBid, bestOffer) = GetBestPremiums();
-
-                if (bestBid.HasValue && netPremBid.HasValue && Math.Abs(netPremBid.Value - bestBid.Value) < 0.01)
+                for (int i = 0; i < dgvQuotes.Rows.Count; i++)
                 {
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.Font =
-                        new Font(dgvQuotes.Font, FontStyle.Bold);
+                    var bidStr = dgvQuotes.Rows[i].Cells["NetPremBid"].Value?.ToString();
+                    var offerStr = dgvQuotes.Rows[i].Cells["NetPremOffer"].Value?.ToString();
+
+                    if (bestBid.HasValue && double.TryParse(bidStr, System.Globalization.NumberStyles.AllowThousands, null, out double bidVal) &&
+                        Math.Abs(bidVal - bestBid.Value) < 0.01)
+                    {
+                        dgvQuotes.Rows[i].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
+                        dgvQuotes.Rows[i].Cells["NetPremBid"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+                    }
+
+                    if (bestOffer.HasValue && double.TryParse(offerStr, System.Globalization.NumberStyles.AllowThousands, null, out double offerVal) &&
+                        Math.Abs(offerVal - bestOffer.Value) < 0.01)
+                    {
+                        dgvQuotes.Rows[i].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
+                        dgvQuotes.Rows[i].Cells["NetPremOffer"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+                    }
                 }
 
-                if (bestOffer.HasValue && netPremOffer.HasValue && Math.Abs(netPremOffer.Value - bestOffer.Value) < 0.01)
+                // Enable execute buttons if we have quotes
+                if (streams.Any(s => s.BidQuote != null || s.OfferQuote != null))
                 {
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.Font =
-                        new Font(dgvQuotes.Font, FontStyle.Bold);
+                    btnExecute.Enabled = true;
+                    btnBuy.Enabled = true;
                 }
+
+                // Clear selection so best price highlighting is visible
+                dgvQuotes.ClearSelection();
+
+                // Start countdown timer
+                if (!_countdownTimer.Enabled)
+                    _countdownTimer.Start();
             }
-            // Enable execute buttons if we have quotes
-            if (streams.Any(s => s.BidQuote != null || s.OfferQuote != null))
+            finally
             {
-                btnExecute.Enabled = true;
-                btnBuy.Enabled = true;
+                // Resume drawing and refresh once
+                SendMessage(dgvQuotes.Handle, WM_SETREDRAW, true, 0);
+                dgvQuotes.Refresh();
             }
-
-            // Clear selection so best price highlighting is visible (not covered by blue selection)
-            dgvQuotes.ClearSelection();
-
-            // Start countdown timer
-            if (!_countdownTimer.Enabled)
-                _countdownTimer.Start();
         }
 
         private void CountdownTimer_Tick(object sender, EventArgs e)
