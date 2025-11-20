@@ -26,7 +26,7 @@ namespace FXOptionsSimulator
                 if (_checked != value)
                 {
                     _checked = value;
-                    _animationTimer.Start();
+                    Invalidate(); // Instant redraw, no animation needed for segmented control
                     CheckedChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
@@ -83,75 +83,84 @@ namespace FXOptionsSimulator
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            // The switch takes up the full control size
-            int trackHeight = this.Height;
-            int trackWidth = this.Width;
-            int thumbWidth = trackWidth / 2 - 2; // Half width minus padding
-            int thumbHeight = trackHeight - 4;
-            int padding = 2;
+            int width = this.Width;
+            int height = this.Height;
+            int halfWidth = width / 2;
+            int cornerRadius = 4;
 
-            // Calculate thumb position
-            int thumbX = (int)(padding + (_thumbPosition * (trackWidth - thumbWidth - padding * 2)));
-            int thumbY = padding;
+            // Define colors
+            Color borderColor = Color.FromArgb(200, 200, 200);
+            Color blueBackground = Color.FromArgb(0, 120, 215);
+            Color whiteBackground = Color.White;
+            Color blueText = Color.White;
+            Color grayText = Color.FromArgb(100, 100, 100);
 
-            // Draw background track
-            Color trackColor = _checked ? _onColor : _offColor;
-            using (var brush = new SolidBrush(trackColor))
-            using (var path = GetRoundedRect(0, 0, trackWidth, trackHeight, trackHeight / 2))
+            // Draw outer border
+            using (var borderPath = GetRoundedRect(0, 0, width, height, cornerRadius))
+            using (var borderPen = new Pen(borderColor, 1))
             {
-                e.Graphics.FillPath(brush, path);
+                e.Graphics.DrawPath(borderPen, borderPath);
             }
 
-            // Draw thumb
-            using (var shadowBrush = new SolidBrush(Color.FromArgb(50, 0, 0, 0)))
+            // Draw left section background
+            Color leftBgColor = !_checked ? blueBackground : whiteBackground;
+            using (var leftBrush = new SolidBrush(leftBgColor))
             {
-                e.Graphics.FillEllipse(shadowBrush, thumbX + 1, thumbY + 2, thumbWidth, thumbHeight);
+                // Left half with rounded corners on left side only
+                GraphicsPath leftPath = new GraphicsPath();
+                leftPath.AddArc(0, 0, cornerRadius * 2, cornerRadius * 2, 180, 90);
+                leftPath.AddLine(cornerRadius, 0, halfWidth, 0);
+                leftPath.AddLine(halfWidth, 0, halfWidth, height);
+                leftPath.AddLine(halfWidth, height, cornerRadius, height);
+                leftPath.AddArc(0, height - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 90, 90);
+                leftPath.CloseFigure();
+                e.Graphics.FillPath(leftBrush, leftPath);
             }
-            using (var thumbBrush = new SolidBrush(Color.White))
-            using (var thumbPath = GetRoundedRect(thumbX, thumbY, thumbWidth, thumbHeight, thumbHeight / 2))
+
+            // Draw right section background
+            Color rightBgColor = _checked ? blueBackground : whiteBackground;
+            using (var rightBrush = new SolidBrush(rightBgColor))
             {
-                e.Graphics.FillPath(thumbBrush, thumbPath);
+                // Right half with rounded corners on right side only
+                GraphicsPath rightPath = new GraphicsPath();
+                rightPath.AddLine(halfWidth, 0, width - cornerRadius, 0);
+                rightPath.AddArc(width - cornerRadius * 2, 0, cornerRadius * 2, cornerRadius * 2, 270, 90);
+                rightPath.AddArc(width - cornerRadius * 2, height - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 0, 90);
+                rightPath.AddLine(width - cornerRadius, height, halfWidth, height);
+                rightPath.AddLine(halfWidth, height, halfWidth, 0);
+                rightPath.CloseFigure();
+                e.Graphics.FillPath(rightBrush, rightPath);
             }
 
-            // Draw text INSIDE the track
-            using (var font = new Font("Segoe UI", 9F, FontStyle.Bold))
+            // Draw center divider line
+            using (var dividerPen = new Pen(borderColor, 1))
             {
-                // Left text (USD or term currency)
-                string leftLabel = _leftText;
-                SizeF leftSize = e.Graphics.MeasureString(leftLabel, font);
-                float leftX = (trackWidth / 4) - (leftSize.Width / 2);
-                float leftY = (trackHeight - leftSize.Height) / 2;
+                e.Graphics.DrawLine(dividerPen, halfWidth, 1, halfWidth, height - 1);
+            }
 
-                // Right text (EUR or base currency)
-                string rightLabel = _rightText;
-                SizeF rightSize = e.Graphics.MeasureString(rightLabel, font);
-                float rightX = (trackWidth * 3 / 4) - (rightSize.Width / 2);
-                float rightY = (trackHeight - rightSize.Height) / 2;
-
-                // Draw text based on state
-                if (_checked)
+            // Draw text
+            using (var font = new Font("Segoe UI", 9F, FontStyle.Regular))
+            {
+                StringFormat sf = new StringFormat
                 {
-                    // When checked (EUR), show USD grayed on left, EUR in white on thumb
-                    using (var leftBrush = new SolidBrush(Color.FromArgb(150, 150, 150)))
-                    {
-                        e.Graphics.DrawString(leftLabel, font, leftBrush, leftX, leftY);
-                    }
-                    using (var rightBrush = new SolidBrush(Color.FromArgb(0, 100, 180)))
-                    {
-                        e.Graphics.DrawString(rightLabel, font, rightBrush, rightX, rightY);
-                    }
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center
+                };
+
+                // Left text
+                Color leftTextColor = !_checked ? blueText : grayText;
+                using (var leftTextBrush = new SolidBrush(leftTextColor))
+                {
+                    RectangleF leftRect = new RectangleF(0, 0, halfWidth, height);
+                    e.Graphics.DrawString(_leftText, font, leftTextBrush, leftRect, sf);
                 }
-                else
+
+                // Right text
+                Color rightTextColor = _checked ? blueText : grayText;
+                using (var rightTextBrush = new SolidBrush(rightTextColor))
                 {
-                    // When unchecked (USD), show USD in white on thumb, EUR grayed on right
-                    using (var leftBrush = new SolidBrush(Color.FromArgb(80, 80, 80)))
-                    {
-                        e.Graphics.DrawString(leftLabel, font, leftBrush, leftX, leftY);
-                    }
-                    using (var rightBrush = new SolidBrush(Color.White))
-                    {
-                        e.Graphics.DrawString(rightLabel, font, rightBrush, rightX, rightY);
-                    }
+                    RectangleF rightRect = new RectangleF(halfWidth, 0, halfWidth, height);
+                    e.Graphics.DrawString(_rightText, font, rightTextBrush, rightRect, sf);
                 }
             }
         }
