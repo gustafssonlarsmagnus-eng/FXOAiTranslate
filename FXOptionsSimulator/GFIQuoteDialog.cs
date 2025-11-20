@@ -41,6 +41,7 @@ namespace FXOAiTranslator
         private CheckBox chkDeut;
         private CheckBox chkDBS;
         private int _selectedLegCount;
+        private CheckBox chkShowPremiumInUSD;  // Toggle for premium currency display
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -352,11 +353,22 @@ namespace FXOAiTranslator
             };
             gbLPs.Controls.Add(chkDBS);
 
+            // Premium currency toggle
+            chkShowPremiumInUSD = new CheckBox
+            {
+                Text = "Show Premiums in USD (convert from EUR if needed)",
+                Location = new Point(20, 315),
+                Size = new Size(400, 20),
+                Checked = false  // Default: show in original currency
+            };
+            chkShowPremiumInUSD.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh display when toggled
+            this.Controls.Add(chkShowPremiumInUSD);
+
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
             {
-                Location = new Point(20, 330),
-                Size = new Size(940, 200),      // Reduced from 270
+                Location = new Point(20, 340),  // Moved down 10px for checkbox
+                Size = new Size(940, 190),      // Reduced by 10px
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -376,11 +388,11 @@ namespace FXOAiTranslator
 
             this.Controls.Add(dgvQuotes);
 
-            // Trade Blotter Grid - NEW
+            // Trade Blotter Grid
             var lblBlotter = new Label
             {
                 Text = "Trade Blotter:",
-                Location = new Point(20, 540),  // Same as before
+                Location = new Point(20, 540),  // Adjusted for checkbox
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
@@ -388,8 +400,8 @@ namespace FXOAiTranslator
 
             dgvBlotter = new DataGridView
             {
-                Location = new Point(20, 565),  // Same as before
-                Size = new Size(940, 135),      // Reduced slightly
+                Location = new Point(20, 565),  // Adjusted for checkbox
+                Size = new Size(940, 135),
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -888,16 +900,20 @@ namespace FXOAiTranslator
                 ? quote.LegPricing[0].LegSpotRate
                 : null;
 
-            // PREFER Tag 6436 (Premium) if available - display raw value without conversion
+            // Get premium currency from tag 5830
+            string premiumCcy = quote.Get("5830") ?? "";
+
+            double? rawPremium = null;
+
+            // PREFER Tag 6436 (Premium) if available - display raw value
             string tag6436 = quote.Get("6436");
             if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
             {
-                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={premium6436} (raw), Spot={spotRef ?? "N/A"}");
-                return premium6436;
+                rawPremium = premium6436;
+                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={premium6436} (raw), Ccy={premiumCcy}, Spot={spotRef ?? "N/A"}");
             }
-
-            // FALLBACK: Use LegPricing structure - display raw values without conversion
-            if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+            // FALLBACK: Use LegPricing structure - display raw values
+            else if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
                 double netPrem = 0;
                 foreach (var leg in quote.LegPricing)
@@ -907,21 +923,45 @@ namespace FXOAiTranslator
                         netPrem += prem;
                     }
                 }
-                return netPrem;
+                rawPremium = netPrem;
             }
-
-            // Fallback to old field structure for backwards compatibility - display raw values
-            double netPremOld = 0;
-            for (int i = 1; i <= _selectedLegCount; i++)
+            // Fallback to old field structure for backwards compatibility
+            else
             {
-                var premStr = quote.Get($"leg{i}_5844");
-                if (!string.IsNullOrEmpty(premStr) && double.TryParse(premStr, out double prem))
+                double netPremOld = 0;
+                for (int i = 1; i <= _selectedLegCount; i++)
                 {
-                    netPremOld += prem;
+                    var premStr = quote.Get($"leg{i}_5844");
+                    if (!string.IsNullOrEmpty(premStr) && double.TryParse(premStr, out double prem))
+                    {
+                        netPremOld += prem;
+                    }
                 }
+                rawPremium = netPremOld;
             }
 
-            return netPremOld;
+            if (!rawPremium.HasValue)
+                return null;
+
+            // Currency conversion if checkbox is checked
+            if (chkShowPremiumInUSD != null && chkShowPremiumInUSD.Checked)
+            {
+                // For EURUSD: if premium is in EUR, convert to USD
+                if (premiumCcy.ToUpperInvariant() == "EUR" && !string.IsNullOrEmpty(spotRef))
+                {
+                    if (double.TryParse(spotRef, out double spot))
+                    {
+                        double convertedPremium = rawPremium.Value * spot;
+                        Console.WriteLine($"[PREMIUM CONVERT] {lpName} {side}: EUR {rawPremium.Value:F2} * Spot {spot:F5} = USD {convertedPremium:F2}");
+                        return convertedPremium;
+                    }
+                }
+                // If premium is already in USD or conversion not possible, return raw
+                return rawPremium.Value;
+            }
+
+            // Return raw premium (original currency)
+            return rawPremium.Value;
         }
 
         private double? GetLegVol(FIXMessage quote, int legNum)
