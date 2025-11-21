@@ -24,8 +24,8 @@ namespace FXOptionsSimulator.FIX
             try
             {
                 var settings = new SessionSettings("quickfix_stp.cfg");
-                var storeFactory = new FileStoreFactory(settings);
-                var logFactory = new FileLogFactory(settings);
+                var storeFactory = new MemoryStoreFactory();
+                var logFactory = new ScreenLogFactory(settings);
 
                 _initiator = new SocketInitiator(this, storeFactory, settings, logFactory);
                 _initiator.Start();
