@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Speech.Recognition;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -26,13 +25,7 @@ namespace FXOAiTranslator
         private TextBox txtDebugLog;
         private ContextMenuStrip ctxRowMenu;
         private TextBox txtManualInput;
-        private Button btnMicrophone;
-        private ToolTip microphoneToolTip;
         private bool debugVisible = false;
-
-        // Speech Recognition
-        private SpeechRecognitionEngine _speechRecognizer;
-        private bool _isListening = false;
 
         // Progress indicator
         private StatusStrip statusStrip;
@@ -111,42 +104,13 @@ namespace FXOAiTranslator
             {
                 Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 10F),
-                PlaceholderText = "Type or speak trade request...",
+                PlaceholderText = "Type trade request...",
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
-                Padding = new Padding(5, 0, 40, 0) // Right padding for microphone button
+                Padding = new Padding(5, 0, 5, 0)
             };
 
-            // Microphone button - embedded in text field like iPhone Messenger
-            btnMicrophone = new Button
-            {
-                Text = "", // No text - we'll draw custom icon
-                Size = new Size(28, 20),
-                Location = new Point(pnlInputContainer.Width - 34, 3), // Position on right inside textbox
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.White, // Match text field background
-                Cursor = Cursors.Hand,
-                TabStop = false,
-                Anchor = AnchorStyles.Right | AnchorStyles.Top
-            };
-            btnMicrophone.FlatAppearance.BorderSize = 0;
-            btnMicrophone.FlatAppearance.BorderColor = Color.White;
-            btnMicrophone.FlatAppearance.MouseOverBackColor = Color.FromArgb(245, 245, 245);
-            btnMicrophone.FlatAppearance.MouseDownBackColor = Color.FromArgb(235, 235, 235);
-            btnMicrophone.Paint += BtnMicrophone_Paint; // Custom drawing
-
-            // Position button after text field so it overlays on top
             pnlInputContainer.Controls.Add(txtManualInput);
-            pnlInputContainer.Controls.Add(btnMicrophone);
-            btnMicrophone.BringToFront();
-
-            // Setup tooltip
-            microphoneToolTip = new ToolTip();
-            microphoneToolTip.AutoPopDelay = 5000;
-            microphoneToolTip.InitialDelay = 500;
-            microphoneToolTip.ReshowDelay = 100;
-            microphoneToolTip.ShowAlways = true;
-            microphoneToolTip.SetToolTip(btnMicrophone, "Click to start voice input");
 
             pnlManualInput.Controls.Add(pnlInputContainer);
             pnlManualInput.Controls.Add(lblManualInput);
@@ -560,9 +524,6 @@ namespace FXOAiTranslator
 
             UpdateBloombergStatus();
 
-            // Setup speech recognition
-            SetupSpeechRecognition();
-
             // Setup global clipboard monitoring for paste-anywhere functionality
             SetupClipboardMonitoring();
         }
@@ -647,7 +608,6 @@ namespace FXOAiTranslator
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;
             dgvTradeBlotter.CellToolTipTextNeeded += DgvTradeBlotter_CellToolTipTextNeeded;
             txtManualInput.KeyDown += TxtManualInput_KeyDown;
-            btnMicrophone.Click += BtnMicrophone_Click;
             this.FormClosing += MainForm_FormClosing;
         }
 
@@ -666,238 +626,6 @@ namespace FXOAiTranslator
             }
         }
 
-        private void SetupSpeechRecognition()
-        {
-            try
-            {
-                _speechRecognizer = new SpeechRecognitionEngine(new System.Globalization.CultureInfo("en-US"));
-
-                // Create a grammar for dictation (free-form speech)
-                _speechRecognizer.LoadGrammar(new DictationGrammar());
-
-                // Set up event handlers
-                _speechRecognizer.SpeechRecognized += SpeechRecognizer_SpeechRecognized;
-                _speechRecognizer.SpeechRecognitionRejected += SpeechRecognizer_SpeechRecognitionRejected;
-
-                // Set input to default audio device
-                _speechRecognizer.SetInputToDefaultAudioDevice();
-
-                LogDebugMessage("Speech recognition initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                LogDebugMessage($"Speech recognition initialization failed: {ex.Message}");
-                btnMicrophone.Enabled = false;
-                btnMicrophone.BackColor = Color.White;
-                btnMicrophone.Invalidate(); // Redraw with disabled color
-
-                string errorMsg = "Speech recognition unavailable.\n\n" +
-                    "To enable voice input:\n" +
-                    "1. Go to Windows Settings > Time & Language > Speech\n" +
-                    "2. Turn on 'Speech Recognition'\n" +
-                    "3. Ensure your microphone is connected and working\n" +
-                    "4. Restart the application\n\n" +
-                    $"Error: {ex.Message}";
-
-                microphoneToolTip.SetToolTip(btnMicrophone, errorMsg);
-
-                // Show a one-time message
-                MessageBox.Show(errorMsg, "Speech Recognition Setup Required",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
-
-        private void BtnMicrophone_Click(object sender, EventArgs e)
-        {
-            if (_isListening)
-            {
-                StopListening();
-            }
-            else
-            {
-                StartListening();
-            }
-        }
-
-        private void BtnMicrophone_Paint(object sender, PaintEventArgs e)
-        {
-            // Draw custom line-art microphone icon (compact size)
-            var g = e.Graphics;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-            // Determine color based on button state - darker for better visibility
-            Color iconColor = btnMicrophone.Enabled ?
-                (_isListening ? Color.FromArgb(0, 122, 255) : Color.FromArgb(80, 80, 80)) : // Dark grey
-                Color.LightGray;
-
-            using (var pen = new Pen(iconColor, 1.6f)) // Thicker line for better visibility
-            {
-                // Center the icon in the button
-                int centerX = btnMicrophone.Width / 2;
-                int centerY = btnMicrophone.Height / 2;
-
-                // Microphone capsule (smaller, more compact)
-                // Top arc
-                g.DrawArc(pen, centerX - 2.5f, centerY - 5, 5, 5, 180, 180);
-                // Side lines
-                g.DrawLine(pen, centerX - 2.5f, centerY - 2.5f, centerX - 2.5f, centerY + 1);
-                g.DrawLine(pen, centerX + 2.5f, centerY - 2.5f, centerX + 2.5f, centerY + 1);
-                // Bottom arc
-                g.DrawArc(pen, centerX - 2.5f, centerY - 1.5f, 5, 5, 0, 180);
-
-                // Microphone stand (U-shape curve) - smaller
-                g.DrawArc(pen, centerX - 4, centerY + 1, 8, 5, 0, 180);
-
-                // Vertical line (stem to base) - shorter
-                g.DrawLine(pen, centerX, centerY + 3.5f, centerX, centerY + 6);
-
-                // Horizontal base line - narrower
-                g.DrawLine(pen, centerX - 2, centerY + 6, centerX + 2, centerY + 6);
-            }
-        }
-
-        private void StartListening()
-        {
-            try
-            {
-                // Subtle visual feedback - iPhone Messenger style
-                btnMicrophone.BackColor = Color.FromArgb(230, 240, 255); // Very light blue
-                txtManualInput.PlaceholderText = "Listening...";
-                txtManualInput.BorderStyle = BorderStyle.FixedSingle;
-
-                // Update status bar
-                SetProcessingStatus(true, "🎤 Listening for speech...");
-
-                _speechRecognizer.RecognizeAsync(RecognizeMode.Multiple);
-                _isListening = true;
-
-                btnMicrophone.Invalidate(); // Redraw icon with blue color
-
-                LogDebugMessage("Speech recognition started - listening...");
-            }
-            catch (Exception ex)
-            {
-                LogDebugMessage($"Failed to start speech recognition: {ex.Message}");
-
-                // Reset UI on error
-                btnMicrophone.BackColor = Color.White;
-                txtManualInput.PlaceholderText = "Type or speak trade request...";
-                _isListening = false;
-                btnMicrophone.Invalidate();
-                SetProcessingStatus(false, "Speech recognition failed");
-
-                string errorMsg = $"Failed to start speech recognition:\n\n{ex.Message}\n\n" +
-                    "Troubleshooting:\n" +
-                    "• Check if your microphone is connected and enabled\n" +
-                    "• Go to Windows Settings > Privacy > Microphone\n" +
-                    "• Make sure this app has microphone permission\n" +
-                    "• Try restarting the application";
-
-                MessageBox.Show(errorMsg, "Speech Recognition Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void StopListening()
-        {
-            try
-            {
-                _speechRecognizer.RecognizeAsyncStop();
-                _isListening = false;
-
-                // Reset UI to normal state - subtle grey
-                btnMicrophone.BackColor = Color.White;
-                txtManualInput.PlaceholderText = "Type or speak trade request...";
-                txtManualInput.BackColor = Color.White;
-                txtManualInput.Font = new Font("Segoe UI", 10F);
-
-                btnMicrophone.Invalidate(); // Redraw icon with grey color
-
-                SetProcessingStatus(false, "Speech recognition stopped");
-
-                LogDebugMessage("Speech recognition stopped");
-            }
-            catch (Exception ex)
-            {
-                LogDebugMessage($"Error stopping speech recognition: {ex.Message}");
-            }
-        }
-
-        private async void SpeechRecognizer_SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
-        {
-            // Only process if confidence is reasonable
-            if (e.Result.Confidence > 0.5)
-            {
-                string recognizedText = e.Result.Text;
-                LogDebugMessage($"Speech recognized (confidence: {e.Result.Confidence:P0}): {recognizedText}");
-
-                // Show what was recognized immediately with subtle feedback
-                if (txtManualInput.InvokeRequired)
-                {
-                    txtManualInput.Invoke(new Action(() => {
-                        txtManualInput.Text = recognizedText;
-                        txtManualInput.BackColor = Color.FromArgb(240, 248, 255); // Very subtle blue tint
-                    }));
-                }
-                else
-                {
-                    txtManualInput.Text = recognizedText;
-                    txtManualInput.BackColor = Color.FromArgb(240, 248, 255); // Very subtle blue tint
-                }
-
-                // Brief pause to let user see what was recognized
-                await Task.Delay(800);
-
-                // Stop listening after recognizing speech
-                StopListening();
-
-                // Auto-process the recognized text
-                await ProcessTrade(recognizedText);
-
-                // Clear the input field
-                if (txtManualInput.InvokeRequired)
-                {
-                    txtManualInput.Invoke(new Action(() => txtManualInput.Clear()));
-                }
-                else
-                {
-                    txtManualInput.Clear();
-                }
-            }
-            else
-            {
-                LogDebugMessage($"Speech recognition confidence too low: {e.Result.Confidence:P0} - text was: {e.Result.Text}");
-
-                // Show visual feedback for low confidence
-                if (this.InvokeRequired)
-                {
-                    this.Invoke(new Action(() => {
-                        SetProcessingStatus(false, $"Speech unclear (confidence: {e.Result.Confidence:P0}) - please try again");
-                    }));
-                }
-                else
-                {
-                    SetProcessingStatus(false, $"Speech unclear (confidence: {e.Result.Confidence:P0}) - please try again");
-                }
-            }
-        }
-
-        private void SpeechRecognizer_SpeechRecognitionRejected(object sender, SpeechRecognitionRejectedEventArgs e)
-        {
-            LogDebugMessage("Speech recognition rejected - no clear speech detected");
-
-            // Show visual feedback for rejection
-            if (this.InvokeRequired)
-            {
-                this.Invoke(new Action(() => {
-                    SetProcessingStatus(false, "No speech detected - please speak clearly and try again");
-                }));
-            }
-            else
-            {
-                SetProcessingStatus(false, "No speech detected - please speak clearly and try again");
-            }
-        }
 
         private void ApplyFilter()
         {
