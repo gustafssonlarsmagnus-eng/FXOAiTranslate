@@ -37,6 +37,14 @@ namespace FXOptionsSimulator.FIX
         {
             var msgType = message.Header.GetString(Tags.MsgType);
             Console.WriteLine($"[STP] → Admin message: {msgType}");
+
+            // Add STP credentials to Logon message
+            if (msgType == QuickFix.Fields.MsgType.LOGON)
+            {
+                message.SetField(new QuickFix.Fields.Username("gfi_bfxo_swed_tc1"));
+                message.SetField(new QuickFix.Fields.Password("ylhU6Q1eaxXf"));
+                Console.WriteLine("[STP] >>> Sending Logon with STP credentials");
+            }
         }
 
         public void ToApp(QuickFix.Message message, SessionID sessionID)
