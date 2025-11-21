@@ -2,6 +2,7 @@ using QuickFix;
 using QuickFix.Transport;
 using System;
 using System.IO;
+using System.Linq;
 
 namespace FXOptionsSimulator.FIX
 {
@@ -105,7 +106,7 @@ namespace FXOptionsSimulator.FIX
                 var sessions = _settings.GetSessions();
                 if (sessions.Count > 0)
                 {
-                    _sessionID = sessions[0];
+                    _sessionID = sessions.First();
                     Console.WriteLine($"[STP Manager] ✓ Session started: {_sessionID}");
                 }
                 else
