@@ -84,12 +84,24 @@ namespace FXOptionsSimulator
     {
         private static Dictionary<string, string> _leiMapping = new Dictionary<string, string>
         {
-            // Placeholder mapping - to be replaced with real mapping table
-            { "DGQCSV2PHVF7I2743539", "Nomura International PLC" },
+            // Official GFI LEI mapping for counterparty identification in Trade Capture Reports (35=AE, tag 1)
+            { "G5GSEF7VJP5I7OUK5573", "Barclays Bank PLC London" },
+            { "R0MUWSFPU8MPRO8K5P83", "BNP Paribas" },
+            { "2IGI19DL77OX0HC3ZE78", "Canadian Imperial Bank of Commerce" },
+            { "ATUEL7OJR5057F2PV266", "DBS" },
             { "7LTWFZYICNSX8D621K86", "Deutsche Bank AG" },
-            { "M312WZV08Y7LYUC71685", "Morgan Stanley" },
-            { "GUNTJCA81C7IHNBGI392", "UBS AG" },
-            // Add more as needed
+            { "W22LROWP2IHZNBB6K528", "Goldman Sachs International" },
+            { "MP6I5ZYZBEU3UXPYFY54", "HSBC Bank PLC London" },
+            { "GGDZP1UYGU9STUHRDP48", "Merrill Lynch International" },
+            { "4PQUHN3JPFGFNF3BB653", "Morgan Stanley International London" },
+            { "RR3QWICWWIPCS8A4S074", "Natwest Markets London" },
+            { "DGQCSV2PHVF7I2743539", "Nomura International PLC London" },
+            { "894500A9DTYKF33B7Z76", "Optiver FX Limited" },
+            { "O2RNE8IBXP4R0TD8PU41", "Societe Generale" },
+            { "RILFO74KP1CM8P6PCT96", "Standard Chartered Bank London" },
+            { "BFM8T61CT2L1QCEMIK50", "UBS AG Zurich" },
+            { "KB1H1DSPRFMYMCUFXT09", "Wells Fargo Bank N.A." },
+            { "165GRDQ39W63PHVONY02", "Zurcher Kantonalbank" }
         };
 
         /// <summary>
