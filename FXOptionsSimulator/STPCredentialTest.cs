@@ -14,6 +14,7 @@ namespace FXOptionsSimulator.FIX
         private SessionID _sessionID;
         private bool _logonReceived = false;
         private string _rejectReason = null;
+        private SSLTunnelProxy _sslProxy;
 
         public void RunTest()
         {
@@ -23,6 +24,12 @@ namespace FXOptionsSimulator.FIX
 
             try
             {
+                // Start SSL proxy first
+                Console.WriteLine("[Test] Starting SSL proxy...");
+                _sslProxy = new SSLTunnelProxy("quotes.stage2.gfifx.com", 443, 9443);
+                _sslProxy.Start();
+                Thread.Sleep(1000); // Give proxy time to start
+
                 var settings = new SessionSettings("quickfix_stp.cfg");
                 var storeFactory = new MemoryStoreFactory();
                 var logFactory = new ScreenLogFactory(settings);
@@ -65,11 +72,13 @@ namespace FXOptionsSimulator.FIX
                 Console.WriteLine("========================================\n");
 
                 _initiator.Stop();
+                _sslProxy?.Stop();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"\n✗ TEST ERROR: {ex.Message}");
                 Console.WriteLine($"  {ex.StackTrace}");
+                _sslProxy?.Stop();
             }
         }
 
