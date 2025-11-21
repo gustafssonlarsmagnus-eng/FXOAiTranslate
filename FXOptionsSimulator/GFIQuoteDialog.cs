@@ -59,6 +59,19 @@ namespace FXOAiTranslator
 
             // Subscribe to quote events
             _fixSession.Application.OnQuoteReceived += OnQuoteReceivedFromFIX;
+
+            // Subscribe to STP Trade Capture Reports
+            try
+            {
+                var stpSession = GlobalSTPSession.Instance;
+                stpSession.Application.OnTradeCaptureReceived += OnTradeCaptureReceived;
+                Console.WriteLine("[GFIQuoteDialog] ✓ Subscribed to STP Trade Capture Reports");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GFIQuoteDialog] ⚠ Failed to connect to STP session: {ex.Message}");
+                Console.WriteLine($"[GFIQuoteDialog] Trades will not receive final confirmations");
+            }
         }
 
         private void InitializeCustomComponents()
@@ -1309,6 +1322,54 @@ namespace FXOAiTranslator
                     row.Cells["Status"].Value = entry.Status;
                     row.Cells["Premium"].Value = entry.NetPremium.ToString("N0"); // Raw integer value
                     ColorCodeBlotterRow(row, entry.Status);
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handle Trade Capture Report (35=AE) from STP session
+        /// This is the final confirmation with full trade economics
+        /// </summary>
+        private void OnTradeCaptureReceived(CapturedTrade trade)
+        {
+            if (dgvBlotter.InvokeRequired)
+            {
+                dgvBlotter.Invoke(new Action(() => OnTradeCaptureReceived(trade)));
+                return;
+            }
+
+            Console.WriteLine($"\n[GFIQuoteDialog] Trade Capture Report received:");
+            Console.WriteLine($"  Symbol: {trade.Symbol}");
+            Console.WriteLine($"  Side: {trade.Side}");
+            Console.WriteLine($"  Counterparty: {trade.CounterpartyName} (LEI: {trade.CounterpartyLEI})");
+            Console.WriteLine($"  ExecID: {trade.ExecID}");
+            Console.WriteLine($"  QuoteID: {trade.QuoteID}");
+            Console.WriteLine($"  ClOrdID: {trade.ClOrdID}");
+            Console.WriteLine($"  Option Legs: {trade.OptionLegs.Count}");
+            Console.WriteLine($"  Hedge Legs: {trade.HedgeLegs.Count}");
+
+            // Check if columns exist
+            if (!dgvBlotter.Columns.Contains("ClOrdID") ||
+                !dgvBlotter.Columns.Contains("Status") ||
+                !dgvBlotter.Columns.Contains("LP"))
+                return;
+
+            // Find the row with matching ClOrdID and update with final trade details
+            foreach (DataGridViewRow row in dgvBlotter.Rows)
+            {
+                if (row.Cells["ClOrdID"].Value?.ToString() == trade.ClOrdID)
+                {
+                    // Update with confirmed counterparty name
+                    row.Cells["LP"].Value = trade.CounterpartyName;
+
+                    // Update status to confirmed
+                    row.Cells["Status"].Value = "CONFIRMED";
+
+                    // Color code as confirmed (light blue)
+                    row.DefaultCellStyle.BackColor = Color.LightBlue;
+
+                    Console.WriteLine($"[GFIQuoteDialog] ✓ Updated blotter row with final confirmation");
                     break;
                 }
             }
