@@ -683,16 +683,6 @@ namespace FXOAiTranslator
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             SaveTrades();
-
-            // Dispose speech recognizer
-            if (_speechRecognizer != null)
-            {
-                if (_isListening)
-                {
-                    _speechRecognizer.RecognizeAsyncStop();
-                }
-                _speechRecognizer.Dispose();
-            }
         }
 
         private void CopySelectedCell(string columnName)
