@@ -33,25 +33,25 @@ namespace FXOptionsSimulator.FIX
             IsLoggedOn = false;
         }
 
-        public void ToAdmin(Message message, SessionID sessionID)
+        public void ToAdmin(QuickFix.Message message, SessionID sessionID)
         {
             var msgType = message.Header.GetString(Tags.MsgType);
             Console.WriteLine($"[STP] → Admin message: {msgType}");
         }
 
-        public void ToApp(Message message, SessionID sessionID)
+        public void ToApp(QuickFix.Message message, SessionID sessionID)
         {
             // STP session is receive-only, we don't send app messages
             Console.WriteLine($"[STP] → App message (unexpected): {message.Header.GetString(Tags.MsgType)}");
         }
 
-        public void FromAdmin(Message message, SessionID sessionID)
+        public void FromAdmin(QuickFix.Message message, SessionID sessionID)
         {
             var msgType = message.Header.GetString(Tags.MsgType);
             Console.WriteLine($"[STP] ← Admin message: {msgType}");
         }
 
-        public void FromApp(Message message, SessionID sessionID)
+        public void FromApp(QuickFix.Message message, SessionID sessionID)
         {
             try
             {
@@ -96,7 +96,7 @@ namespace FXOptionsSimulator.FIX
         /// <summary>
         /// Convert QuickFix message to pipe-delimited FIX string
         /// </summary>
-        private string ConvertToFixString(Message message)
+        private string ConvertToFixString(QuickFix.Message message)
         {
             // Get all fields from the message
             var fields = new System.Collections.Generic.List<string>();
