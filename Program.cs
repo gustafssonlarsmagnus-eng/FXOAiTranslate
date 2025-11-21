@@ -17,7 +17,7 @@ namespace FXOAiTranslator
             Console.WriteLine("=== DEBUG CONSOLE ENABLED ===");
 
             // Check for STP credential test flag
-            if (args.Length > 0 && args[0] == "--test-stp")
+            if (true || (args.Length > 0 && args[0] == "--test-stp"))
             {
                 Console.WriteLine("\n*** Running STP Credential Test ***\n");
                 var test = new STPCredentialTest();
