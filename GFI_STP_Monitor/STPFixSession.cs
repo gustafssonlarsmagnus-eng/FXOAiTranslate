@@ -130,18 +130,16 @@ namespace GFI_STP_Monitor
 
             if (msgType == QuickFix.Fields.MsgType.LOGON)
             {
-                // TESTING WITH TRADING CREDENTIALS (known working)
-                string username = "swed.obo.stg.api";
-                string password = "ZQcZokEOLjb9";
+                // STP credentials
+                string username = "gfi_bfxo_swed_tc1";
+                string password = "ylhU6Q1eaxXf";
 
                 message.SetField(new Username(username));
                 message.SetField(new Password(password));
 
-                // Trading session includes OnBehalfOfCompID in HEADER
-                message.Header.SetField(new OnBehalfOfCompID("SWES"));
-
                 Console.WriteLine($"[STP Monitor] Sending LOGON with username: {username}");
-                Console.WriteLine($"[STP Monitor] Testing with TRADING credentials to isolate issue");
+
+                // STP session does NOT include OnBehalfOfCompID
             }
         }
     }
