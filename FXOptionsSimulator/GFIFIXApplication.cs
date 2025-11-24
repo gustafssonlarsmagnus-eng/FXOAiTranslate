@@ -62,63 +62,41 @@ namespace FXOptionsSimulator.FIX
 
             if (msgType == QuickFix.Fields.MsgType.LOGON)
             {
-                // Read credentials from session configuration
-                string username = "gfi_bfxo_swed_tc1"; // Default STP
-                string password = "ylhU6Q1eaxXf";
-                string onBehalfOfCompID = null;
-                string profileType = "STP";
+                // Determine credentials based on SenderCompID
+                string senderCompID = sessionID.SenderCompID;
+                string username, password, sessionType;
 
-                try
+                if (senderCompID == "WEBFENICS55")
                 {
-                    // Read from quickfix settings file
-                    var sessionSettings = new QuickFix.SessionSettings("quickfix.cfg");
-                    var sessionDict = sessionSettings.Get(sessionID);
+                    // Trading credentials
+                    username = "swed.obo.stg.api";
+                    password = "ZQcZokEOLjb9";
+                    sessionType = "Trading";
 
-                    if (sessionDict.Has("ConnectionProfile"))
-                    {
-                        profileType = sessionDict.GetString("ConnectionProfile");
-                        Console.WriteLine($"[GFI FIX] Connection Profile: {profileType}");
-                    }
-
-                    if (sessionDict.Has("GFIUsername"))
-                    {
-                        username = sessionDict.GetString("GFIUsername");
-                        Console.WriteLine($"[GFI FIX] Username from config: {username}");
-                    }
-
-                    if (sessionDict.Has("GFIPassword"))
-                    {
-                        password = sessionDict.GetString("GFIPassword");
-                        Console.WriteLine($"[GFI FIX] Password from config: {new string('*', password.Length)} chars");
-                    }
-
-                    if (sessionDict.Has("OnBehalfOfCompID"))
-                    {
-                        onBehalfOfCompID = sessionDict.GetString("OnBehalfOfCompID");
-                        Console.WriteLine($"[GFI FIX] OnBehalfOfCompID: {onBehalfOfCompID}");
-                    }
-
-                    Console.WriteLine($"[GFI FIX] ✓ Using {profileType} credentials from config");
+                    // Trading session includes OnBehalfOfCompID
+                    message.SetField(new OnBehalfOfCompID("SWES"));
                 }
-                catch (Exception ex)
+                else if (senderCompID == "GFI_BFXO_SWED_TC1")
                 {
-                    Console.WriteLine($"[GFI FIX] ⚠ Warning: Could not read custom config: {ex.Message}");
-                    Console.WriteLine($"[GFI FIX] Using default STP credentials");
+                    // STP credentials
+                    username = "gfi_bfxo_swed_tc1";
+                    password = "ylhU6Q1eaxXf";
+                    sessionType = "STP";
+                    // STP session does NOT include OnBehalfOfCompID
+                }
+                else
+                {
+                    Console.WriteLine($"[GFI FIX] WARNING: Unknown SenderCompID: {senderCompID}");
+                    username = "swed.obo.stg.api";
+                    password = "ZQcZokEOLjb9";
+                    sessionType = "Unknown";
                 }
 
                 message.SetField(new Username(username));
                 message.SetField(new Password(password));
 
-                // Only set OnBehalfOfCompID if configured (Trading uses it, STP doesn't)
-                if (!string.IsNullOrEmpty(onBehalfOfCompID))
-                {
-                    message.SetField(new OnBehalfOfCompID(onBehalfOfCompID));
-                    Console.WriteLine($"[GFI FIX] >>> Sending Logon with {profileType} credentials + OnBehalfOfCompID={onBehalfOfCompID}");
-                }
-                else
-                {
-                    Console.WriteLine($"[GFI FIX] >>> Sending Logon with {profileType} credentials");
-                }
+                Console.WriteLine($"[{sessionType}] >>> Sending Logon: {sessionID}");
+                Console.WriteLine($"[{sessionType}] Username: {username}");
 
                 Console.WriteLine($"[DEBUG] Full Logon Message:");
                 Console.WriteLine($"{message.ToString()}");
