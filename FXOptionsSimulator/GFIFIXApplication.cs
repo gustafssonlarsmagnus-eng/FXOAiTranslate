@@ -62,10 +62,41 @@ namespace FXOptionsSimulator.FIX
 
             if (msgType == QuickFix.Fields.MsgType.LOGON)
             {
-                message.SetField(new Username("swed.obo.stg.api"));
-                message.SetField(new Password("ZQcZokEOLjb9"));
+                // Determine credentials based on SenderCompID
+                string senderCompID = sessionID.SenderCompID;
+                string username, password, sessionType;
 
-                Console.WriteLine("[GFI FIX] >>> Sending Logon with credentials");
+                if (senderCompID == "WEBFENICS55")
+                {
+                    // Trading credentials
+                    username = "swed.obo.stg.api";
+                    password = "ZQcZokEOLjb9";
+                    sessionType = "Trading";
+
+                    // Trading session includes OnBehalfOfCompID
+                    message.SetField(new OnBehalfOfCompID("SWES"));
+                }
+                else if (senderCompID == "GFI_BFXO_SWED_TC1")
+                {
+                    // STP credentials
+                    username = "gfi_bfxo_swed_tc1";
+                    password = "ylhU6Q1eaxXf";
+                    sessionType = "STP";
+                    // STP session does NOT include OnBehalfOfCompID
+                }
+                else
+                {
+                    Console.WriteLine($"[GFI FIX] WARNING: Unknown SenderCompID: {senderCompID}");
+                    username = "swed.obo.stg.api";
+                    password = "ZQcZokEOLjb9";
+                    sessionType = "Unknown";
+                }
+
+                message.SetField(new Username(username));
+                message.SetField(new Password(password));
+
+                Console.WriteLine($"[{sessionType}] >>> Sending Logon: {sessionID}");
+                Console.WriteLine($"[{sessionType}] Username: {username}");
 
                 Console.WriteLine($"[DEBUG] Full Logon Message:");
                 Console.WriteLine($"{message.ToString()}");

@@ -4,12 +4,13 @@ using System;
 namespace FXOptionsSimulator
 {
     /// <summary>
-    /// Singleton to hold one FIX session for the entire application
+    /// Singleton to hold FIX sessions (Trading + STP) for the entire application
     /// </summary>
     public static class GlobalFIXSession
     {
         private static GFIFIXSessionManager _instance;
-        private static SSLTunnelProxy _sslProxy;  // ADD THIS
+        private static SSLTunnelProxy _tradingProxy;  // Trading SSL proxy (port 9443)
+        private static SSLTunnelProxy _stpProxy;      // STP SSL proxy (port 9444)
         private static readonly object _lock = new object();
 
         public static GFIFIXSessionManager Instance
@@ -22,36 +23,47 @@ namespace FXOptionsSimulator
                     {
                         if (_instance == null)
                         {
-                            // START SSL PROXY FIRST
-                            if (_sslProxy == null)
+                            Console.WriteLine("\n============================================================");
+                            Console.WriteLine("STARTING SSL PROXIES (Trading + STP)");
+                            Console.WriteLine("============================================================\n");
+
+                            // START TRADING SSL PROXY (port 9443)
+                            if (_tradingProxy == null)
                             {
-                                Console.WriteLine("\n============================================================");
-                                Console.WriteLine("STARTING SSL PROXY");
-                                Console.WriteLine("============================================================\n");
-
-                                _sslProxy = new SSLTunnelProxy("quotes.stage2.gfifx.com", 443, 9443);
-                                _sslProxy.Start();
-
-                                // Wait for proxy to be ready
-                                Console.WriteLine("[Global] Waiting for SSL proxy to initialize...");
-                                System.Threading.Thread.Sleep(2000);
+                                Console.WriteLine("[Global] Starting Trading SSL proxy...");
+                                _tradingProxy = new SSLTunnelProxy("quotes.stage2.gfifx.com", 443, 9443);
+                                _tradingProxy.Start();
+                                Console.WriteLine("[Global] ✓ Trading SSL proxy started (localhost:9443 -> quotes.stage2.gfifx.com:443)");
                             }
 
-                            // THEN START FIX SESSION
-                            Console.WriteLine("[Global] Creating FIX session...");
+                            // START STP SSL PROXY (port 9444)
+                            if (_stpProxy == null)
+                            {
+                                Console.WriteLine("[Global] Starting STP SSL proxy...");
+                                _stpProxy = new SSLTunnelProxy("quotes.stage2.gfifx.com", 443, 9444);
+                                _stpProxy.Start();
+                                Console.WriteLine("[Global] ✓ STP SSL proxy started (localhost:9444 -> quotes.stage2.gfifx.com:443)");
+                            }
+
+                            // Wait for proxies to be ready
+                            Console.WriteLine("[Global] Waiting for SSL proxies to initialize...");
+                            System.Threading.Thread.Sleep(2000);
+
+                            // THEN START FIX SESSIONS (both Trading and STP)
+                            Console.WriteLine("[Global] Creating FIX sessions (Trading + STP)...");
                             _instance = new GFIFIXSessionManager("quickfix.cfg");
                             _instance.Start();
 
-                            // Wait a moment for logon
-                            System.Threading.Thread.Sleep(2000);
+                            // Wait a moment for logons
+                            System.Threading.Thread.Sleep(3000);
 
                             if (_instance.IsLoggedOn)
                             {
-                                Console.WriteLine("[Global] ✓ FIX session ready");
+                                Console.WriteLine("[Global] ✓ FIX sessions ready");
                             }
                             else
                             {
-                                Console.WriteLine("[Global] ⚠️ FIX session starting...");
+                                Console.WriteLine("[Global] ⚠️ FIX sessions starting...");
                             }
                         }
                     }
@@ -66,16 +78,23 @@ namespace FXOptionsSimulator
         {
             if (_instance != null)
             {
-                Console.WriteLine("[Global] Shutting down FIX session...");
+                Console.WriteLine("[Global] Shutting down FIX sessions...");
                 _instance.Stop();
                 _instance = null;
             }
 
-            if (_sslProxy != null)
+            if (_tradingProxy != null)
             {
-                Console.WriteLine("[Global] Shutting down SSL proxy...");
-                _sslProxy.Stop();
-                _sslProxy = null;
+                Console.WriteLine("[Global] Shutting down Trading SSL proxy...");
+                _tradingProxy.Stop();
+                _tradingProxy = null;
+            }
+
+            if (_stpProxy != null)
+            {
+                Console.WriteLine("[Global] Shutting down STP SSL proxy...");
+                _stpProxy.Stop();
+                _stpProxy = null;
             }
         }
     }
