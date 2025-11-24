@@ -6,6 +6,11 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
     /// <summary>
     /// Configuration matching GFI Fenics requirements
     /// These will be provided by GFI when you onboard
+    ///
+    /// NOTE: Actual connection configuration is now in quickfix.cfg:
+    /// - SSLTargetHost and SSLTargetPort control the SSL proxy target
+    /// - SenderCompID, TargetCompID control the FIX session identity
+    /// - Credentials are in GFIFIXApplication.cs ToAdmin() method
     /// </summary>
     public class FenicsConfig
     {
@@ -13,6 +18,9 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
         public string Environment { get; set; } = "UAT";  // ← ADDED: Was missing
 
         // ========== UAT CREDENTIALS (RECEIVED FROM GFI) ==========
+        // NOTE: These are reference values. Actual values used:
+        //   - SenderCompID: from quickfix.cfg
+        //   - Username/Password: from GFIFIXApplication.cs ToAdmin()
         public string SenderCompID { get; set; } = "WEBFENICS55";
         public string OnBehalfOfCompID { get; set; } = "SWES";
         public string Username { get; set; } = "swed.obo.stg.api";
@@ -21,6 +29,9 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
         public bool IsTestMode { get; set; } = false;
 
         // ========== CONNECTION SETTINGS ==========
+        // NOTE: Actual host/port now configured in quickfix.cfg:
+        //   - SSLTargetHost (default: quotes.stage2.gfifx.com)
+        //   - SSLTargetPort (default: 443)
         public string Host { get; set; } = "quotes.stage2.gfifx.com";
         public int Port { get; set; } = 443;
         public int HeartbeatInterval { get; set; } = 10;

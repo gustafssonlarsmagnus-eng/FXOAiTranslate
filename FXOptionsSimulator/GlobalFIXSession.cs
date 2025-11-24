@@ -29,7 +29,39 @@ namespace FXOptionsSimulator
                                 Console.WriteLine("STARTING SSL PROXY");
                                 Console.WriteLine("============================================================\n");
 
-                                _sslProxy = new SSLTunnelProxy("quotes.stage2.gfifx.com", 443, 9443);
+                                // Read SSL configuration from quickfix.cfg
+                                string configFile = "quickfix.cfg";
+                                string sslHost = "quotes.stage2.gfifx.com"; // default
+                                int sslPort = 443; // default
+                                int localPort = 9443; // default
+
+                                try
+                                {
+                                    var settings = new QuickFix.SessionSettings(configFile);
+                                    var sessions = settings.GetSessions();
+                                    if (sessions.Count > 0)
+                                    {
+                                        var sessionDict = settings.Get(sessions[0]);
+
+                                        if (sessionDict.Has("SSLTargetHost"))
+                                            sslHost = sessionDict.GetString("SSLTargetHost");
+
+                                        if (sessionDict.Has("SSLTargetPort"))
+                                            sslPort = int.Parse(sessionDict.GetString("SSLTargetPort"));
+
+                                        if (sessionDict.Has("SocketConnectPort"))
+                                            localPort = int.Parse(sessionDict.GetString("SocketConnectPort"));
+
+                                        Console.WriteLine($"[Global] SSL Config: {sslHost}:{sslPort} -> localhost:{localPort}");
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"[Global] Warning: Could not read SSL config from {configFile}: {ex.Message}");
+                                    Console.WriteLine($"[Global] Using defaults: {sslHost}:{sslPort}");
+                                }
+
+                                _sslProxy = new SSLTunnelProxy(sslHost, sslPort, localPort);
                                 _sslProxy.Start();
 
                                 // Wait for proxy to be ready
