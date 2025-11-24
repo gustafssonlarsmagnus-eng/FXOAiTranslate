@@ -41,18 +41,29 @@ namespace FXOptionsSimulator
                                     var sessions = settings.GetSessions();
                                     if (sessions.Count > 0)
                                     {
-                                        var sessionDict = settings.Get(sessions[0]);
+                                        // GetSessions() returns HashSet, need to get first element
+                                        QuickFix.SessionID firstSession = null;
+                                        foreach (var session in sessions)
+                                        {
+                                            firstSession = session;
+                                            break;
+                                        }
 
-                                        if (sessionDict.Has("SSLTargetHost"))
-                                            sslHost = sessionDict.GetString("SSLTargetHost");
+                                        if (firstSession != null)
+                                        {
+                                            var sessionDict = settings.Get(firstSession);
 
-                                        if (sessionDict.Has("SSLTargetPort"))
-                                            sslPort = int.Parse(sessionDict.GetString("SSLTargetPort"));
+                                            if (sessionDict.Has("SSLTargetHost"))
+                                                sslHost = sessionDict.GetString("SSLTargetHost");
 
-                                        if (sessionDict.Has("SocketConnectPort"))
-                                            localPort = int.Parse(sessionDict.GetString("SocketConnectPort"));
+                                            if (sessionDict.Has("SSLTargetPort"))
+                                                sslPort = int.Parse(sessionDict.GetString("SSLTargetPort"));
 
-                                        Console.WriteLine($"[Global] SSL Config: {sslHost}:{sslPort} -> localhost:{localPort}");
+                                            if (sessionDict.Has("SocketConnectPort"))
+                                                localPort = int.Parse(sessionDict.GetString("SocketConnectPort"));
+
+                                            Console.WriteLine($"[Global] SSL Config: {sslHost}:{sslPort} -> localhost:{localPort}");
+                                        }
                                     }
                                 }
                                 catch (Exception ex)
