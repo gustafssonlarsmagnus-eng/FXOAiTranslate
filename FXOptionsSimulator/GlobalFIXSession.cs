@@ -34,6 +34,7 @@ namespace FXOptionsSimulator
                                 string sslHost = "quotes.stage2.gfifx.com"; // default
                                 int sslPort = 443; // default
                                 int localPort = 9443; // default
+                                string sslTargetHostname = null; // SNI hostname (optional)
 
                                 try
                                 {
@@ -62,7 +63,13 @@ namespace FXOptionsSimulator
                                             if (sessionDict.Has("SocketConnectPort"))
                                                 localPort = int.Parse(sessionDict.GetString("SocketConnectPort"));
 
+                                            // Optional: Override SNI hostname for SSL certificate validation
+                                            if (sessionDict.Has("SSLTargetHostname"))
+                                                sslTargetHostname = sessionDict.GetString("SSLTargetHostname");
+
                                             Console.WriteLine($"[Global] SSL Config: {sslHost}:{sslPort} -> localhost:{localPort}");
+                                            if (sslTargetHostname != null)
+                                                Console.WriteLine($"[Global] SSL SNI Hostname: {sslTargetHostname}");
                                         }
                                     }
                                 }
@@ -72,7 +79,7 @@ namespace FXOptionsSimulator
                                     Console.WriteLine($"[Global] Using defaults: {sslHost}:{sslPort}");
                                 }
 
-                                _sslProxy = new SSLTunnelProxy(sslHost, sslPort, localPort);
+                                _sslProxy = new SSLTunnelProxy(sslHost, sslPort, localPort, sslTargetHostname);
                                 _sslProxy.Start();
 
                                 // Wait for proxy to be ready

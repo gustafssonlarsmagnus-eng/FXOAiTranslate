@@ -14,13 +14,15 @@ namespace FXOptionsSimulator
         private readonly string _remoteHost;
         private readonly int _remotePort;
         private readonly int _localPort;
+        private readonly string _sslTargetHostname; // SNI hostname for SSL validation
         private bool _isRunning;
 
-        public SSLTunnelProxy(string remoteHost, int remotePort, int localPort = 9443)
+        public SSLTunnelProxy(string remoteHost, int remotePort, int localPort = 9443, string sslTargetHostname = null)
         {
             _remoteHost = remoteHost;
             _remotePort = remotePort;
             _localPort = localPort;
+            _sslTargetHostname = sslTargetHostname ?? remoteHost; // Use remoteHost if not specified
         }
 
         public void Start()
@@ -73,7 +75,9 @@ namespace FXOptionsSimulator
                     null
                 );
 
-                await sslStream.AuthenticateAsClientAsync(_remoteHost);
+                // Use the configured SNI hostname for SSL authentication
+                Console.WriteLine($"[SSL Proxy] Authenticating with SNI hostname: {_sslTargetHostname}");
+                await sslStream.AuthenticateAsClientAsync(_sslTargetHostname);
                 Console.WriteLine($"[SSL Proxy] SSL connection established to {_remoteHost}");
 
                 // Get streams
