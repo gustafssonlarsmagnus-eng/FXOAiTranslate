@@ -70,35 +70,39 @@ namespace FXOptionsSimulator.FIX
 
                 try
                 {
-                    var session = Session.LookupSession(sessionID);
-                    if (session != null)
+                    // Read from quickfix settings file
+                    var sessionSettings = new QuickFix.SessionSettings("quickfix.cfg");
+                    var sessionDict = sessionSettings.Get(sessionID);
+
+                    if (sessionDict.Has("ConnectionProfile"))
                     {
-                        var settings = session.SessionID;
-                        var dict = session.SessionID;
-
-                        // Try to read from quickfix settings
-                        var sessionSettings = QuickFix.SessionSettings.FromString(
-                            System.IO.File.ReadAllText("quickfix.cfg"));
-                        var sessionDict = sessionSettings.Get(sessionID);
-
-                        if (sessionDict.Has("ConnectionProfile"))
-                            profileType = sessionDict.GetString("ConnectionProfile");
-
-                        if (sessionDict.Has("GFIUsername"))
-                            username = sessionDict.GetString("GFIUsername");
-
-                        if (sessionDict.Has("GFIPassword"))
-                            password = sessionDict.GetString("GFIPassword");
-
-                        if (sessionDict.Has("OnBehalfOfCompID"))
-                            onBehalfOfCompID = sessionDict.GetString("OnBehalfOfCompID");
-
-                        Console.WriteLine($"[GFI FIX] Using {profileType} credentials");
+                        profileType = sessionDict.GetString("ConnectionProfile");
+                        Console.WriteLine($"[GFI FIX] Connection Profile: {profileType}");
                     }
+
+                    if (sessionDict.Has("GFIUsername"))
+                    {
+                        username = sessionDict.GetString("GFIUsername");
+                        Console.WriteLine($"[GFI FIX] Username from config: {username}");
+                    }
+
+                    if (sessionDict.Has("GFIPassword"))
+                    {
+                        password = sessionDict.GetString("GFIPassword");
+                        Console.WriteLine($"[GFI FIX] Password from config: {new string('*', password.Length)} chars");
+                    }
+
+                    if (sessionDict.Has("OnBehalfOfCompID"))
+                    {
+                        onBehalfOfCompID = sessionDict.GetString("OnBehalfOfCompID");
+                        Console.WriteLine($"[GFI FIX] OnBehalfOfCompID: {onBehalfOfCompID}");
+                    }
+
+                    Console.WriteLine($"[GFI FIX] ✓ Using {profileType} credentials from config");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[GFI FIX] Warning: Could not read custom config: {ex.Message}");
+                    Console.WriteLine($"[GFI FIX] ⚠ Warning: Could not read custom config: {ex.Message}");
                     Console.WriteLine($"[GFI FIX] Using default STP credentials");
                 }
 
