@@ -62,10 +62,11 @@ namespace FXOptionsSimulator.FIX
 
             if (msgType == QuickFix.Fields.MsgType.LOGON)
             {
-                message.SetField(new Username("swed.obo.stg.api"));
-                message.SetField(new Password("ZQcZokEOLjb9"));
+                // STP credentials from GFI
+                message.SetField(new Username("gfi_bfxo_swed_tc1"));
+                message.SetField(new Password("ylhU6Q1eaxXf"));
 
-                Console.WriteLine("[GFI FIX] >>> Sending Logon with credentials");
+                Console.WriteLine("[GFI FIX] >>> Sending Logon with STP credentials");
 
                 Console.WriteLine($"[DEBUG] Full Logon Message:");
                 Console.WriteLine($"{message.ToString()}");

@@ -30,7 +30,29 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"[FIX Manager] Config exists: {File.Exists(configFile)}");
 
             _application = new GFIFIXApplication();
-            _rawBuilder = new RawFIXMessageBuilder("FIX.4.4", "WEBFENICS55", "GFI");
+
+            // Read SenderCompID from config to support both STP and regular accounts
+            string senderCompID = "GFI_BFXO_SWED_TC1"; // Default to STP
+            try
+            {
+                var settings = new SessionSettings(configFile);
+                var sessions = settings.GetSessions();
+                if (sessions.Count > 0)
+                {
+                    foreach (var session in sessions)
+                    {
+                        var dict = settings.Get(session);
+                        if (dict.Has("SenderCompID"))
+                        {
+                            senderCompID = dict.GetString("SenderCompID");
+                            break;
+                        }
+                    }
+                }
+            }
+            catch { /* use default */ }
+
+            _rawBuilder = new RawFIXMessageBuilder("FIX.4.4", senderCompID, "GFI");
 
             try
             {
