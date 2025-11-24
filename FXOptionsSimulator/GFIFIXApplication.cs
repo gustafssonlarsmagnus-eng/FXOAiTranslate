@@ -73,8 +73,8 @@ namespace FXOptionsSimulator.FIX
                     password = "ZQcZokEOLjb9";
                     sessionType = "Trading";
 
-                    // Trading session includes OnBehalfOfCompID
-                    message.SetField(new OnBehalfOfCompID("SWES"));
+                    // Trading session includes OnBehalfOfCompID in HEADER (not body)
+                    message.Header.SetField(new OnBehalfOfCompID("SWES"));
                 }
                 else if (senderCompID == "GFI_BFXO_SWED_TC1")
                 {
