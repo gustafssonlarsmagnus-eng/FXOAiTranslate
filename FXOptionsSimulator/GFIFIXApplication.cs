@@ -62,11 +62,59 @@ namespace FXOptionsSimulator.FIX
 
             if (msgType == QuickFix.Fields.MsgType.LOGON)
             {
-                // STP credentials from GFI
-                message.SetField(new Username("gfi_bfxo_swed_tc1"));
-                message.SetField(new Password("ylhU6Q1eaxXf"));
+                // Read credentials from session configuration
+                string username = "gfi_bfxo_swed_tc1"; // Default STP
+                string password = "ylhU6Q1eaxXf";
+                string onBehalfOfCompID = null;
+                string profileType = "STP";
 
-                Console.WriteLine("[GFI FIX] >>> Sending Logon with STP credentials");
+                try
+                {
+                    var session = Session.LookupSession(sessionID);
+                    if (session != null)
+                    {
+                        var settings = session.SessionID;
+                        var dict = session.SessionID;
+
+                        // Try to read from quickfix settings
+                        var sessionSettings = QuickFix.SessionSettings.FromString(
+                            System.IO.File.ReadAllText("quickfix.cfg"));
+                        var sessionDict = sessionSettings.Get(sessionID);
+
+                        if (sessionDict.Has("ConnectionProfile"))
+                            profileType = sessionDict.GetString("ConnectionProfile");
+
+                        if (sessionDict.Has("GFIUsername"))
+                            username = sessionDict.GetString("GFIUsername");
+
+                        if (sessionDict.Has("GFIPassword"))
+                            password = sessionDict.GetString("GFIPassword");
+
+                        if (sessionDict.Has("OnBehalfOfCompID"))
+                            onBehalfOfCompID = sessionDict.GetString("OnBehalfOfCompID");
+
+                        Console.WriteLine($"[GFI FIX] Using {profileType} credentials");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[GFI FIX] Warning: Could not read custom config: {ex.Message}");
+                    Console.WriteLine($"[GFI FIX] Using default STP credentials");
+                }
+
+                message.SetField(new Username(username));
+                message.SetField(new Password(password));
+
+                // Only set OnBehalfOfCompID if configured (Trading uses it, STP doesn't)
+                if (!string.IsNullOrEmpty(onBehalfOfCompID))
+                {
+                    message.SetField(new OnBehalfOfCompID(onBehalfOfCompID));
+                    Console.WriteLine($"[GFI FIX] >>> Sending Logon with {profileType} credentials + OnBehalfOfCompID={onBehalfOfCompID}");
+                }
+                else
+                {
+                    Console.WriteLine($"[GFI FIX] >>> Sending Logon with {profileType} credentials");
+                }
 
                 Console.WriteLine($"[DEBUG] Full Logon Message:");
                 Console.WriteLine($"{message.ToString()}");
