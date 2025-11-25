@@ -42,6 +42,7 @@ namespace FXOAiTranslator
         private CheckBox chkDBS;
         private int _selectedLegCount;
         private ToggleSwitch togglePremiumCurrency;  // Toggle for premium currency display
+        private ToggleSwitch toggleQuoteMode;  // Toggle for VOL vs PREM quotation mode
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -492,6 +493,17 @@ namespace FXOAiTranslator
             };
             togglePremiumCurrency.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh display when toggled
             this.Controls.Add(togglePremiumCurrency);
+
+            // Quote mode toggle - VOL vs PREM
+            toggleQuoteMode = new ToggleSwitch
+            {
+                Location = new Point(150, 315),   // Next to currency toggle
+                Size = new Size(120, 24),         // Compact size
+                LeftText = "PREM",                // Off state = Premium quotation
+                RightText = "VOL",                // On state = Volatility quotation
+                Checked = false                   // Default: PREM mode (unchecked)
+            };
+            this.Controls.Add(toggleQuoteMode);
         }
 
         private void PopulateLegGrid()
@@ -636,12 +648,15 @@ namespace FXOAiTranslator
             _groupId = $"3-REQ{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
             // Send quote request to each LP
+            // Determine quote mode from toggle: PREM (unchecked) or VOL (checked)
+            string quoteMode = toggleQuoteMode.Checked ? "V" : "S";
+
             // Note: hedge parameter defaults to false - GFI sends both BID and OFFER quotes regardless
             foreach (var lp in lps)
             {
                 try
                 {
-                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId);
+                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId, hedge: false, quoteMode: quoteMode);
                 }
                 catch (Exception ex)
                 {
