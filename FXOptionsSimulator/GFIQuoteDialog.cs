@@ -649,7 +649,8 @@ namespace FXOAiTranslator
 
             // Send quote request to each LP
             // Determine quote mode from toggle: PREM (unchecked) or VOL (checked)
-            string quoteMode = toggleQuoteMode.Checked ? "V" : "S";
+            // Tag 9904 values: "1" = VOL (PCT), "2" = PREM (PTS)
+            string quoteMode = toggleQuoteMode.Checked ? "1" : "2";
 
             // Note: hedge parameter defaults to false - GFI sends both BID and OFFER quotes regardless
             foreach (var lp in lps)

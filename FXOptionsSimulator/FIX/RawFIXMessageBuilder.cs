@@ -40,7 +40,7 @@ namespace FXOptionsSimulator.FIX
             string tag75Override = null,
             string tag5020Override = null,
             bool hedge = false,  // Default to FALSE for OFFER quotes (BUY capability)
-            string quoteMode = "S")  // "S" = PREM (premium), "V" = VOL (volatility)
+            string quoteMode = "2")  // "1" = VOL (volatility), "2" = PREM (premium/points)
         {
             _body.Clear();
 
@@ -82,7 +82,7 @@ namespace FXOptionsSimulator.FIX
             // Body fields in EXACT GFI order
             AddField(75, tag75); // TradeDate  ✅ uses override if provided
             AddField(131, quoteReqID); // QuoteReqID
-            AddField(5475, quoteMode); // PremDel: "S" = PREM (premium), "V" = VOL (volatility)
+            AddField(5475, "S"); // PremDel - always "S"
             AddField(5830, trade.PremiumCurrency); // PremiumCcy
             AddField(9016, hedge ? "1" : "0"); // HedgeTradeType (1=hedge, 0=no hedge)
 
@@ -190,7 +190,7 @@ namespace FXOptionsSimulator.FIX
                 // This was getting quotes, even if wrong type for BUY+Hedge=ON
                 string positionValue = leg.Direction == "BUY" ? "1" : "2";
                 AddField(6351, positionValue); // Position
-                AddField(9904, "2"); // PriceIndicator
+                AddField(9904, quoteMode); // PriceIndicator: "1" = VOL (PCT), "2" = PREM (PTS)
 
                 // LegSpotRate (5235) is ONLY allowed when Hedge=ON
                 // GFI rejects with "LegSpotRate not supported for No Hedge" if sent when Hedge=OFF

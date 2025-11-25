@@ -209,7 +209,7 @@ namespace FXOptionsSimulator.FIX
 
         #region Send Quote Request
 
-        public string SendQuoteRequest(TradeStructure trade, string lpName, string groupId, bool hedge = false, string quoteMode = "S")
+        public string SendQuoteRequest(TradeStructure trade, string lpName, string groupId, bool hedge = false, string quoteMode = "2")
         {
             if (!IsLoggedOn)
                 throw new InvalidOperationException("Cannot send quote request - not logged on!");
@@ -222,7 +222,7 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"  GroupID: {groupId}");
             Console.WriteLine($"  Underlying: {trade.Underlying}");
             Console.WriteLine($"  Legs: {trade.Legs.Count}");
-            Console.WriteLine($"  Quote Mode: {(quoteMode == "V" ? "VOL (Volatility)" : "PREM (Premium)")}");
+            Console.WriteLine($"  Quote Mode: {(quoteMode == "1" ? "VOL (Volatility/PCT)" : "PREM (Premium/PTS)")}");
             Console.WriteLine($"  Hedge: {(hedge ? "ON" : "OFF")}");
 
             try
