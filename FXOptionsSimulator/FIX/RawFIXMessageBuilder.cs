@@ -324,6 +324,18 @@ namespace FXOptionsSimulator.FIX
 
             AddField(9126, structureCode.ToString()); // Structure
 
+            // Extract and add PriceIndicator from quote (VOL vs PREM mode)
+            string priceIndicator = quote.Get("9904");
+            if (!string.IsNullOrEmpty(priceIndicator))
+            {
+                AddField(9904, priceIndicator); // PriceIndicator: "1" = VOL, "2" = PREM
+            }
+            else
+            {
+                // Default to PREM if not specified
+                AddField(9904, "2");
+            }
+
             // PartyIDs component - GFI requires this AFTER Structure, BEFORE NoLegs
             // (Different from standard FIX 4.4 which has it after ClOrdID)
             AddField(453, "1"); // NoPartyIDs
