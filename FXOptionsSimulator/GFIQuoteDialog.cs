@@ -1109,20 +1109,44 @@ namespace FXOAiTranslator
         {
             _quoteTimer?.Stop();
 
-            // Get best bid quote
             var streams = _fixSession.Application.GetActiveStreams(_groupId);
-            FIXMessage bestBidQuote = null;
-            double bestBidPremium = double.MinValue;
 
-            foreach (var stream in streams)
+            // Check if we're in VOL or PREM mode
+            bool isVolMode = toggleQuoteMode != null && toggleQuoteMode.Checked;
+
+            // Find best bid quote
+            FIXMessage bestBidQuote = null;
+            double bestBidValue = double.MinValue;
+
+            if (isVolMode)
             {
-                if (stream.BidQuote != null)
+                // VOL mode: Find HIGHEST bid volatility (receive most)
+                foreach (var stream in streams)
                 {
-                    var prem = CalculateNetPremium(stream.BidQuote);
-                    if (prem.HasValue && prem.Value > bestBidPremium)
+                    if (stream.BidQuote != null)
                     {
-                        bestBidPremium = prem.Value;
-                        bestBidQuote = stream.BidQuote;
+                        var vol = GetLegVol(stream.BidQuote, 1);  // First leg volatility
+                        if (vol.HasValue && vol.Value > bestBidValue)
+                        {
+                            bestBidValue = vol.Value;
+                            bestBidQuote = stream.BidQuote;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // PREM mode: Find highest bid premium (receive most)
+                foreach (var stream in streams)
+                {
+                    if (stream.BidQuote != null)
+                    {
+                        var prem = CalculateNetPremium(stream.BidQuote);
+                        if (prem.HasValue && prem.Value > bestBidValue)
+                        {
+                            bestBidValue = prem.Value;
+                            bestBidQuote = stream.BidQuote;
+                        }
                     }
                 }
             }
@@ -1146,24 +1170,50 @@ namespace FXOAiTranslator
                 {
                     // Hit the bid - find best bid
                     selectedQuote = bestBidQuote;
-                    selectedPremium = bestBidPremium;
+                    selectedPremium = bestBidValue;  // Could be premium or volatility depending on mode
                     lpName = bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString());
                 }
                 else // BUY
                 {
-                    // Lift the offer - find best offer (highest value = least negative = pay least)
                     FIXMessage bestOfferQuote = null;
-                    double bestOfferPremium = double.MinValue;
+                    double bestOfferValue = double.MinValue;
 
-                    foreach (var stream in streams)
+                    // In VOL mode, compare volatilities; in PREM mode, compare premiums
+                    bool isVolMode = toggleQuoteMode != null && toggleQuoteMode.Checked;
+
+                    if (isVolMode)
                     {
-                        if (stream.OfferQuote != null)
+                        // VOL mode: Find LOWEST volatility (pay least)
+                        bestOfferValue = double.MaxValue;  // Start from max to find minimum
+
+                        foreach (var stream in streams)
                         {
-                            var prem = CalculateNetPremium(stream.OfferQuote);
-                            if (prem.HasValue && prem.Value > bestOfferPremium)
+                            if (stream.OfferQuote != null)
                             {
-                                bestOfferPremium = prem.Value;
-                                bestOfferQuote = stream.OfferQuote;
+                                var vol = GetLegVol(stream.OfferQuote, 1);  // First leg volatility
+                                if (vol.HasValue && vol.Value < bestOfferValue)
+                                {
+                                    bestOfferValue = vol.Value;
+                                    bestOfferQuote = stream.OfferQuote;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // PREM mode: Find highest premium (least negative = pay least)
+                        bestOfferValue = double.MinValue;  // Start from min to find maximum
+
+                        foreach (var stream in streams)
+                        {
+                            if (stream.OfferQuote != null)
+                            {
+                                var prem = CalculateNetPremium(stream.OfferQuote);
+                                if (prem.HasValue && prem.Value > bestOfferValue)
+                                {
+                                    bestOfferValue = prem.Value;
+                                    bestOfferQuote = stream.OfferQuote;
+                                }
                             }
                         }
                     }
@@ -1177,7 +1227,7 @@ namespace FXOAiTranslator
                     }
 
                     selectedQuote = bestOfferQuote;
-                    selectedPremium = bestOfferPremium;
+                    selectedPremium = bestOfferValue;  // Could be premium or volatility depending on mode
                     lpName = bestOfferQuote.Get(Tags.OnBehalfOfCompID.ToString());
                 }
 
