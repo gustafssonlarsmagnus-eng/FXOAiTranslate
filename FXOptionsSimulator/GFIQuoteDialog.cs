@@ -1136,16 +1136,16 @@ namespace FXOAiTranslator
                 }
                 else // BUY
                 {
-                    // Lift the offer - find best offer
+                    // Lift the offer - find best offer (highest value = least negative = pay least)
                     FIXMessage bestOfferQuote = null;
-                    double bestOfferPremium = double.MaxValue;
+                    double bestOfferPremium = double.MinValue;
 
                     foreach (var stream in streams)
                     {
                         if (stream.OfferQuote != null)
                         {
                             var prem = CalculateNetPremium(stream.OfferQuote);
-                            if (prem.HasValue && prem.Value < bestOfferPremium)
+                            if (prem.HasValue && prem.Value > bestOfferPremium)
                             {
                                 bestOfferPremium = prem.Value;
                                 bestOfferQuote = stream.OfferQuote;
