@@ -1179,8 +1179,6 @@ namespace FXOAiTranslator
                     double bestOfferValue = double.MinValue;
 
                     // In VOL mode, compare volatilities; in PREM mode, compare premiums
-                    bool isVolMode = toggleQuoteMode != null && toggleQuoteMode.Checked;
-
                     if (isVolMode)
                     {
                         // VOL mode: Find LOWEST volatility (pay least)
