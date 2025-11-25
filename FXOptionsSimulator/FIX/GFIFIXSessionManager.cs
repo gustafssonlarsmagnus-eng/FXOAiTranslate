@@ -249,7 +249,7 @@ namespace FXOptionsSimulator.FIX
                 // GFI explicitly requires: "Trade date has to be current date"
                 var canonical75 = nowUtc.ToString("yyyyMMdd");
 
-                // Tag 5020 (PremiumDelivery) is T+1 business day from today
+                // Tag 5020 (PremiumDelivery) is T+2 business days (spot settlement)
                 var (_, _, _, _, premiumDt) =
                     FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
                 var canonical5020 = FxDateService.Ymd(premiumDt);
@@ -401,9 +401,17 @@ namespace FXOptionsSimulator.FIX
                     double? delta = null;
                     double netPremium = 0;
 
-                    if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+                    // PREFER Tag 6436 (Premium) for consistency with quote grid display - raw value
+                    string tag6436 = quote.Get("6436");
+                    if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
                     {
-                        // Sum up premium from all legs
+                        netPremium = premium6436;
+                        Console.WriteLine($"[BLOTTER] Using Tag 6436: {premium6436} (raw)");
+                    }
+                    // FALLBACK: Use LegPricing if Tag 6436 not available - raw values
+                    else if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+                    {
+                        // Sum up premium from all legs - no conversions
                         foreach (var leg in quote.LegPricing)
                         {
                             if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
@@ -411,8 +419,13 @@ namespace FXOptionsSimulator.FIX
                                 netPremium += legPrem;
                             }
                         }
+                        Console.WriteLine($"[BLOTTER] Using LegPremPrice fallback: {netPremium} (raw)");
+                    }
 
-                        // Calculate nominal delta (Delta × Notional)
+                    // Calculate nominal delta (Delta × Notional)
+                    double? volatility = null;
+                    if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+                    {
                         var firstLeg = quote.LegPricing[0];
                         if (!string.IsNullOrEmpty(firstLeg.LegDelta) && double.TryParse(firstLeg.LegDelta, out double deltaPercent))
                         {
@@ -423,6 +436,23 @@ namespace FXOptionsSimulator.FIX
                             // Nominal Delta = (Delta% / 100) × Notional in full units
                             double notionalFull = notionalMM * 1_000_000; // Convert millions to full units
                             delta = (deltaPercent / 100.0) * notionalFull;
+                        }
+
+                        // Calculate average volatility across all legs
+                        double volSum = 0;
+                        int volCount = 0;
+                        foreach (var leg in quote.LegPricing)
+                        {
+                            if (!string.IsNullOrEmpty(leg.Volatility) && double.TryParse(leg.Volatility, out double legVol))
+                            {
+                                volSum += legVol;
+                                volCount++;
+                            }
+                        }
+                        if (volCount > 0)
+                        {
+                            volatility = volSum / volCount;
+                            Console.WriteLine($"[BLOTTER] Executed volatility: {volatility:F2} (avg of {volCount} legs)");
                         }
                     }
 
@@ -437,6 +467,7 @@ namespace FXOptionsSimulator.FIX
                         LegCount = trade.Legs.Count,
                         NetPremium = netPremium,
                         Delta = delta,
+                        Volatility = volatility,
                         Status = "PENDING"
                     };
                     TradeBlotter.Instance.AddTrade(blotterEntry);

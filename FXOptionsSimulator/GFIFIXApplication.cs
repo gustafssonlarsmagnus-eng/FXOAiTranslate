@@ -642,6 +642,14 @@ namespace FXOptionsSimulator.FIX
                 Console.WriteLine($"  [DEBUG] PremiumCcy (tag 5830): {premiumCcy}");
             }
 
+            // Extract PremiumCcy from tag 9073 (DepoRateCcy, often used for premium currency in responses)
+            if (quote.IsSetField(9073))
+            {
+                string premiumCcy9073 = quote.GetString(9073);
+                msg.Set("9073", premiumCcy9073);
+                Console.WriteLine($"  [DEBUG] DepoRateCcy/PremiumCcy (tag 9073): {premiumCcy9073}");
+            }
+
             // For debugging - print the full raw message
             Console.WriteLine($"  [DEBUG] Raw quote message:");
             Console.WriteLine($"  {quote.ToString().Replace("\x01", "|")}");

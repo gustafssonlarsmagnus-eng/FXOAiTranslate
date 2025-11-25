@@ -61,8 +61,8 @@ namespace FXOptionsSimulator.FIX
             // ✅ canonical override for 75 & 5020
             var tag75 = tag75Override ?? tradeDate.ToString("yyyyMMdd");
             // Note: tag5020Override is always provided by caller, this fallback should never be used
-            // But if it is, use T+1 from today as a safe default
-            var tag5020 = tag5020Override ?? tradeDate.AddDays(1).ToString("yyyyMMdd");
+            // But if it is, use T+2 from today as a safe default (standard FX spot settlement)
+            var tag5020 = tag5020Override ?? tradeDate.AddDays(2).ToString("yyyyMMdd");
 
             // === QLNet policy & calendars for expiry/delivery ===
             var pair = trade.Underlying;               // e.g. EURUSD
