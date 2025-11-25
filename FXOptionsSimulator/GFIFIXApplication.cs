@@ -425,9 +425,9 @@ namespace FXOptionsSimulator.FIX
                 string lei = "UNKNOWN";
                 string counterpartyName = "Unknown Counterparty";
 
-                if (report.IsSetField(Tags.Account))
+                if (report.IsSetField(1))
                 {
-                    lei = report.GetString(Tags.Account);
+                    lei = report.GetString(1);
                     Console.WriteLine($"  LEI (tag 1): {lei}");
 
                     // Map LEI to bank name
