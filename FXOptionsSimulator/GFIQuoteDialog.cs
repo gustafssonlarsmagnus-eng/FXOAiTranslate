@@ -962,8 +962,8 @@ namespace FXOAiTranslator
             {
                 rawPremium = premium6436;
 
-                // DIAGNOSTIC: Log tag 6436 value
-                Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: Tag 6436 = {premium6436}");
+                // DIAGNOSTIC: Log tag 6436 value with currency
+                Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: Tag 6436 = {premium6436} {premiumCcy}");
             }
             // FALLBACK: Use LegPricing structure - display raw values
             else if (quote.LegPricing != null && quote.LegPricing.Count > 0)
@@ -1026,11 +1026,13 @@ namespace FXOAiTranslator
                         // Example: USD/SEK with premium in SEK: SEK 1000 / 10.5 = USD 95.24
                         // Example: EUR/USD with premium in USD: USD 1000 / 1.15 = EUR 869.57
                         double convertedPremium = rawPremium.Value / spot;
+                        Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: Converting {rawPremium.Value} {termCcy} / {spot} = {convertedPremium} {baseCcy}");
                         return convertedPremium;
                     }
                     // If premium is already in base currency, no conversion needed
                     else if (premCcy == baseCcy.ToUpperInvariant())
                     {
+                        Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: Already in base currency {baseCcy}, no conversion needed");
                         return rawPremium.Value;
                     }
                 }
