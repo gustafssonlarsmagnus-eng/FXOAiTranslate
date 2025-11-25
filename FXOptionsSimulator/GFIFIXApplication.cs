@@ -837,30 +837,26 @@ namespace FXOptionsSimulator.FIX
 
         private string MapLEIToBankName(string lei)
         {
-            // Common LEI mappings for major banks
+            // LEI mappings from GFI STP 35=AE tag 1 (4th pipe-separated value)
             var leiMapping = new Dictionary<string, string>
             {
-                // Major European Banks
                 { "G5GSEF7VJP5I7OUK5573", "Barclays Bank PLC London" },
-                { "R0MUWSFPU8MPRO8K5P83", "BNP Paribas SA" },
-                { "ZYKJ0GTF8Y48GMquali", "BNP Paribas Fortis SA/NV" },
-                { "549300E9PC51EN656011", "Citigroup Global Markets Limited" },
+                { "R0MUWSFPU8MPRO8K5P83", "BNP Paribas" },
+                { "2IGI19DL77OX0HC3ZE78", "Canadian Imperial Bank of Commerce" },
+                { "ATUEL7OJR5057F2PV266", "DBS" },
                 { "7LTWFZYICNSX8D621K86", "Deutsche Bank AG" },
-                { "XKZZ2JZF41MRHTR1V493", "Goldman Sachs International" },
-                { "W22LROWP2IHZNBB6K528", "HSBC Bank PLC" },
-                { "ZBUT11V806EZRVTWT807", "ING Bank N.V." },
-                { "K6Q0W1PS1L1O4IQL9C32", "J.P. Morgan Securities PLC" },
-                { "ICDSOLTE98YVN8LXNK89", "Lloyds Bank Corporate Markets PLC" },
-                { "BFXS5XCH7N0Y05NIXW11", "Morgan Stanley & Co. International PLC" },
-                { "F3JS33DEI6XQ4ZBPTN86", "Natixis SA" },
-                { "2138001I223278Z4H076", "Nomura International PLC" },
-                { "549300VVEJXXFS4JFL91", "Royal Bank of Canada Europe Limited" },
-                { "549300GKFG0RYRRQ1414", "Santander UK PLC" },
-                { "2549001BLKTVGHA37Y28", "Skandinaviska Enskilda Banken AB" },
-                { "213800D1EI4B9WTWWD28", "Société Générale SA" },
-                { "TCXQB28AOGB9CN7OKA88", "Standard Chartered Bank" },
-                { "H7FNTJ4851HG0EXQ1Z70", "UBS AG London Branch" },
-                { "549300SJ2I2J588WN679", "UniCredit Bank AG" }
+                { "W22LROWP2IHZNBB6K528", "Goldman Sachs International" },
+                { "MP6I5ZYZBEU3UXPYFY54", "HSBC Bank PLC London" },
+                { "GGDZP1UYGU9STUHRDP48", "Merrill Lynch International" },
+                { "4PQUHN3JPFGFNF3BB653", "Morgan Stanley International London" },
+                { "RR3QWICWWIPCS8A4S074", "Natwest Markets London" },
+                { "DGQCSV2PHVF7I2743539", "Nomura International PLC London" },
+                { "894500A9DTYKF33B7Z76", "Optiver FX Limited" },
+                { "O2RNE8IBXP4R0TD8PU41", "Societe Generale" },
+                { "RILFO74KP1CM8P6PCT96", "Standard Chartered Bank London" },
+                { "BFM8T61CT2L1QCEMIK50", "UBS AG Zurich" },
+                { "KB1H1DSPRFMYMCUFXT09", "Wells Fargo Bank N.A." },
+                { "165GRDQ39W63PHVONY02", "Zurcher Kantonalbank" }
             };
 
             // Extract first LEI if multiple are present (some systems send pipe-separated list)
