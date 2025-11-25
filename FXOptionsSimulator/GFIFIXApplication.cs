@@ -46,14 +46,16 @@ namespace FXOptionsSimulator.FIX
         public void OnLogon(SessionID sessionID)
         {
             IsLoggedOn = true;
-            Console.WriteLine($"[GFI FIX] ✓✓✓ LOGGED ON ✓✓✓");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"[{session}] ✓✓✓ LOGGED ON ✓✓✓");
             OnLogonEvent?.Invoke(sessionID.ToString());
         }
 
         public void OnLogout(SessionID sessionID)
         {
             IsLoggedOn = false;
-            Console.WriteLine($"[GFI FIX] ✗ LOGGED OUT");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"[{session}] ✗ LOGGED OUT");
             OnLogoutEvent?.Invoke(sessionID.ToString());
         }
 
@@ -108,7 +110,8 @@ namespace FXOptionsSimulator.FIX
         public void FromAdmin(QuickFix.Message message, SessionID sessionID)
         {
             var msgType = message.Header.GetField(Tags.MsgType);
-            Console.WriteLine($"[GFI FIX] <<< Admin: {msgType}");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"[{session}] <<< Admin: {msgType}");
 
             if (msgType == "3")
             {
@@ -119,7 +122,8 @@ namespace FXOptionsSimulator.FIX
         public void ToApp(QuickFix.Message message, SessionID sessionID)
         {
             var msgType = message.Header.GetField(Tags.MsgType);
-            Console.WriteLine($"[GFI FIX] >>> Sending: {msgType}");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"[{session}] >>> Sending: {msgType}");
 
             if (msgType == "R")
             {
@@ -132,7 +136,8 @@ namespace FXOptionsSimulator.FIX
         public void FromApp(QuickFix.Message message, SessionID sessionID)
         {
             string msgType = message.Header.GetString(35);
-            Console.WriteLine($"[GFI FIX] <<< App: {msgType}");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"[{session}] <<< App: {msgType}");
 
             try
             {
@@ -404,7 +409,8 @@ namespace FXOptionsSimulator.FIX
 
         public void OnMessage(QuickFix.FIX44.TradeCaptureReport report, SessionID sessionID)
         {
-            Console.WriteLine($"\n[GFI FIX] <<< TRADE CAPTURE REPORT (35=AE) - STP Session");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"\n[{session}] <<< TRADE CAPTURE REPORT (35=AE)");
             Console.WriteLine(new string('=', 60));
 
             try
@@ -859,6 +865,17 @@ namespace FXOptionsSimulator.FIX
 
             // Return LEI if not found in mapping
             return $"Unknown Bank ({primaryLEI})";
+        }
+
+        private string GetSessionLabel(SessionID sessionID)
+        {
+            string senderCompID = sessionID.SenderCompID;
+            return senderCompID switch
+            {
+                "WEBFENICS55" => "Trading",
+                "GFI_BFXO_SWED_TC1" => "STP",
+                _ => senderCompID
+            };
         }
 
         #endregion
