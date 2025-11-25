@@ -977,25 +977,19 @@ namespace FXOAiTranslator
             if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
             {
                 rawPremium = premium6436;
-
-                // DIAGNOSTIC: Log tag 6436 value with currency
-                Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: Tag 6436 = {premium6436} {premiumCcy}");
             }
             // FALLBACK: Use LegPricing structure - display raw values
             else if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
                 double netPrem = 0;
-                Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: No tag 6436, using LegPricing (count={quote.LegPricing.Count})");
                 foreach (var leg in quote.LegPricing)
                 {
                     if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
                     {
-                        Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: Tag 5844 (LegPremPrice) = {prem}");
                         netPrem += prem;
                     }
                 }
                 rawPremium = netPrem;
-                Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: Total from LegPricing = {netPrem}");
             }
             // Fallback to old field structure for backwards compatibility
             else
@@ -1010,13 +1004,6 @@ namespace FXOAiTranslator
                     }
                 }
                 rawPremium = netPremOld;
-            }
-
-            // DIAGNOSTIC: Log volatility for comparison
-            if (quote.LegPricing != null && quote.LegPricing.Count > 0)
-            {
-                var vol = quote.LegPricing[0].Volatility;
-                Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: Volatility = {vol}, Premium = {rawPremium}");
             }
 
             if (!rawPremium.HasValue)
@@ -1042,13 +1029,11 @@ namespace FXOAiTranslator
                         // Example: USD/SEK with premium in SEK: SEK 1000 / 10.5 = USD 95.24
                         // Example: EUR/USD with premium in USD: USD 1000 / 1.15 = EUR 869.57
                         double convertedPremium = rawPremium.Value / spot;
-                        Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: Converting {rawPremium.Value} {termCcy} / {spot} = {convertedPremium} {baseCcy}");
                         return convertedPremium;
                     }
                     // If premium is already in base currency, no conversion needed
                     else if (premCcy == baseCcy.ToUpperInvariant())
                     {
-                        Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}: Already in base currency {baseCcy}, no conversion needed");
                         return rawPremium.Value;
                     }
                 }
