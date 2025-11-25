@@ -15,7 +15,7 @@ namespace FXOptionsSimulator
         public int LegCount { get; set; }
         public double NetPremium { get; set; }
         public double? Delta { get; set; }  // Option delta from quote
-        public string Status { get; set; } // PENDING, FILLED, REJECTED
+        public string Status { get; set; } // PENDING, FILLED, REJECTED, CONFIRMED
         public string RejectReason { get; set; }
         public string ExecID { get; set; }
         public double? FillPrice { get; set; }
@@ -74,6 +74,26 @@ namespace FXOptionsSimulator
                 else
                 {
                     Console.WriteLine($"[Blotter] WARNING: Trade {clOrdID} not found");
+                }
+            }
+        }
+
+        public void UpdateTradeWithSTPConfirmation(string clOrdID, string counterpartyName)
+        {
+            lock (_lock)
+            {
+                var trade = _trades.FirstOrDefault(t => t.ClOrdID == clOrdID);
+                if (trade != null)
+                {
+                    trade.Status = "CONFIRMED";
+                    trade.LP = counterpartyName;  // Update LP to final counterparty
+
+                    Console.WriteLine($"[Blotter] STP Confirmation: {clOrdID} - Counterparty: {counterpartyName}");
+                    OnTradeUpdated?.Invoke(trade);
+                }
+                else
+                {
+                    Console.WriteLine($"[Blotter] WARNING: Trade {clOrdID} not found for STP confirmation");
                 }
             }
         }

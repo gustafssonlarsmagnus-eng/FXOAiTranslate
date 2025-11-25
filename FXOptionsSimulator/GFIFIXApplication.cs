@@ -26,6 +26,7 @@ namespace FXOptionsSimulator.FIX
         public event Action<string> OnLogoutEvent;
         public event Action<string, FIXMessage> OnQuoteReceived;
         public event Action<string, string, string> OnExecutionReport; // ClOrdID, Status, ExecID
+        public event Action<string, string, string> OnTradeCaptureReceived; // ClOrdID, CounterpartyName, LEI
 
         public bool IsLoggedOn { get; private set; }
 
@@ -401,6 +402,65 @@ namespace FXOptionsSimulator.FIX
             OnExecutionReport?.Invoke(clOrdID, statusText, execID);
         }
 
+        public void OnMessage(QuickFix.FIX44.TradeCaptureReport report, SessionID sessionID)
+        {
+            Console.WriteLine($"\n[GFI FIX] <<< TRADE CAPTURE REPORT (35=AE) - STP Session");
+            Console.WriteLine(new string('=', 60));
+
+            try
+            {
+                // Extract ClOrdID (tag 11)
+                string clOrdID = report.IsSetField(Tags.ClOrdID) ? report.GetString(Tags.ClOrdID) : "N/A";
+                Console.WriteLine($"  ClOrdID: {clOrdID}");
+
+                // Extract ExecID (tag 17)
+                string execID = report.IsSetField(Tags.ExecID) ? report.GetString(Tags.ExecID) : "N/A";
+                Console.WriteLine($"  ExecID: {execID}");
+
+                // Extract TradeReportID (tag 571)
+                string tradeReportID = report.IsSetField(571) ? report.GetString(571) : "N/A";
+                Console.WriteLine($"  TradeReportID: {tradeReportID}");
+
+                // Extract LEI from tag 1 (Account field - GFI puts LEI here)
+                string lei = "UNKNOWN";
+                string counterpartyName = "Unknown Counterparty";
+
+                if (report.IsSetField(Tags.Account))
+                {
+                    lei = report.GetString(Tags.Account);
+                    Console.WriteLine($"  LEI (tag 1): {lei}");
+
+                    // Map LEI to bank name
+                    counterpartyName = MapLEIToBankName(lei);
+                    Console.WriteLine($"  Counterparty: {counterpartyName}");
+                }
+
+                // Extract Symbol (tag 55)
+                if (report.IsSetField(Tags.Symbol))
+                {
+                    string symbol = report.GetString(Tags.Symbol);
+                    Console.WriteLine($"  Symbol: {symbol}");
+                }
+
+                // Compact trace for STP confirmation
+                string timestamp = report.Header.GetString(Tags.SendingTime);
+                Console.WriteLine($"[TRACE] {timestamp} | STP_CONF  | {clOrdID} | {counterpartyName}");
+
+                Console.WriteLine(new string('=', 60));
+
+                // Update blotter with STP confirmation
+                TradeBlotter.Instance.UpdateTradeWithSTPConfirmation(clOrdID, counterpartyName);
+
+                // Fire event to notify UI
+                OnTradeCaptureReceived?.Invoke(clOrdID, counterpartyName, lei);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GFI FIX] ERROR processing Trade Capture Report: {ex.Message}");
+                Console.WriteLine($"[GFI FIX] Stack: {ex.StackTrace}");
+            }
+        }
+
         public void OnMessage(QuickFix.FIX44.BusinessMessageReject reject, SessionID sessionID)
         {
             Console.WriteLine($"\n[GFI FIX] <<< BUSINESS MESSAGE REJECT (35=j)");
@@ -759,6 +819,46 @@ namespace FXOptionsSimulator.FIX
                 7 => "DeliverTo firm not available at this time",
                 _ => $"Unknown ({reason})"
             };
+        }
+
+        private string MapLEIToBankName(string lei)
+        {
+            // Common LEI mappings for major banks
+            var leiMapping = new Dictionary<string, string>
+            {
+                // Major European Banks
+                { "G5GSEF7VJP5I7OUK5573", "Barclays Bank PLC London" },
+                { "R0MUWSFPU8MPRO8K5P83", "BNP Paribas SA" },
+                { "ZYKJ0GTF8Y48GMquali", "BNP Paribas Fortis SA/NV" },
+                { "549300E9PC51EN656011", "Citigroup Global Markets Limited" },
+                { "7LTWFZYICNSX8D621K86", "Deutsche Bank AG" },
+                { "XKZZ2JZF41MRHTR1V493", "Goldman Sachs International" },
+                { "W22LROWP2IHZNBB6K528", "HSBC Bank PLC" },
+                { "ZBUT11V806EZRVTWT807", "ING Bank N.V." },
+                { "K6Q0W1PS1L1O4IQL9C32", "J.P. Morgan Securities PLC" },
+                { "ICDSOLTE98YVN8LXNK89", "Lloyds Bank Corporate Markets PLC" },
+                { "BFXS5XCH7N0Y05NIXW11", "Morgan Stanley & Co. International PLC" },
+                { "F3JS33DEI6XQ4ZBPTN86", "Natixis SA" },
+                { "2138001I223278Z4H076", "Nomura International PLC" },
+                { "549300VVEJXXFS4JFL91", "Royal Bank of Canada Europe Limited" },
+                { "549300GKFG0RYRRQ1414", "Santander UK PLC" },
+                { "2549001BLKTVGHA37Y28", "Skandinaviska Enskilda Banken AB" },
+                { "213800D1EI4B9WTWWD28", "Société Générale SA" },
+                { "TCXQB28AOGB9CN7OKA88", "Standard Chartered Bank" },
+                { "H7FNTJ4851HG0EXQ1Z70", "UBS AG London Branch" },
+                { "549300SJ2I2J588WN679", "UniCredit Bank AG" }
+            };
+
+            // Extract first LEI if multiple are present (some systems send pipe-separated list)
+            string primaryLEI = lei.Contains("|") ? lei.Split('|')[0].Trim() : lei.Trim();
+
+            if (leiMapping.TryGetValue(primaryLEI, out string bankName))
+            {
+                return bankName;
+            }
+
+            // Return LEI if not found in mapping
+            return $"Unknown Bank ({primaryLEI})";
         }
 
         #endregion
