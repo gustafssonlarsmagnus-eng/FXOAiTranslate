@@ -565,7 +565,7 @@ Output ONLY the OVML line:";
                             }
                         }
 
-                        // Replace the strike
+                        // Replace the strike and determine Call/Put
                         if (!string.IsNullOrEmpty(newStrike))
                         {
                             var oldStrike = ExtractStrikeFromInput(pattern.ExampleInput);
@@ -575,13 +575,26 @@ Output ONLY the OVML line:";
                                 var formattedNewStrike = FormatStrikeForOVML(newStrike);
                                 var formattedOldStrike = FormatStrikeForOVML(oldStrike);
 
-                                // Replace strike in OVML (match the format with C/P suffix)
+                                // Extract spot reference from OVML to determine if Call or Put
+                                var spotMatch = System.Text.RegularExpressions.Regex.Match(ovmlWithNewValues, @"SP(\d+\.\d+)");
+                                string optionType = "C"; // Default to Call
+
+                                if (spotMatch.Success && double.TryParse(formattedNewStrike, out double strikeVal)
+                                    && double.TryParse(spotMatch.Groups[1].Value, out double spotVal))
+                                {
+                                    // If strike < spot → PUT (OTM put)
+                                    // If strike > spot → CALL (OTM call)
+                                    optionType = strikeVal < spotVal ? "P" : "C";
+                                    Console.WriteLine($"[AI]   Strike {strikeVal} vs Spot {spotVal} → {(optionType == "C" ? "CALL" : "PUT")}");
+                                }
+
+                                // Replace strike and option type in OVML
                                 ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
                                     ovmlWithNewValues,
-                                    formattedOldStrike + @"([CP])",
-                                    formattedNewStrike + "$1"
+                                    formattedOldStrike + @"[CP]",
+                                    formattedNewStrike + optionType
                                 );
-                                Console.WriteLine($"[AI]   Adapted strike: {oldStrike} → {newStrike}");
+                                Console.WriteLine($"[AI]   Adapted strike: {oldStrike} → {newStrike} ({optionType})");
                             }
                         }
 
