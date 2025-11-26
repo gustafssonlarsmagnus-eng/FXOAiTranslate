@@ -284,43 +284,53 @@ namespace FXOptionsSimulator.FIX
             }
 
             // Premium and PremiumCcy
-            // Try to get Premium (6436) from quote first
-            string quotePremium = quote.Get("6436");
-            string premiumCcy = quote.Get("5830");
+            // Check if this is a VOL mode quote (9904=1)
+            // In VOL mode, we should NOT send premium amount (6436) or premium currency (5830)
+            string priceIndicator = quote.Get("9904");
+            bool isVolMode = priceIndicator == "1";
 
-            if (string.IsNullOrEmpty(premiumCcy))
+            if (!isVolMode)
             {
-                // Fallback: for EURUSD, premium is typically in USD (term currency)
-                premiumCcy = symbol.Length >= 6 ? symbol.Substring(3, 3) : "USD";
-            }
+                // PREM mode: Include premium and premium currency
+                // Try to get Premium (6436) from quote first
+                string quotePremium = quote.Get("6436");
+                string premiumCcy = quote.Get("5830");
 
-            AddField(5830, premiumCcy); // PremiumCcy
-
-            // If Premium not in quote, calculate from leg pricing
-            // GFI sends Premium as INTEGER (e.g., -53600, not -536.00)
-            if (string.IsNullOrEmpty(quotePremium))
-            {
-                // Calculate from legs if needed
-                if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+                if (string.IsNullOrEmpty(premiumCcy))
                 {
-                    double totalPremium = 0;
-                    foreach (var leg in quote.LegPricing)
+                    // Fallback: for EURUSD, premium is typically in USD (term currency)
+                    premiumCcy = symbol.Length >= 6 ? symbol.Substring(3, 3) : "USD";
+                }
+
+                AddField(5830, premiumCcy); // PremiumCcy
+
+                // If Premium not in quote, calculate from leg pricing
+                // GFI sends Premium as INTEGER (e.g., -53600, not -536.00)
+                if (string.IsNullOrEmpty(quotePremium))
+                {
+                    // Calculate from legs if needed
+                    if (quote.LegPricing != null && quote.LegPricing.Count > 0)
                     {
-                        if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
+                        double totalPremium = 0;
+                        foreach (var leg in quote.LegPricing)
                         {
-                            totalPremium += legPrem;
+                            if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
+                            {
+                                totalPremium += legPrem;
+                            }
                         }
+                        // Format as decimal with 2 places (fallback format)
+                        quotePremium = totalPremium.ToString("F2");
                     }
-                    // Format as decimal with 2 places (fallback format)
-                    quotePremium = totalPremium.ToString("F2");
+                }
+
+                if (!string.IsNullOrEmpty(quotePremium))
+                {
+                    // Use premium exactly as received from quote, or calculated if not available
+                    AddField(6436, quotePremium);
                 }
             }
-
-            if (!string.IsNullOrEmpty(quotePremium))
-            {
-                // Use premium exactly as received from quote, or calculated if not available
-                AddField(6436, quotePremium);
-            }
+            // In VOL mode, we skip both 5830 (PremiumCcy) and 6436 (Premium)
 
             AddField(9126, structureCode.ToString()); // Structure
 
