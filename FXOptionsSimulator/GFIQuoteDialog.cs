@@ -43,6 +43,8 @@ namespace FXOAiTranslator
         private int _selectedLegCount;
         private ToggleSwitch togglePremiumCurrency;  // Toggle for premium currency display
         private ToggleSwitch toggleQuoteMode;  // Toggle for VOL vs PREM quotation mode
+        private ComboBox cboDeltaHedge;  // Delta hedge: Spot / Forward / None
+        private ComboBox cboPremiumType;  // Premium type: Spot / Forward
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -504,6 +506,46 @@ namespace FXOAiTranslator
                 Checked = false                   // Default: PREM mode (unchecked)
             };
             this.Controls.Add(toggleQuoteMode);
+
+            // Delta hedge dropdown
+            var lblDeltaHedge = new Label
+            {
+                Text = "Delta Hedge:",
+                Location = new Point(280, 318),
+                Size = new Size(80, 20),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+            this.Controls.Add(lblDeltaHedge);
+
+            cboDeltaHedge = new ComboBox
+            {
+                Location = new Point(365, 315),
+                Size = new Size(80, 24),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cboDeltaHedge.Items.AddRange(new object[] { "None", "Spot", "Forward" });
+            cboDeltaHedge.SelectedIndex = 0;  // Default: None
+            this.Controls.Add(cboDeltaHedge);
+
+            // Premium type dropdown
+            var lblPremiumType = new Label
+            {
+                Text = "Prem Type:",
+                Location = new Point(455, 318),
+                Size = new Size(70, 20),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+            this.Controls.Add(lblPremiumType);
+
+            cboPremiumType = new ComboBox
+            {
+                Location = new Point(530, 315),
+                Size = new Size(80, 24),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cboPremiumType.Items.AddRange(new object[] { "Spot", "Forward" });
+            cboPremiumType.SelectedIndex = 0;  // Default: Spot
+            this.Controls.Add(cboPremiumType);
         }
 
         private void PopulateLegGrid()
@@ -652,12 +694,26 @@ namespace FXOAiTranslator
             // Tag 9904 values: "1" = VOL (PCT), "2" = PREM (PTS)
             string quoteMode = toggleQuoteMode.Checked ? "1" : "2";
 
-            // Note: hedge parameter defaults to false - GFI sends both BID and OFFER quotes regardless
+            // Get hedge type from dropdown: None/Spot/Forward
+            // Tag 9016 (HedgeTradeType): "0"=None, "1"=Spot, "2"=Forward
+            string hedgeType = cboDeltaHedge.SelectedItem?.ToString() ?? "None";
+            bool hedgeEnabled = hedgeType != "None";
+            string hedgeCode = hedgeType == "None" ? "0" : (hedgeType == "Spot" ? "1" : "2");
+
+            // Get premium type from dropdown: Spot/Forward
+            // Tag 5475 (PremDel): "S"=Spot, "F"=Forward
+            string premiumType = cboPremiumType.SelectedItem?.ToString() ?? "Spot";
+            string premDelCode = premiumType == "Spot" ? "S" : "F";
+
             foreach (var lp in lps)
             {
                 try
                 {
-                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId, hedge: false, quoteMode: quoteMode);
+                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId,
+                        hedgeEnabled: hedgeEnabled,
+                        hedgeType: hedgeCode,
+                        premiumDeliveryType: premDelCode,
+                        quoteMode: quoteMode);
                 }
                 catch (Exception ex)
                 {

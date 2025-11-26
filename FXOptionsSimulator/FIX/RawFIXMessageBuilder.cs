@@ -39,7 +39,9 @@ namespace FXOptionsSimulator.FIX
             string groupId,
             string tag75Override = null,
             string tag5020Override = null,
-            bool hedge = false,  // Default to FALSE for OFFER quotes (BUY capability)
+            bool hedgeEnabled = false,  // Hedge ON/OFF
+            string hedgeType = "0",  // "0"=None, "1"=Spot, "2"=Forward (tag 9016)
+            string premiumDeliveryType = "S",  // "S"=Spot, "F"=Forward (tag 5475)
             string quoteMode = "2")  // "1" = VOL (volatility), "2" = PREM (premium/points)
         {
             _body.Clear();
@@ -82,9 +84,9 @@ namespace FXOptionsSimulator.FIX
             // Body fields in EXACT GFI order
             AddField(75, tag75); // TradeDate  ✅ uses override if provided
             AddField(131, quoteReqID); // QuoteReqID
-            AddField(5475, "S"); // PremDel - always "S"
+            AddField(5475, premiumDeliveryType); // PremDel: "S"=Spot, "F"=Forward
             AddField(5830, trade.PremiumCurrency); // PremiumCcy
-            AddField(9016, hedge ? "1" : "0"); // HedgeTradeType (1=hedge, 0=no hedge)
+            AddField(9016, hedgeType); // HedgeTradeType: "0"=None, "1"=Spot, "2"=Forward
 
             int structureCode = GetStructureCode(trade.StructureType);
             AddField(9126, structureCode.ToString()); // Structure
@@ -101,7 +103,8 @@ namespace FXOptionsSimulator.FIX
             // DIAGNOSTIC: Show all leg directions before building
             Console.WriteLine($"\n========== QUOTE REQUEST DEBUG ==========");
             Console.WriteLine($"Building {trade.Legs.Count}-leg structure for {trade.Underlying}:");
-            Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")} (Note: GFI sends both BID and OFFER quotes regardless)");
+            Console.WriteLine($"Hedge (9016): {hedgeType} ({(hedgeType == "0" ? "None" : hedgeType == "1" ? "Spot" : "Forward")})");
+            Console.WriteLine($"Premium Type (5475): {premiumDeliveryType} ({(premiumDeliveryType == "S" ? "Spot" : "Forward")})");
             Console.WriteLine($"Position mapping: BUY=1, SELL=2");
             for (int i = 0; i < trade.Legs.Count; i++)
             {
@@ -192,9 +195,9 @@ namespace FXOptionsSimulator.FIX
                 AddField(6351, positionValue); // Position
                 AddField(9904, quoteMode); // PriceIndicator: "1" = VOL (PCT), "2" = PREM (PTS)
 
-                // LegSpotRate (5235) is ONLY allowed when Hedge=ON
+                // LegSpotRate (5235) is ONLY allowed when Hedge is enabled (not "0")
                 // GFI rejects with "LegSpotRate not supported for No Hedge" if sent when Hedge=OFF
-                if (hedge && trade.SpotReference > 0)
+                if (hedgeEnabled && trade.SpotReference > 0)
                 {
                     AddField(5235, trade.SpotReference.ToString("F4", CultureInfo.InvariantCulture)); // LegSpotRate
                 }
