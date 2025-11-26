@@ -220,7 +220,8 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"LP: {lpName}");
             Console.WriteLine($"TradeDate (75): {tag75}");
             Console.WriteLine($"PremiumDelivery (5020): {tag5020}");
-            Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")}");
+            Console.WriteLine($"Hedge (9016): {hedgeType} ({(hedgeType == "0" ? "None" : hedgeType == "1" ? "Spot" : "Forward")})");
+            Console.WriteLine($"Premium Type (5475): {premiumDeliveryType} ({(premiumDeliveryType == "S" ? "Spot" : "Forward")})");
             Console.WriteLine($"Legs: {trade.Legs.Count}");
             for (int i = 0; i < trade.Legs.Count; i++)
             {
