@@ -503,8 +503,12 @@ Output ONLY the OVML line:";
 
         public async Task<TradeParseResult> TryLearnedPatterns(string input, string underlying, string expiry)
         {
+            Console.WriteLine($"[AI] TryLearnedPatterns called - _learnedPatterns null: {_learnedPatterns == null}");
+            Console.WriteLine($"[AI] _learnedPatterns count: {_learnedPatterns?.Count ?? 0}");
+
             if (_learnedPatterns == null || _learnedPatterns.Count == 0)
             {
+                Console.WriteLine($"[AI] No learned patterns available, returning null");
                 return null;
             }
 
@@ -616,17 +620,24 @@ Output ONLY the OVML line:";
         {
             try
             {
+                Console.WriteLine($"[AI] LoadLearnedPatterns - file path: {_patternsFilePath}");
+                Console.WriteLine($"[AI] LoadLearnedPatterns - file exists: {File.Exists(_patternsFilePath)}");
+
                 if (File.Exists(_patternsFilePath))
                 {
                     var json = File.ReadAllText(_patternsFilePath);
+                    Console.WriteLine($"[AI] LoadLearnedPatterns - JSON length: {json?.Length ?? 0}");
+
                     var options = new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
                     };
                     _learnedPatterns = JsonSerializer.Deserialize<List<LearnedPattern>>(json, options) ?? new List<LearnedPattern>();
+                    Console.WriteLine($"[AI] LoadLearnedPatterns - Loaded {_learnedPatterns.Count} patterns");
                 }
                 else
                 {
+                    Console.WriteLine($"[AI] LoadLearnedPatterns - File doesn't exist, creating empty list");
                     _learnedPatterns = new List<LearnedPattern>();
                 }
             }
