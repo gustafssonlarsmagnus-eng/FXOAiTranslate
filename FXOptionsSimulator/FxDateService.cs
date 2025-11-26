@@ -82,7 +82,7 @@ public static class FxDateService
 
     private static QLCal CalendarFromCcy(string ccy) => (ccy ?? "").ToUpperInvariant() switch
     {
-        "USD" => new UnitedStates(UnitedStates.Market.Settlement),
+        "USD" => new UnitedStates(UnitedStates.Market.GovernmentBond),
         "EUR" => new TARGET(),
         "GBP" => new UnitedKingdom(UnitedKingdom.Market.Settlement),
         "JPY" => new Japan(),
