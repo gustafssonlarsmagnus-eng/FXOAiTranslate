@@ -518,6 +518,14 @@ Output ONLY the OVML line:";
                     if (IsSimilarTrade(input, pattern.ExampleInput))
                     {
                         Console.WriteLine($"[AI] ✓ Learned pattern matched: {pattern.Name}");
+
+                        // Check if OVML is stored (old patterns might not have it)
+                        if (string.IsNullOrEmpty(pattern.ExampleOVML))
+                        {
+                            Console.WriteLine($"[AI]   Pattern has no stored OVML (old pattern), skipping...");
+                            continue;  // Skip to next pattern
+                        }
+
                         Console.WriteLine($"[AI]   Using stored OVML: {pattern.ExampleOVML}");
                         pattern.UsageCount++;
                         SaveLearnedPatterns();
