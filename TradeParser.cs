@@ -108,7 +108,7 @@ namespace FXOAiTranslator
                 if (_patternLearner != null)
                 {
                     LogDebug("[Parser] Checking learned patterns...");
-                    var learnedResult = await _patternLearner.TryLearnedPatterns(input, result.Underlying, result.Expiry);
+                    var learnedResult = await _patternLearner.TryLearnedPatterns(input, underlying, expiry);
                     if (learnedResult != null)
                     {
                         LogDebug($"[Parser] ✓ Used learned pattern");
