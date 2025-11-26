@@ -1080,17 +1080,20 @@ namespace FXOAiTranslator
 
                     if (totalSeconds > 60)
                     {
-                        e.CellStyle.BackColor = Color.LightGreen;
+                        // Fresh quote: Orange (avoid green which is used for best prices)
+                        e.CellStyle.BackColor = Color.Orange;
                         e.CellStyle.ForeColor = Color.Black;
                     }
                     else if (totalSeconds > 30)
                     {
-                        e.CellStyle.BackColor = Color.Yellow;
-                        e.CellStyle.ForeColor = Color.Black;
+                        // Getting old: Dark Orange
+                        e.CellStyle.BackColor = Color.DarkOrange;
+                        e.CellStyle.ForeColor = Color.White;
                     }
                     else
                     {
-                        e.CellStyle.BackColor = Color.LightCoral;
+                        // About to expire: Red
+                        e.CellStyle.BackColor = Color.Red;
                         e.CellStyle.ForeColor = Color.White;
                     }
                 }
