@@ -13,7 +13,15 @@ namespace FXOptionsSimulator
         public string Underlying { get; set; }
         public string StructureType { get; set; }
         public int LegCount { get; set; }
+        public double? Strike { get; set; }  // Strike price (first leg for multi-leg)
+        public double? Notional { get; set; }  // Notional amount
+        public string NotionalCcy { get; set; }  // Notional currency
+        public string ExpDate { get; set; }  // Expiry date (yyyyMMdd format)
+        public string SettlementDate { get; set; }  // Settlement/delivery date (yyyyMMdd format)
+        public string Cut { get; set; }  // Cutoff (NY/TK/LON)
         public double NetPremium { get; set; }
+        public string PremiumCcy { get; set; }  // Premium currency
+        public string PremiumDate { get; set; }  // Premium payment date (yyyyMMdd format)
         public double? Delta { get; set; }  // Option delta from quote
         public double? Volatility { get; set; }  // Executed volatility (average for multi-leg)
         public string Status { get; set; } // PENDING, FILLED, REJECTED, CONFIRMED

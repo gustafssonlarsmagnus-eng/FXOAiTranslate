@@ -415,8 +415,24 @@ namespace FXOAiTranslator
             dgvBlotter.Columns["Symbol"].Width = 80;
             dgvBlotter.Columns.Add("Structure", "Structure");
             dgvBlotter.Columns["Structure"].Width = 100;
+            dgvBlotter.Columns.Add("Strike", "Strike");
+            dgvBlotter.Columns["Strike"].Width = 80;
+            dgvBlotter.Columns.Add("Notional", "Notional");
+            dgvBlotter.Columns["Notional"].Width = 80;
+            dgvBlotter.Columns.Add("NotionalCcy", "Not Ccy");
+            dgvBlotter.Columns["NotionalCcy"].Width = 60;
+            dgvBlotter.Columns.Add("ExpDate", "Exp Date");
+            dgvBlotter.Columns["ExpDate"].Width = 80;
+            dgvBlotter.Columns.Add("SettlementDate", "Settle Date");
+            dgvBlotter.Columns["SettlementDate"].Width = 80;
+            dgvBlotter.Columns.Add("Cut", "Cut");
+            dgvBlotter.Columns["Cut"].Width = 50;
             dgvBlotter.Columns.Add("Premium", "Premium");
             dgvBlotter.Columns["Premium"].Width = 80;
+            dgvBlotter.Columns.Add("PremiumCcy", "Prem Ccy");
+            dgvBlotter.Columns["PremiumCcy"].Width = 70;
+            dgvBlotter.Columns.Add("PremiumDate", "Prem Date");
+            dgvBlotter.Columns["PremiumDate"].Width = 80;
             dgvBlotter.Columns.Add("Delta", "Delta");
             dgvBlotter.Columns["Delta"].Width = 70;
             dgvBlotter.Columns.Add("Volatility", "Vol");
@@ -1473,6 +1489,11 @@ namespace FXOAiTranslator
             // Format volatility
             string volDisplay = entry.Volatility.HasValue ? entry.Volatility.Value.ToString("N2") : "-";
 
+            // Format dates (convert yyyyMMdd to dd MMM yy)
+            string expDateDisplay = FormatBlotterDate(entry.ExpDate);
+            string settleDateDisplay = FormatBlotterDate(entry.SettlementDate);
+            string premDateDisplay = FormatBlotterDate(entry.PremiumDate);
+
             dgvBlotter.Rows.Add(
                 entry.TradeTime.ToString("HH:mm:ss"),
                 entry.ClOrdID,
@@ -1480,7 +1501,15 @@ namespace FXOAiTranslator
                 entry.Side,
                 entry.Underlying,
                 entry.StructureType,
-                entry.NetPremium.ToString("N0"), // Raw integer value
+                entry.Strike?.ToString("F4") ?? "-",
+                entry.Notional?.ToString("N2") ?? "-",
+                entry.NotionalCcy ?? "-",
+                expDateDisplay,
+                settleDateDisplay,
+                entry.Cut ?? "-",
+                entry.NetPremium.ToString("N0"),
+                entry.PremiumCcy ?? "-",
+                premDateDisplay,
                 deltaDisplay,
                 volDisplay,
                 entry.Status
@@ -1515,6 +1544,25 @@ namespace FXOAiTranslator
                     ColorCodeBlotterRow(row, entry.Status);
                     break;
                 }
+            }
+        }
+
+        private string FormatBlotterDate(string yyyyMMdd)
+        {
+            if (string.IsNullOrEmpty(yyyyMMdd) || yyyyMMdd.Length != 8)
+                return "-";
+
+            try
+            {
+                int year = int.Parse(yyyyMMdd.Substring(0, 4));
+                int month = int.Parse(yyyyMMdd.Substring(4, 2));
+                int day = int.Parse(yyyyMMdd.Substring(6, 2));
+                DateTime date = new DateTime(year, month, day);
+                return date.ToString("dd MMM yy"); // e.g., "16 Dec 25"
+            }
+            catch
+            {
+                return yyyyMMdd; // Return as-is if parsing fails
             }
         }
 
