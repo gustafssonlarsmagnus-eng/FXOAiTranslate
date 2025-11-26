@@ -526,6 +526,13 @@ Output ONLY the OVML line:";
                             continue;  // Skip to next pattern
                         }
 
+                        // Check if OVML has date format - skip bad patterns
+                        if (System.Text.RegularExpressions.Regex.IsMatch(pattern.ExampleOVML, @"\d{1,2}/\d{1,2}/\d{2,4}"))
+                        {
+                            Console.WriteLine($"[AI]   Pattern has date format OVML (bad pattern), skipping...");
+                            continue;  // Skip to next pattern
+                        }
+
                         Console.WriteLine($"[AI]   Using stored OVML: {pattern.ExampleOVML}");
                         pattern.UsageCount++;
                         SaveLearnedPatterns();
@@ -694,6 +701,28 @@ Output ONLY the OVML line:";
         {
             try
             {
+                // Validate OVML format - should have tenor (1M, 2M, etc.), not date (12/26/25)
+                if (string.IsNullOrEmpty(result.OVML))
+                {
+                    Console.WriteLine($"[AI] Skipping pattern learning - empty OVML");
+                    return null;
+                }
+
+                // Check if OVML has date format (/) instead of tenor format
+                if (System.Text.RegularExpressions.Regex.IsMatch(result.OVML, @"\d{1,2}/\d{1,2}/\d{2,4}"))
+                {
+                    Console.WriteLine($"[AI] Skipping pattern learning - OVML has date format instead of tenor");
+                    Console.WriteLine($"[AI]   Bad OVML: {result.OVML}");
+                    return null;
+                }
+
+                // Check if OVML has tenor format (1M, 2M, 3M, 6M, 1Y, etc.)
+                if (!System.Text.RegularExpressions.Regex.IsMatch(result.OVML, @"\b\d+[MWYD]\b"))
+                {
+                    Console.WriteLine($"[AI] Skipping pattern learning - OVML missing tenor format");
+                    return null;
+                }
+
                 var pattern = new LearnedPattern
                 {
                     Name = $"Learned-{DateTime.Now:yyyyMMdd-HHmmss}",
