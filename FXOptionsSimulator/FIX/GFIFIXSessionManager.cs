@@ -468,6 +468,25 @@ namespace FXOptionsSimulator.FIX
                     // Extract additional trade details from first leg and quote
                     var firstTradeLeg = trade.Legs.Count > 0 ? trade.Legs[0] : null;
 
+                    // Get dates from quote response (GFI provides actual dates)
+                    // Tag 611 = LegMaturityDate (Expiry), Tag 743 = DeliveryDate (Settlement)
+                    string expDate = null;
+                    string settlementDate = null;
+
+                    // Try to get from quote's leg pricing first
+                    if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+                    {
+                        // Check if quote has these fields directly
+                        expDate = quote.Get("611");
+                        settlementDate = quote.Get("743");
+                    }
+
+                    // Fallback to trade structure if not in quote
+                    if (string.IsNullOrEmpty(expDate))
+                        expDate = firstTradeLeg?.ExpiryDate.ToString("yyyyMMdd");
+                    if (string.IsNullOrEmpty(settlementDate))
+                        settlementDate = firstTradeLeg?.DeliveryDate.ToString("yyyyMMdd");
+
                     var blotterEntry = new TradeBlotterEntry
                     {
                         TradeTime = DateTime.Now,
@@ -480,8 +499,8 @@ namespace FXOptionsSimulator.FIX
                         Strike = firstTradeLeg?.Strike,
                         Notional = firstTradeLeg?.NotionalMM,
                         NotionalCcy = firstTradeLeg?.NotionalCurrency,
-                        ExpDate = firstTradeLeg?.ExpiryDate.ToString("yyyyMMdd"),
-                        SettlementDate = firstTradeLeg?.DeliveryDate.ToString("yyyyMMdd"),
+                        ExpDate = expDate,
+                        SettlementDate = settlementDate,
                         Cut = firstTradeLeg?.Cutoff,
                         NetPremium = netPremium,
                         PremiumCcy = trade.PremiumCurrency,
