@@ -530,10 +530,32 @@ Output ONLY the OVML line:";
                         pattern.UsageCount++;
                         SaveLearnedPatterns();
 
-                        // Return the stored OVML result
+                        // Extract values from NEW input and substitute into OVML template
+                        var newExpiry = ExtractTenorFromInput(input);
+                        var ovmlWithNewValues = pattern.ExampleOVML;
+
+                        // Replace the old tenor with the new one
+                        if (!string.IsNullOrEmpty(newExpiry))
+                        {
+                            // Find and replace tenor in OVML (e.g., "1M" → "2M")
+                            var oldExpiry = ExtractTenorFromInput(pattern.ExampleInput);
+                            if (!string.IsNullOrEmpty(oldExpiry) && oldExpiry != newExpiry)
+                            {
+                                // Replace tenor in OVML
+                                ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
+                                    ovmlWithNewValues,
+                                    @"\b" + oldExpiry + @"\b",
+                                    newExpiry,
+                                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                                );
+                                Console.WriteLine($"[AI]   Adapted OVML: replaced {oldExpiry} → {newExpiry}");
+                            }
+                        }
+
+                        // Return the adapted OVML result
                         var result = new TradeParseResult
                         {
-                            OVML = pattern.ExampleOVML,
+                            OVML = ovmlWithNewValues,
                             Underlying = underlying,
                             Expiry = expiry
                         };
@@ -707,6 +729,18 @@ Output ONLY the OVML line:";
             var totalTokens = Math.Max(tokens1.Length, tokens2.Length);
 
             return (double)commonTokens / totalTokens > 0.6;
+        }
+
+        private string ExtractTenorFromInput(string input)
+        {
+            // Extract tenor like "1M", "2M", "3M", "1Y", "1W" from input
+            var tenorMatch = System.Text.RegularExpressions.Regex.Match(
+                input,
+                @"\b(\d+[mMwWyYdD])\b",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+            );
+
+            return tenorMatch.Success ? tenorMatch.Value.ToUpper() : null;
         }
     }
 
