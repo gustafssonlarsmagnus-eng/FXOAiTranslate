@@ -545,23 +545,58 @@ Output ONLY the OVML line:";
 
                         // Extract values from NEW input and substitute into OVML template
                         var newExpiry = ExtractTenorFromInput(input);
+                        var newStrike = ExtractStrikeFromInput(input);
+                        var newNotional = ExtractNotionalFromInput(input);
                         var ovmlWithNewValues = pattern.ExampleOVML;
 
                         // Replace the old tenor with the new one
                         if (!string.IsNullOrEmpty(newExpiry))
                         {
-                            // Find and replace tenor in OVML (e.g., "1M" → "2M")
                             var oldExpiry = ExtractTenorFromInput(pattern.ExampleInput);
                             if (!string.IsNullOrEmpty(oldExpiry) && oldExpiry != newExpiry)
                             {
-                                // Replace tenor in OVML
                                 ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
                                     ovmlWithNewValues,
                                     @"\b" + oldExpiry + @"\b",
                                     newExpiry,
                                     System.Text.RegularExpressions.RegexOptions.IgnoreCase
                                 );
-                                Console.WriteLine($"[AI]   Adapted OVML: replaced {oldExpiry} → {newExpiry}");
+                                Console.WriteLine($"[AI]   Adapted tenor: {oldExpiry} → {newExpiry}");
+                            }
+                        }
+
+                        // Replace the strike
+                        if (!string.IsNullOrEmpty(newStrike))
+                        {
+                            var oldStrike = ExtractStrikeFromInput(pattern.ExampleInput);
+                            if (!string.IsNullOrEmpty(oldStrike) && oldStrike != newStrike)
+                            {
+                                // Format strike to 4 decimals for OVML
+                                var formattedNewStrike = FormatStrikeForOVML(newStrike);
+                                var formattedOldStrike = FormatStrikeForOVML(oldStrike);
+
+                                // Replace strike in OVML (match the format with C/P suffix)
+                                ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
+                                    ovmlWithNewValues,
+                                    formattedOldStrike + @"([CP])",
+                                    formattedNewStrike + "$1"
+                                );
+                                Console.WriteLine($"[AI]   Adapted strike: {oldStrike} → {newStrike}");
+                            }
+                        }
+
+                        // Replace the notional
+                        if (!string.IsNullOrEmpty(newNotional))
+                        {
+                            var oldNotional = ExtractNotionalFromInput(pattern.ExampleInput);
+                            if (!string.IsNullOrEmpty(oldNotional) && oldNotional != newNotional)
+                            {
+                                // Replace notional in OVML (format: N15M)
+                                var formattedNewNotional = "N" + newNotional + "M";
+                                var formattedOldNotional = "N" + oldNotional + "M";
+
+                                ovmlWithNewValues = ovmlWithNewValues.Replace(formattedOldNotional, formattedNewNotional);
+                                Console.WriteLine($"[AI]   Adapted notional: {oldNotional} → {newNotional}");
                             }
                         }
 
@@ -790,6 +825,42 @@ Output ONLY the OVML line:";
             );
 
             return tenorMatch.Success ? tenorMatch.Value.ToUpper() : null;
+        }
+
+        private string ExtractStrikeFromInput(string input)
+        {
+            // Extract strike price like "1.15", "1.1650", "9.75" from input
+            // Look for decimal numbers that are likely strikes (not dates, not notionals)
+            var strikeMatch = System.Text.RegularExpressions.Regex.Match(
+                input,
+                @"\b(\d+\.\d{2,4})\b",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+            );
+
+            return strikeMatch.Success ? strikeMatch.Value : null;
+        }
+
+        private string ExtractNotionalFromInput(string input)
+        {
+            // Extract notional like "10mio", "15m", "150nok" from input
+            // Match patterns: "15mio", "15m", "15mil", "10 mio"
+            var notionalMatch = System.Text.RegularExpressions.Regex.Match(
+                input,
+                @"(?:in\s+)?(\d+)\s*(?:mio|m|mil|million)\b",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+            );
+
+            return notionalMatch.Success ? notionalMatch.Groups[1].Value : null;
+        }
+
+        private string FormatStrikeForOVML(string strike)
+        {
+            // Format strike to 4 decimals (OVML standard)
+            if (double.TryParse(strike, out double strikeValue))
+            {
+                return strikeValue.ToString("0.0000");
+            }
+            return strike;
         }
     }
 
