@@ -38,8 +38,7 @@ public static class FxDateService
         if (!calPair.isBusinessDay(trade)) trade = calPair.adjust(trade, BusinessDayConvention.Following);
 
         var spot = AdvanceBusinessDays(calPair, trade, (int)rules.SpotLag, BusinessDayConvention.Following);
-        // FX option market convention: tenors are measured from SPOT date, not trade date
-        var expiry = ComputeExpiryFromTenor(tenor, spot, calPair, rules.ExpiryConvention, rules.ExpiryEOM);
+        var expiry = ComputeExpiryFromTenor(tenor, trade, calPair, rules.ExpiryConvention, rules.ExpiryEOM);
         var delivery = AdvanceBusinessDays(calPair, expiry, (int)rules.SpotLag, BusinessDayConvention.Following);
         var premium = AdvanceBusinessDays(calPremium, trade, rules.PremiumSettleDays, rules.PremiumConvention);
 
