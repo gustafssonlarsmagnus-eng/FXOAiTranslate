@@ -466,7 +466,7 @@ namespace FXOptionsSimulator.FIX
                     }
 
                     // Extract additional trade details from first leg and quote
-                    var firstLeg = trade.Legs.Count > 0 ? trade.Legs[0] : null;
+                    var firstTradeLeg = trade.Legs.Count > 0 ? trade.Legs[0] : null;
 
                     var blotterEntry = new TradeBlotterEntry
                     {
@@ -477,12 +477,12 @@ namespace FXOptionsSimulator.FIX
                         Underlying = trade.Underlying,
                         StructureType = trade.StructureType,
                         LegCount = trade.Legs.Count,
-                        Strike = firstLeg?.Strike,
-                        Notional = firstLeg?.NotionalMM,
-                        NotionalCcy = firstLeg?.NotionalCurrency,
-                        ExpDate = firstLeg?.ExpiryDate.ToString("yyyyMMdd"),
-                        SettlementDate = firstLeg?.DeliveryDate.ToString("yyyyMMdd"),
-                        Cut = firstLeg?.Cutoff,
+                        Strike = firstTradeLeg?.Strike,
+                        Notional = firstTradeLeg?.NotionalMM,
+                        NotionalCcy = firstTradeLeg?.NotionalCurrency,
+                        ExpDate = firstTradeLeg?.ExpiryDate.ToString("yyyyMMdd"),
+                        SettlementDate = firstTradeLeg?.DeliveryDate.ToString("yyyyMMdd"),
+                        Cut = firstTradeLeg?.Cutoff,
                         NetPremium = netPremium,
                         PremiumCcy = trade.PremiumCurrency,
                         PremiumDate = quote.Get("5020"), // Premium delivery date from quote
