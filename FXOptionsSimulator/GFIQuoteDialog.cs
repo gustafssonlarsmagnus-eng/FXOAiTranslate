@@ -524,8 +524,8 @@ namespace FXOAiTranslator
                 Size = new Size(80, 24),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            cboDeltaHedge.Items.AddRange(new object[] { "None", "Spot", "Forward" });
-            cboDeltaHedge.SelectedIndex = 0;  // Default: None
+            cboDeltaHedge.Items.AddRange(new object[] { "Live", "Spot", "Forward" });
+            cboDeltaHedge.SelectedIndex = 0;  // Default: Live (no hedge)
             this.Controls.Add(cboDeltaHedge);
 
             // Premium type dropdown
@@ -695,11 +695,12 @@ namespace FXOAiTranslator
             // Tag 9904 values: "1" = VOL (PCT), "2" = PREM (PTS)
             string quoteMode = toggleQuoteMode.Checked ? "1" : "2";
 
-            // Get hedge type from dropdown: None/Spot/Forward
-            // Tag 9016 (HedgeTradeType): "0"=None, "1"=Spot, "2"=Forward
-            string hedgeType = cboDeltaHedge.SelectedItem?.ToString() ?? "None";
-            bool hedgeEnabled = hedgeType != "None";
-            string hedgeCode = hedgeType == "None" ? "0" : (hedgeType == "Spot" ? "1" : "2");
+            // Get hedge type from dropdown: Live/Spot/Forward
+            // Tag 9016 (HedgeTradeType): "0"=Live (no hedge), "1"=Spot/Forward hedge
+            // Note: GFI spec only has 0/1, both Spot and Forward send "1"
+            string hedgeType = cboDeltaHedge.SelectedItem?.ToString() ?? "Live";
+            bool hedgeEnabled = hedgeType != "Live";
+            string hedgeCode = hedgeType == "Live" ? "0" : "1";
 
             // Get premium type from dropdown: Spot/Forward
             // Tag 5475 (PremDel): "S"=Spot, "F"=Forward

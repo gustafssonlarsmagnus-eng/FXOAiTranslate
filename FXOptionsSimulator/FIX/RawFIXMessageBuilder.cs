@@ -40,7 +40,7 @@ namespace FXOptionsSimulator.FIX
             string tag75Override = null,
             string tag5020Override = null,
             bool hedgeEnabled = false,  // Hedge ON/OFF
-            string hedgeType = "0",  // "0"=None, "1"=Spot, "2"=Forward (tag 9016)
+            string hedgeType = "0",  // "0"=Live (no hedge), "1"=Hedge ON (Spot/Forward) - tag 9016
             string premiumDeliveryType = "S",  // "S"=Spot, "F"=Forward (tag 5475)
             string quoteMode = "2")  // "1" = VOL (volatility), "2" = PREM (premium/points)
         {
@@ -103,7 +103,7 @@ namespace FXOptionsSimulator.FIX
             // DIAGNOSTIC: Show all leg directions before building
             Console.WriteLine($"\n========== QUOTE REQUEST DEBUG ==========");
             Console.WriteLine($"Building {trade.Legs.Count}-leg structure for {trade.Underlying}:");
-            Console.WriteLine($"Hedge (9016): {hedgeType} ({(hedgeType == "0" ? "None" : hedgeType == "1" ? "Spot" : "Forward")})");
+            Console.WriteLine($"Hedge (9016): {hedgeType} ({(hedgeType == "0" ? "Live" : "Hedge ON")})");
             Console.WriteLine($"Premium Type (5475): {premiumDeliveryType} ({(premiumDeliveryType == "S" ? "Spot" : "Forward")})");
             Console.WriteLine($"Position mapping: BUY=1, SELL=2");
             for (int i = 0; i < trade.Legs.Count; i++)
@@ -220,7 +220,7 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"LP: {lpName}");
             Console.WriteLine($"TradeDate (75): {tag75}");
             Console.WriteLine($"PremiumDelivery (5020): {tag5020}");
-            Console.WriteLine($"Hedge (9016): {hedgeType} ({(hedgeType == "0" ? "None" : hedgeType == "1" ? "Spot" : "Forward")})");
+            Console.WriteLine($"Hedge (9016): {hedgeType} ({(hedgeType == "0" ? "Live" : "Hedge ON")})");
             Console.WriteLine($"Premium Type (5475): {premiumDeliveryType} ({(premiumDeliveryType == "S" ? "Spot" : "Forward")})");
             Console.WriteLine($"Legs: {trade.Legs.Count}");
             for (int i = 0; i < trade.Legs.Count; i++)

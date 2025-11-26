@@ -227,7 +227,7 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"  Underlying: {trade.Underlying}");
             Console.WriteLine($"  Legs: {trade.Legs.Count}");
             Console.WriteLine($"  Quote Mode: {(quoteMode == "1" ? "VOL (Volatility/PCT)" : "PREM (Premium/PTS)")}");
-            Console.WriteLine($"  Hedge: {(hedgeEnabled ? $"ON ({(hedgeType == "1" ? "Spot" : "Forward")})" : "OFF")}");
+            Console.WriteLine($"  Hedge: {(hedgeEnabled ? "ON" : "Live (no hedge)")}");
             Console.WriteLine($"  Premium Type: {(premiumDeliveryType == "S" ? "Spot" : "Forward")}");
 
             try
