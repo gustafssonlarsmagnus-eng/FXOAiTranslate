@@ -175,15 +175,12 @@ SINGLE LEG FORMAT:
 OVML (currency) (expiry) (direction) (strike)(C/P) N(notional)M VA [SP(spot)]
 Example: OVML NOKSEK 08/14/26 B 0.9500C N150M VA SP0.9463
 
-EXPIRY FORMAT CRITICAL RULES:
-1. If input contains TENOR notation (1M, 2M, 3M, 6M, 1Y, etc.) - PRESERVE tenor format in output
-   - Example: EURUSD 2m should become OVML EURUSD 2M ...
-   - Example: USDSEK 6 months should become OVML USDSEK 6M ...
-2. If input contains EXPLICIT DATE (June 14, 06/14, 14Jun) - Convert to MM/DD/YY format
-   - Example: EURUSD June 14 2026 should become OVML EURUSD 06/14/26 ...
-3. Position: OVML (currency) (expiry) (rest of trade)
-WRONG: OVML USDNOK 11Jun B 9.9000P 06/11/26 VA (date appears twice)
-RIGHT: OVML USDNOK 06/11/26 B 9.9000P N10M VA (date once in MM/DD/YY)
+EXPIRY FORMAT CRITICAL RULE:
+IMPORTANT: If input has TENOR (1M, 2M, 3M, 6M, 1Y), keep it as tenor in output.
+Only convert to MM/DD/YY format when input has explicit dates (June 14, 06/14, 14Jun).
+Position: OVML (currency) (expiry) (rest of trade)
+WRONG: OVML USDNOK 11Jun B 9.9000P 06/11/26 VA
+RIGHT: OVML USDNOK 06/11/26 B 9.9000P N10M VA (explicit date converted)
 RIGHT: OVML EURUSD 2M B 1.1650C N10M VA (tenor preserved)
 
 CRITICAL: Single-leg OVML structure is ALWAYS:
