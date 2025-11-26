@@ -531,7 +531,7 @@ namespace FXOAiTranslator
                 Size = new Size(120, 24),         // Compact size
                 LeftText = "PREM",                // Off state = Premium quotation
                 RightText = "VOL",                // On state = Volatility quotation
-                Checked = false                   // Default: PREM mode (unchecked)
+                Checked = true                    // Default: VOL mode (checked)
             };
             toggleQuoteMode.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh highlighting when toggled
             this.Controls.Add(toggleQuoteMode);
@@ -553,7 +553,7 @@ namespace FXOAiTranslator
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             cboDeltaHedge.Items.AddRange(new object[] { "Live", "Spot", "Forward" });
-            cboDeltaHedge.SelectedIndex = 0;  // Default: Live (no hedge)
+            cboDeltaHedge.SelectedIndex = 1;  // Default: Spot hedge
             this.Controls.Add(cboDeltaHedge);
 
             // Premium type dropdown
