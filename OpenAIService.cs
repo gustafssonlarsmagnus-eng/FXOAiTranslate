@@ -570,7 +570,8 @@ Output ONLY the OVML line:";
                         {
                             OVML = ovmlWithNewValues,
                             Underlying = underlying,
-                            Expiry = expiry
+                            Expiry = expiry,
+                            ParseMethod = $"Learned-Pattern-{pattern.Name}"
                         };
                         result.GenerateUBS();
                         return result;
