@@ -175,11 +175,16 @@ SINGLE LEG FORMAT:
 OVML (currency) (expiry) (direction) (strike)(C/P) N(notional)M VA [SP(spot)]
 Example: OVML NOKSEK 08/14/26 B 0.9500C N150M VA SP0.9463
 
-EXPIRY FORMAT CRITICAL RULE:
-The expiry MUST be normalized to MM/DD/YY format (e.g., 06/11/26, not 11Jun).
-Position: OVML (currency) (MM/DD/YY) (rest of trade)
-WRONG: OVML USDNOK 11Jun B 9.9000P 06/11/26 VA
-RIGHT: OVML USDNOK 06/11/26 B 9.9000P N10M VA
+EXPIRY FORMAT CRITICAL RULES:
+1. If input contains TENOR notation (1M, 2M, 3M, 6M, 1Y, etc.) → PRESERVE tenor format in output
+   - Example: "EURUSD 2m" → OVML EURUSD 2M ...
+   - Example: "USDSEK 6 months" → OVML USDSEK 6M ...
+2. If input contains EXPLICIT DATE (June 14, 06/14, 14Jun) → Convert to MM/DD/YY format
+   - Example: "EURUSD June 14 2026" → OVML EURUSD 06/14/26 ...
+3. Position: OVML (currency) (expiry) (rest of trade)
+WRONG: OVML USDNOK 11Jun B 9.9000P 06/11/26 VA (date appears twice)
+RIGHT: OVML USDNOK 06/11/26 B 9.9000P N10M VA (date once in MM/DD/YY)
+RIGHT: OVML EURUSD 2M B 1.1650C N10M VA (tenor preserved)
 
 CRITICAL: Single-leg OVML structure is ALWAYS:
 OVML (currency) (expiry) (direction) (strike)(C/P) N(notional)M VA [SP(spot)]
@@ -652,6 +657,9 @@ Output ONLY the OVML line:";
         {
             try
             {
+                var fullPath = Path.GetFullPath(_patternsFilePath);
+                Console.WriteLine($"[AI] Saving patterns to: {fullPath}");
+
                 var options = new JsonSerializerOptions
                 {
                     WriteIndented = true
@@ -659,10 +667,13 @@ Output ONLY the OVML line:";
 
                 var json = JsonSerializer.Serialize(_learnedPatterns, options);
                 File.WriteAllText(_patternsFilePath, json);
+
+                Console.WriteLine($"[AI] ✓ Saved {_learnedPatterns.Count} patterns successfully");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[AI] Error saving patterns: {ex.Message}");
+                Console.WriteLine($"[AI] Stack trace: {ex.StackTrace}");
             }
         }
 
