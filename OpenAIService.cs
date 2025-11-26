@@ -514,16 +514,23 @@ Output ONLY the OVML line:";
             {
                 try
                 {
-                    var regex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
-
-                    if (regex.IsMatch(input))
+                    // Use similarity matching instead of regex (since regex pattern may be empty)
+                    if (IsSimilarTrade(input, pattern.ExampleInput))
                     {
-                        Console.WriteLine($"[AI] ✓ Pattern matched: {pattern.Description}");
+                        Console.WriteLine($"[AI] ✓ Learned pattern matched: {pattern.Name}");
+                        Console.WriteLine($"[AI]   Using stored OVML: {pattern.ExampleOVML}");
                         pattern.UsageCount++;
                         SaveLearnedPatterns();
 
-                        // Pattern matched - let AI handle the actual OVML generation with correct values
-                        return null;
+                        // Return the stored OVML result
+                        var result = new TradeParseResult
+                        {
+                            OVML = pattern.ExampleOVML,
+                            Underlying = underlying,
+                            Expiry = expiry
+                        };
+                        result.GenerateUBS();
+                        return result;
                     }
                 }
                 catch (Exception ex)
@@ -664,7 +671,8 @@ Output ONLY the OVML line:";
                     Description = $"{result.LegCount}-leg trade",
                     CreatedAt = DateTime.Now,
                     UsageCount = 1,
-                    ExampleInput = input.Trim()
+                    ExampleInput = input.Trim(),
+                    ExampleOVML = result.OVML  // Save the OVML output
                 };
                 _learnedPatterns.Add(pattern);
                 SaveLearnedPatterns();
@@ -701,6 +709,7 @@ Output ONLY the OVML line:";
         public string RegexPattern { get; set; }
         public string Description { get; set; }
         public string ExampleInput { get; set; }
+        public string ExampleOVML { get; set; }  // Store the OVML output for this pattern
         public DateTime CreatedAt { get; set; }
         public int UsageCount { get; set; }
     }

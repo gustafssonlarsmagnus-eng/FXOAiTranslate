@@ -104,6 +104,19 @@ namespace FXOAiTranslator
             // Skip regex patterns if forceAI is true
             if (!forceAI)
             {
+                // Try learned patterns first
+                if (_patternLearner != null)
+                {
+                    LogDebug("[Parser] Checking learned patterns...");
+                    var learnedResult = await _patternLearner.TryLearnedPatterns(input, result.Underlying, result.Expiry);
+                    if (learnedResult != null)
+                    {
+                        LogDebug($"[Parser] ✓ Used learned pattern");
+                        _cache[input] = learnedResult;
+                        return learnedResult;
+                    }
+                }
+
                 // Test against our known regex patterns
                 foreach (var pattern in RegexTradePatterns.Patterns)
                 {
