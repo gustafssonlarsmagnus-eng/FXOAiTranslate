@@ -176,6 +176,18 @@ namespace FXOAiTranslator
             };
             dgvLegs.Columns.Add(notionalCol);
 
+            // Add Cutoff dropdown column
+            var cutoffCol = new DataGridViewComboBoxColumn
+            {
+                Name = "Cutoff",
+                HeaderText = "Cut",
+                Width = 60,
+                ReadOnly = false  // EDITABLE
+            };
+            cutoffCol.Items.AddRange(new object[] { "NY", "TKY", "LON" });
+            cutoffCol.DefaultCellStyle.NullValue = "NY";  // Default to NY
+            dgvLegs.Columns.Add(cutoffCol);
+
             // Add cell formatting to highlight editable cells
             dgvLegs.CellFormatting += (s, e) =>
             {
@@ -183,7 +195,7 @@ namespace FXOAiTranslator
 
                 // Highlight editable columns with light yellow background
                 var colName = dgvLegs.Columns[e.ColumnIndex].Name;
-                if (colName == "Strike" || colName == "Tenor" || colName == "ExpiryDate" || colName == "NotionalMM")
+                if (colName == "Strike" || colName == "Tenor" || colName == "ExpiryDate" || colName == "NotionalMM" || colName == "Cutoff")
                 {
                     e.CellStyle.BackColor = Color.LightYellow;
                 }
@@ -580,7 +592,8 @@ namespace FXOAiTranslator
                     leg.Strike.ToString("F4"),             // Strike (EDITABLE)
                     leg.Tenor,                             // Tenor (EDITABLE)
                     leg.ExpiryDate.ToString("dd MMM yyyy"), // Expiry Date (EDITABLE)
-                    leg.NotionalMM.ToString("F1")          // Notional (EDITABLE)
+                    leg.NotionalMM.ToString("F1"),         // Notional (EDITABLE)
+                    leg.Cutoff ?? "NY"                     // Cutoff (EDITABLE) - default to NY
                 );
             }
         }
@@ -780,6 +793,17 @@ namespace FXOAiTranslator
                     if (double.TryParse(notionalStr, out double notionalMM))
                     {
                         originalLeg.NotionalMM = notionalMM;
+                    }
+
+                    // Read Cutoff
+                    var cutoff = dgvLegs.Rows[i].Cells["Cutoff"].Value?.ToString();
+                    if (!string.IsNullOrEmpty(cutoff))
+                    {
+                        originalLeg.Cutoff = cutoff.Trim().ToUpperInvariant();
+                    }
+                    else
+                    {
+                        originalLeg.Cutoff = "NY"; // Default to NY
                     }
 
                     selectedLegs.Add(originalLeg);

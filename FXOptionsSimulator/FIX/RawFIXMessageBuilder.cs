@@ -123,7 +123,7 @@ namespace FXOptionsSimulator.FIX
                 // EXACT order from GFI sample
                 AddField(600, trade.Underlying); // LegSymbol
                 AddField(6714, leg.OptionType == "CALL" ? "1" : "2"); // LegStrategy
-                AddField(9125, "1"); // Cutoff
+                AddField(9125, MapCutoffToValue(leg.Cutoff)); // Cutoff: NY=1, TKY=2, LON=3
                 // GFI requires BOTH tenor AND maturity date (even though docs say "either")
                 AddField(6215, leg.Tenor); // Tenor (e.g., "1M")
 
@@ -487,5 +487,20 @@ namespace FXOptionsSimulator.FIX
             "DKK" => new Denmark(),
             _ => new TARGET() // safe default
         };
+
+        /// <summary>
+        /// Maps cutoff string to FIX tag 9125 value
+        /// </summary>
+        private static string MapCutoffToValue(string cutoff)
+        {
+            return (cutoff ?? "").ToUpperInvariant().Trim() switch
+            {
+                "NY" => "1",    // New York 10am cut
+                "TKY" => "2",   // Tokyo 3pm cut
+                "TK" => "2",    // Tokyo 3pm cut (alternate)
+                "LON" => "3",   // London 3pm cut
+                _ => "1"        // Default to NY
+            };
+        }
     }
 }
