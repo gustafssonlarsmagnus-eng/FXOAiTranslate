@@ -379,7 +379,16 @@ namespace FXOptionsSimulator.FIX
             string execID = execReport.IsSetField(Tags.ExecID) ? execReport.GetString(Tags.ExecID) : "N/A";
 
             // Extract premium delivery date (tag 5020)
-            string premiumDate = execReport.IsSetField(5020) ? execReport.GetString(5020) : null;
+            string premiumDate = null;
+            if (execReport.IsSetField(5020))
+            {
+                premiumDate = execReport.GetString(5020);
+                Console.WriteLine($"[DEBUG] ✓ Found tag 5020 (Premium Date): {premiumDate}");
+            }
+            else
+            {
+                Console.WriteLine($"[DEBUG] ✗ Tag 5020 (Premium Date) NOT present in execution report");
+            }
 
             string statusText = "PENDING";
             string rejectReason = null;
