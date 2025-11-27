@@ -1568,6 +1568,13 @@ namespace FXOAiTranslator
                 {
                     row.Cells["Status"].Value = entry.Status;
                     row.Cells["Premium"].Value = entry.NetPremium.ToString("N0"); // Raw integer value
+
+                    // Update Premium Date if available
+                    if (dgvBlotter.Columns.Contains("PremiumDate"))
+                    {
+                        row.Cells["PremiumDate"].Value = FormatBlotterDate(entry.PremiumDate);
+                    }
+
                     ColorCodeBlotterRow(row, entry.Status);
                     break;
                 }
