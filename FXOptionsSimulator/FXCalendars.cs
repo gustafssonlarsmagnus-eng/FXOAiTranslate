@@ -26,7 +26,11 @@ public static class FXCalendars
 
         private void AddFXHolidays()
         {
-            // Thanksgiving Day (4th Thursday only - Friday is a business day)
+            // Add ALL 2025 US Federal Reserve holidays explicitly
+            // Source: https://www.stlouisfed.org/about-us/resources/legal-holiday-schedule
+            AddUSFederalHolidays2025();
+
+            // Thanksgiving Day for other years
             AddThanksgivingHolidays();
 
             // Christmas Eve when on weekday (Dec 24)
@@ -34,6 +38,22 @@ public static class FXCalendars
 
             // New Year's Eve when on weekday (Dec 31) - early close, treat as holiday for settlement
             AddNewYearsEveHolidays();
+        }
+
+        private void AddUSFederalHolidays2025()
+        {
+            // 2025 US Federal Reserve Bank Holidays
+            _additionalHolidays.Add(new Date(1, Month.January, 2025));    // New Year's Day (Wed)
+            _additionalHolidays.Add(new Date(20, Month.January, 2025));   // Martin Luther King Jr. Day (Mon)
+            _additionalHolidays.Add(new Date(17, Month.February, 2025));  // Presidents' Day (Mon)
+            _additionalHolidays.Add(new Date(26, Month.May, 2025));       // Memorial Day (Mon)
+            _additionalHolidays.Add(new Date(19, Month.June, 2025));      // Juneteenth (Thu)
+            _additionalHolidays.Add(new Date(4, Month.July, 2025));       // Independence Day (Fri)
+            _additionalHolidays.Add(new Date(1, Month.September, 2025));  // Labor Day (Mon)
+            _additionalHolidays.Add(new Date(13, Month.October, 2025));   // Columbus Day (Mon)
+            _additionalHolidays.Add(new Date(11, Month.November, 2025));  // Veterans Day (Tue)
+            _additionalHolidays.Add(new Date(27, Month.November, 2025));  // Thanksgiving (Thu)
+            _additionalHolidays.Add(new Date(25, Month.December, 2025));  // Christmas (Thu)
         }
 
         private void AddThanksgivingHolidays()
