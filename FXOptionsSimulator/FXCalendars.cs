@@ -246,7 +246,8 @@ public static class FXCalendars
             // Add complete Swedish bank holidays (2025-2029)
             // Source: https://www.riksbank.se/en-gb/press-and-published/calendar/
             AddSwedishHolidays2025();
-            // TODO: Add 2026-2029 when official dates available
+            AddSwedishHolidays2026();
+            // TODO: Add 2027-2029 when official dates available
         }
 
         private void AddSwedishHolidays2025()
@@ -265,6 +266,24 @@ public static class FXCalendars
             _additionalHolidays.Add(new Date(25, Month.December, 2025));  // Christmas Day (Thu)
             _additionalHolidays.Add(new Date(26, Month.December, 2025));  // Boxing Day (Fri)
             _additionalHolidays.Add(new Date(31, Month.December, 2025));  // New Year's Eve (Wed)
+        }
+
+        private void AddSwedishHolidays2026()
+        {
+            // Source: https://www.riksbank.se/en-gb/press-and-published/calendar/holidays-2026/
+            _additionalHolidays.Add(new Date(1, Month.January, 2026));    // New Year's Day (Thu)
+            _additionalHolidays.Add(new Date(6, Month.January, 2026));    // Epiphany (Tue)
+            _additionalHolidays.Add(new Date(3, Month.April, 2026));      // Good Friday (Fri)
+            _additionalHolidays.Add(new Date(6, Month.April, 2026));      // Easter Monday (Mon)
+            _additionalHolidays.Add(new Date(1, Month.May, 2026));        // Labour Day (Fri)
+            _additionalHolidays.Add(new Date(14, Month.May, 2026));       // Ascension Day (Thu)
+            _additionalHolidays.Add(new Date(6, Month.June, 2026));       // National Day (Sat)
+            _additionalHolidays.Add(new Date(19, Month.June, 2026));      // Midsummer Eve (Fri) - MAJOR Swedish holiday
+            _additionalHolidays.Add(new Date(31, Month.October, 2026));   // All Saints Day (Sat)
+            _additionalHolidays.Add(new Date(24, Month.December, 2026));  // Christmas Eve (Thu)
+            _additionalHolidays.Add(new Date(25, Month.December, 2026));  // Christmas Day (Fri)
+            _additionalHolidays.Add(new Date(26, Month.December, 2026));  // Boxing Day (Sat)
+            _additionalHolidays.Add(new Date(31, Month.December, 2026));  // New Year's Eve (Thu)
         }
 
         public override bool isBusinessDay(Date d)
