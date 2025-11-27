@@ -94,7 +94,7 @@ namespace FXOptionsSimulator
             }
         }
 
-        public void UpdateTradeWithSTPConfirmation(string clOrdID, string counterpartyName)
+        public void UpdateTradeWithSTPConfirmation(string clOrdID, string counterpartyName, string premiumDate = null)
         {
             lock (_lock)
             {
@@ -103,6 +103,13 @@ namespace FXOptionsSimulator
                 {
                     trade.Status = "CONFIRMED";
                     trade.LP = counterpartyName;  // Update LP to final counterparty
+
+                    // Update premium date if provided
+                    if (!string.IsNullOrEmpty(premiumDate))
+                    {
+                        trade.PremiumDate = premiumDate;
+                        Console.WriteLine($"[Blotter] Premium date updated: {premiumDate}");
+                    }
 
                     Console.WriteLine($"[Blotter] STP Confirmation: {clOrdID} - Counterparty: {counterpartyName}");
                     OnTradeUpdated?.Invoke(trade);

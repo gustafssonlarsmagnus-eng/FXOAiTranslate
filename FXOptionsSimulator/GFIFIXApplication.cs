@@ -460,14 +460,26 @@ namespace FXOptionsSimulator.FIX
                     Console.WriteLine($"  Symbol: {symbol}");
                 }
 
+                // Extract Premium Date (tag 5020)
+                string premiumDate = null;
+                if (report.IsSetField(5020))
+                {
+                    premiumDate = report.GetString(5020);
+                    Console.WriteLine($"  Premium Date (5020): {premiumDate}");
+                }
+                else
+                {
+                    Console.WriteLine($"  Premium Date (5020): NOT PRESENT");
+                }
+
                 // Compact trace for STP confirmation
                 string timestamp = report.Header.GetString(Tags.SendingTime);
                 Console.WriteLine($"[TRACE] {timestamp} | STP_CONF  | {clOrdID} | {counterpartyName}");
 
                 Console.WriteLine(new string('=', 60));
 
-                // Update blotter with STP confirmation
-                TradeBlotter.Instance.UpdateTradeWithSTPConfirmation(clOrdID, counterpartyName);
+                // Update blotter with STP confirmation and premium date
+                TradeBlotter.Instance.UpdateTradeWithSTPConfirmation(clOrdID, counterpartyName, premiumDate);
 
                 // Fire event to notify UI
                 OnTradeCaptureReceived?.Invoke(clOrdID, counterpartyName, lei);
