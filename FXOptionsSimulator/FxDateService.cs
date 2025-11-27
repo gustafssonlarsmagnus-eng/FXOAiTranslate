@@ -82,8 +82,8 @@ public static class FxDateService
 
     private static QLCal CalendarFromCcy(string ccy) => (ccy ?? "").ToUpperInvariant() switch
     {
-        "USD" => new UnitedStates(UnitedStates.Market.Settlement),
-        "EUR" => new TARGET(),
+        "USD" => new FXCalendars.UnitedStatesFX(),      // Use custom FX calendar with Thanksgiving Friday, etc.
+        "EUR" => new FXCalendars.TargetFX(),            // Use custom FX calendar (same as TARGET for now)
         "GBP" => new UnitedKingdom(UnitedKingdom.Market.Settlement),
         "JPY" => new Japan(),
         "CHF" => new Switzerland(),
