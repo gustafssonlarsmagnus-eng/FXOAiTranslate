@@ -1003,6 +1003,54 @@ if (selectedSide == "BID")
 // Use quoteId directly from the selected quote row
 ```
 
+### Option Type Inference (Ambiguous Trades)
+
+**Problem**: When traders say "11.75 in 10M" without specifying call/put, what should the system infer?
+
+**Industry Standard**: Default to **OTM (Out-of-the-Money)** options
+- OTM options are cheaper (lower premium)
+- Traders typically buy OTM unless explicitly requesting ITM
+- ITM options are more expensive and less common for speculative positions
+
+**Inference Logic** (OpenAIService.cs line 390-442):
+```csharp
+// Only apply when:
+// 1. User did NOT specify "call" or "put" in input
+// 2. User did NOT provide spot reference (sr:, @, etc.)
+// 3. Single-leg trade only (multi-leg strategies are intentional)
+
+if (strike > spot)
+    → CALL (OTM - upside speculation)
+else if (strike < spot)
+    → PUT (OTM - downside protection)
+```
+
+**Examples:**
+```
+Input: "eurnok 11.75 in 10M"
+Spot: 11.78
+Strike < Spot → Infer PUT
+Result: OVML EURNOK ... B 11.7500P N10M VA SP11.78
+
+Input: "eurusd 1.12 in 50M"
+Spot: 1.10
+Strike > Spot → Infer CALL
+Result: OVML EURUSD ... B 1.1200C N50M VA SP1.10
+```
+
+**Debug Output:**
+```
+[AI-TYPE-CHECK] Strike=11.7500, Spot=11.7849, IsCall=True, ShouldBeCall=False
+[AI-TYPE-CHECK] ✓ CORRECTED: 11.7500C → 11.7500P
+[AI-TYPE-CHECK]   Reason: Strike < Spot → Should be P (OTM)
+```
+
+**Important Notes:**
+- If user explicitly says "call" or "put", NO correction is applied
+- If user provides spot reference (sr: value), NO correction is applied
+- Multi-leg trades are never corrected (strategies are intentional)
+- This was a **bug until 2025-11-27** - previous code failed to parse strike correctly
+
 ---
 
 ## Testing & Debugging
@@ -1168,6 +1216,14 @@ private void AppendLog(string message)
 - **Check**: System prompt comprehensive?
 - **Debug**: Log AI response before validation
 - **Fix**: Add examples to prompt, improve validation
+
+**Issue 6: Wrong Option Type When Strike Near Spot (FIXED 2025-11-27)**
+- **Symptom**: Input "11.75 in 10M" with spot=11.78 returns CALL (ITM) instead of PUT (OTM)
+- **Root Cause**: Parsing bug in OpenAIService.cs line 398 - tried to parse "11.7500C" as double, failed due to 'C' suffix
+- **Expected Behavior**: Strike < Spot → Should infer PUT (OTM option)
+- **Fix Applied**: Extract numeric strike using regex before parsing, added debug logging
+- **Check**: Look for `[AI-TYPE-CHECK]` console logs showing strike/spot comparison and correction
+- **Note**: Correction only applies when user didn't specify "call" or "put" AND no spot reference provided
 
 ---
 
