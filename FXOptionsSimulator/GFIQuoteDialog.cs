@@ -130,6 +130,8 @@ namespace FXOAiTranslator
             dgvLegs.Columns["Type"].Width = 35;
             dgvLegs.Columns.Add("Strike", "Strike");
             dgvLegs.Columns["Strike"].Width = 35;
+            dgvLegs.Columns.Add("Expiry", "Expiry");
+            dgvLegs.Columns["Expiry"].Width = 90;
 
             var notionalCol = new DataGridViewTextBoxColumn
             {
@@ -371,12 +373,17 @@ namespace FXOAiTranslator
             for (int i = 0; i < _trade.Legs.Count; i++)
             {
                 var leg = _trade.Legs[i];
+                string expiryText = leg.ExpiryDate != DateTime.MinValue
+                    ? leg.ExpiryDate.ToString("dd-MMM-yy").ToUpper()  // e.g., "03-DEC-25"
+                    : leg.Tenor ?? "N/A";  // Fallback to tenor if no date
+
                 dgvLegs.Rows.Add(
                     true,
                     $"Leg {i + 1}",
                     leg.Direction,
                     leg.OptionType,
                     leg.Strike.ToString("F4"),
+                    expiryText,
                     leg.NotionalMM.ToString("F1")
                 );
             }
