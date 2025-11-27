@@ -222,4 +222,67 @@ public static class FXCalendars
             return "EUR FX Settlement";
         }
     }
+
+    /// <summary>
+    /// Swedish calendar with FX market holidays
+    /// Source: https://www.riksbank.se/en-gb/press-and-published/calendar/
+    /// </summary>
+    public class SwedenFX : Calendar
+    {
+        private readonly Sweden _baseCalendar;
+        private readonly HashSet<Date> _additionalHolidays;
+
+        public SwedenFX() : base()
+        {
+            _baseCalendar = new Sweden();
+            _additionalHolidays = new HashSet<Date>();
+
+            // Add Swedish FX-specific holidays
+            AddSwedishHolidays();
+        }
+
+        private void AddSwedishHolidays()
+        {
+            // Add complete Swedish bank holidays (2025-2029)
+            // Source: https://www.riksbank.se/en-gb/press-and-published/calendar/
+            AddSwedishHolidays2025();
+            // TODO: Add 2026-2029 when official dates available
+        }
+
+        private void AddSwedishHolidays2025()
+        {
+            // Source: https://www.riksbank.se/en-gb/press-and-published/calendar/holidays-2025/
+            _additionalHolidays.Add(new Date(1, Month.January, 2025));    // New Year's Day (Wed)
+            _additionalHolidays.Add(new Date(6, Month.January, 2025));    // Epiphany (Mon)
+            _additionalHolidays.Add(new Date(18, Month.April, 2025));     // Good Friday (Fri)
+            _additionalHolidays.Add(new Date(21, Month.April, 2025));     // Easter Monday (Mon)
+            _additionalHolidays.Add(new Date(1, Month.May, 2025));        // Labour Day (Thu)
+            _additionalHolidays.Add(new Date(29, Month.May, 2025));       // Ascension Day (Thu)
+            _additionalHolidays.Add(new Date(6, Month.June, 2025));       // National Day (Fri)
+            _additionalHolidays.Add(new Date(20, Month.June, 2025));      // Midsummer Eve (Fri) - MAJOR Swedish holiday
+            _additionalHolidays.Add(new Date(1, Month.November, 2025));   // All Saints Day (Sat)
+            _additionalHolidays.Add(new Date(24, Month.December, 2025));  // Christmas Eve (Wed)
+            _additionalHolidays.Add(new Date(25, Month.December, 2025));  // Christmas Day (Thu)
+            _additionalHolidays.Add(new Date(26, Month.December, 2025));  // Boxing Day (Fri)
+            _additionalHolidays.Add(new Date(31, Month.December, 2025));  // New Year's Eve (Wed)
+        }
+
+        public override bool isBusinessDay(Date d)
+        {
+            // Check base calendar first
+            if (!_baseCalendar.isBusinessDay(d))
+                return false;
+
+            // Check additional FX holidays
+            if (_additionalHolidays.Contains(d))
+                return false;
+
+            return true;
+        }
+
+        public override string name()
+        {
+            return "SEK FX Settlement";
+        }
+    }
 }
