@@ -198,7 +198,7 @@ namespace FXOptionsSimulator
                         ExpiryEOM = true
                     };
 
-                    var result = FxDateService.ComputeDates(
+                    var fxResult = FxDateService.ComputeDates(
                         DateTime.UtcNow,
                         currencyPair,
                         expiry.ToUpper(),
@@ -206,8 +206,8 @@ namespace FXOptionsSimulator
                         rules
                     );
 
-                    Console.WriteLine($"[CALENDAR-OVML] Tenor {expiry} for {currencyPair}: {result.expiryDate:yyyy-MM-dd (ddd)} (business day adjusted)");
-                    return result.expiryDate;
+                    Console.WriteLine($"[CALENDAR-OVML] Tenor {expiry} for {currencyPair}: {fxResult.expiryDate:yyyy-MM-dd (ddd)} (business day adjusted)");
+                    return fxResult.expiryDate;
                 }
                 catch (Exception ex)
                 {
