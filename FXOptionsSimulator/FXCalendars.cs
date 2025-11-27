@@ -26,12 +26,13 @@ public static class FXCalendars
 
         private void AddFXHolidays()
         {
-            // Add ALL 2025 US Federal Reserve holidays explicitly
-            // Source: https://www.stlouisfed.org/about-us/resources/legal-holiday-schedule
+            // Add ALL US Federal Reserve holidays explicitly (2025-2029)
+            // Source: https://www.federalreserve.gov/aboutthefed/k8.htm
             AddUSFederalHolidays2025();
-
-            // Thanksgiving Day for other years
-            AddThanksgivingHolidays();
+            AddUSFederalHolidays2026();
+            AddUSFederalHolidays2027();
+            AddUSFederalHolidays2028();
+            AddUSFederalHolidays2029();
 
             // Christmas Eve when on weekday (Dec 24)
             AddChristmasEveHolidays();
@@ -42,7 +43,7 @@ public static class FXCalendars
 
         private void AddUSFederalHolidays2025()
         {
-            // 2025 US Federal Reserve Bank Holidays
+            // Source: https://www.federalreserve.gov/aboutthefed/k8.htm
             _additionalHolidays.Add(new Date(1, Month.January, 2025));    // New Year's Day (Wed)
             _additionalHolidays.Add(new Date(20, Month.January, 2025));   // Martin Luther King Jr. Day (Mon)
             _additionalHolidays.Add(new Date(17, Month.February, 2025));  // Presidents' Day (Mon)
@@ -56,18 +57,68 @@ public static class FXCalendars
             _additionalHolidays.Add(new Date(25, Month.December, 2025));  // Christmas (Thu)
         }
 
-        private void AddThanksgivingHolidays()
+        private void AddUSFederalHolidays2026()
         {
-            // Thanksgiving Day ONLY (4th Thursday of November - federal holiday)
-            // Friday after Thanksgiving is NOT a bank holiday - FX markets are open
+            // Source: https://www.federalreserve.gov/aboutthefed/k8.htm
+            _additionalHolidays.Add(new Date(1, Month.January, 2026));    // New Year's Day (Thu)
+            _additionalHolidays.Add(new Date(19, Month.January, 2026));   // Martin Luther King Jr. Day (Mon)
+            _additionalHolidays.Add(new Date(16, Month.February, 2026));  // Presidents' Day (Mon)
+            _additionalHolidays.Add(new Date(25, Month.May, 2026));       // Memorial Day (Mon)
+            _additionalHolidays.Add(new Date(19, Month.June, 2026));      // Juneteenth (Fri)
+            _additionalHolidays.Add(new Date(3, Month.July, 2026));       // Independence Day observed (Fri, since July 4 is Sat)
+            _additionalHolidays.Add(new Date(7, Month.September, 2026));  // Labor Day (Mon)
+            _additionalHolidays.Add(new Date(12, Month.October, 2026));   // Columbus Day (Mon)
+            _additionalHolidays.Add(new Date(11, Month.November, 2026));  // Veterans Day (Wed)
+            _additionalHolidays.Add(new Date(26, Month.November, 2026));  // Thanksgiving (Thu)
+            _additionalHolidays.Add(new Date(25, Month.December, 2026));  // Christmas (Fri)
+        }
 
-            _additionalHolidays.Add(new Date(28, Month.November, 2024));  // Thanksgiving Thu 2024
-            _additionalHolidays.Add(new Date(27, Month.November, 2025));  // Thanksgiving Thu 2025
-            _additionalHolidays.Add(new Date(26, Month.November, 2026));  // Thanksgiving Thu 2026
-            _additionalHolidays.Add(new Date(25, Month.November, 2027));  // Thanksgiving Thu 2027
-            _additionalHolidays.Add(new Date(23, Month.November, 2028));  // Thanksgiving Thu 2028
-            _additionalHolidays.Add(new Date(22, Month.November, 2029));  // Thanksgiving Thu 2029
-            _additionalHolidays.Add(new Date(28, Month.November, 2030));  // Thanksgiving Thu 2030
+        private void AddUSFederalHolidays2027()
+        {
+            // Source: https://www.federalreserve.gov/aboutthefed/k8.htm
+            _additionalHolidays.Add(new Date(1, Month.January, 2027));    // New Year's Day (Fri)
+            _additionalHolidays.Add(new Date(18, Month.January, 2027));   // Martin Luther King Jr. Day (Mon)
+            _additionalHolidays.Add(new Date(15, Month.February, 2027));  // Presidents' Day (Mon)
+            _additionalHolidays.Add(new Date(31, Month.May, 2027));       // Memorial Day (Mon)
+            _additionalHolidays.Add(new Date(18, Month.June, 2027));      // Juneteenth observed (Fri, since June 19 is Sat)
+            _additionalHolidays.Add(new Date(5, Month.July, 2027));       // Independence Day observed (Mon, since July 4 is Sun)
+            _additionalHolidays.Add(new Date(6, Month.September, 2027));  // Labor Day (Mon)
+            _additionalHolidays.Add(new Date(11, Month.October, 2027));   // Columbus Day (Mon)
+            _additionalHolidays.Add(new Date(11, Month.November, 2027));  // Veterans Day (Thu)
+            _additionalHolidays.Add(new Date(25, Month.November, 2027));  // Thanksgiving (Thu)
+            _additionalHolidays.Add(new Date(24, Month.December, 2027));  // Christmas observed (Fri, since Dec 25 is Sat)
+        }
+
+        private void AddUSFederalHolidays2028()
+        {
+            // Source: https://www.federalreserve.gov/aboutthefed/k8.htm
+            _additionalHolidays.Add(new Date(31, Month.December, 2027));  // New Year's Day observed (Fri, since Jan 1 2028 is Sat)
+            _additionalHolidays.Add(new Date(17, Month.January, 2028));   // Martin Luther King Jr. Day (Mon)
+            _additionalHolidays.Add(new Date(21, Month.February, 2028));  // Presidents' Day (Mon)
+            _additionalHolidays.Add(new Date(29, Month.May, 2028));       // Memorial Day (Mon)
+            _additionalHolidays.Add(new Date(19, Month.June, 2028));      // Juneteenth (Mon)
+            _additionalHolidays.Add(new Date(4, Month.July, 2028));       // Independence Day (Tue)
+            _additionalHolidays.Add(new Date(4, Month.September, 2028));  // Labor Day (Mon)
+            _additionalHolidays.Add(new Date(9, Month.October, 2028));    // Columbus Day (Mon)
+            _additionalHolidays.Add(new Date(10, Month.November, 2028));  // Veterans Day observed (Fri, since Nov 11 is Sat)
+            _additionalHolidays.Add(new Date(23, Month.November, 2028));  // Thanksgiving (Thu)
+            _additionalHolidays.Add(new Date(25, Month.December, 2028));  // Christmas (Mon)
+        }
+
+        private void AddUSFederalHolidays2029()
+        {
+            // Source: https://www.federalreserve.gov/aboutthefed/k8.htm
+            _additionalHolidays.Add(new Date(1, Month.January, 2029));    // New Year's Day (Mon)
+            _additionalHolidays.Add(new Date(15, Month.January, 2029));   // Martin Luther King Jr. Day (Mon)
+            _additionalHolidays.Add(new Date(19, Month.February, 2029));  // Presidents' Day (Mon)
+            _additionalHolidays.Add(new Date(28, Month.May, 2029));       // Memorial Day (Mon)
+            _additionalHolidays.Add(new Date(19, Month.June, 2029));      // Juneteenth (Tue)
+            _additionalHolidays.Add(new Date(4, Month.July, 2029));       // Independence Day (Wed)
+            _additionalHolidays.Add(new Date(3, Month.September, 2029));  // Labor Day (Mon)
+            _additionalHolidays.Add(new Date(8, Month.October, 2029));    // Columbus Day (Mon)
+            _additionalHolidays.Add(new Date(12, Month.November, 2029));  // Veterans Day observed (Mon, since Nov 11 is Sun)
+            _additionalHolidays.Add(new Date(22, Month.November, 2029));  // Thanksgiving (Thu)
+            _additionalHolidays.Add(new Date(25, Month.December, 2029));  // Christmas (Tue)
         }
 
         private void AddChristmasEveHolidays()
