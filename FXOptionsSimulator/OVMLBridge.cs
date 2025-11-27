@@ -57,7 +57,7 @@ namespace FXOptionsSimulator
             for (int i = 0; i < parsed.Legs.Count; i++)
             {
                 var parsedLeg = parsed.Legs[i];
-                var expiryDate = CalculateExpiryDate(expiry);
+                var expiryDate = CalculateExpiryDate(expiry, underlying);
 
                 trade.Legs.Add(new TradeStructure.OptionLeg
                 {
@@ -182,33 +182,94 @@ namespace FXOptionsSimulator
         /// <summary>
         /// Calculate expiry date from tenor or date string
         /// </summary>
-        private static DateTime CalculateExpiryDate(string expiry)
+        private static DateTime CalculateExpiryDate(string expiry, string currencyPair = "EURUSD")
         {
             // Try tenor format (3M, 6M, 1Y)
             var tenorMatch = Regex.Match(expiry, @"^(\d+)([MYWDW])$", RegexOptions.IgnoreCase);
             if (tenorMatch.Success)
             {
-                int amount = int.Parse(tenorMatch.Groups[1].Value);
-                char period = char.ToUpper(tenorMatch.Groups[2].Value[0]);
-
-                return period switch
+                try
                 {
-                    'D' => DateTime.UtcNow.AddDays(amount),
-                    'W' => DateTime.UtcNow.AddDays(amount * 7),
-                    'M' => DateTime.UtcNow.AddMonths(amount),
-                    'Y' => DateTime.UtcNow.AddYears(amount),
-                    _ => DateTime.UtcNow.AddMonths(3)
-                };
+                    // Use FxDateService for proper business day calculation
+                    var rules = new FxDateRules
+                    {
+                        SpotLag = PairSpotLag.TwoBD,
+                        ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing,
+                        ExpiryEOM = true
+                    };
+
+                    var result = FxDateService.ComputeDates(
+                        DateTime.UtcNow,
+                        currencyPair,
+                        expiry.ToUpper(),
+                        premiumCcy: currencyPair.Length >= 6 ? currencyPair.Substring(3, 3) : "USD",
+                        rules
+                    );
+
+                    Console.WriteLine($"[CALENDAR-OVML] Tenor {expiry} for {currencyPair}: {result.expiryDate:yyyy-MM-dd (ddd)} (business day adjusted)");
+                    return result.expiryDate;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[CALENDAR-OVML] FxDateService failed for {expiry}/{currencyPair}: {ex.Message}, using fallback");
+
+                    // Fallback to simple calculation with weekend adjustment
+                    int amount = int.Parse(tenorMatch.Groups[1].Value);
+                    char period = char.ToUpper(tenorMatch.Groups[2].Value[0]);
+
+                    var date = period switch
+                    {
+                        'D' => DateTime.UtcNow.AddDays(amount),
+                        'W' => DateTime.UtcNow.AddDays(amount * 7),
+                        'M' => DateTime.UtcNow.AddMonths(amount),
+                        'Y' => DateTime.UtcNow.AddYears(amount),
+                        _ => DateTime.UtcNow.AddMonths(3)
+                    };
+
+                    // Simple weekend adjustment
+                    while (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        date = date.AddDays(1);
+                    }
+
+                    Console.WriteLine($"[CALENDAR-OVML] Fallback used - adjusted to {date:yyyy-MM-dd (ddd)}");
+                    return date;
+                }
             }
 
             // Try date format (MM/dd/yy or ddMMMyy)
             if (DateTime.TryParse(expiry, out DateTime result))
             {
+                // Check if it's a weekend and adjust if needed
+                if (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    Console.WriteLine($"[CALENDAR-OVML] WARNING: Parsed date {result:yyyy-MM-dd} is a weekend!");
+                    while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        result = result.AddDays(1);
+                    }
+                    Console.WriteLine($"[CALENDAR-OVML] Adjusted to next business day: {result:yyyy-MM-dd (ddd)}");
+                }
                 return result;
             }
 
-            // Default: 3 months
-            return DateTime.UtcNow.AddMonths(3);
+            // Default: 3 months with business day adjustment
+            try
+            {
+                var rules = new FxDateRules();
+                var defaultResult = FxDateService.ComputeDates(
+                    DateTime.UtcNow,
+                    currencyPair,
+                    "3M",
+                    premiumCcy: currencyPair.Length >= 6 ? currencyPair.Substring(3, 3) : "USD",
+                    rules
+                );
+                return defaultResult.expiryDate;
+            }
+            catch
+            {
+                return DateTime.UtcNow.AddMonths(3);
+            }
         }
 
         /// <summary>

@@ -1475,20 +1475,54 @@ namespace FXOAiTranslator
 
         private DateTime CalculateDateFromTenor(string tenor)
         {
-            var match = Regex.Match(tenor, @"^(\d+)([MY])$", RegexOptions.IgnoreCase);
+            var match = Regex.Match(tenor, @"^(\d+)([MYWDW])$", RegexOptions.IgnoreCase);
             if (!match.Success)
                 return DateTime.MinValue;
 
-            int amount = int.Parse(match.Groups[1].Value);
-            string unit = match.Groups[2].Value.ToUpper();
+            try
+            {
+                // Use FxDateService for proper business day calculation
+                var rules = new FxDateRules
+                {
+                    SpotLag = PairSpotLag.TwoBD,
+                    ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing,
+                    ExpiryEOM = true
+                };
 
-            DateTime result = DateTime.Today;
-            if (unit == "M")
-                result = result.AddMonths(amount);
-            else if (unit == "Y")
-                result = result.AddYears(amount);
+                var result = FxDateService.ComputeDates(
+                    DateTime.UtcNow,
+                    "EURUSD", // Default pair for display formatting
+                    tenor.ToUpper(),
+                    premiumCcy: "USD",
+                    rules
+                );
 
-            return result;
+                return result.expiryDate;
+            }
+            catch
+            {
+                // Fallback with simple weekend adjustment
+                int amount = int.Parse(match.Groups[1].Value);
+                string unit = match.Groups[2].Value.ToUpper();
+
+                DateTime result = DateTime.Today;
+                result = unit switch
+                {
+                    "D" => result.AddDays(amount),
+                    "W" => result.AddDays(amount * 7),
+                    "M" => result.AddMonths(amount),
+                    "Y" => result.AddYears(amount),
+                    _ => result
+                };
+
+                // Simple weekend adjustment
+                while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    result = result.AddDays(1);
+                }
+
+                return result;
+            }
         }
     }
 

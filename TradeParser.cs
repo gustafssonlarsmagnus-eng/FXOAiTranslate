@@ -1337,26 +1337,64 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
 
 
-        private DateTime? CalculateFutureDate(string tenor)
+        private DateTime? CalculateFutureDate(string tenor, string currencyPair = "EURUSD")
         {
             if (string.IsNullOrEmpty(tenor)) return null;
 
             var match = Regex.Match(tenor, @"^(\d+)([MYWWD])$");
             if (!match.Success) return null;
 
-            int amount = int.Parse(match.Groups[1].Value);
-            char period = match.Groups[2].Value[0];
-
-            var baseDate = DateTime.Now;
-
-            return period switch
+            try
             {
-                'D' => baseDate.AddDays(amount),
-                'W' => baseDate.AddDays(amount * 7),
-                'M' => baseDate.AddMonths(amount),
-                'Y' => baseDate.AddYears(amount),
-                _ => null
-            };
+                // Use FxDateService for proper business day calculation
+                var rules = new FxDateRules
+                {
+                    SpotLag = PairSpotLag.TwoBD,
+                    ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing,
+                    ExpiryEOM = true
+                };
+
+                var result = FxDateService.ComputeDates(
+                    DateTime.UtcNow,
+                    currencyPair,
+                    tenor,
+                    premiumCcy: currencyPair.Substring(3, 3), // Second currency
+                    rules
+                );
+
+                Console.WriteLine($"[CALENDAR] Tenor {tenor} for {currencyPair}: {result.expiryDate:yyyy-MM-dd (ddd)} (adjusted for business days)");
+                return result.expiryDate;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CALENDAR] FxDateService failed for {tenor}/{currencyPair}: {ex.Message}");
+
+                // Fallback to simple calculation if FxDateService fails
+                int amount = int.Parse(match.Groups[1].Value);
+                char period = match.Groups[2].Value[0];
+                var baseDate = DateTime.Now;
+
+                var result = period switch
+                {
+                    'D' => baseDate.AddDays(amount),
+                    'W' => baseDate.AddDays(amount * 7),
+                    'M' => baseDate.AddMonths(amount),
+                    'Y' => baseDate.AddYears(amount),
+                    _ => (DateTime?)null
+                };
+
+                // Simple weekend adjustment for fallback
+                if (result.HasValue)
+                {
+                    while (result.Value.DayOfWeek == DayOfWeek.Saturday || result.Value.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        result = result.Value.AddDays(1);
+                    }
+                    Console.WriteLine($"[CALENDAR] Fallback used - adjusted to {result:yyyy-MM-dd (ddd)}");
+                }
+
+                return result;
+            }
         }
 
         private string FindStrikesInOVML(string[] parts)
