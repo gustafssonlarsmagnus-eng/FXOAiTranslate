@@ -176,7 +176,7 @@ public static class FXCalendars
             }
         }
 
-        public override bool isBusinessDay(Date d)
+        public new bool isBusinessDay(Date d)
         {
             // Check base calendar first
             if (!_baseCalendar.isBusinessDay(d))
@@ -189,7 +189,7 @@ public static class FXCalendars
             return true;
         }
 
-        public override string name()
+        public new string name()
         {
             return "US FX Settlement";
         }
@@ -212,12 +212,12 @@ public static class FXCalendars
             // No additional FX-specific holidays needed for EUR
         }
 
-        public override bool isBusinessDay(Date d)
+        public new bool isBusinessDay(Date d)
         {
             return _baseCalendar.isBusinessDay(d);
         }
 
-        public override string name()
+        public new string name()
         {
             return "EUR FX Settlement";
         }
@@ -286,7 +286,7 @@ public static class FXCalendars
             _additionalHolidays.Add(new Date(31, Month.December, 2026));  // New Year's Eve (Thu)
         }
 
-        public override bool isBusinessDay(Date d)
+        public new bool isBusinessDay(Date d)
         {
             // Check base calendar first
             if (!_baseCalendar.isBusinessDay(d))
@@ -299,7 +299,7 @@ public static class FXCalendars
             return true;
         }
 
-        public override string name()
+        public new string name()
         {
             return "SEK FX Settlement";
         }
