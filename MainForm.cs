@@ -1175,7 +1175,7 @@ namespace FXOAiTranslator
                     trade.OVML,
                     trade.Underlying,
                     trade.LegCount,
-                    trade.Expiry,
+                    FormatExpiryForDisplay(trade.Expiry),
                     trade.SpotRef,
                     trade.ParseMethod,
                     null,
@@ -1193,7 +1193,7 @@ namespace FXOAiTranslator
                     trade.OVML,
                     trade.Underlying,
                     trade.LegCount,
-                    trade.Expiry,
+                    FormatExpiryForDisplay(trade.Expiry),
                     trade.SpotRef,
                     trade.ParseMethod,
                     null,
@@ -1437,6 +1437,58 @@ namespace FXOAiTranslator
         {
             base.OnLoad(e);
             dgvTradeBlotter.Focus();
+        }
+
+        private string FormatExpiryForDisplay(string expiry)
+        {
+            if (string.IsNullOrEmpty(expiry))
+                return "N/A";
+
+            // Force English culture for date formatting
+            var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+
+            // Check if it's a tenor (contains M or Y)
+            var tenorMatch = Regex.Match(expiry, @"^\d+[MY]$", RegexOptions.IgnoreCase);
+            if (tenorMatch.Success)
+            {
+                // It's a tenor like "1M" or "3M" - calculate the date
+                DateTime calculatedDate = CalculateDateFromTenor(expiry);
+                if (calculatedDate != DateTime.MinValue)
+                {
+                    string dateStr = calculatedDate.ToString("dd-MMM-yy, ddd", enUS);
+                    return $"{dateStr} ({expiry.ToUpper()})";
+                }
+                return $"({expiry.ToUpper()})";
+            }
+
+            // Try to parse as a date
+            DateTime parsedDate;
+            if (DateTime.TryParseExact(expiry, new[] { "MM/dd/yy", "MM/dd/yyyy", "dd-MMM-yy", "dd-MMM-yyyy" },
+                enUS, System.Globalization.DateTimeStyles.None, out parsedDate))
+            {
+                return parsedDate.ToString("dd-MMM-yy, ddd", enUS);
+            }
+
+            // Fallback - return as-is
+            return expiry;
+        }
+
+        private DateTime CalculateDateFromTenor(string tenor)
+        {
+            var match = Regex.Match(tenor, @"^(\d+)([MY])$", RegexOptions.IgnoreCase);
+            if (!match.Success)
+                return DateTime.MinValue;
+
+            int amount = int.Parse(match.Groups[1].Value);
+            string unit = match.Groups[2].Value.ToUpper();
+
+            DateTime result = DateTime.Today;
+            if (unit == "M")
+                result = result.AddMonths(amount);
+            else if (unit == "Y")
+                result = result.AddYears(amount);
+
+            return result;
         }
     }
 
