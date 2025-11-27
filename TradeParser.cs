@@ -1346,28 +1346,19 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
             try
             {
-                // Use FxDateService for proper business day calculation
-                var rules = new FxDateRules
-                {
-                    SpotLag = PairSpotLag.TwoBD,
-                    ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing,
-                    ExpiryEOM = true
-                };
-
-                var result = FxDateService.ComputeDates(
+                // Use FxCalendarService for database-backed business day calculation
+                var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
                     DateTime.UtcNow,
-                    currencyPair,
                     tenor,
-                    premiumCcy: currencyPair.Substring(3, 3), // Second currency
-                    rules
+                    currencyPair
                 );
 
-                Console.WriteLine($"[CALENDAR] Tenor {tenor} for {currencyPair}: {result.expiryDate:yyyy-MM-dd (ddd)} (adjusted for business days)");
-                return result.expiryDate;
+                Console.WriteLine($"[CALENDAR] Tenor {tenor} for {currencyPair}: {expiryDate:yyyy-MM-dd (ddd)} (adjusted for business days)");
+                return expiryDate;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CALENDAR] FxDateService failed for {tenor}/{currencyPair}: {ex.Message}");
+                Console.WriteLine($"[CALENDAR] FxCalendarService failed for {tenor}/{currencyPair}: {ex.Message}");
 
                 // Fallback to simple calculation if FxDateService fails
                 int amount = int.Parse(match.Groups[1].Value);

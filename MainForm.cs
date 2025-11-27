@@ -1481,23 +1481,14 @@ namespace FXOAiTranslator
 
             try
             {
-                // Use FxDateService for proper business day calculation
-                var rules = new FxDateRules
-                {
-                    SpotLag = PairSpotLag.TwoBD,
-                    ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing,
-                    ExpiryEOM = true
-                };
-
-                var result = FxDateService.ComputeDates(
+                // Use FxCalendarService for database-backed business day calculation
+                var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
                     DateTime.UtcNow,
-                    "EURUSD", // Default pair for display formatting
                     tenor.ToUpper(),
-                    premiumCcy: "USD",
-                    rules
+                    "EURUSD" // Default pair for display formatting
                 );
 
-                return result.expiryDate;
+                return expiryDate;
             }
             catch
             {

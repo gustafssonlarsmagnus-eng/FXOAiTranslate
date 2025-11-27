@@ -190,28 +190,19 @@ namespace FXOptionsSimulator
             {
                 try
                 {
-                    // Use FxDateService for proper business day calculation
-                    var rules = new FxDateRules
-                    {
-                        SpotLag = PairSpotLag.TwoBD,
-                        ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing,
-                        ExpiryEOM = true
-                    };
-
-                    var fxResult = FxDateService.ComputeDates(
+                    // Use FxCalendarService for database-backed business day calculation
+                    var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
                         DateTime.UtcNow,
-                        currencyPair,
                         expiry.ToUpper(),
-                        premiumCcy: currencyPair.Length >= 6 ? currencyPair.Substring(3, 3) : "USD",
-                        rules
+                        currencyPair
                     );
 
-                    Console.WriteLine($"[CALENDAR-OVML] Tenor {expiry} for {currencyPair}: {fxResult.expiryDate:yyyy-MM-dd (ddd)} (business day adjusted)");
-                    return fxResult.expiryDate;
+                    Console.WriteLine($"[CALENDAR-OVML] Tenor {expiry} for {currencyPair}: {expiryDate:yyyy-MM-dd (ddd)} (business day adjusted)");
+                    return expiryDate;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[CALENDAR-OVML] FxDateService failed for {expiry}/{currencyPair}: {ex.Message}, using fallback");
+                    Console.WriteLine($"[CALENDAR-OVML] FxCalendarService failed for {expiry}/{currencyPair}: {ex.Message}, using fallback");
 
                     // Fallback to simple calculation with weekend adjustment
                     int amount = int.Parse(tenorMatch.Groups[1].Value);
