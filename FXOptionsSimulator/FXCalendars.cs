@@ -26,9 +26,8 @@ public static class FXCalendars
 
         private void AddFXHolidays()
         {
-            // Thanksgiving Friday (day after Thanksgiving) - many FX desks closed
-            // Thanksgiving is 4th Thursday of November
-            AddThanksgivingFridays();
+            // Thanksgiving (4th Thursday) + Friday - many FX desks closed both days
+            AddThanksgivingHolidays();
 
             // Christmas Eve when on weekday (Dec 24)
             AddChristmasEveHolidays();
@@ -37,16 +36,38 @@ public static class FXCalendars
             AddNewYearsEveHolidays();
         }
 
-        private void AddThanksgivingFridays()
+        private void AddThanksgivingHolidays()
         {
-            // Add Thanksgiving Fridays for 2024-2030
-            _additionalHolidays.Add(new Date(29, Month.November, 2024));  // Nov 29, 2024
-            _additionalHolidays.Add(new Date(28, Month.November, 2025));  // Nov 28, 2025
-            _additionalHolidays.Add(new Date(27, Month.November, 2026));  // Nov 27, 2026
-            _additionalHolidays.Add(new Date(26, Month.November, 2027));  // Nov 26, 2027
-            _additionalHolidays.Add(new Date(24, Month.November, 2028));  // Nov 24, 2028
-            _additionalHolidays.Add(new Date(23, Month.November, 2029));  // Nov 23, 2029
-            _additionalHolidays.Add(new Date(29, Month.November, 2030));  // Nov 29, 2030
+            // Thanksgiving is 4th Thursday of November (federal holiday)
+            // Day after (Friday) is often observed as a holiday in FX markets
+
+            // 2024: Thanksgiving = Nov 28 (Thu), Friday = Nov 29
+            _additionalHolidays.Add(new Date(28, Month.November, 2024));  // Thanksgiving Thu
+            _additionalHolidays.Add(new Date(29, Month.November, 2024));  // Day after Fri
+
+            // 2025: Thanksgiving = Nov 27 (Thu), Friday = Nov 28
+            _additionalHolidays.Add(new Date(27, Month.November, 2025));  // Thanksgiving Thu
+            _additionalHolidays.Add(new Date(28, Month.November, 2025));  // Day after Fri
+
+            // 2026: Thanksgiving = Nov 26 (Thu), Friday = Nov 27
+            _additionalHolidays.Add(new Date(26, Month.November, 2026));  // Thanksgiving Thu
+            _additionalHolidays.Add(new Date(27, Month.November, 2026));  // Day after Fri
+
+            // 2027: Thanksgiving = Nov 25 (Thu), Friday = Nov 26
+            _additionalHolidays.Add(new Date(25, Month.November, 2027));  // Thanksgiving Thu
+            _additionalHolidays.Add(new Date(26, Month.November, 2027));  // Day after Fri
+
+            // 2028: Thanksgiving = Nov 23 (Thu), Friday = Nov 24
+            _additionalHolidays.Add(new Date(23, Month.November, 2028));  // Thanksgiving Thu
+            _additionalHolidays.Add(new Date(24, Month.November, 2028));  // Day after Fri
+
+            // 2029: Thanksgiving = Nov 22 (Thu), Friday = Nov 23
+            _additionalHolidays.Add(new Date(22, Month.November, 2029));  // Thanksgiving Thu
+            _additionalHolidays.Add(new Date(23, Month.November, 2029));  // Day after Fri
+
+            // 2030: Thanksgiving = Nov 28 (Thu), Friday = Nov 29
+            _additionalHolidays.Add(new Date(28, Month.November, 2030));  // Thanksgiving Thu
+            _additionalHolidays.Add(new Date(29, Month.November, 2030));  // Day after Fri
         }
 
         private void AddChristmasEveHolidays()
