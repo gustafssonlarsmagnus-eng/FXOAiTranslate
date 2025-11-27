@@ -65,7 +65,7 @@ namespace FXOptionsSimulator
         }
 
         public void UpdateTradeStatus(string clOrdID, string status, string execID = null,
-            double? fillPrice = null, string rejectReason = null)
+            double? fillPrice = null, string rejectReason = null, string premiumDate = null)
         {
             lock (_lock)
             {
@@ -76,6 +76,13 @@ namespace FXOptionsSimulator
                     trade.ExecID = execID;
                     trade.FillPrice = fillPrice;
                     trade.RejectReason = rejectReason;
+
+                    // Update premium date if provided
+                    if (!string.IsNullOrEmpty(premiumDate))
+                    {
+                        trade.PremiumDate = premiumDate;
+                        Console.WriteLine($"[Blotter] Premium date updated: {premiumDate}");
+                    }
 
                     Console.WriteLine($"[Blotter] Trade updated: {clOrdID} - Status: {status}");
                     OnTradeUpdated?.Invoke(trade);

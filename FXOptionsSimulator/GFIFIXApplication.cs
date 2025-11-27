@@ -378,6 +378,9 @@ namespace FXOptionsSimulator.FIX
             string ordStatus = execReport.GetString(Tags.OrdStatus);
             string execID = execReport.IsSetField(Tags.ExecID) ? execReport.GetString(Tags.ExecID) : "N/A";
 
+            // Extract premium delivery date (tag 5020)
+            string premiumDate = execReport.IsSetField(5020) ? execReport.GetString(5020) : null;
+
             string statusText = "PENDING";
             string rejectReason = null;
 
@@ -400,8 +403,8 @@ namespace FXOptionsSimulator.FIX
             string reason = rejectReason != null ? $" | {rejectReason}" : "";
             Console.WriteLine($"[TRACE] {timestamp} | EXEC_RPT  | {statusText} {clOrdID}{reason}");
 
-            // Update blotter
-            TradeBlotter.Instance.UpdateTradeStatus(clOrdID, statusText, execID, null, rejectReason);
+            // Update blotter (including premium date)
+            TradeBlotter.Instance.UpdateTradeStatus(clOrdID, statusText, execID, null, rejectReason, premiumDate);
 
             // Notify listeners
             OnExecutionReport?.Invoke(clOrdID, statusText, execID);
