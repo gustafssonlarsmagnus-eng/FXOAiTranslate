@@ -377,8 +377,9 @@ namespace FXOAiTranslator
 
                 if (leg.ExpiryDate != DateTime.MinValue)
                 {
-                    // Format: "30-Dec-25, Tue (1M)" or "30-Dec-25, Tue" if no tenor
-                    string dateStr = leg.ExpiryDate.ToString("dd-MMM-yy, ddd");
+                    // Format: "30-Dec-25, Tue (1M)" in English - force en-US culture
+                    var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+                    string dateStr = leg.ExpiryDate.ToString("dd-MMM-yy, ddd", enUS);
                     expiryText = !string.IsNullOrEmpty(leg.Tenor)
                         ? $"{dateStr} ({leg.Tenor})"
                         : dateStr;
