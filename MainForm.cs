@@ -1175,7 +1175,7 @@ namespace FXOAiTranslator
                     trade.OVML,
                     trade.Underlying,
                     trade.LegCount,
-                    FormatExpiryForDisplay(trade.Expiry),
+                    FormatExpiryForDisplay(trade.Expiry, trade.Underlying),
                     trade.SpotRef,
                     trade.ParseMethod,
                     null,
@@ -1193,7 +1193,7 @@ namespace FXOAiTranslator
                     trade.OVML,
                     trade.Underlying,
                     trade.LegCount,
-                    FormatExpiryForDisplay(trade.Expiry),
+                    FormatExpiryForDisplay(trade.Expiry, trade.Underlying),
                     trade.SpotRef,
                     trade.ParseMethod,
                     null,
@@ -1439,7 +1439,7 @@ namespace FXOAiTranslator
             dgvTradeBlotter.Focus();
         }
 
-        private string FormatExpiryForDisplay(string expiry)
+        private string FormatExpiryForDisplay(string expiry, string currencyPair = "EURUSD")
         {
             if (string.IsNullOrEmpty(expiry))
                 return "N/A";
@@ -1452,7 +1452,7 @@ namespace FXOAiTranslator
             if (tenorMatch.Success)
             {
                 // It's a tenor like "1M" or "3M" - calculate the date
-                DateTime calculatedDate = CalculateDateFromTenor(expiry);
+                DateTime calculatedDate = CalculateDateFromTenor(expiry, currencyPair);
                 if (calculatedDate != DateTime.MinValue)
                 {
                     string dateStr = calculatedDate.ToString("dd-MMM-yy, ddd", enUS);
@@ -1473,7 +1473,7 @@ namespace FXOAiTranslator
             return expiry;
         }
 
-        private DateTime CalculateDateFromTenor(string tenor)
+        private DateTime CalculateDateFromTenor(string tenor, string currencyPair = "EURUSD")
         {
             var match = Regex.Match(tenor, @"^(\d+)([MYWDW])$", RegexOptions.IgnoreCase);
             if (!match.Success)
@@ -1485,7 +1485,7 @@ namespace FXOAiTranslator
                 var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
                     DateTime.UtcNow,
                     tenor.ToUpper(),
-                    "EURUSD" // Default pair for display formatting
+                    currencyPair
                 );
 
                 return expiryDate;
