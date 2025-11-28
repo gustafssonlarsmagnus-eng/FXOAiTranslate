@@ -192,9 +192,10 @@ namespace FXOAiTranslator
                                     string deltaValue = match.Groups["delta"].Value;
                                     string deltaOptionType = match.Groups["type"].Value.ToUpper().StartsWith("C") ? "C" : "P";
 
-                                    // Default to Buy (delta options typically bought)
+                                    // Format: OVML EURUSD 1M B DS25 C N20M VA1.1572
+                                    // Note: Space between delta value and option type
                                     result.OVML = $"OVML {result.Underlying} {result.Expiry} " +
-                                                  $"B {deltaPrefix}{deltaValue}{deltaOptionType} " +
+                                                  $"B {deltaPrefix}{deltaValue} {deltaOptionType} " +
                                                   $"N{match.Groups["notional"].Value}M VA" +
                                                   spot;
                                     break;
