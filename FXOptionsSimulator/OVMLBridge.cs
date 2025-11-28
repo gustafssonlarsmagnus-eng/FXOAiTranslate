@@ -108,24 +108,42 @@ namespace FXOptionsSimulator
             string directions = "";
             string strikes = "";
             string notionals = "";
+            bool isDeltaBased = false;
+            string deltaSpec = "";
+            string optionTypeFromDelta = "";
 
-            // Check if this is a delta-based option (DS25 C or DF50 P format)
-            bool isDeltaBased = parts.Any(p => p.StartsWith("DS") || p.StartsWith("DF"));
-
-            if (isDeltaBased)
+            // First pass: identify if this is delta-based and collect the option type
+            for (int i = 0; i < parts.Length; i++)
             {
-                throw new InvalidOperationException(
-                    "Delta-based options (DS/DF) cannot be sent to GFI. " +
-                    "GFI requires actual strike prices. " +
-                    "Please use Bloomberg for delta-based trades.");
+                if (parts[i].StartsWith("DS") || parts[i].StartsWith("DF"))
+                {
+                    isDeltaBased = true;
+                    deltaSpec = parts[i];
+                    // Next token should be C or P
+                    if (i + 1 < parts.Length && (parts[i + 1] == "C" || parts[i + 1] == "P"))
+                    {
+                        optionTypeFromDelta = parts[i + 1];
+                    }
+                }
             }
 
             foreach (var part in parts)
             {
+                // Skip standalone C or P if it's part of delta spec
+                if (isDeltaBased && (part == "C" || part == "P"))
+                {
+                    continue;
+                }
+
                 // Directions: B,S,S
                 if (Regex.IsMatch(part, @"^[BS,]+$"))
                 {
                     directions = part;
+                }
+                // Delta specification: DS25, DF50
+                else if (part.StartsWith("DS") || part.StartsWith("DF"))
+                {
+                    strikes = part + optionTypeFromDelta; // Combine DS25 + C = DS25C
                 }
                 // Strikes: 9.6000P,9.1500P or 11.8000C,12.1000C
                 else if (Regex.IsMatch(part, @"[\d.]+[CP]"))
@@ -153,7 +171,21 @@ namespace FXOptionsSimulator
             {
                 var strikeStr = strikeList[i].Trim();
                 char optionType = strikeStr.EndsWith("P") ? 'P' : 'C';
-                double strike = double.Parse(strikeStr.TrimEnd('C', 'P'));
+                double strike;
+
+                // Handle delta specifications (DS25C, DF50P)
+                if (strikeStr.StartsWith("DS") || strikeStr.StartsWith("DF"))
+                {
+                    // Extract delta value from DS25C or DF50P
+                    string deltaValue = strikeStr.Substring(2).TrimEnd('C', 'P');
+                    strike = double.Parse(deltaValue);
+                    Console.WriteLine($"[OVMLBridge] Delta specification detected: {strikeStr} -> Delta value: {strike}");
+                }
+                else
+                {
+                    // Regular strike price
+                    strike = double.Parse(strikeStr.TrimEnd('C', 'P'));
+                }
 
                 string direction = i < directionList.Length ? directionList[i].Trim() : "B";
                 direction = direction == "B" ? "BUY" : "SELL";
