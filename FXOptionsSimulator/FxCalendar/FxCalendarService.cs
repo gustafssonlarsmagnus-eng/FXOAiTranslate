@@ -10,6 +10,7 @@ namespace FX.Infrastructure.Calendars.Legacy
     public class FxCalendarService
     {
         private readonly HolidayCalendar _holidayCalendar;
+        private readonly bool _isDatabaseAvailable;
         private static FxCalendarService _instance;
         private static readonly object _lock = new object();
 
@@ -18,7 +19,20 @@ namespace FX.Infrastructure.Calendars.Legacy
         /// </summary>
         private FxCalendarService(string connectionString)
         {
-            _holidayCalendar = new HolidayCalendar(connectionString);
+            try
+            {
+                _holidayCalendar = new HolidayCalendar(connectionString);
+                // Test connection by trying to get a small date range
+                var testDate = DateTime.UtcNow;
+                _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 5);
+                _isDatabaseAvailable = true;
+                Console.WriteLine("[FX-CALENDAR] Database connection successful");
+            }
+            catch (Exception ex)
+            {
+                _isDatabaseAvailable = false;
+                Console.WriteLine($"[FX-CALENDAR] WARNING: Database unavailable, using fallback calculations: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -79,19 +93,71 @@ namespace FX.Infrastructure.Calendars.Legacy
         {
             try
             {
-                return CurrencyCalendarMapper.CalculateExpiryFromTenor(
-                    currencyPair,
-                    tradeDate,
-                    tenor,
-                    _holidayCalendar,
-                    useModifiedFollowing: true
-                );
+                // Use database-backed calculation if available
+                if (_isDatabaseAvailable && _holidayCalendar != null)
+                {
+                    return CurrencyCalendarMapper.CalculateExpiryFromTenor(
+                        currencyPair,
+                        tradeDate,
+                        tenor,
+                        _holidayCalendar,
+                        useModifiedFollowing: true
+                    );
+                }
+                else
+                {
+                    // Fallback: simple calculation without holiday calendar
+                    return CalculateExpiryFallback(tradeDate, tenor);
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[FX-CALENDAR] ERROR calculating expiry for {tenor}/{currencyPair}: {ex.Message}");
-                throw;
+                // Use fallback instead of throwing
+                return CalculateExpiryFallback(tradeDate, tenor);
             }
+        }
+
+        /// <summary>
+        /// Fallback expiry calculation when database is unavailable.
+        /// Simple calendar-based calculation with weekend adjustment only (no holidays).
+        /// </summary>
+        private DateTime CalculateExpiryFallback(DateTime tradeDate, string tenor)
+        {
+            DateTime result = tradeDate;
+
+            // Parse tenor
+            if (string.IsNullOrWhiteSpace(tenor) || tenor.Length < 2)
+                return result;
+
+            char unit = char.ToUpper(tenor[tenor.Length - 1]);
+            if (!int.TryParse(tenor.Substring(0, tenor.Length - 1), out int amount))
+                return result;
+
+            // Add tenor
+            switch (unit)
+            {
+                case 'D':
+                    result = result.AddDays(amount);
+                    break;
+                case 'W':
+                    result = result.AddDays(amount * 7);
+                    break;
+                case 'M':
+                    result = result.AddMonths(amount);
+                    break;
+                case 'Y':
+                    result = result.AddYears(amount);
+                    break;
+            }
+
+            // Simple weekend adjustment
+            while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+            {
+                result = result.AddDays(1);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -99,7 +165,23 @@ namespace FX.Infrastructure.Calendars.Legacy
         /// </summary>
         public bool IsBusinessDay(DateTime date, string currencyPair)
         {
-            return CurrencyCalendarMapper.IsBusinessDay(currencyPair, date, _holidayCalendar);
+            if (_isDatabaseAvailable && _holidayCalendar != null)
+            {
+                try
+                {
+                    return CurrencyCalendarMapper.IsBusinessDay(currencyPair, date, _holidayCalendar);
+                }
+                catch
+                {
+                    // Fallback to simple weekend check
+                    return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
+                }
+            }
+            else
+            {
+                // Fallback: only check weekends (no holidays)
+                return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
+            }
         }
 
         /// <summary>
