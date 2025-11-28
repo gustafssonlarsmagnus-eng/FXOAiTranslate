@@ -994,11 +994,17 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     }
 
                     // SKIP if this is likely a delta specification (e.g., "25d call" = "25 delta call")
-                    // Delta patterns: number + d/delta immediately before call/put
+                    // Common delta values: 10, 15, 25, 35, 40, 50
+                    // But small values like "2d" could be "2 days", so only skip typical delta values
                     if ((unit == "D" || unit == "M") && Regex.IsMatch(afterMatch, @"^\s*(call|put)\b", RegexOptions.IgnoreCase))
                     {
-                        LogDebug($"DEBUG: Skipping '{number}{unit}' - likely delta specification before call/put");
-                        continue;
+                        int deltaValue = int.Parse(number);
+                        // Common delta values that are unlikely to be day/month tenors
+                        if (deltaValue == 10 || deltaValue == 15 || deltaValue == 25 || deltaValue == 35 || deltaValue == 40 || deltaValue == 50)
+                        {
+                            LogDebug($"DEBUG: Skipping '{number}{unit}' - likely delta specification (common delta value before call/put)");
+                            continue;
+                        }
                     }
 
                     // ACCEPT if followed by expiry-related context (but not call/put directly, handled above)
