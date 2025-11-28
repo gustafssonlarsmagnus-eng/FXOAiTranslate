@@ -66,11 +66,23 @@ namespace FX.Infrastructure.Calendars.Legacy
             var holidays = holidayCal.GetHolidays(calendars, from, to);
             var holidaySet = BuildHolidaySet(holidays);
 
+            // DEBUG: Show what holidays were loaded
+            Console.WriteLine($"[FX-CALENDAR-DEBUG] Loaded {holidaySet.Count} holidays for {ccyPair} (markets: {string.Join(", ", calendars)}) between {from:yyyy-MM-dd} and {to:yyyy-MM-dd}");
+            if (holidaySet.Count > 0)
+            {
+                var sortedHolidays = holidaySet.OrderBy(h => h).Take(10).Select(h => h.ToString("yyyy-MM-dd (ddd)"));
+                Console.WriteLine($"[FX-CALENDAR-DEBUG] First holidays: {string.Join(", ", sortedHolidays)}");
+            }
+
             DateTime d = includeStart ? start : start.AddDays(1);
             int safety = 0;
             while (safety++ < lookaheadDays + 2)
             {
-                if (!IsWeekend(d) && !holidaySet.Contains(d))
+                bool isWeekend = IsWeekend(d);
+                bool isHoliday = holidaySet.Contains(d);
+                Console.WriteLine($"[FX-CALENDAR-DEBUG] Checking {d:yyyy-MM-dd (ddd)}: Weekend={isWeekend}, Holiday={isHoliday}");
+
+                if (!isWeekend && !isHoliday)
                     return d;
                 d = d.AddDays(1);
             }
