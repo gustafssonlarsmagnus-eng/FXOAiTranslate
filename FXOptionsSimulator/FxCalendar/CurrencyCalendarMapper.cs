@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 
 namespace FX.Infrastructure.Calendars.Legacy
 {
@@ -19,8 +20,38 @@ namespace FX.Infrastructure.Calendars.Legacy
             { "CHF", "SWITZERLAND" },
             { "AUD", "AUSTRALIA" },
             { "RUB", "RUSSIA" },
-            { "JPY", "JAPAN" }
+            { "JPY", "JAPAN" },
+            { "TRY", "TURKEY" },
+            { "PHP", "PHILIPPINES" }
         };
+
+        /// <summary>
+        /// Spot lag configuration by currency pair.
+        /// Most FX pairs use T+2, but some exceptions use T+1 or T+0.
+        /// </summary>
+        private static readonly Dictionary<string, int> SpotLagOverrides =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "USDCAD", 1 },  // T+1
+            { "USDTRY", 1 },  // T+1
+            { "USDRUB", 1 },  // T+1
+            { "USDPHP", 1 }   // T+1
+            // All other pairs default to T+2
+        };
+
+        /// <summary>
+        /// Get spot lag (in business days) for a currency pair.
+        /// Default is T+2, with exceptions for specific pairs.
+        /// </summary>
+        public static int GetSpotLag(string ccyPair)
+        {
+            var pair = ccyPair.Replace("/", "").Trim().ToUpperInvariant();
+
+            if (SpotLagOverrides.TryGetValue(pair, out int lag))
+                return lag;
+
+            return 2; // Default T+2
+        }
 
         public static string[] GetCalendarsForPair(string ccyPair)
         {
@@ -112,16 +143,19 @@ namespace FX.Infrastructure.Calendars.Legacy
         }
 
         /// <summary>
-        /// NEW: Calculate expiry date from tenor (1M, 3M, 6M, 1Y, etc.) with business day adjustment.
-        /// Uses Modified Following convention by default: adjust to next business day, but if that
-        /// crosses into next month, use previous business day instead.
+        /// Calculate FX options expiry date from tenor using correct market convention:
+        /// 1. Spot Date = Trade Date + Spot Lag (T+2 for most pairs, T+1 for USD/CAD, USD/TRY, etc.)
+        /// 2. Delivery Date = Spot Date + Tenor
+        /// 3. Expiry Date = Delivery Date - Spot Lag
+        ///
+        /// This ensures expiry is always 2 business days (or 1 for T+1 pairs) before delivery.
         /// </summary>
         /// <param name="ccyPair">Currency pair (e.g., "EURUSD")</param>
         /// <param name="tradeDate">Trade date (starting point)</param>
         /// <param name="tenor">Tenor string (e.g., "1M", "3M", "6M", "1Y", "2W", "10D")</param>
         /// <param name="holidayCal">Holiday calendar instance</param>
         /// <param name="useModifiedFollowing">If true, use Modified Following convention; if false, use Preceding</param>
-        /// <returns>Business day adjusted expiry date</returns>
+        /// <returns>FX options expiry date</returns>
         public static DateTime CalculateExpiryFromTenor(
             string ccyPair,
             DateTime tradeDate,
@@ -132,41 +166,102 @@ namespace FX.Infrastructure.Calendars.Legacy
             if (string.IsNullOrWhiteSpace(tenor))
                 throw new ArgumentException("Tenor cannot be empty.", nameof(tenor));
 
-            // Parse tenor to get unadjusted date
-            DateTime unadjusted = ParseTenorToDate(tradeDate.Date, tenor);
+            int spotLag = GetSpotLag(ccyPair);
 
-            Console.WriteLine($"[FX-CALENDAR] Tenor {tenor} from {tradeDate:yyyy-MM-dd} -> Unadjusted: {unadjusted:yyyy-MM-dd (ddd)}");
+            Console.WriteLine($"\n[FX-CALENDAR] ========== FX Options Expiry Calculation ==========");
+            Console.WriteLine($"[FX-CALENDAR] Currency Pair: {ccyPair}");
+            Console.WriteLine($"[FX-CALENDAR] Trade Date: {tradeDate:yyyy-MM-dd (ddd)}");
+            Console.WriteLine($"[FX-CALENDAR] Tenor: {tenor}");
+            Console.WriteLine($"[FX-CALENDAR] Spot Lag: T+{spotLag}");
 
-            // Check if already a business day
-            if (IsBusinessDay(ccyPair, unadjusted, holidayCal))
+            // Step 1: Calculate Spot Date = Trade Date + Spot Lag business days
+            DateTime spotDate = AddBusinessDays(ccyPair, tradeDate.Date, spotLag, holidayCal);
+            Console.WriteLine($"[FX-CALENDAR] Step 1 - Spot Date: {spotDate:yyyy-MM-dd (ddd)} (Trade + {spotLag} BD)");
+
+            // Step 2: Calculate Delivery Date = Spot Date + Tenor
+            DateTime deliveryUnadjusted = ParseTenorToDate(spotDate, tenor);
+            Console.WriteLine($"[FX-CALENDAR] Step 2 - Delivery (unadjusted): {deliveryUnadjusted:yyyy-MM-dd (ddd)} (Spot + {tenor})");
+
+            // Adjust delivery date if it falls on weekend/holiday
+            DateTime deliveryDate = AdjustBusinessDay(ccyPair, deliveryUnadjusted, holidayCal, useModifiedFollowing);
+            if (deliveryDate != deliveryUnadjusted)
             {
-                Console.WriteLine($"[FX-CALENDAR] {unadjusted:yyyy-MM-dd} is already a business day. No adjustment needed.");
-                return unadjusted;
+                Console.WriteLine($"[FX-CALENDAR]            Delivery (adjusted): {deliveryDate:yyyy-MM-dd (ddd)} (business day adjusted)");
             }
 
-            // Need to adjust
+            // Step 3: Calculate Expiry Date = Delivery Date - Spot Lag business days
+            DateTime expiryDate = SubtractBusinessDays(ccyPair, deliveryDate, spotLag, holidayCal);
+            Console.WriteLine($"[FX-CALENDAR] Step 3 - Expiry Date: {expiryDate:yyyy-MM-dd (ddd)} (Delivery - {spotLag} BD)");
+            Console.WriteLine($"[FX-CALENDAR] ======================================================\n");
+
+            return expiryDate;
+        }
+
+        /// <summary>
+        /// Add N business days to a date, skipping weekends and holidays.
+        /// </summary>
+        private static DateTime AddBusinessDays(string ccyPair, DateTime startDate, int businessDays, HolidayCalendar holidayCal)
+        {
+            DateTime current = startDate.Date;
+            int daysAdded = 0;
+
+            while (daysAdded < businessDays)
+            {
+                current = current.AddDays(1);
+                if (IsBusinessDay(ccyPair, current, holidayCal))
+                {
+                    daysAdded++;
+                }
+            }
+
+            return current;
+        }
+
+        /// <summary>
+        /// Subtract N business days from a date, skipping weekends and holidays.
+        /// </summary>
+        private static DateTime SubtractBusinessDays(string ccyPair, DateTime startDate, int businessDays, HolidayCalendar holidayCal)
+        {
+            DateTime current = startDate.Date;
+            int daysSubtracted = 0;
+
+            while (daysSubtracted < businessDays)
+            {
+                current = current.AddDays(-1);
+                if (IsBusinessDay(ccyPair, current, holidayCal))
+                {
+                    daysSubtracted++;
+                }
+            }
+
+            return current;
+        }
+
+        /// <summary>
+        /// Adjust a date to the nearest business day using Modified Following or Preceding convention.
+        /// </summary>
+        private static DateTime AdjustBusinessDay(string ccyPair, DateTime date, HolidayCalendar holidayCal, bool useModifiedFollowing)
+        {
+            if (IsBusinessDay(ccyPair, date, holidayCal))
+                return date;
+
             if (useModifiedFollowing)
             {
                 // Try next business day
-                var next = NextBusinessDay(ccyPair, unadjusted, holidayCal, includeStart: false);
+                var next = NextBusinessDay(ccyPair, date, holidayCal, includeStart: false);
 
                 // If crosses month boundary, use previous business day instead
-                if (next.Month != unadjusted.Month || next.Year != unadjusted.Year)
+                if (next.Month != date.Month || next.Year != date.Year)
                 {
-                    var prev = PreviousBusinessDay(ccyPair, unadjusted, holidayCal, includeStart: false);
-                    Console.WriteLine($"[FX-CALENDAR] Modified Following: {unadjusted:yyyy-MM-dd} (weekend/holiday) -> {next:yyyy-MM-dd} crosses month -> {prev:yyyy-MM-dd} (final)");
-                    return prev;
+                    return PreviousBusinessDay(ccyPair, date, holidayCal, includeStart: false);
                 }
 
-                Console.WriteLine($"[FX-CALENDAR] Modified Following: {unadjusted:yyyy-MM-dd} (weekend/holiday) -> {next:yyyy-MM-dd} (next business day)");
                 return next;
             }
             else
             {
                 // Preceding convention: always go backward
-                var prev = PreviousBusinessDay(ccyPair, unadjusted, holidayCal, includeStart: false);
-                Console.WriteLine($"[FX-CALENDAR] Preceding: {unadjusted:yyyy-MM-dd} (weekend/holiday) -> {prev:yyyy-MM-dd} (previous business day)");
-                return prev;
+                return PreviousBusinessDay(ccyPair, date, holidayCal, includeStart: false);
             }
         }
 
