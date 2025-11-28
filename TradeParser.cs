@@ -173,6 +173,32 @@ namespace FXOAiTranslator
                         {
                             switch (pattern.Name)
                             {
+                                case "Vanilla_Delta":
+                                    LogDebug($"DEBUG: Processing Vanilla_Delta pattern");
+                                    result.LegCount = 1;
+
+                                    // Determine delta type: DS (spot delta) or DF (forward delta)
+                                    string deltaTypeRaw = match.Groups["deltaType"].Value.ToLower();
+                                    string deltaPrefix;
+                                    if (deltaTypeRaw.Contains("f") || deltaTypeRaw.Contains("forward"))
+                                    {
+                                        deltaPrefix = "DF";  // Forward delta
+                                    }
+                                    else
+                                    {
+                                        deltaPrefix = "DS";  // Spot delta (default)
+                                    }
+
+                                    string deltaValue = match.Groups["delta"].Value;
+                                    string deltaOptionType = match.Groups["type"].Value.ToUpper().StartsWith("C") ? "C" : "P";
+
+                                    // Default to Buy (delta options typically bought)
+                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} " +
+                                                  $"B {deltaPrefix}{deltaValue}{deltaOptionType} " +
+                                                  $"N{match.Groups["notional"].Value}M VA" +
+                                                  spot;
+                                    break;
+
                                 case "Vanilla_CurrencyLed":
                                     LogDebug($"DEBUG: Processing Vanilla_CurrencyLed pattern");
                                     result.LegCount = 1;
