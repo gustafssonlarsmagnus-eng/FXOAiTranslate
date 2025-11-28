@@ -993,14 +993,22 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                         continue;
                     }
 
-                    // ACCEPT if followed by expiry-related context
-                    if (Regex.IsMatch(afterMatch, @"^\s*(call|put|option|strike|straddle|spread|expir)", RegexOptions.IgnoreCase))
+                    // SKIP if this is likely a delta specification (e.g., "25d call" = "25 delta call")
+                    // Delta patterns: number + d/delta immediately before call/put
+                    if ((unit == "D" || unit == "M") && Regex.IsMatch(afterMatch, @"^\s*(call|put)\b", RegexOptions.IgnoreCase))
+                    {
+                        LogDebug($"DEBUG: Skipping '{number}{unit}' - likely delta specification before call/put");
+                        continue;
+                    }
+
+                    // ACCEPT if followed by expiry-related context (but not call/put directly, handled above)
+                    if (Regex.IsMatch(afterMatch, @"^\s*(option|strike|straddle|spread|expir)", RegexOptions.IgnoreCase))
                     {
                         LogDebug($"DEBUG: Accepting '{number}{unit}' - expiry context confirmed");
                         return number + unit;
                     }
 
-                    // ACCEPT if number is small (tenors rarely > 36 months, 5 years)
+                    // ACCEPT if number is small (tenors rarely > 36 months, 5 years, 52 weeks)
                     int numValue = int.Parse(number);
                     if (unit == "M" && numValue <= 36)
                     {
@@ -1010,6 +1018,16 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     if (unit == "Y" && numValue <= 10)
                     {
                         LogDebug($"DEBUG: Accepting '{number}Y' - reasonable tenor duration");
+                        return number + unit;
+                    }
+                    if (unit == "W" && numValue <= 52)
+                    {
+                        LogDebug($"DEBUG: Accepting '{number}W' - reasonable tenor duration");
+                        return number + unit;
+                    }
+                    if (unit == "D" && numValue <= 365)
+                    {
+                        LogDebug($"DEBUG: Accepting '{number}D' - reasonable tenor duration");
                         return number + unit;
                     }
 
