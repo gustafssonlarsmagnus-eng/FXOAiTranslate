@@ -225,15 +225,26 @@ namespace FX.Infrastructure.Calendars.Legacy
             DateTime current = startDate.Date;
             int daysSubtracted = 0;
 
+            Console.WriteLine($"[FX-CALENDAR-DEBUG] SubtractBusinessDays: Start={startDate:yyyy-MM-dd}, Need to subtract {businessDays} BD for {ccyPair}");
+
             while (daysSubtracted < businessDays)
             {
                 current = current.AddDays(-1);
-                if (IsBusinessDay(ccyPair, current, holidayCal))
+                bool isBizDay = IsBusinessDay(ccyPair, current, holidayCal);
+                Console.WriteLine($"[FX-CALENDAR-DEBUG]   {current:yyyy-MM-dd (ddd)}: IsBusinessDay={isBizDay}");
+
+                if (isBizDay)
                 {
                     daysSubtracted++;
+                    Console.WriteLine($"[FX-CALENDAR-DEBUG]   → Counted as BD #{daysSubtracted}");
+                }
+                else
+                {
+                    Console.WriteLine($"[FX-CALENDAR-DEBUG]   → Skipped (weekend or holiday)");
                 }
             }
 
+            Console.WriteLine($"[FX-CALENDAR-DEBUG] Final result: {current:yyyy-MM-dd (ddd)}\n");
             return current;
         }
 
