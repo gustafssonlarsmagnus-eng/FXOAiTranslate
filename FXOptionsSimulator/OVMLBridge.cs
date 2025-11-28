@@ -109,6 +109,17 @@ namespace FXOptionsSimulator
             string strikes = "";
             string notionals = "";
 
+            // Check if this is a delta-based option (DS25 C or DF50 P format)
+            bool isDeltaBased = parts.Any(p => p.StartsWith("DS") || p.StartsWith("DF"));
+
+            if (isDeltaBased)
+            {
+                throw new InvalidOperationException(
+                    "Delta-based options (DS/DF) cannot be sent to GFI. " +
+                    "GFI requires actual strike prices. " +
+                    "Please use Bloomberg for delta-based trades.");
+            }
+
             foreach (var part in parts)
             {
                 // Directions: B,S,S
