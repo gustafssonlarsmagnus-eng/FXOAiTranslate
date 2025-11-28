@@ -27,9 +27,6 @@ namespace FXOptionsSimulator
                 throw new ArgumentException("OVML string is empty");
             }
 
-            Console.WriteLine($"[OVMLBridge] Converting OVML: {ovml}");
-            Console.WriteLine($"[OVMLBridge] Underlying from ovmlResult: '{underlying}'");
-
             // If underlying is null/empty, extract it from the OVML string
             if (string.IsNullOrEmpty(underlying))
             {
@@ -38,13 +35,11 @@ namespace FXOptionsSimulator
                 if (parts.Length > 0)
                 {
                     underlying = parts[0];
-                    Console.WriteLine($"[OVMLBridge] Extracted underlying from OVML: '{underlying}'");
                 }
             }
 
             if (string.IsNullOrEmpty(underlying))
             {
-                Console.WriteLine($"[OVMLBridge] WARNING: No underlying currency pair found, defaulting to EURUSD");
                 underlying = "EURUSD";
             }
 
@@ -94,7 +89,6 @@ namespace FXOptionsSimulator
                 });
             }
 
-            Console.WriteLine($"[OVMLBridge] Created {structureType} with {trade.Legs.Count} legs");
             return trade;
         }
 

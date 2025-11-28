@@ -97,23 +97,11 @@ namespace FX.Infrastructure.Calendars.Legacy
             var holidays = holidayCal.GetHolidays(calendars, from, to);
             var holidaySet = BuildHolidaySet(holidays);
 
-            // DEBUG: Show what holidays were loaded
-            Console.WriteLine($"[FX-CALENDAR-DEBUG] Loaded {holidaySet.Count} holidays for {ccyPair} (markets: {string.Join(", ", calendars)}) between {from:yyyy-MM-dd} and {to:yyyy-MM-dd}");
-            if (holidaySet.Count > 0)
-            {
-                var sortedHolidays = holidaySet.OrderBy(h => h).Take(10).Select(h => h.ToString("yyyy-MM-dd (ddd)"));
-                Console.WriteLine($"[FX-CALENDAR-DEBUG] First holidays: {string.Join(", ", sortedHolidays)}");
-            }
-
             DateTime d = includeStart ? start : start.AddDays(1);
             int safety = 0;
             while (safety++ < lookaheadDays + 2)
             {
-                bool isWeekend = IsWeekend(d);
-                bool isHoliday = holidaySet.Contains(d);
-                Console.WriteLine($"[FX-CALENDAR-DEBUG] Checking {d:yyyy-MM-dd (ddd)}: Weekend={isWeekend}, Holiday={isHoliday}");
-
-                if (!isWeekend && !isHoliday)
+                if (!IsWeekend(d) && !holidaySet.Contains(d))
                     return d;
                 d = d.AddDays(1);
             }
@@ -168,31 +156,17 @@ namespace FX.Infrastructure.Calendars.Legacy
 
             int spotLag = GetSpotLag(ccyPair);
 
-            Console.WriteLine($"\n[FX-CALENDAR] ========== FX Options Expiry Calculation ==========");
-            Console.WriteLine($"[FX-CALENDAR] Currency Pair: {ccyPair}");
-            Console.WriteLine($"[FX-CALENDAR] Trade Date: {tradeDate:yyyy-MM-dd (ddd)}");
-            Console.WriteLine($"[FX-CALENDAR] Tenor: {tenor}");
-            Console.WriteLine($"[FX-CALENDAR] Spot Lag: T+{spotLag}");
-
             // Step 1: Calculate Spot Date = Trade Date + Spot Lag business days
             DateTime spotDate = AddBusinessDays(ccyPair, tradeDate.Date, spotLag, holidayCal);
-            Console.WriteLine($"[FX-CALENDAR] Step 1 - Spot Date: {spotDate:yyyy-MM-dd (ddd)} (Trade + {spotLag} BD)");
 
             // Step 2: Calculate Delivery Date = Spot Date + Tenor
             DateTime deliveryUnadjusted = ParseTenorToDate(spotDate, tenor);
-            Console.WriteLine($"[FX-CALENDAR] Step 2 - Delivery (unadjusted): {deliveryUnadjusted:yyyy-MM-dd (ddd)} (Spot + {tenor})");
 
             // Adjust delivery date if it falls on weekend/holiday
             DateTime deliveryDate = AdjustBusinessDay(ccyPair, deliveryUnadjusted, holidayCal, useModifiedFollowing);
-            if (deliveryDate != deliveryUnadjusted)
-            {
-                Console.WriteLine($"[FX-CALENDAR]            Delivery (adjusted): {deliveryDate:yyyy-MM-dd (ddd)} (business day adjusted)");
-            }
 
             // Step 3: Calculate Expiry Date = Delivery Date - Spot Lag business days
             DateTime expiryDate = SubtractBusinessDays(ccyPair, deliveryDate, spotLag, holidayCal);
-            Console.WriteLine($"[FX-CALENDAR] Step 3 - Expiry Date: {expiryDate:yyyy-MM-dd (ddd)} (Delivery - {spotLag} BD)");
-            Console.WriteLine($"[FX-CALENDAR] ======================================================\n");
 
             return expiryDate;
         }
@@ -225,26 +199,15 @@ namespace FX.Infrastructure.Calendars.Legacy
             DateTime current = startDate.Date;
             int daysSubtracted = 0;
 
-            Console.WriteLine($"[FX-CALENDAR-DEBUG] SubtractBusinessDays: Start={startDate:yyyy-MM-dd}, Need to subtract {businessDays} BD for {ccyPair}");
-
             while (daysSubtracted < businessDays)
             {
                 current = current.AddDays(-1);
-                bool isBizDay = IsBusinessDay(ccyPair, current, holidayCal);
-                Console.WriteLine($"[FX-CALENDAR-DEBUG]   {current:yyyy-MM-dd (ddd)}: IsBusinessDay={isBizDay}");
-
-                if (isBizDay)
+                if (IsBusinessDay(ccyPair, current, holidayCal))
                 {
                     daysSubtracted++;
-                    Console.WriteLine($"[FX-CALENDAR-DEBUG]   → Counted as BD #{daysSubtracted}");
-                }
-                else
-                {
-                    Console.WriteLine($"[FX-CALENDAR-DEBUG]   → Skipped (weekend or holiday)");
                 }
             }
 
-            Console.WriteLine($"[FX-CALENDAR-DEBUG] Final result: {current:yyyy-MM-dd (ddd)}\n");
             return current;
         }
 

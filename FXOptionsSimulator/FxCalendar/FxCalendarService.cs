@@ -51,10 +51,6 @@ namespace FX.Infrastructure.Calendars.Legacy
                             }
 
                             _instance = new FxCalendarService(connString);
-                            Console.WriteLine("[FX-CALENDAR] Service initialized with database connection.");
-
-                            // Run diagnostic to check December 2025 holidays
-                            _instance._holidayCalendar.DiagnoseDecember2025Holidays();
                         }
                     }
                 }
