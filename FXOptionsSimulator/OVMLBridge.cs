@@ -28,6 +28,25 @@ namespace FXOptionsSimulator
             }
 
             Console.WriteLine($"[OVMLBridge] Converting OVML: {ovml}");
+            Console.WriteLine($"[OVMLBridge] Underlying from ovmlResult: '{underlying}'");
+
+            // If underlying is null/empty, extract it from the OVML string
+            if (string.IsNullOrEmpty(underlying))
+            {
+                // Extract currency pair from OVML (should be first token after "OVML")
+                var parts = ovml.Replace("OVML", "").Trim().Split(' ');
+                if (parts.Length > 0)
+                {
+                    underlying = parts[0];
+                    Console.WriteLine($"[OVMLBridge] Extracted underlying from OVML: '{underlying}'");
+                }
+            }
+
+            if (string.IsNullOrEmpty(underlying))
+            {
+                Console.WriteLine($"[OVMLBridge] WARNING: No underlying currency pair found, defaulting to EURUSD");
+                underlying = "EURUSD";
+            }
 
             // Parse the OVML string
             var parsed = ParseOVML(ovml);
