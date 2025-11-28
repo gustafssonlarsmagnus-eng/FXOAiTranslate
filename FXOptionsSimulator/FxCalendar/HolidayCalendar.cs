@@ -164,5 +164,59 @@ namespace FX.Infrastructure.Calendars.Legacy
                 }
             }
         }
+
+        /// <summary>
+        /// Diagnostic method: Print all holidays in December 2025 for debugging
+        /// </summary>
+        public void DiagnoseDecember2025Holidays()
+        {
+            try
+            {
+                Console.WriteLine("\n========== DATABASE DIAGNOSTIC: December 2025 Holidays ==========");
+
+                var from = new DateTime(2025, 12, 1);
+                var to = new DateTime(2025, 12, 31);
+
+                // Query all markets for December 2025
+                var allHolidays = GetHolidays(null, from, to); // null = all markets
+
+                Console.WriteLine($"Total holidays found in December 2025: {allHolidays.Rows.Count}");
+
+                if (allHolidays.Rows.Count == 0)
+                {
+                    Console.WriteLine("⚠️ WARNING: No holidays found for December 2025 in the database!");
+                    Console.WriteLine("   The Holiday table may be missing 2025 data.");
+                }
+                else
+                {
+                    Console.WriteLine("\nHolidays by date:");
+                    foreach (DataRow row in allHolidays.Rows)
+                    {
+                        string market = row["Market"].ToString();
+                        DateTime date = (DateTime)row["HolidayDate"];
+                        Console.WriteLine($"  {date:yyyy-MM-dd (ddd)} - Market: {market}");
+                    }
+                }
+
+                // Check specific markets
+                Console.WriteLine("\nChecking specific markets (USA, TARGET, ENGLAND, NORWAY, SWEDEN):");
+                var specificMarkets = new[] { "USA", "TARGET", "ENGLAND", "NORWAY", "SWEDEN" };
+                var specificHolidays = GetHolidays(specificMarkets, from, to);
+
+                Console.WriteLine($"Holidays for USA/TARGET/ENGLAND/NORWAY/SWEDEN: {specificHolidays.Rows.Count}");
+                foreach (DataRow row in specificHolidays.Rows)
+                {
+                    string market = row["Market"].ToString();
+                    DateTime date = (DateTime)row["HolidayDate"];
+                    Console.WriteLine($"  {date:yyyy-MM-dd (ddd)} - {market}");
+                }
+
+                Console.WriteLine("================================================================\n");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR during database diagnostic: {ex.Message}");
+            }
+        }
     }
 }
