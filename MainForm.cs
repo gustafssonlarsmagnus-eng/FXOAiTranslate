@@ -1447,11 +1447,11 @@ namespace FXOAiTranslator
             // Force English culture for date formatting
             var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
 
-            // Check if it's a tenor (contains M or Y)
-            var tenorMatch = Regex.Match(expiry, @"^\d+[MY]$", RegexOptions.IgnoreCase);
+            // Check if it's a tenor (1M, 3M, 1Y, 1W, 2D, etc.)
+            var tenorMatch = Regex.Match(expiry, @"^\d+[MYWD]$", RegexOptions.IgnoreCase);
             if (tenorMatch.Success)
             {
-                // It's a tenor like "1M" or "3M" - calculate the date
+                // It's a tenor - calculate the date and show both
                 DateTime calculatedDate = CalculateDateFromTenor(expiry, currencyPair);
                 if (calculatedDate != DateTime.MinValue)
                 {
@@ -1475,7 +1475,7 @@ namespace FXOAiTranslator
 
         private DateTime CalculateDateFromTenor(string tenor, string currencyPair = "EURUSD")
         {
-            var match = Regex.Match(tenor, @"^(\d+)([MYWDW])$", RegexOptions.IgnoreCase);
+            var match = Regex.Match(tenor, @"^(\d+)([MYWD])$", RegexOptions.IgnoreCase);
             if (!match.Success)
                 return DateTime.MinValue;
 
