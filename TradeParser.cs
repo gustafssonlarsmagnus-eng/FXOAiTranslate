@@ -986,8 +986,8 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
 
                     LogDebug($"DEBUG: Found ambiguous '{number}{unit}', checking context: '{afterMatch.Substring(0, Math.Min(20, afterMatch.Length))}'");
 
-                    // SKIP if followed by notional indicators
-                    if (Regex.IsMatch(afterMatch, @"^\s*(mio|mil|million|usd|eur|sek|nok|gbp|jpy|chf|per\s+leg)", RegexOptions.IgnoreCase))
+                    // SKIP if followed by clear notional indicators (mio/mil/million or "per leg")
+                    if (Regex.IsMatch(afterMatch, @"^\s*(mio|mil|million|per\s+leg)\b", RegexOptions.IgnoreCase))
                     {
                         LogDebug($"DEBUG: Skipping '{number}{unit}' - notional context detected");
                         continue;
