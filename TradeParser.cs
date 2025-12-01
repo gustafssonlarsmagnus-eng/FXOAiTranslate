@@ -192,9 +192,12 @@ namespace FXOAiTranslator
                                     string deltaValue = match.Groups["delta"].Value;
                                     string deltaOptionType = match.Groups["type"].Value.ToUpper().StartsWith("C") ? "C" : "P";
 
-                                    // Format: OVML EURUSD 1M B DS25 C N20M VA1.1572
+                                    // Convert expiry to OVML date format (tenor → date)
+                                    string ovmlExpiry = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
+                                    // Format: OVML EURUSD 12/02/24 B DS25 C N20M VA1.1572
                                     // Note: Space between delta value and option type
-                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} " +
+                                    result.OVML = $"OVML {result.Underlying} {ovmlExpiry} " +
                                                   $"B {deltaPrefix}{deltaValue} {deltaOptionType} " +
                                                   $"N{match.Groups["notional"].Value}M VA" +
                                                   spot;
@@ -207,7 +210,10 @@ namespace FXOAiTranslator
                                     // Default to Buy (no explicit side in this pattern)
                                     string optionType = match.Groups["type"].Value.ToUpper().StartsWith("C") ? "C" : "P";
 
-                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} " +
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpiryVC = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
+                                    result.OVML = $"OVML {result.Underlying} {ovmlExpiryVC} " +
                                                   $"B {match.Groups["strike"].Value}{optionType} " +
                                                   $"N{match.Groups["notional"].Value}M VA" +
                                                   spot;
@@ -216,16 +222,24 @@ namespace FXOAiTranslator
                                 case "Collar_BuyCallSellCallSellPut":
                                     LogDebug($"DEBUG: Processing Collar_BuyCallSellCallSellPut pattern");
                                     result.LegCount = 3;
+
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpiryCollar = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
                                     result.OVML = $"OVML {result.Underlying} 3L B,S,S " +
                                                   $"{match.Groups["strike1"].Value}C,{match.Groups["strike2"].Value}C,{match.Groups["strike3"].Value}P " +
-                                                  $"{result.Expiry} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
+                                                  $"{ovmlExpiryCollar} N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
                                                   (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
                                 case "Seagull_BuyPutSellPutSellCall":
                                     LogDebug($"DEBUG: Processing Seagull_BuyPutSellPutSellCall pattern");
                                     result.LegCount = 3;
-                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 3L B,S,S " +
+
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpirySeagull = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
+                                    result.OVML = $"OVML {result.Underlying} {ovmlExpirySeagull} 3L B,S,S " +
                                                   $"{match.Groups["strike1"].Value}P,{match.Groups["strike2"].Value}P,{match.Groups["strike3"].Value}C " +
                                                   $"N{match.Groups["notional1"].Value}M,{match.Groups["notional2"].Value}M,{match.Groups["notional3"].Value}M" +
                                                   (spotExplicitlyProvided ? " SP" + spot : "");
@@ -254,7 +268,10 @@ namespace FXOAiTranslator
                                         sellNotionalPut = match.Groups["notional1"].Value;
                                     }
 
-                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {buyStrikePut}P,{sellStrikePut}P N{buyNotionalPut}M,{sellNotionalPut}M VA" +
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpiryPS = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
+                                    result.OVML = $"OVML {result.Underlying} {ovmlExpiryPS} 2L B,S {buyStrikePut}P,{sellStrikePut}P N{buyNotionalPut}M,{sellNotionalPut}M VA" +
                                                   (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
@@ -281,7 +298,10 @@ namespace FXOAiTranslator
                                         sellNotionalCall = match.Groups["notional1"].Value;
                                     }
 
-                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {buyStrikeCall}C,{sellStrikeCall}C N{buyNotionalCall}M,{sellNotionalCall}M VA" +
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpiryCS = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
+                                    result.OVML = $"OVML {result.Underlying} {ovmlExpiryCS} 2L B,S {buyStrikeCall}C,{sellStrikeCall}C N{buyNotionalCall}M,{sellNotionalCall}M VA" +
                                                   (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
@@ -289,7 +309,11 @@ namespace FXOAiTranslator
                                 case "RiskReversal_CallPut":
                                     LogDebug($"DEBUG: Processing {pattern.Name} pattern");
                                     result.LegCount = 2;
-                                    result.OVML = RegexTradePatterns.BuildRiskReversalOVML(result.Underlying, match, result.Expiry, spot);
+
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpiryRR = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
+                                    result.OVML = RegexTradePatterns.BuildRiskReversalOVML(result.Underlying, match, ovmlExpiryRR, spot);
                                     break;
 
                                 case "Vanilla":
@@ -297,11 +321,15 @@ namespace FXOAiTranslator
                                     result.LegCount = 1;
                                     string side = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
                                     string vanillaType = match.Groups["type"].Value.Substring(0, 1).ToUpper();
+
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpiryV = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
                                     result.OVML = $"OVML {result.Underlying} 1L {side} " +
-                                                  $"{match.Groups["strike"].Value}{vanillaType} " +  // ✅ Change this line
-                                                  $"{result.Expiry} N{match.Groups["notional"].Value}M" +
+                                                  $"{match.Groups["strike"].Value}{vanillaType} " +
+                                                  $"{ovmlExpiryV} N{match.Groups["notional"].Value}M" +
                                                   (spotExplicitlyProvided ? " SP" + spot : "");
-                                
+
                                     break;
 
                                 case "Simple_Vanilla":
@@ -309,9 +337,13 @@ namespace FXOAiTranslator
                                     result.LegCount = 1;
                                     string s = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
                                     string t = match.Groups["type"].Value.Substring(0, 1).ToUpper();
+
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpirySV = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
                                     result.OVML = $"OVML {result.Underlying} 1L {s} " +
                                                   $"{match.Groups["strike"].Value}{t} " +
-                                                  $"{result.Expiry} N{match.Groups["notional"].Value}M" +
+                                                  $"{ovmlExpirySV} N{match.Groups["notional"].Value}M" +
                                                   (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
@@ -326,8 +358,11 @@ namespace FXOAiTranslator
                                         string n1 = match.Groups["notional1"].Value;
                                         string n2 = match.Groups["notional2"].Success ? match.Groups["notional2"].Value : n1;
 
+                                        // Convert expiry to OVML date format
+                                        string ovmlExpiryStraddle = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
                                         result.OVML =
-                                            $"OVML {result.Underlying} 2L {sidePair} ATMS, ATMS C,P {result.Expiry} N{n1}M,{n2}M VA" +
+                                            $"OVML {result.Underlying} 2L {sidePair} ATMS, ATMS C,P {ovmlExpiryStraddle} N{n1}M,{n2}M VA" +
                                             (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
                                     }
                                     break;
@@ -344,8 +379,11 @@ namespace FXOAiTranslator
                                         string kPut = match.Groups["strike1"].Value;
                                         string kCall = match.Groups["strike2"].Value;
 
+                                        // Convert expiry to OVML date format
+                                        string ovmlExpiryStrangle = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
                                         result.OVML =
-                                            $"OVML {result.Underlying} 2L {sidePair} {kPut}P,{kCall}C {result.Expiry} N{n}M,{n}M" +
+                                            $"OVML {result.Underlying} 2L {sidePair} {kPut}P,{kCall}C {ovmlExpiryStrangle} N{n}M,{n}M" +
                                             (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
                                     }
                                     break;
@@ -361,15 +399,18 @@ namespace FXOAiTranslator
                                     double s1 = double.Parse(strike1);
                                     double s2 = double.Parse(strike2);
 
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpiryCSM = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
                                     if (s1 < s2)
                                     {
-                                        result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
+                                        result.OVML = $"OVML {result.Underlying} {ovmlExpiryCSM} 2L B,S " +
                                                       $"{strike1}C,{strike2}C N{notional}M,{notional}M VA" +
                                                       (spotExplicitlyProvided ? " SP" + spot : "");
                                     }
                                     else
                                     {
-                                        result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S " +
+                                        result.OVML = $"OVML {result.Underlying} {ovmlExpiryCSM} 2L B,S " +
                                                       $"{strike2}C,{strike1}C N{notional}M,{notional}M VA" +
                                                       (spotExplicitlyProvided ? " SP" + spot : "");
                                     }
@@ -387,7 +428,10 @@ namespace FXOAiTranslator
 
                                     string notionalPS = match.Groups["notional"].Value;
 
-                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {putHigh}P,{putLow}P N{notionalPS}M,{notionalPS}M VA" +
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpiryPSS = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
+                                    result.OVML = $"OVML {result.Underlying} {ovmlExpiryPSS} 2L B,S {putHigh}P,{putLow}P N{notionalPS}M,{notionalPS}M VA" +
                                                   (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
@@ -403,7 +447,10 @@ namespace FXOAiTranslator
 
                                     string notionalCS = match.Groups["notional"].Value;
 
-                                    result.OVML = $"OVML {result.Underlying} {result.Expiry} 2L B,S {callLow}C,{callHigh}C N{notionalCS}M,{notionalCS}M VA" +
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpiryCSS = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
+                                    result.OVML = $"OVML {result.Underlying} {ovmlExpiryCSS} 2L B,S {callLow}C,{callHigh}C N{notionalCS}M,{notionalCS}M VA" +
                                                   (spotExplicitlyProvided ? " SP" + spot : "");
                                     break;
 
@@ -1048,6 +1095,68 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                 LogDebug($"DEBUG: Exception in ExtractExpiry: {ex.Message}");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Convert expiry to OVML date format (MM/dd/yy).
+        /// Handles both explicit dates (17Dec25) and tenors (1M, 3M).
+        /// </summary>
+        private string ConvertExpiryToOVMLDate(string expiry, string currencyPair = "EURUSD")
+        {
+            if (string.IsNullOrWhiteSpace(expiry))
+                return "";
+
+            // Check if it's a tenor (1M, 3M, 1W, 2D, etc.)
+            var tenorMatch = Regex.Match(expiry, @"^(\d+)([MYWD])$", RegexOptions.IgnoreCase);
+            if (tenorMatch.Success)
+            {
+                try
+                {
+                    // Use FxCalendarService for database-backed business day calculation
+                    var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
+                        DateTime.UtcNow,
+                        expiry.ToUpper(),
+                        currencyPair
+                    );
+
+                    // Return in OVML format: MM/dd/yy
+                    return expiryDate.ToString("MM/dd/yy", CultureInfo.InvariantCulture);
+                }
+                catch (Exception ex)
+                {
+                    LogDebug($"DEBUG: Error calculating date from tenor '{expiry}': {ex.Message}");
+
+                    // Fallback with simple calculation
+                    int amount = int.Parse(tenorMatch.Groups[1].Value);
+                    string unit = tenorMatch.Groups[2].Value.ToUpper();
+
+                    DateTime result = DateTime.Today;
+                    result = unit switch
+                    {
+                        "D" => result.AddDays(amount),
+                        "W" => result.AddDays(amount * 7),
+                        "M" => result.AddMonths(amount),
+                        "Y" => result.AddYears(amount),
+                        _ => result
+                    };
+
+                    // Simple weekend adjustment
+                    while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        result = result.AddDays(1);
+                    }
+
+                    return result.ToString("MM/dd/yy", CultureInfo.InvariantCulture);
+                }
+            }
+
+            // It's already a date - normalize it to MM/dd/yy format
+            var normalized = TryNormalizeDate(expiry);
+            if (!string.IsNullOrEmpty(normalized))
+                return normalized;
+
+            // If we can't parse it, return as-is
+            return expiry;
         }
 
         // === Normalization helpers ===
