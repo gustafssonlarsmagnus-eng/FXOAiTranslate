@@ -168,6 +168,13 @@ namespace FX.Infrastructure.Calendars.Legacy
             // Step 3: Calculate Expiry Date = Delivery Date - Spot Lag business days
             DateTime expiryDate = SubtractBusinessDays(ccyPair, deliveryDate, spotLag, holidayCal);
 
+            // Step 4: FX Market Rule - January 1st can NEVER be an expiry or settlement date
+            // (New Year's Day - global holiday)
+            if (expiryDate.Month == 1 && expiryDate.Day == 1)
+            {
+                expiryDate = NextBusinessDay(ccyPair, expiryDate, holidayCal, includeStart: false);
+            }
+
             return expiryDate;
         }
 
