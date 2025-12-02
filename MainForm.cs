@@ -1513,13 +1513,14 @@ namespace FXOAiTranslator
                 }
 
                 // FX Market Rule - January 1st can NEVER be an expiry or settlement date
+                // If expiry falls on Jan 1st, move BACK to last business day of December
                 if (result.Month == 1 && result.Day == 1)
                 {
-                    result = result.AddDays(1);
+                    result = result.AddDays(-1);
                     // Adjust again for weekends
                     while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
                     {
-                        result = result.AddDays(1);
+                        result = result.AddDays(-1);
                     }
                 }
 

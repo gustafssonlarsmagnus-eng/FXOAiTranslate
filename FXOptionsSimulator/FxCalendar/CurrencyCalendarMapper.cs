@@ -170,9 +170,10 @@ namespace FX.Infrastructure.Calendars.Legacy
 
             // Step 4: FX Market Rule - January 1st can NEVER be an expiry or settlement date
             // (New Year's Day - global holiday)
+            // If expiry falls on Jan 1st, move BACK to last business day of December
             if (expiryDate.Month == 1 && expiryDate.Day == 1)
             {
-                expiryDate = NextBusinessDay(ccyPair, expiryDate, holidayCal, includeStart: false);
+                expiryDate = PreviousBusinessDay(ccyPair, expiryDate, holidayCal, includeStart: false);
             }
 
             return expiryDate;
