@@ -29,7 +29,6 @@ namespace FXOAiTranslator
         private Button btnCancel;
         private Button btnBuy;
         private Label lblTradeSummary;
-        private Label lblDates;  // Show TradeDate and Premium Date
         private GroupBox gbLPs;
         private CheckBox chkSOCGEN;
         private CheckBox chkCIBC;
@@ -71,64 +70,14 @@ namespace FXOAiTranslator
             lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
             PopulateLegGrid();
 
-            // Calculate and display Trade Date and Premium Delivery Date
-            CalculateAndDisplayDates();
-
             // Subscribe to quote events
             _fixSession.Application.OnQuoteReceived += OnQuoteReceivedFromFIX;
-        }
-
-        private void CalculateAndDisplayDates()
-        {
-            try
-            {
-                var nowUtc = DateTime.UtcNow;
-                string pair = _trade.Underlying;
-                string premiumCcy = _trade.PremiumCurrency;
-
-                // Get global date policy
-                var P = GlobalDatePolicy.Policy;
-
-                var rules = new FxDateRules
-                {
-                    Ccy1 = pair.Substring(0, 3),
-                    Ccy2 = pair.Substring(3, 3),
-                    SpotLag = P.SpotLagForPair(pair),
-                    ExpiryConvention = P.ExpiryConvention,
-                    ExpiryEOM = P.ExpiryEOM,
-                    PremiumSettleDays = P.PremiumSettleDays,
-                    PremiumCalMode = P.PremiumCalendarMode,
-                    PremiumConvention = P.PremiumConvention
-                };
-
-                // Tag 75 (TradeDate) = TODAY (not business-day-adjusted)
-                string tradeDate = nowUtc.ToString("yyyyMMdd");
-
-                // Tag 5020 (PremiumDelivery) = T+1 business day
-                var (_, _, _, _, premiumDt) = FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
-                string premiumDeliveryDate = FxDateService.Ymd(premiumDt);
-
-                // Format for display
-                var tradeDateDisplay = DateTime.ParseExact(tradeDate, "yyyyMMdd", null).ToString("dd-MMM-yy");
-                var premiumDateDisplay = DateTime.ParseExact(premiumDeliveryDate, "yyyyMMdd", null).ToString("dd-MMM-yy");
-
-                lblDates.Text = $"Trade Date: {tradeDateDisplay} (Tag 75: {tradeDate})  |  Premium Delivery: {premiumDateDisplay} (Tag 5020: {premiumDeliveryDate})";
-
-                Console.WriteLine($"[GFIQuoteDialog] Trade Date (Tag 75): {tradeDate} ({tradeDateDisplay})");
-                Console.WriteLine($"[GFIQuoteDialog] Premium Delivery (Tag 5020): {premiumDeliveryDate} ({premiumDateDisplay})");
-            }
-            catch (Exception ex)
-            {
-                lblDates.Text = $"Error calculating dates: {ex.Message}";
-                lblDates.ForeColor = Color.Red;
-                Console.WriteLine($"[GFIQuoteDialog] Date calculation error: {ex}");
-            }
         }
 
         private void InitializeCustomComponents()
         {
             this.Text = "GFI Fenics - Request Quotes";
-            this.Size = new Size(1000, 850);  // Increased height for blotter
+            this.Size = new Size(1000, 830);  // Adjusted height
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -143,20 +92,10 @@ namespace FXOAiTranslator
             };
             this.Controls.Add(lblTradeSummary);
 
-            lblDates = new Label
-            {
-                Location = new Point(20, 45),
-                Size = new Size(940, 20),
-                Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                ForeColor = Color.DarkBlue,
-                Text = "Calculating dates..."
-            };
-            this.Controls.Add(lblDates);
-
             var lblLegs = new Label
             {
                 Text = "Select Legs & Edit Notionals:",
-                Location = new Point(20, 70),
+                Location = new Point(20, 50),
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
@@ -164,7 +103,7 @@ namespace FXOAiTranslator
 
             dgvLegs = new DataGridView
             {
-                Location = new Point(20, 85),
+                Location = new Point(20, 65),
                 Size = new Size(940, 120),
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -192,7 +131,7 @@ namespace FXOAiTranslator
             dgvLegs.Columns.Add("Strike", "Strike");
             dgvLegs.Columns["Strike"].Width = 35;
             dgvLegs.Columns.Add("Expiry", "Expiry");
-            dgvLegs.Columns["Expiry"].Width = 150;  // Wide enough for "30-Dec-25, Tue (1M)"
+            dgvLegs.Columns["Expiry"].Width = 280;  // Wide enough for "30-Dec-25, Tue (1M) | Prem: 31-Dec-25"
 
             var notionalCol = new DataGridViewTextBoxColumn
             {
@@ -208,7 +147,7 @@ namespace FXOAiTranslator
             gbLPs = new GroupBox
             {
                 Text = "Select Liquidity Providers",
-                Location = new Point(20, 220),
+                Location = new Point(20, 200),
                 Size = new Size(940, 90)  // Increased height for 2 rows
             };
             this.Controls.Add(gbLPs);
@@ -308,7 +247,7 @@ namespace FXOAiTranslator
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
             {
-                Location = new Point(20, 330),
+                Location = new Point(20, 310),
                 Size = new Size(940, 200),      // Reduced from 270
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -333,7 +272,7 @@ namespace FXOAiTranslator
             var lblBlotter = new Label
             {
                 Text = "Trade Blotter:",
-                Location = new Point(20, 540),  // Same as before
+                Location = new Point(20, 520),
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
@@ -341,7 +280,7 @@ namespace FXOAiTranslator
 
             dgvBlotter = new DataGridView
             {
-                Location = new Point(20, 565),  // Same as before
+                Location = new Point(20, 545),
                 Size = new Size(940, 135),      // Reduced slightly
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -378,7 +317,7 @@ namespace FXOAiTranslator
             btnRequestQuotes = new Button
             {
                 Text = "Request Quotes",
-                Location = new Point(20, 715),
+                Location = new Point(20, 695),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
@@ -388,7 +327,7 @@ namespace FXOAiTranslator
             btnExecute = new Button
             {
                 Text = "Sell (Hit Bid)",
-                Location = new Point(190, 715),
+                Location = new Point(190, 695),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -399,7 +338,7 @@ namespace FXOAiTranslator
             btnBuy = new Button
             {
                 Text = "Buy (Lift Offer)",
-                Location = new Point(360, 715),
+                Location = new Point(360, 695),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -410,7 +349,7 @@ namespace FXOAiTranslator
             btnCancel = new Button
             {
                 Text = "Close",
-                Location = new Point(530, 715),
+                Location = new Point(530, 695),
                 Size = new Size(150, 35),
                 DialogResult = DialogResult.Cancel
             };
@@ -431,6 +370,11 @@ namespace FXOAiTranslator
         {
             dgvLegs.Rows.Clear();
 
+            // Get global date policy for premium date calculation
+            var P = GlobalDatePolicy.Policy;
+            string pair = _trade.Underlying;
+            string premiumCcy = _trade.PremiumCurrency;
+
             for (int i = 0; i < _trade.Legs.Count; i++)
             {
                 var leg = _trade.Legs[i];
@@ -441,9 +385,37 @@ namespace FXOAiTranslator
                     // Format: "30-Dec-25, Tue (1M)" in English - force en-US culture
                     var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
                     string dateStr = leg.ExpiryDate.ToString("dd-MMM-yy, ddd", enUS);
-                    expiryText = !string.IsNullOrEmpty(leg.Tenor)
+                    string baseExpiryText = !string.IsNullOrEmpty(leg.Tenor)
                         ? $"{dateStr} ({leg.Tenor})"
                         : dateStr;
+
+                    // Calculate premium date (same logic as value date unless specified)
+                    // Premium date = T+1 from today (not from expiry)
+                    try
+                    {
+                        var rules = new FxDateRules
+                        {
+                            Ccy1 = pair.Substring(0, 3),
+                            Ccy2 = pair.Substring(3, 3),
+                            SpotLag = P.SpotLagForPair(pair),
+                            ExpiryConvention = P.ExpiryConvention,
+                            ExpiryEOM = P.ExpiryEOM,
+                            PremiumSettleDays = P.PremiumSettleDays,
+                            PremiumCalMode = P.PremiumCalendarMode,
+                            PremiumConvention = P.PremiumConvention
+                        };
+
+                        var nowUtc = DateTime.UtcNow;
+                        var (_, _, _, _, premiumDt) = FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
+                        string premDateStr = premiumDt.ToString("dd-MMM-yy", enUS);
+
+                        expiryText = $"{baseExpiryText} | Prem: {premDateStr}";
+                    }
+                    catch
+                    {
+                        // If premium date calculation fails, just show expiry
+                        expiryText = baseExpiryText;
+                    }
                 }
                 else
                 {
