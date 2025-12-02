@@ -587,6 +587,11 @@ namespace FXOAiTranslator
                 finally
                 {
                     // Update status on UI thread after initialization attempt
+                    // Wait until handle is created before invoking
+                    while (!this.IsHandleCreated)
+                    {
+                        System.Threading.Thread.Sleep(50);
+                    }
                     this.BeginInvoke(new Action(UpdateCalendarStatus));
                 }
             });
