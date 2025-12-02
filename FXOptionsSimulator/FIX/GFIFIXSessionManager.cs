@@ -404,6 +404,18 @@ namespace FXOptionsSimulator.FIX
                         }
                     }
 
+                    // Determine option type description
+                    string optionTypeDesc = "";
+                    if (trade.Legs.Count == 1)
+                    {
+                        optionTypeDesc = trade.Legs[0].OptionType; // "CALL" or "PUT"
+                    }
+                    else if (trade.Legs.Count > 1)
+                    {
+                        // Multi-leg: show combination (e.g., "SELL PUT / BUY CALL")
+                        optionTypeDesc = string.Join(" / ", trade.Legs.Select(l => $"{l.Direction} {l.OptionType}"));
+                    }
+
                     var blotterEntry = new TradeBlotterEntry
                     {
                         TradeTime = DateTime.Now,
@@ -415,7 +427,13 @@ namespace FXOptionsSimulator.FIX
                         LegCount = trade.Legs.Count,
                         NetPremium = netPremium,
                         Delta = delta,
-                        Status = "PENDING"
+                        Status = "PENDING",
+                        // New fields
+                        NotionalMM = trade.Legs.Count > 0 ? trade.Legs[0].NotionalMM : 0,
+                        ExpiryDate = trade.Legs.Count > 0 ? trade.Legs[0].ExpiryDate : (DateTime?)null,
+                        ValueDate = trade.Legs.Count > 0 ? trade.Legs[0].DeliveryDate : (DateTime?)null,
+                        PremiumCcy = trade.PremiumCurrency,
+                        OptionType = optionTypeDesc
                     };
                     TradeBlotter.Instance.AddTrade(blotterEntry);
                 }
