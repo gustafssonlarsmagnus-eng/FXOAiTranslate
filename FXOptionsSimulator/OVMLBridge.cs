@@ -67,18 +67,28 @@ namespace FXOptionsSimulator
                 Legs = new List<TradeStructure.OptionLeg>()
             };
 
+            // Extract actual tenor from formatted string if present
+            // Format: "31-Dec-25, Wed (1M)" -> extract "1M"
+            string actualTenor = expiry;
+            var tenorInParensMatch = Regex.Match(expiry, @"\(([^)]+)\)$");
+            if (tenorInParensMatch.Success)
+            {
+                actualTenor = tenorInParensMatch.Groups[1].Value;
+                Console.WriteLine($"[OVMLBridge] Extracted tenor '{actualTenor}' from formatted string '{expiry}'");
+            }
+
             // Convert each parsed leg to TradeStructure.OptionLeg
             for (int i = 0; i < parsed.Legs.Count; i++)
             {
                 var parsedLeg = parsed.Legs[i];
-                var expiryDate = CalculateExpiryDate(expiry, underlying);
+                var expiryDate = CalculateExpiryDate(actualTenor, underlying);
 
                 trade.Legs.Add(new TradeStructure.OptionLeg
                 {
                     Direction = parsedLeg.Direction,
                     OptionType = parsedLeg.OptionType,
                     Strike = parsedLeg.Strike,
-                    Tenor = expiry,
+                    Tenor = actualTenor,
                     ExpiryDate = expiryDate,
                     DeliveryDate = expiryDate.AddDays(2),
                     NotionalMM = parsedLeg.NotionalMM,
