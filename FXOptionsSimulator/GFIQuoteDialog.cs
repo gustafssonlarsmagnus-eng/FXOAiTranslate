@@ -29,6 +29,7 @@ namespace FXOAiTranslator
         private Button btnCancel;
         private Button btnBuy;
         private Label lblTradeSummary;
+        private Label lblDates;  // Show TradeDate and Premium Date
         private GroupBox gbLPs;
         private CheckBox chkSOCGEN;
         private CheckBox chkCIBC;
@@ -70,8 +71,58 @@ namespace FXOAiTranslator
             lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
             PopulateLegGrid();
 
+            // Calculate and display Trade Date and Premium Delivery Date
+            CalculateAndDisplayDates();
+
             // Subscribe to quote events
             _fixSession.Application.OnQuoteReceived += OnQuoteReceivedFromFIX;
+        }
+
+        private void CalculateAndDisplayDates()
+        {
+            try
+            {
+                var nowUtc = DateTime.UtcNow;
+                string pair = _trade.Underlying;
+
+                // Get premium currency (first 3 chars of pair)
+                string premiumCcy = pair.Length >= 3 ? pair.Substring(0, 3) : "USD";
+
+                // Get config for this pair
+                var P = FenicsConfig.GetPairConfig(pair);
+                var rules = new FX.Infrastructure.Calendars.Legacy.FxRules
+                {
+                    SpotLag = P.SpotLag,
+                    CutoffHour = P.CutoffHour,
+                    CutoffMinute = P.CutoffMinute,
+                    CutoffTz = P.CutoffTz,
+                    PremiumCalMode = P.PremiumCalendarMode,
+                    PremiumConvention = P.PremiumConvention
+                };
+
+                // Tag 75 (TradeDate) = TODAY (not business-day-adjusted)
+                string tradeDate = nowUtc.ToString("yyyyMMdd");
+
+                // Tag 5020 (PremiumDelivery) = T+1 business day
+                var (_, _, _, _, premiumDt) = FX.Infrastructure.Calendars.Legacy.FxDateService.ComputeDates(
+                    nowUtc, pair, "0D", premiumCcy, rules);
+                string premiumDeliveryDate = FX.Infrastructure.Calendars.Legacy.FxDateService.Ymd(premiumDt);
+
+                // Format for display
+                var tradeDateDisplay = DateTime.ParseExact(tradeDate, "yyyyMMdd", null).ToString("dd-MMM-yy");
+                var premiumDateDisplay = DateTime.ParseExact(premiumDeliveryDate, "yyyyMMdd", null).ToString("dd-MMM-yy");
+
+                lblDates.Text = $"Trade Date: {tradeDateDisplay} (Tag 75: {tradeDate})  |  Premium Delivery: {premiumDateDisplay} (Tag 5020: {premiumDeliveryDate})";
+
+                Console.WriteLine($"[GFIQuoteDialog] Trade Date (Tag 75): {tradeDate} ({tradeDateDisplay})");
+                Console.WriteLine($"[GFIQuoteDialog] Premium Delivery (Tag 5020): {premiumDeliveryDate} ({premiumDateDisplay})");
+            }
+            catch (Exception ex)
+            {
+                lblDates.Text = $"Error calculating dates: {ex.Message}";
+                lblDates.ForeColor = Color.Red;
+                Console.WriteLine($"[GFIQuoteDialog] Date calculation error: {ex}");
+            }
         }
 
         private void InitializeCustomComponents()
@@ -86,16 +137,26 @@ namespace FXOAiTranslator
             lblTradeSummary = new Label
             {
                 Location = new Point(20, 20),
-                Size = new Size(940, 30),
+                Size = new Size(940, 25),
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 Text = "Loading trade..."
             };
             this.Controls.Add(lblTradeSummary);
 
+            lblDates = new Label
+            {
+                Location = new Point(20, 45),
+                Size = new Size(940, 20),
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.DarkBlue,
+                Text = "Calculating dates..."
+            };
+            this.Controls.Add(lblDates);
+
             var lblLegs = new Label
             {
                 Text = "Select Legs & Edit Notionals:",
-                Location = new Point(20, 60),
+                Location = new Point(20, 70),
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
