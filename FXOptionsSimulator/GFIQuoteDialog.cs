@@ -474,28 +474,70 @@ namespace FXOAiTranslator
             // Generate group ID
             _groupId = $"3-REQ{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
-            Console.WriteLine($"\n[Quote Request] Sending {selectedLegCount} legs:");
+            // ====== ENHANCED DEBUG OUTPUT ======
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine("\n╔════════════════════════════════════════════════════════════════");
+            Console.WriteLine("║ 📤 REQUESTING QUOTES FROM LPs");
+            Console.WriteLine("╠════════════════════════════════════════════════════════════════");
+            Console.WriteLine($"║ Group ID: {_groupId}");
+            Console.WriteLine($"║ Underlying: {_trade.Underlying}");
+            Console.WriteLine($"║ Structure: {_trade.StructureType}");
+            Console.WriteLine($"║ Selected LPs ({lps.Count}): {string.Join(", ", lps)}");
+            Console.WriteLine("╠════════════════════════════════════════════════════════════════");
+            Console.WriteLine($"║ LEGS ({selectedLegCount}):");
             for (int i = 0; i < _trade.Legs.Count; i++)
             {
                 var leg = _trade.Legs[i];
-                Console.WriteLine($"  Leg {i}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike}");
+                Console.WriteLine($"║   Leg {i + 1}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike} exp:{leg.Tenor}");
             }
-            Console.WriteLine();
+            Console.WriteLine("╚════════════════════════════════════════════════════════════════");
+            Console.ResetColor();
+
+            // Track which LPs successfully received requests
+            var successfulLPs = new List<string>();
+            var failedLPs = new List<string>();
 
             // Send quote request to each LP
-            // Note: hedge parameter defaults to false - GFI sends both BID and OFFER quotes regardless
             foreach (var lp in lps)
             {
                 try
                 {
                     string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId);
-                    Console.WriteLine($"[Quote Request] Sent to {lp}: {quoteReqID}");
+                    successfulLPs.Add(lp);
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"✓ Quote request sent to {lp,-15} | QuoteReqID: {quoteReqID}");
+                    Console.ResetColor();
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Quote Request] Error sending to {lp}: {ex.Message}");
+                    failedLPs.Add(lp);
+
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"✗ Failed to send to {lp,-15} | Error: {ex.Message}");
+                    Console.ResetColor();
                 }
             }
+
+            // Summary
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"\n┌─────────────────────────────────────────────┐");
+            Console.WriteLine($"│ QUOTE REQUEST SUMMARY");
+            Console.WriteLine($"├─────────────────────────────────────────────┤");
+            Console.WriteLine($"│ Successful: {successfulLPs.Count}/{lps.Count}  {string.Join(", ", successfulLPs)}");
+            if (failedLPs.Count > 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"│ Failed: {failedLPs.Count}      {string.Join(", ", failedLPs)}");
+            }
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"└─────────────────────────────────────────────┘\n");
+            Console.ResetColor();
+
+            // Start watching for responses
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"⏳ Waiting for quotes from {successfulLPs.Count} LPs...\n");
+            Console.ResetColor();
         }
 
         private void UpdateTradeFromGrid()

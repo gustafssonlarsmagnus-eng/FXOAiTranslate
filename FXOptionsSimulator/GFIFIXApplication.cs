@@ -132,44 +132,116 @@ namespace FXOptionsSimulator.FIX
                 string sideStr = quote.GetString(Tags.Side);
                 string side = sideStr == "1" ? "BID" : "OFFER";
 
-                // Compact trace for easy timeline analysis
+                // ====== ENHANCED DEBUG LOGGING ======
                 string timestamp = quote.Header.GetString(Tags.SendingTime);
-                Console.WriteLine($"[TRACE] {timestamp} | QUOTE_RCV | {side,5} {quoteID} | LP={lpName}");
+                
+   // Extract volatility for debugging
+    string vol = "N/A";
+      try
+{
+if (quote.IsSetField(5678)) // Volatility tag
+              {
+      vol = quote.GetString(5678);
+           }
+      }
+  catch { }
 
-                var fixMsg = ConvertQuoteToFIXMessage(quote);
+        // Color-coded console output
+   Console.ForegroundColor = side == "BID" ? ConsoleColor.Green : ConsoleColor.Cyan;
+        Console.WriteLine($"╔══════════════════════════════════════════════════════════════");
+     Console.WriteLine($"║ QUOTE RECEIVED from {lpName}");
+                Console.WriteLine($"║ Side: {side,-6} | QuoteID: {quoteID}");
+        Console.WriteLine($"║ Vol: {vol,-8} | Time: {timestamp}");
+                Console.WriteLine($"╚══════════════════════════════════════════════════════════════");
+       Console.ResetColor();
 
-                string key = $"{quoteReqID}_{lpName}";
-                string groupID = GetGroupIDForQuoteReqID(quoteReqID);
+       var fixMsg = ConvertQuoteToFIXMessage(quote);
 
-                _quotes.AddOrUpdate(key,
-                    new StreamInfo
-                    {
-                        LP = lpName,
-                        QuoteReqID = quoteReqID,
-                        GroupID = groupID,
-                        BidQuote = side == "BID" ? fixMsg : null,
-                        OfferQuote = side == "OFFER" ? fixMsg : null,
-                        LastUpdate = DateTime.UtcNow
-                    },
-                    (k, existing) =>
-                    {
-                        if (side == "BID")
-                            existing.BidQuote = fixMsg;
-                        else
-                            existing.OfferQuote = fixMsg;
-                        existing.LastUpdate = DateTime.UtcNow;
-                        return existing;
-                    });
+        string key = $"{quoteReqID}_{lpName}";
+      string groupID = GetGroupIDForQuoteReqID(quoteReqID);
 
-                OnQuoteReceived?.Invoke(quoteReqID, fixMsg);
+        _quotes.AddOrUpdate(key,
+         new StreamInfo
+          {
+        LP = lpName,
+    QuoteReqID = quoteReqID,
+                GroupID = groupID,
+    BidQuote = side == "BID" ? fixMsg : null,
+ OfferQuote = side == "OFFER" ? fixMsg : null,
+     LastUpdate = DateTime.UtcNow
+     },
+     (k, existing) =>
+  {
+   if (side == "BID")
+         existing.BidQuote = fixMsg;
+            else
+            existing.OfferQuote = fixMsg;
+     existing.LastUpdate = DateTime.UtcNow;
+        return existing;
+     });
+
+     OnQuoteReceived?.Invoke(quoteReqID, fixMsg);
+
+                // ====== ACTIVE LP SUMMARY ======
+      PrintActiveLPSummary(groupID);
             }
-            catch (Exception ex)
+     catch (Exception ex)
             {
-                Console.WriteLine($"[GFI FIX] ERROR: {ex.Message}");
+            Console.ForegroundColor = ConsoleColor.Red;
+   Console.WriteLine($"[GFI FIX] ERROR: {ex.Message}");
                 Console.WriteLine($"[GFI FIX] Stack: {ex.StackTrace}");
+     Console.ResetColor();
             }
         }
 
+        /// <summary>
+        /// Print a summary of which LPs are actively streaming
+      /// </summary>
+        private void PrintActiveLPSummary(string groupID)
+        {
+ var lpStreams = _quotes.Values
+     .Where(s => s.GroupID == groupID)
+      .GroupBy(s => s.LP)
+   .Select(g => new
+{
+             LP = g.Key,
+      HasBid = g.Any(s => s.BidQuote != null),
+        HasOffer = g.Any(s => s.OfferQuote != null),
+       LastUpdate = g.Max(s => s.LastUpdate)
+    })
+        .OrderBy(x => x.LP)
+    .ToList();
+
+    Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine($"\n┌─────────────────────────────────────────────────────────┐");
+            Console.WriteLine($"│ ACTIVE LP SUMMARY (Group: {groupID})");
+    Console.WriteLine($"├─────────────────────────────────────────────────────────┤");
+            
+ if (lpStreams.Count == 0)
+            {
+   Console.ForegroundColor = ConsoleColor.Red;
+   Console.WriteLine($"│ ⚠️  NO ACTIVE LPs STREAMING            │");
+   }
+     else
+  {
+        foreach (var lp in lpStreams)
+      {
+   string bidStatus = lp.HasBid ? "✓" : "✗";
+     string offerStatus = lp.HasOffer ? "✓" : "✗";
+         string ageSeconds = $"{(DateTime.UtcNow - lp.LastUpdate).TotalSeconds:F1}s ago";
+    
+  Console.ForegroundColor = (lp.HasBid && lp.HasOffer) ? ConsoleColor.Green : ConsoleColor.Yellow;
+               Console.WriteLine($"│ {lp.LP,-20} | Bid:{bidStatus} Offer:{offerStatus} | {ageSeconds,-12} │");
+   }
+     
+           Console.ForegroundColor = ConsoleColor.Yellow;
+ Console.WriteLine($"│ Total LPs: {lpStreams.Count}         │");
+  }
+   
+      Console.WriteLine($"└─────────────────────────────────────────────────────────┘\n");
+    Console.ResetColor();
+        }
+        
         public void OnMessage(QuickFix.FIX44.QuoteCancel message, SessionID sessionID)
         {
             try
