@@ -142,8 +142,8 @@ namespace FXOAiTranslator
             dgvLegs.Columns["Strike"].Width = 60;
             dgvLegs.Columns.Add("Expiry", "Expiry");
             dgvLegs.Columns["Expiry"].Width = 150;
-            dgvLegs.Columns.Add("ValueDate", "Value Date");
-            dgvLegs.Columns["ValueDate"].Width = 90;
+            dgvLegs.Columns.Add("SettlementDate", "Settlement Date");
+            dgvLegs.Columns["SettlementDate"].Width = 90;
             dgvLegs.Columns.Add("PremiumDate", "Premium Date");
             dgvLegs.Columns["PremiumDate"].Width = 90;
 
@@ -382,17 +382,46 @@ namespace FXOAiTranslator
         {
             dgvLegs.Rows.Clear();
 
-            // Get global date policy for date calculations
-            var P = GlobalDatePolicy.Policy;
-            string pair = _trade.Underlying;
-            string premiumCcy = _trade.PremiumCurrency;
+            // Calculate premium date ONCE for all legs (same for entire trade)
+            // Premium Date = Trade Date (TODAY) + Spot Lag (T+2 for EURUSD)
+            string premiumDateText = "-";
+            try
+            {
+                var P = GlobalDatePolicy.Policy;
+                string pair = _trade.Underlying;
+                string premiumCcy = _trade.PremiumCurrency;
+
+                var rules = new FxDateRules
+                {
+                    Ccy1 = pair.Substring(0, 3),
+                    Ccy2 = pair.Substring(3, 3),
+                    SpotLag = P.SpotLagForPair(pair),
+                    ExpiryConvention = P.ExpiryConvention,
+                    ExpiryEOM = P.ExpiryEOM,
+                    PremiumSettleDays = P.PremiumSettleDays,
+                    PremiumCalMode = P.PremiumCalendarMode,
+                    PremiumConvention = P.PremiumConvention
+                };
+
+                var nowUtc = DateTime.UtcNow;
+                // ComputeDates with "0D" tenor: spotDate = TODAY + spot lag
+                var (_, spotDt, _, _, _) = FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
+
+                var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+                premiumDateText = spotDt.ToString("dd-MMM-yy", enUS);
+
+                Console.WriteLine($"[PopulateLegGrid] Premium Date (spot from today): {premiumDateText}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PopulateLegGrid] Premium date calculation error: {ex.Message}");
+            }
 
             for (int i = 0; i < _trade.Legs.Count; i++)
             {
                 var leg = _trade.Legs[i];
                 string expiryText;
-                string valueDateText = "-";
-                string premiumDateText = "-";
+                string settlementDateText = "-";
 
                 if (leg.ExpiryDate != DateTime.MinValue)
                 {
@@ -403,34 +432,13 @@ namespace FXOAiTranslator
                         ? $"{dateStr} ({leg.Tenor})"
                         : dateStr;
 
-                    // Calculate value date and premium date
-                    try
+                    // Settlement Date = leg.DeliveryDate (already calculated correctly)
+                    if (leg.DeliveryDate != DateTime.MinValue)
                     {
-                        var rules = new FxDateRules
-                        {
-                            Ccy1 = pair.Substring(0, 3),
-                            Ccy2 = pair.Substring(3, 3),
-                            SpotLag = P.SpotLagForPair(pair),
-                            ExpiryConvention = P.ExpiryConvention,
-                            ExpiryEOM = P.ExpiryEOM,
-                            PremiumSettleDays = P.PremiumSettleDays,
-                            PremiumCalMode = P.PremiumCalendarMode,
-                            PremiumConvention = P.PremiumConvention
-                        };
-
-                        var nowUtc = DateTime.UtcNow;
-                        // ComputeDates returns: (tradeDate, spotDate, expiryDate, deliveryDate, premiumDate)
-                        var (_, _, _, deliveryDt, premiumDt) = FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
-
-                        valueDateText = deliveryDt.ToString("dd-MMM-yy", enUS);
-                        premiumDateText = premiumDt.ToString("dd-MMM-yy", enUS);
-
-                        Console.WriteLine($"[PopulateLegGrid] Leg {i+1}: Value Date={valueDateText}, Premium Date={premiumDateText}");
+                        settlementDateText = leg.DeliveryDate.ToString("dd-MMM-yy", enUS);
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[PopulateLegGrid] Date calculation error: {ex.Message}");
-                    }
+
+                    Console.WriteLine($"[PopulateLegGrid] Leg {i+1}: Settlement Date={settlementDateText}, Premium Date={premiumDateText}");
                 }
                 else
                 {
@@ -445,7 +453,7 @@ namespace FXOAiTranslator
                     leg.OptionType,
                     leg.Strike.ToString("F4"),
                     expiryText,
-                    valueDateText,
+                    settlementDateText,
                     premiumDateText,
                     leg.NotionalMM.ToString("F1")
                 );
