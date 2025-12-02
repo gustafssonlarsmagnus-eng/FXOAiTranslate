@@ -30,16 +30,15 @@ namespace FXOAiTranslator
         private Button btnBuy;
         private Label lblTradeSummary;
         private GroupBox gbLPs;
-        private CheckBox chkMS;
-        private CheckBox chkUBS;
-        private CheckBox chkNatwest;
-        private CheckBox chkGoldman;
-        private CheckBox chkBarclays;
-        private CheckBox chkHSBC;
-        private CheckBox chkBNP;
+        private CheckBox chkSOCGEN;
         private CheckBox chkCIBC;
-        private CheckBox chkDeut;
-        private CheckBox chkDBS;
+        private CheckBox chkMS;
+        private CheckBox chkHSBC;
+        private CheckBox chkNATWEST;
+        private CheckBox chkSCBL;
+        private CheckBox chkNOMURA;
+        private CheckBox chkBAML;
+        private CheckBox chkBNP;
         private int _selectedLegCount;
 
         public GFIQuoteDialog(dynamic ovmlResult)
@@ -152,97 +151,88 @@ namespace FXOAiTranslator
             };
             this.Controls.Add(gbLPs);
 
-            // Row 1 - Major Banks
+            // Row 1 - Configured LPs (matching FenicsConfig)
+            chkSOCGEN = new CheckBox
+            {
+                Text = "Societe Generale",
+                Location = new Point(20, 25),
+                Size = new Size(160, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkSOCGEN);
+
+            chkCIBC = new CheckBox
+            {
+                Text = "CIBC",
+                Location = new Point(190, 25),
+                Size = new Size(130, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkCIBC);
+
             chkMS = new CheckBox
             {
                 Text = "Morgan Stanley",
-                Location = new Point(20, 25),
+                Location = new Point(330, 25),
                 Size = new Size(150, 25),
                 Checked = false
             };
             gbLPs.Controls.Add(chkMS);
 
-            chkGoldman = new CheckBox
-            {
-                Text = "Goldman Sachs",
-                Location = new Point(190, 25),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkGoldman);
-
-            chkBarclays = new CheckBox
-            {
-                Text = "Barclays",
-                Location = new Point(360, 25),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkBarclays);
-
             chkHSBC = new CheckBox
             {
                 Text = "HSBC",
-                Location = new Point(530, 25),
-                Size = new Size(150, 25),
+                Location = new Point(490, 25),
+                Size = new Size(120, 25),
                 Checked = false
             };
             gbLPs.Controls.Add(chkHSBC);
 
+            chkNATWEST = new CheckBox
+            {
+                Text = "NatWest Markets",
+                Location = new Point(620, 25),
+                Size = new Size(150, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkNATWEST);
+
+            // Row 2 - Additional Configured LPs
+            chkSCBL = new CheckBox
+            {
+                Text = "Standard Chartered",
+                Location = new Point(20, 55),
+                Size = new Size(160, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkSCBL);
+
+            chkNOMURA = new CheckBox
+            {
+                Text = "Nomura",
+                Location = new Point(190, 55),
+                Size = new Size(130, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkNOMURA);
+
+            chkBAML = new CheckBox
+            {
+                Text = "Bank of America",
+                Location = new Point(330, 55),
+                Size = new Size(150, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkBAML);
+
             chkBNP = new CheckBox
             {
                 Text = "BNP Paribas",
-                Location = new Point(700, 25),
-                Size = new Size(150, 25),
+                Location = new Point(490, 55),
+                Size = new Size(120, 25),
                 Checked = false
             };
             gbLPs.Controls.Add(chkBNP);
-
-            // Row 2 - Additional Banks
-            chkUBS = new CheckBox
-            {
-                Text = "UBS",
-                Location = new Point(20, 55),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkUBS);
-
-            chkNatwest = new CheckBox
-            {
-                Text = "NatWest Markets",
-                Location = new Point(190, 55),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkNatwest);
-
-            chkCIBC = new CheckBox
-            {
-                Text = "CIBC",
-                Location = new Point(360, 55),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkCIBC);
-
-            chkDeut = new CheckBox
-            {
-                Text = "Deutsche Bank",
-                Location = new Point(530, 55),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkDeut);
-
-            chkDBS = new CheckBox
-            {
-                Text = "DBS Bank",
-                Location = new Point(700, 55),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkDBS);
 
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
@@ -442,17 +432,16 @@ namespace FXOAiTranslator
         {
             var lps = new List<string>();
 
-            // Check all LP checkboxes
-            if (chkMS.Checked) lps.Add("MS");
-            if (chkGoldman.Checked) lps.Add("GOLDMAN");
-            if (chkBarclays.Checked) lps.Add("BARCLAYS");
-            if (chkHSBC.Checked) lps.Add("HSBC");
-            if (chkBNP.Checked) lps.Add("BNP");
-            if (chkUBS.Checked) lps.Add("UBS");
-            if (chkNatwest.Checked) lps.Add("NATWEST");
+            // Check all LP checkboxes (matching FenicsConfig)
+            if (chkSOCGEN.Checked) lps.Add("SOCGEN");
             if (chkCIBC.Checked) lps.Add("CIBC");
-            if (chkDeut.Checked) lps.Add("DEUT");
-            if (chkDBS.Checked) lps.Add("DBS");
+            if (chkMS.Checked) lps.Add("MS");
+            if (chkHSBC.Checked) lps.Add("HSBC");
+            if (chkNATWEST.Checked) lps.Add("NATWEST");
+            if (chkSCBL.Checked) lps.Add("SCBL");
+            if (chkNOMURA.Checked) lps.Add("NOMURA");
+            if (chkBAML.Checked) lps.Add("BAML");
+            if (chkBNP.Checked) lps.Add("BNP");
 
             if (lps.Count == 0)
             {
