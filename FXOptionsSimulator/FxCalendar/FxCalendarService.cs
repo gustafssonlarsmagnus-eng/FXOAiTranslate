@@ -21,17 +21,47 @@ namespace FX.Infrastructure.Calendars.Legacy
         {
             try
             {
+                Console.WriteLine($"[FX-CALENDAR] Testing connection: {connectionString}");
+
+                // Parse connection string to check DNS
+                var builder = new System.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
+                Console.WriteLine($"[FX-CALENDAR] Data Source: {builder.DataSource}");
+                Console.WriteLine($"[FX-CALENDAR] Connect Timeout: {builder.ConnectTimeout}s");
+
+                // Try DNS resolution first
+                try
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var addresses = System.Net.Dns.GetHostAddresses(builder.DataSource);
+                    sw.Stop();
+                    Console.WriteLine($"[FX-CALENDAR] DNS resolved in {sw.ElapsedMilliseconds}ms: {string.Join(", ", addresses.Select(a => a.ToString()))}");
+                }
+                catch (Exception dnsEx)
+                {
+                    Console.WriteLine($"[FX-CALENDAR] DNS FAILED: {dnsEx.Message}");
+                    throw new Exception($"DNS resolution failed for {builder.DataSource}", dnsEx);
+                }
+
                 _holidayCalendar = new HolidayCalendar(connectionString);
+
                 // Test connection by trying to get a small date range
                 var testDate = DateTime.UtcNow;
+                Console.WriteLine($"[FX-CALENDAR] Attempting SQL connection...");
+                var sw2 = System.Diagnostics.Stopwatch.StartNew();
                 _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 5);
+                sw2.Stop();
+
                 _isDatabaseAvailable = true;
-                Console.WriteLine("[FX-CALENDAR] Database connection successful");
+                Console.WriteLine($"[FX-CALENDAR] Database connection successful ({sw2.ElapsedMilliseconds}ms)");
             }
             catch (Exception ex)
             {
                 _isDatabaseAvailable = false;
                 Console.WriteLine($"[FX-CALENDAR] WARNING: Database unavailable, using fallback calculations: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"[FX-CALENDAR] Inner exception: {ex.InnerException.Message}");
+                }
             }
         }
 
