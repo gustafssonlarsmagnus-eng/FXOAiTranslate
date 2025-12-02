@@ -229,22 +229,16 @@ namespace FX.Infrastructure.Calendars.Legacy
             DateTime current = startDate.Date;
             int daysSubtracted = 0;
 
-            Console.WriteLine($"[DATE-DEBUG] SubtractBusinessDays: {ccyPair}, Start={startDate:yyyy-MM-dd (ddd)}, Count={businessDays}");
-
             while (daysSubtracted < businessDays)
             {
                 current = current.AddDays(-1);
                 // Use simple expiry rules: only weekends and Jan 1st affect expiry
-                bool isBizDay = IsBusinessDayForExpiry(current);
-                Console.WriteLine($"[DATE-DEBUG]   {current:yyyy-MM-dd (ddd)}: {(isBizDay ? "BUSINESS DAY" : "HOLIDAY/WEEKEND")} - Count={daysSubtracted}/{businessDays}");
-
-                if (isBizDay)
+                if (IsBusinessDayForExpiry(current))
                 {
                     daysSubtracted++;
                 }
             }
 
-            Console.WriteLine($"[DATE-DEBUG] Result: {current:yyyy-MM-dd (ddd)}");
             return current;
         }
 
