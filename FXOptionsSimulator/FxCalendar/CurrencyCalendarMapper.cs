@@ -74,6 +74,27 @@ namespace FX.Infrastructure.Calendars.Legacy
             return new[] { cal1, cal2 };
         }
 
+        /// <summary>
+        /// Check if a date is a business day for FX options expiry purposes.
+        /// FX options can expire on any day except weekends and January 1st.
+        /// Local holidays (e.g., Swedish bank holidays, US bank holidays) do NOT affect expiry.
+        /// </summary>
+        public static bool IsBusinessDayForExpiry(DateTime date)
+        {
+            var d = date.Date;
+
+            // Weekends are never business days
+            if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday)
+                return false;
+
+            // January 1st is ALWAYS a holiday (New Year's Day) - only non-weekend holiday that affects expiry
+            if (d.Month == 1 && d.Day == 1)
+                return false;
+
+            // All other days (including local holidays) are valid for FX options expiry
+            return true;
+        }
+
         public static bool IsBusinessDay(string ccyPair, DateTime date, HolidayCalendar holidayCal)
         {
             var d = date.Date;
@@ -199,7 +220,9 @@ namespace FX.Infrastructure.Calendars.Legacy
         }
 
         /// <summary>
-        /// Subtract N business days from a date, skipping weekends and holidays.
+        /// Subtract N business days from a date for FX options expiry calculation.
+        /// Only weekends and January 1st are treated as non-business days.
+        /// Local holidays do NOT affect FX options expiry.
         /// </summary>
         private static DateTime SubtractBusinessDays(string ccyPair, DateTime startDate, int businessDays, HolidayCalendar holidayCal)
         {
@@ -211,7 +234,8 @@ namespace FX.Infrastructure.Calendars.Legacy
             while (daysSubtracted < businessDays)
             {
                 current = current.AddDays(-1);
-                bool isBizDay = IsBusinessDay(ccyPair, current, holidayCal);
+                // Use simple expiry rules: only weekends and Jan 1st affect expiry
+                bool isBizDay = IsBusinessDayForExpiry(current);
                 Console.WriteLine($"[DATE-DEBUG]   {current:yyyy-MM-dd (ddd)}: {(isBizDay ? "BUSINESS DAY" : "HOLIDAY/WEEKEND")} - Count={daysSubtracted}/{businessDays}");
 
                 if (isBizDay)
