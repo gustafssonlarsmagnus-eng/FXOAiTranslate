@@ -77,11 +77,17 @@ namespace FX.Infrastructure.Calendars.Legacy
         public static bool IsBusinessDay(string ccyPair, DateTime date, HolidayCalendar holidayCal)
         {
             var d = date.Date;
+
+            // Weekends are never business days
             if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday)
                 return false;
 
+            // January 1st is ALWAYS a holiday (New Year's Day) regardless of calendar
+            if (d.Month == 1 && d.Day == 1)
+                return false;
+
+            // Check calendar for other holidays
             var calendars = GetCalendarsForPair(ccyPair);
-            // hämta bara denna dag
             var dt = holidayCal.GetHolidays(calendars, d, d);
             return dt == null || dt.Rows.Count == 0;
         }
@@ -166,15 +172,8 @@ namespace FX.Infrastructure.Calendars.Legacy
             DateTime deliveryDate = AdjustBusinessDay(ccyPair, deliveryUnadjusted, holidayCal, useModifiedFollowing);
 
             // Step 3: Calculate Expiry Date = Delivery Date - Spot Lag business days
+            // January 1st is automatically treated as a holiday, so SubtractBusinessDays will skip it
             DateTime expiryDate = SubtractBusinessDays(ccyPair, deliveryDate, spotLag, holidayCal);
-
-            // Step 4: FX Market Rule - January 1st can NEVER be an expiry or settlement date
-            // (New Year's Day - global holiday)
-            // If expiry falls on Jan 1st, move BACK to last business day of December
-            if (expiryDate.Month == 1 && expiryDate.Day == 1)
-            {
-                expiryDate = PreviousBusinessDay(ccyPair, expiryDate, holidayCal, includeStart: false);
-            }
 
             return expiryDate;
         }
