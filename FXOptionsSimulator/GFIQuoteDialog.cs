@@ -84,18 +84,19 @@ namespace FXOAiTranslator
             {
                 var nowUtc = DateTime.UtcNow;
                 string pair = _trade.Underlying;
+                string premiumCcy = _trade.PremiumCurrency;
 
-                // Get premium currency (first 3 chars of pair)
-                string premiumCcy = pair.Length >= 3 ? pair.Substring(0, 3) : "USD";
+                // Get global date policy
+                var P = GlobalDatePolicy.Policy;
 
-                // Get config for this pair
-                var P = FenicsConfig.GetPairConfig(pair);
-                var rules = new FX.Infrastructure.Calendars.Legacy.FxRules
+                var rules = new FxDateRules
                 {
-                    SpotLag = P.SpotLag,
-                    CutoffHour = P.CutoffHour,
-                    CutoffMinute = P.CutoffMinute,
-                    CutoffTz = P.CutoffTz,
+                    Ccy1 = pair.Substring(0, 3),
+                    Ccy2 = pair.Substring(3, 3),
+                    SpotLag = P.SpotLagForPair(pair),
+                    ExpiryConvention = P.ExpiryConvention,
+                    ExpiryEOM = P.ExpiryEOM,
+                    PremiumSettleDays = P.PremiumSettleDays,
                     PremiumCalMode = P.PremiumCalendarMode,
                     PremiumConvention = P.PremiumConvention
                 };
@@ -104,9 +105,8 @@ namespace FXOAiTranslator
                 string tradeDate = nowUtc.ToString("yyyyMMdd");
 
                 // Tag 5020 (PremiumDelivery) = T+1 business day
-                var (_, _, _, _, premiumDt) = FX.Infrastructure.Calendars.Legacy.FxDateService.ComputeDates(
-                    nowUtc, pair, "0D", premiumCcy, rules);
-                string premiumDeliveryDate = FX.Infrastructure.Calendars.Legacy.FxDateService.Ymd(premiumDt);
+                var (_, _, _, _, premiumDt) = FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
+                string premiumDeliveryDate = FxDateService.Ymd(premiumDt);
 
                 // Format for display
                 var tradeDateDisplay = DateTime.ParseExact(tradeDate, "yyyyMMdd", null).ToString("dd-MMM-yy");
