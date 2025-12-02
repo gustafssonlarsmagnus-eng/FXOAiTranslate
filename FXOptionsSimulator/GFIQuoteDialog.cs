@@ -665,8 +665,8 @@ namespace FXOAiTranslator
             // Clear selection so best price highlighting is visible (not covered by blue selection)
             dgvQuotes.ClearSelection();
 
-            // Start countdown timer
-            if (!_countdownTimer.Enabled)
+            // Start countdown timer - only if grid is properly initialized
+            if (!_countdownTimer.Enabled && dgvQuotes != null && dgvQuotes.Columns.Contains("TTL"))
                 _countdownTimer.Start();
         }
 
@@ -675,6 +675,18 @@ namespace FXOAiTranslator
             if (dgvQuotes.InvokeRequired)
             {
                 dgvQuotes.Invoke(new Action(() => CountdownTimer_Tick(sender, e)));
+                return;
+            }
+
+            // Safety checks to prevent NullReferenceException
+            if (dgvQuotes == null || dgvQuotes.Columns == null || dgvQuotes.Rows == null)
+            {
+                return;
+            }
+
+            // Check if required columns exist
+            if (!dgvQuotes.Columns.Contains("TTL") || !dgvQuotes.Columns.Contains("ValidUntilTime"))
+            {
                 return;
             }
 
@@ -742,7 +754,11 @@ namespace FXOAiTranslator
             {
                 // Resume painting and refresh only the TTL column
                 SendMessage(dgvQuotes.Handle, WM_SETREDRAW, true, 0);
-                dgvQuotes.Invalidate(dgvQuotes.GetColumnDisplayRectangle(dgvQuotes.Columns["TTL"].Index, false));
+                // Additional safety check before invalidating
+                if (dgvQuotes.Columns.Contains("TTL"))
+                {
+                    dgvQuotes.Invalidate(dgvQuotes.GetColumnDisplayRectangle(dgvQuotes.Columns["TTL"].Index, false));
+                }
             }
         }
 
@@ -827,7 +843,7 @@ namespace FXOAiTranslator
                     if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
                     {
                         // HSBC sends premiums in percentage, others in basis points
-                        // Convert HSBC from % to bps by multiplying by 100
+                        // Convert HSBC from % to bps by multiplying with 100
                         if (lpName == "HSBC")
                         {
                             prem *= 100.0;
