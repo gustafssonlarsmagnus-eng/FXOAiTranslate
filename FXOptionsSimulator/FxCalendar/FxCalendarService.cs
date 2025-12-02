@@ -73,6 +73,11 @@ namespace FX.Infrastructure.Calendars.Legacy
         }
 
         /// <summary>
+        /// Gets whether the database is available and connected.
+        /// </summary>
+        public bool IsDatabaseAvailable => _isDatabaseAvailable;
+
+        /// <summary>
         /// Create instance with explicit connection string (for testing or custom scenarios).
         /// </summary>
         public static FxCalendarService CreateWithConnectionString(string connectionString)

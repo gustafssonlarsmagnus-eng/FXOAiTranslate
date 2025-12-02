@@ -39,6 +39,7 @@ namespace FXOAiTranslator
         private ToolStripStatusLabel lblStatus;
         private ToolStripProgressBar progressBar;
         private ToolStripStatusLabel lblBloombergStatus;
+        private ToolStripStatusLabel lblCalendarStatus;
 
         // Re-entrancy guard for processing
         private bool _processing;
@@ -322,8 +323,20 @@ namespace FXOAiTranslator
                 Margin = new Padding(15, 0, 0, 0)  // Add left margin
             };
 
+            // Calendar database status label - align to right
+            lblCalendarStatus = new ToolStripStatusLabel
+            {
+                Text = "Calendar DB: Checking...",
+                ForeColor = Color.Orange,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Alignment = ToolStripItemAlignment.Right,
+                AutoSize = true,
+                Margin = new Padding(15, 0, 0, 0)  // Add left margin
+            };
+
             statusStrip.Items.Add(lblStatus);
             statusStrip.Items.Add(progressBar);
+            statusStrip.Items.Add(lblCalendarStatus);
             statusStrip.Items.Add(lblBloombergStatus);
             statusStrip.Items.Add(chkAutoSendHost);
 
@@ -557,6 +570,26 @@ namespace FXOAiTranslator
             Directory.CreateDirectory(appDataPath);
             _tradesFilePath = Path.Combine(appDataPath, "trades.json");
             _allTrades = new List<TradeRecord>();
+
+            // Initialize calendar service at startup to check database connection
+            Task.Run(() =>
+            {
+                try
+                {
+                    Console.WriteLine("[STARTUP] Initializing FX Calendar service...");
+                    var _ = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance;
+                    Console.WriteLine("[STARTUP] FX Calendar service initialized");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[STARTUP] FX Calendar initialization failed: {ex.Message}");
+                }
+                finally
+                {
+                    // Update status on UI thread after initialization attempt
+                    this.BeginInvoke(new Action(UpdateCalendarStatus));
+                }
+            });
 
             UpdateBloombergStatus();
 
@@ -1281,6 +1314,38 @@ namespace FXOAiTranslator
             {
                 lblBloombergStatus.Text = "Bloomberg: Disconnected";
                 lblBloombergStatus.ForeColor = Color.Red;
+            }
+
+            statusStrip.Refresh();
+        }
+
+        private void UpdateCalendarStatus()
+        {
+            if (statusStrip.InvokeRequired)
+            {
+                statusStrip.Invoke(new Action(UpdateCalendarStatus));
+                return;
+            }
+
+            try
+            {
+                var calendarService = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance;
+                if (calendarService.IsDatabaseAvailable)
+                {
+                    lblCalendarStatus.Text = "Calendar DB: Connected";
+                    lblCalendarStatus.ForeColor = Color.Green;
+                }
+                else
+                {
+                    lblCalendarStatus.Text = "Calendar DB: Fallback Mode";
+                    lblCalendarStatus.ForeColor = Color.Orange;
+                }
+            }
+            catch (Exception ex)
+            {
+                lblCalendarStatus.Text = "Calendar DB: Error";
+                lblCalendarStatus.ForeColor = Color.Red;
+                Console.WriteLine($"[CALENDAR-STATUS] Error checking status: {ex.Message}");
             }
 
             statusStrip.Refresh();
