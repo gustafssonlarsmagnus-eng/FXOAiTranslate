@@ -39,6 +39,7 @@ namespace FXOAiTranslator
         private CheckBox chkNOMURA;
         private CheckBox chkBAML;
         private CheckBox chkBNP;
+        private CheckBox chkDeut;  // Testing only
         private int _selectedLegCount;
 
         public GFIQuoteDialog(dynamic ovmlResult)
@@ -233,6 +234,15 @@ namespace FXOAiTranslator
                 Checked = false
             };
             gbLPs.Controls.Add(chkBNP);
+
+            chkDeut = new CheckBox
+            {
+                Text = "Deutsche Bank (Test)",
+                Location = new Point(620, 55),
+                Size = new Size(150, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkDeut);
 
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
@@ -442,6 +452,7 @@ namespace FXOAiTranslator
             if (chkNOMURA.Checked) lps.Add("NOMURA");
             if (chkBAML.Checked) lps.Add("BAML");
             if (chkBNP.Checked) lps.Add("BNP");
+            if (chkDeut.Checked) lps.Add("DEUT");  // Testing only
 
             if (lps.Count == 0)
             {
