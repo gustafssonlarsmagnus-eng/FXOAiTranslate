@@ -28,6 +28,13 @@ namespace FXOptionsSimulator
         public string RejectReason { get; set; }
         public string ExecID { get; set; }
         public double? FillPrice { get; set; }
+
+        // New fields for enhanced blotter display
+        public double NotionalMM { get; set; }  // Notional in millions
+        public DateTime? ExpiryDate { get; set; }
+        public DateTime? ValueDate { get; set; }
+        public string PremiumCcy { get; set; }  // Premium currency
+        public string OptionType { get; set; }  // CALL, PUT, or structure description for multi-leg
     }
 
     public class TradeBlotter

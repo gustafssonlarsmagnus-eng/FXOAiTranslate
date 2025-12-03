@@ -46,8 +46,9 @@ namespace FXOAiTranslator
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells,
-                RowHeadersVisible = false
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,  // Changed to None for horizontal scroll
+                RowHeadersVisible = false,
+                ScrollBars = ScrollBars.Both  // Enable horizontal and vertical scrolling
             };
             this.Controls.Add(dgvBlotter);
 
@@ -87,13 +88,27 @@ namespace FXOAiTranslator
             dgvBlotter.Columns.Add("LegCount", "Legs");
             dgvBlotter.Columns["LegCount"].Width = 50;
 
+            dgvBlotter.Columns.Add("OptionType", "Option Type");
+            dgvBlotter.Columns["OptionType"].Width = 100;
+
+            dgvBlotter.Columns.Add("NotionalMM", "Notional (MM)");
+            dgvBlotter.Columns["NotionalMM"].DefaultCellStyle.Format = "N2";
+            dgvBlotter.Columns["NotionalMM"].Width = 100;
+
+            dgvBlotter.Columns.Add("ExpiryDate", "Expiry");
+            dgvBlotter.Columns["ExpiryDate"].DefaultCellStyle.Format = "dd-MMM-yy";
+            dgvBlotter.Columns["ExpiryDate"].Width = 90;
+
+            dgvBlotter.Columns.Add("ValueDate", "Value Date");
+            dgvBlotter.Columns["ValueDate"].DefaultCellStyle.Format = "dd-MMM-yy";
+            dgvBlotter.Columns["ValueDate"].Width = 90;
+
             dgvBlotter.Columns.Add("NetPremium", "Net Premium");
-            dgvBlotter.Columns["NetPremium"].DefaultCellStyle.Format = "N0"; // Raw integer values
+            dgvBlotter.Columns["NetPremium"].DefaultCellStyle.Format = "N2";
             dgvBlotter.Columns["NetPremium"].Width = 100;
 
-            dgvBlotter.Columns.Add("Volatility", "Vol");
-            dgvBlotter.Columns["Volatility"].DefaultCellStyle.Format = "N2";
-            dgvBlotter.Columns["Volatility"].Width = 70;
+            dgvBlotter.Columns.Add("PremiumCcy", "Prem Ccy");
+            dgvBlotter.Columns["PremiumCcy"].Width = 70;
 
             dgvBlotter.Columns.Add("Status", "Status");
             dgvBlotter.Columns["Status"].Width = 80;
@@ -126,8 +141,12 @@ namespace FXOAiTranslator
                     trade.Underlying,
                     trade.StructureType,
                     trade.LegCount,
+                    trade.OptionType ?? "",
+                    trade.NotionalMM,
+                    trade.ExpiryDate,
+                    trade.ValueDate,
                     trade.NetPremium,
-                    trade.Volatility.HasValue ? (object)trade.Volatility.Value : "-",
+                    trade.PremiumCcy ?? "",
                     trade.Status,
                     trade.ExecID ?? "",
                     trade.RejectReason ?? ""

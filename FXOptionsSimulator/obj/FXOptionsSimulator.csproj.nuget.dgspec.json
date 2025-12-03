@@ -61,6 +61,14 @@
             "QuickFix.Net.NETCore.FIX44": {
               "target": "Package",
               "version": "[1.8.1, )"
+            },
+            "System.Configuration.ConfigurationManager": {
+              "target": "Package",
+              "version": "[9.0.9, )"
+            },
+            "System.Data.SqlClient": {
+              "target": "Package",
+              "version": "[4.8.6, )"
             }
           },
           "imports": [

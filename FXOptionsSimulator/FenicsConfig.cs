@@ -42,17 +42,16 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
         // ========== LIQUIDITY PROVIDERS (UAT VALUES) ==========
         public Dictionary<string, string> LiquidityProviders { get; set; } = new Dictionary<string, string>
         {
-            // Ask GFI for actual UAT CompIDs - these are likely correct for UAT
+            // Your authorized trading lines
+            ["SOCGEN"] = "SOCGEN",   // Societe Generale
+            ["CIBC"] = "CIBC",       // Canadian Imperial Bank of Commerce
             ["MS"] = "MS",           // Morgan Stanley
-            ["UBS"] = "UBS",         // UBS
-            ["CITI"] = "CITI",       // Citibank
-            ["JPM"] = "JPM",         // JP Morgan
-            ["GS"] = "GS",           // Goldman Sachs
-            ["BARC"] = "BARC",       // Barclays
-            ["DB"] = "DB",           // Deutsche Bank
+            ["HSBC"] = "HSBC",       // HSBC
             ["NATWEST"] = "NATWEST", // NatWest Markets
-            ["NOMU"] = "NOMU",       // Nomura
-            ["SG"] = "SG"            // Societe Generale
+            ["SCBL"] = "SCBL",       // Standard Chartered
+            ["NOMURA"] = "NOMURA",   // Nomura
+            ["BAML"] = "BAML",       // Bank of America Merrill Lynch
+            ["BNP"] = "BNP"          // BNP Paribas
         };
 
         // ========== AUTHORIZED CURRENCY PAIRS ==========

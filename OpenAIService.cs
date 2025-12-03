@@ -392,21 +392,54 @@ Output ONLY the OVML line:";
                 bool userSpecifiedOptionType = Regex.IsMatch(input, @"\b(call|put)\b", RegexOptions.IgnoreCase);
                 bool userProvidedSpotRef = !string.IsNullOrEmpty(explicitSpot);
 
+                Console.WriteLine($"[AI-TYPE-CHECK] userSpecifiedOptionType={userSpecifiedOptionType}, userProvidedSpotRef={userProvidedSpotRef}");
+
                 if (!userSpecifiedOptionType && !userProvidedSpotRef)
                 {
                     var ovmlPartsForType = ovml.Split(' ');
-                    if (ovmlPartsForType.Length >= 4 && !string.IsNullOrEmpty(liveSpot))
+                    Console.WriteLine($"[AI-TYPE-CHECK] OVML parts: {string.Join(" | ", ovmlPartsForType)}");
+
+                    // Only apply correction to single-leg trades (multi-leg strategies are intentional)
+                    bool isMultiLeg = ovml.Contains("L ") || ovml.Contains("L,");
+
+                    if (!isMultiLeg && ovmlPartsForType.Length >= 5 && !string.IsNullOrEmpty(liveSpot))
                     {
-                        if (double.TryParse(ovmlPartsForType[4], out double strike) && double.TryParse(liveSpot, out double spot))
+                        // Extract strike from format like "11.7500C" or "11.7500P"
+                        string strikePart = ovmlPartsForType[4];
+                        var strikeMatch = Regex.Match(strikePart, @"^([\d.]+)([CP])");
+
+                        if (strikeMatch.Success && double.TryParse(liveSpot, out double spot))
                         {
-                            bool isCall = ovml.Contains(" C ");
+                            double strike = double.Parse(strikeMatch.Groups[1].Value);
+                            string optionType = strikeMatch.Groups[2].Value;
+                            bool isCall = optionType == "C";
                             bool shouldBeCall = strike > spot;
+
+                            Console.WriteLine($"[AI-TYPE-CHECK] Strike={strike:F4}, Spot={spot:F4}, IsCall={isCall}, ShouldBeCall={shouldBeCall}");
 
                             if (isCall != shouldBeCall)
                             {
-                                ovml = ovml.Replace(isCall ? " C " : " P ", shouldBeCall ? " C " : " P ");
+                                string correctType = shouldBeCall ? "C" : "P";
+                                string oldStrike = strikePart;
+                                string newStrike = $"{strike:F4}{correctType}";
+                                ovml = ovml.Replace(oldStrike, newStrike);
+
+                                Console.WriteLine($"[AI-TYPE-CHECK] ✓ CORRECTED: {oldStrike} → {newStrike}");
+                                Console.WriteLine($"[AI-TYPE-CHECK]   Reason: Strike {(shouldBeCall ? ">" : "<")} Spot → Should be {correctType} (OTM)");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[AI-TYPE-CHECK] ✓ Already correct (OTM option)");
                             }
                         }
+                        else
+                        {
+                            Console.WriteLine($"[AI-TYPE-CHECK] × Failed to parse strike from '{strikePart}'");
+                        }
+                    }
+                    else if (isMultiLeg)
+                    {
+                        Console.WriteLine($"[AI-TYPE-CHECK] Skipping multi-leg trade (strategies are intentional)");
                     }
                 }
 

@@ -32,6 +32,7 @@ namespace FXOAiTranslator
         private ToolStripStatusLabel lblStatus;
         private ToolStripProgressBar progressBar;
         private ToolStripStatusLabel lblBloombergStatus;
+        private ToolStripStatusLabel lblCalendarStatus;
 
         // Re-entrancy guard for processing
         private bool _processing;
@@ -286,8 +287,20 @@ namespace FXOAiTranslator
                 Margin = new Padding(15, 0, 0, 0)  // Add left margin
             };
 
+            // Calendar database status label - align to right
+            lblCalendarStatus = new ToolStripStatusLabel
+            {
+                Text = "Calendar DB: Checking...",
+                ForeColor = Color.Orange,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Alignment = ToolStripItemAlignment.Right,
+                AutoSize = true,
+                Margin = new Padding(15, 0, 0, 0)  // Add left margin
+            };
+
             statusStrip.Items.Add(lblStatus);
             statusStrip.Items.Add(progressBar);
+            statusStrip.Items.Add(lblCalendarStatus);
             statusStrip.Items.Add(lblBloombergStatus);
             statusStrip.Items.Add(chkAutoSendHost);
 
@@ -521,6 +534,31 @@ namespace FXOAiTranslator
             Directory.CreateDirectory(appDataPath);
             _tradesFilePath = Path.Combine(appDataPath, "trades.json");
             _allTrades = new List<TradeRecord>();
+
+            // Initialize calendar service at startup to check database connection
+            Task.Run(() =>
+            {
+                try
+                {
+                    Console.WriteLine("[STARTUP] Initializing FX Calendar service...");
+                    var _ = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance;
+                    Console.WriteLine("[STARTUP] FX Calendar service initialized");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[STARTUP] FX Calendar initialization failed: {ex.Message}");
+                }
+                finally
+                {
+                    // Update status on UI thread after initialization attempt
+                    // Wait until handle is created before invoking
+                    while (!this.IsHandleCreated)
+                    {
+                        System.Threading.Thread.Sleep(50);
+                    }
+                    this.BeginInvoke(new Action(UpdateCalendarStatus));
+                }
+            });
 
             UpdateBloombergStatus();
 
@@ -893,7 +931,7 @@ namespace FXOAiTranslator
                     trade.OVML,
                     trade.Underlying,
                     trade.LegCount,
-                    trade.Expiry,
+                    FormatExpiryForDisplay(trade.Expiry, trade.Underlying),
                     trade.SpotRef,
                     trade.ParseMethod,
                     null,
@@ -911,7 +949,7 @@ namespace FXOAiTranslator
                     trade.OVML,
                     trade.Underlying,
                     trade.LegCount,
-                    trade.Expiry,
+                    FormatExpiryForDisplay(trade.Expiry, trade.Underlying),
                     trade.SpotRef,
                     trade.ParseMethod,
                     null,
@@ -999,6 +1037,38 @@ namespace FXOAiTranslator
             {
                 lblBloombergStatus.Text = "Bloomberg: Disconnected";
                 lblBloombergStatus.ForeColor = Color.Red;
+            }
+
+            statusStrip.Refresh();
+        }
+
+        private void UpdateCalendarStatus()
+        {
+            if (statusStrip.InvokeRequired)
+            {
+                statusStrip.Invoke(new Action(UpdateCalendarStatus));
+                return;
+            }
+
+            try
+            {
+                var calendarService = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance;
+                if (calendarService.IsDatabaseAvailable)
+                {
+                    lblCalendarStatus.Text = "Calendar DB: Connected";
+                    lblCalendarStatus.ForeColor = Color.Green;
+                }
+                else
+                {
+                    lblCalendarStatus.Text = "Calendar DB: Fallback Mode";
+                    lblCalendarStatus.ForeColor = Color.Orange;
+                }
+            }
+            catch (Exception ex)
+            {
+                lblCalendarStatus.Text = "Calendar DB: Error";
+                lblCalendarStatus.ForeColor = Color.Red;
+                Console.WriteLine($"[CALENDAR-STATUS] Error checking status: {ex.Message}");
             }
 
             statusStrip.Refresh();
@@ -1155,6 +1225,95 @@ namespace FXOAiTranslator
         {
             base.OnLoad(e);
             dgvTradeBlotter.Focus();
+        }
+
+        private string FormatExpiryForDisplay(string expiry, string currencyPair = "EURUSD")
+        {
+            if (string.IsNullOrEmpty(expiry))
+                return "N/A";
+
+            // Force English culture for date formatting
+            var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+
+            // Check if it's a tenor (1M, 3M, 1Y, 1W, 2D, etc.)
+            var tenorMatch = Regex.Match(expiry, @"^\d+[MYWD]$", RegexOptions.IgnoreCase);
+            if (tenorMatch.Success)
+            {
+                // It's a tenor - calculate the date and show both
+                DateTime calculatedDate = CalculateDateFromTenor(expiry, currencyPair);
+                if (calculatedDate != DateTime.MinValue)
+                {
+                    string dateStr = calculatedDate.ToString("dd-MMM-yy, ddd", enUS);
+                    return $"{dateStr} ({expiry.ToUpper()})";
+                }
+                return $"({expiry.ToUpper()})";
+            }
+
+            // Try to parse as a date
+            DateTime parsedDate;
+            if (DateTime.TryParseExact(expiry, new[] { "MM/dd/yy", "MM/dd/yyyy", "dd-MMM-yy", "dd-MMM-yyyy" },
+                enUS, System.Globalization.DateTimeStyles.None, out parsedDate))
+            {
+                return parsedDate.ToString("dd-MMM-yy, ddd", enUS);
+            }
+
+            // Fallback - return as-is
+            return expiry;
+        }
+
+        private DateTime CalculateDateFromTenor(string tenor, string currencyPair = "EURUSD")
+        {
+            var match = Regex.Match(tenor, @"^(\d+)([MYWD])$", RegexOptions.IgnoreCase);
+            if (!match.Success)
+                return DateTime.MinValue;
+
+            try
+            {
+                // Use FxCalendarService for database-backed business day calculation
+                var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
+                    DateTime.UtcNow,
+                    tenor.ToUpper(),
+                    currencyPair
+                );
+
+                return expiryDate;
+            }
+            catch
+            {
+                // Fallback with simple weekend adjustment
+                int amount = int.Parse(match.Groups[1].Value);
+                string unit = match.Groups[2].Value.ToUpper();
+
+                DateTime result = DateTime.Today;
+                result = unit switch
+                {
+                    "D" => result.AddDays(amount),
+                    "W" => result.AddDays(amount * 7),
+                    "M" => result.AddMonths(amount),
+                    "Y" => result.AddYears(amount),
+                    _ => result
+                };
+
+                // Simple weekend adjustment
+                while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    result = result.AddDays(1);
+                }
+
+                // FX Market Rule - January1st is always a holiday
+                // If expiry falls on Jan1st, move FORWARD to the next business day
+                if (result.Month ==1 && result.Day ==1)
+                {
+                    result = result.AddDays(1);
+                    // Adjust again for weekends
+                    while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        result = result.AddDays(1);
+                    }
+                }
+
+                return result;
+            }
         }
     }
 

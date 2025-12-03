@@ -20,7 +20,7 @@ namespace FXOAiTranslator
         private TradeStructure _trade;
         private string _groupId;
         private System.Windows.Forms.Timer _quoteTimer;
-        private System.Windows.Forms.Timer _countdownTimer;
+        private System.Windows.Forms.Timer _countdownTimer;  // NEW: For quote expiry countdown
         private DataGridView dgvQuotes;
         private DataGridView dgvLegs;
         private DataGridView dgvBlotter;  // NEW: Trade blotter grid
@@ -30,21 +30,18 @@ namespace FXOAiTranslator
         private Button btnBuy;
         private Label lblTradeSummary;
         private GroupBox gbLPs;
-        private CheckBox chkMS;
-        private CheckBox chkUBS;
-        private CheckBox chkNatwest;
-        private CheckBox chkGoldman;
-        private CheckBox chkBarclays;
-        private CheckBox chkHSBC;
-        private CheckBox chkBNP;
+        private CheckBox chkSOCGEN;
         private CheckBox chkCIBC;
-        private CheckBox chkDeut;
-        private CheckBox chkDBS;
+        private CheckBox chkMS;
+        private CheckBox chkHSBC;
+        private CheckBox chkNATWEST;
+        private CheckBox chkSCBL;
+        private CheckBox chkNOMURA;
+        private CheckBox chkBAML;
+        private CheckBox chkBNP;
+        private CheckBox chkDeut;  // Testing only
         private int _selectedLegCount;
-        private ToggleSwitch togglePremiumCurrency;  // Toggle for premium currency display
-        private ToggleSwitch toggleQuoteMode;  // Toggle for VOL vs PREM quotation mode
-        private ComboBox cboDeltaHedge;  // Delta hedge: Spot / Forward / None
-        private ComboBox cboPremiumType;  // Premium type: Spot / Forward
+        private bool _showVolatility = true;  // NEW: Toggle between Vol (true) and Premium (false)
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -54,33 +51,34 @@ namespace FXOAiTranslator
             _trade = OVMLBridge.ConvertToTradeStructure(ovmlResult);
             _fixSession = GlobalFIXSession.Instance;  // Changed
 
+            Console.WriteLine($"\n=== TRADE STRUCTURE DEBUG ===");
+            Console.WriteLine($"StructureType: {_trade.StructureType}");
+            Console.WriteLine($"Underlying: {_trade.Underlying}");
+            Console.WriteLine($"Leg Count: {_trade.Legs.Count}");
+
+            for (int i = 0; i < _trade.Legs.Count; i++)
+            {
+                var leg = _trade.Legs[i];
+                Console.WriteLine($"\nLeg {i}:");
+                Console.WriteLine($"  Direction: {leg.Direction}");
+                Console.WriteLine($"  OptionType: {leg.OptionType}");
+                Console.WriteLine($"  Strike: {leg.Strike}");
+                Console.WriteLine($"  NotionalMM: {leg.NotionalMM}");
+                Console.WriteLine($"  Tenor: {leg.Tenor}");
+            }
+            Console.WriteLine($"=========================\n");
+
             lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
             PopulateLegGrid();
 
-            // Initialize currency conversion checkbox (needs _trade to be set first)
-            InitializeCurrencyConversionCheckbox();
-
             // Subscribe to quote events
             _fixSession.Application.OnQuoteReceived += OnQuoteReceivedFromFIX;
-
-            // Subscribe to STP Trade Capture Reports
-            try
-            {
-                var stpSession = GlobalSTPSession.Instance;
-                stpSession.Application.OnTradeCaptureReceived += OnTradeCaptureReceived;
-                Console.WriteLine("[GFIQuoteDialog] ✓ Subscribed to STP Trade Capture Reports");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[GFIQuoteDialog] ⚠ Failed to connect to STP session: {ex.Message}");
-                Console.WriteLine($"[GFIQuoteDialog] Trades will not receive final confirmations");
-            }
         }
 
         private void InitializeCustomComponents()
         {
             this.Text = "GFI Fenics - Request Quotes";
-            this.Size = new Size(1000, 850);  // Increased height for blotter
+            this.Size = new Size(1000, 840);  // Adjusted height
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -89,7 +87,7 @@ namespace FXOAiTranslator
             lblTradeSummary = new Label
             {
                 Location = new Point(20, 20),
-                Size = new Size(940, 30),
+                Size = new Size(940, 25),
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 Text = "Loading trade..."
             };
@@ -98,280 +96,199 @@ namespace FXOAiTranslator
             var lblLegs = new Label
             {
                 Text = "Select Legs & Edit Notionals:",
-                Location = new Point(20, 60),
+                Location = new Point(20, 50),
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
             this.Controls.Add(lblLegs);
 
+            // GroupBox for legs grid
+            var gbLegs = new GroupBox
+            {
+                Text = "",
+                Location = new Point(20, 65),
+                Size = new Size(940, 135)
+            };
+            this.Controls.Add(gbLegs);
+
             dgvLegs = new DataGridView
             {
-                Location = new Point(20, 85),
-                Size = new Size(940, 120),
+                Location = new Point(10, 15),
+                Size = new Size(920, 105),
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
-                SelectionMode = DataGridViewSelectionMode.CellSelect,  // Allow cell editing
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells,
-                RowHeadersVisible = false,
-                EditMode = DataGridViewEditMode.EditOnEnter  // Enable editing
+                RowHeadersVisible = false
             };
+            gbLegs.Controls.Add(dgvLegs);
 
             var chkCol = new DataGridViewCheckBoxColumn
             {
                 Name = "Include",
                 HeaderText = "Include",
-                Width = 60,
+                Width = 35,
                 TrueValue = true,
                 FalseValue = false
             };
             dgvLegs.Columns.Add(chkCol);
-
             dgvLegs.Columns.Add("Leg", "Leg");
-            dgvLegs.Columns["Leg"].Width = 50;
-            dgvLegs.Columns["Leg"].ReadOnly = true;  // Not editable
-
+            dgvLegs.Columns["Leg"].Width = 35;
             dgvLegs.Columns.Add("Direction", "Direction");
-            dgvLegs.Columns["Direction"].Width = 70;
-            dgvLegs.Columns["Direction"].ReadOnly = true;  // Not editable
-
+            dgvLegs.Columns["Direction"].Width = 35;
             dgvLegs.Columns.Add("Type", "Type");
-            dgvLegs.Columns["Type"].Width = 50;
-            dgvLegs.Columns["Type"].ReadOnly = true;  // Not editable
-
-            // Editable columns
-            var strikeCol = new DataGridViewTextBoxColumn
-            {
-                Name = "Strike",
-                HeaderText = "Strike",
-                Width = 80,
-                ReadOnly = false  // EDITABLE
-            };
-            dgvLegs.Columns.Add(strikeCol);
-
-            var tenorCol = new DataGridViewTextBoxColumn
-            {
-                Name = "Tenor",
-                HeaderText = "Tenor",
-                Width = 60,
-                ReadOnly = false  // EDITABLE
-            };
-            dgvLegs.Columns.Add(tenorCol);
-
-            var expiryCol = new DataGridViewTextBoxColumn
-            {
-                Name = "ExpiryDate",
-                HeaderText = "Expiry Date",
-                Width = 100,
-                ReadOnly = false  // EDITABLE
-            };
-            dgvLegs.Columns.Add(expiryCol);
+            dgvLegs.Columns["Type"].Width = 35;
+            dgvLegs.Columns.Add("Strike", "Strike");
+            dgvLegs.Columns["Strike"].Width = 60;
+            dgvLegs.Columns.Add("Expiry", "Expiry");
+            dgvLegs.Columns["Expiry"].Width = 150;
+            dgvLegs.Columns.Add("SettlementDate", "Settlement Date");
+            dgvLegs.Columns["SettlementDate"].Width = 90;
+            dgvLegs.Columns.Add("PremiumDate", "Premium Date");
+            dgvLegs.Columns["PremiumDate"].Width = 90;
 
             var notionalCol = new DataGridViewTextBoxColumn
             {
                 Name = "NotionalMM",
                 HeaderText = "Notional (MM)",
-                Width = 90,
-                ReadOnly = false  // EDITABLE
+                Width = 70
             };
             dgvLegs.Columns.Add(notionalCol);
-
-            // Add Cutoff dropdown column
-            var cutoffCol = new DataGridViewComboBoxColumn
-            {
-                Name = "Cutoff",
-                HeaderText = "Cut",
-                Width = 60,
-                ReadOnly = false  // EDITABLE
-            };
-            cutoffCol.Items.AddRange(new object[] { "NY", "TKY", "LON" });
-            cutoffCol.DefaultCellStyle.NullValue = "NY";  // Default to NY
-            dgvLegs.Columns.Add(cutoffCol);
-
-            // Add cell formatting to highlight editable cells
-            dgvLegs.CellFormatting += (s, e) =>
-            {
-                if (e.RowIndex < 0) return;
-
-                // Highlight editable columns with light yellow background
-                var colName = dgvLegs.Columns[e.ColumnIndex].Name;
-                if (colName == "Strike" || colName == "Tenor" || colName == "ExpiryDate" || colName == "NotionalMM" || colName == "Cutoff")
-                {
-                    e.CellStyle.BackColor = Color.LightYellow;
-                }
-            };
-
-            // Add event handler for tenor changes - auto-calculate expiry date
-            dgvLegs.CellValueChanged += (s, e) =>
-            {
-                if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
-
-                var colName = dgvLegs.Columns[e.ColumnIndex].Name;
-                if (colName == "Tenor")
-                {
-                    // Recalculate expiry date when tenor changes
-                    var tenorStr = dgvLegs.Rows[e.RowIndex].Cells["Tenor"].Value?.ToString();
-                    if (!string.IsNullOrEmpty(tenorStr))
-                    {
-                        try
-                        {
-                            // Use FxDateService to calculate proper expiry date
-                            var pair = _trade.Underlying;
-                            var premiumCcy = _trade.PremiumCurrency;
-                            var policy = GlobalDatePolicy.Policy;
-
-                            var rules = new FxDateRules
-                            {
-                                Ccy1 = pair.Substring(0, 3),
-                                Ccy2 = pair.Substring(3, 3),
-                                SpotLag = policy.SpotLagForPair(pair),
-                                ExpiryConvention = policy.ExpiryConvention,
-                                ExpiryEOM = policy.ExpiryEOM,
-                                PremiumSettleDays = policy.PremiumSettleDays,
-                                PremiumCalMode = policy.PremiumCalendarMode,
-                                PremiumConvention = policy.PremiumConvention
-                            };
-
-                            var nowUtc = DateTime.UtcNow;
-                            var (_, _, expiryDate, deliveryDate, _) =
-                                FxDateService.ComputeDates(nowUtc, pair, tenorStr.Trim().ToUpperInvariant(), premiumCcy, rules);
-
-                            // Update the expiry date cell
-                            dgvLegs.Rows[e.RowIndex].Cells["ExpiryDate"].Value = expiryDate.ToString("dd MMM yyyy");
-
-                            // Also update the underlying trade object
-                            if (e.RowIndex < _trade.Legs.Count)
-                            {
-                                _trade.Legs[e.RowIndex].Tenor = tenorStr.Trim().ToUpperInvariant();
-                                _trade.Legs[e.RowIndex].ExpiryDate = expiryDate;
-                                _trade.Legs[e.RowIndex].DeliveryDate = deliveryDate;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            // Silently handle expiry recalculation errors
-                        }
-                    }
-                }
-            };
-
-            // Enable edit notifications
-            dgvLegs.CurrentCellDirtyStateChanged += (s, e) =>
-            {
-                if (dgvLegs.IsCurrentCellDirty)
-                {
-                    dgvLegs.CommitEdit(DataGridViewDataErrorContexts.Commit);
-                }
-            };
-
-            this.Controls.Add(dgvLegs);
 
             // LP Selection GroupBox - EXPANDED
             gbLPs = new GroupBox
             {
                 Text = "Select Liquidity Providers",
-                Location = new Point(20, 220),
+                Location = new Point(20, 210),
                 Size = new Size(940, 90)  // Increased height for 2 rows
             };
             this.Controls.Add(gbLPs);
 
-            // Row 1 - Major Banks
+            // Row 1 - Configured LPs (matching FenicsConfig)
+            chkSOCGEN = new CheckBox
+            {
+                Text = "Societe Generale",
+                Location = new Point(20, 25),
+                Size = new Size(160, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkSOCGEN);
+
+            chkCIBC = new CheckBox
+            {
+                Text = "CIBC",
+                Location = new Point(190, 25),
+                Size = new Size(130, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkCIBC);
+
             chkMS = new CheckBox
             {
                 Text = "Morgan Stanley",
-                Location = new Point(20, 25),
+                Location = new Point(330, 25),
                 Size = new Size(150, 25),
                 Checked = false
             };
             gbLPs.Controls.Add(chkMS);
 
-            chkGoldman = new CheckBox
-            {
-                Text = "Goldman Sachs",
-                Location = new Point(190, 25),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkGoldman);
-
-            chkBarclays = new CheckBox
-            {
-                Text = "Barclays",
-                Location = new Point(360, 25),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkBarclays);
-
             chkHSBC = new CheckBox
             {
                 Text = "HSBC",
-                Location = new Point(530, 25),
-                Size = new Size(150, 25),
+                Location = new Point(490, 25),
+                Size = new Size(120, 25),
                 Checked = false
             };
             gbLPs.Controls.Add(chkHSBC);
 
+            chkNATWEST = new CheckBox
+            {
+                Text = "NatWest Markets",
+                Location = new Point(620, 25),
+                Size = new Size(150, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkNATWEST);
+
+            // Row 2 - Additional Configured LPs
+            chkSCBL = new CheckBox
+            {
+                Text = "Standard Chartered",
+                Location = new Point(20, 55),
+                Size = new Size(160, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkSCBL);
+
+            chkNOMURA = new CheckBox
+            {
+                Text = "Nomura",
+                Location = new Point(190, 55),
+                Size = new Size(130, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkNOMURA);
+
+            chkBAML = new CheckBox
+            {
+                Text = "Bank of America",
+                Location = new Point(330, 55),
+                Size = new Size(150, 25),
+                Checked = false
+            };
+            gbLPs.Controls.Add(chkBAML);
+
             chkBNP = new CheckBox
             {
                 Text = "BNP Paribas",
-                Location = new Point(700, 25),
-                Size = new Size(150, 25),
+                Location = new Point(490, 55),
+                Size = new Size(120, 25),
                 Checked = false
             };
             gbLPs.Controls.Add(chkBNP);
 
-            // Row 2 - Additional Banks
-            chkUBS = new CheckBox
-            {
-                Text = "UBS",
-                Location = new Point(20, 55),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkUBS);
-
-            chkNatwest = new CheckBox
-            {
-                Text = "NatWest Markets",
-                Location = new Point(190, 55),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkNatwest);
-
-            chkCIBC = new CheckBox
-            {
-                Text = "CIBC",
-                Location = new Point(360, 55),
-                Size = new Size(150, 25),
-                Checked = false
-            };
-            gbLPs.Controls.Add(chkCIBC);
-
             chkDeut = new CheckBox
             {
-                Text = "Deutsche Bank",
-                Location = new Point(530, 55),
+                Text = "Deutsche Bank (Test)",
+                Location = new Point(620, 55),
                 Size = new Size(150, 25),
                 Checked = false
             };
             gbLPs.Controls.Add(chkDeut);
 
-            chkDBS = new CheckBox
+            // Toggle button for Vol/Premium pricing - NEW
+            var btnToggleDisplay = new Button
             {
-                Text = "DBS Bank",
-                Location = new Point(700, 55),
-                Size = new Size(150, 25),
-                Checked = false
+                Text = "Show: Volatility",
+                Location = new Point(20, 305),  // Increased from 293 to 305 for more spacing
+                Size = new Size(130, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                BackColor = Color.LightBlue,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
             };
-            gbLPs.Controls.Add(chkDBS);
+            btnToggleDisplay.FlatAppearance.BorderColor = Color.DodgerBlue;
+            btnToggleDisplay.Click += (s, e) =>
+            {
+                _showVolatility = !_showVolatility;
+                btnToggleDisplay.Text = _showVolatility ? "Show: Volatility" : "Show: Premium";
+                btnToggleDisplay.BackColor = _showVolatility ? Color.LightBlue : Color.LightGreen;
+
+                // Rebuild quote grid with new columns
+                if (_selectedLegCount > 0)
+                {
+                    SetupQuoteGrid(_selectedLegCount);
+                    UpdateQuoteDisplay(); // Refresh data
+                }
+            };
+            this.Controls.Add(btnToggleDisplay);
 
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
             {
-                Location = new Point(20, 340),  // Moved down 10px for checkbox
-                Size = new Size(940, 190),      // Reduced by 10px
+                Location = new Point(20, 335),  // Increased from 320 to 335 to match button spacing
+                Size = new Size(940, 200),      // Reduced from 270
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -391,11 +308,11 @@ namespace FXOAiTranslator
 
             this.Controls.Add(dgvQuotes);
 
-            // Trade Blotter Grid
+            // Trade Blotter Grid - NEW
             var lblBlotter = new Label
             {
                 Text = "Trade Blotter:",
-                Location = new Point(20, 540),  // Adjusted for checkbox
+                Location = new Point(20, 530),
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
@@ -403,8 +320,8 @@ namespace FXOAiTranslator
 
             dgvBlotter = new DataGridView
             {
-                Location = new Point(20, 565),  // Adjusted for checkbox
-                Size = new Size(940, 135),
+                Location = new Point(20, 555),
+                Size = new Size(940, 135),      // Reduced slightly
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -427,28 +344,10 @@ namespace FXOAiTranslator
             dgvBlotter.Columns["Symbol"].Width = 80;
             dgvBlotter.Columns.Add("Structure", "Structure");
             dgvBlotter.Columns["Structure"].Width = 100;
-            dgvBlotter.Columns.Add("Strike", "Strike");
-            dgvBlotter.Columns["Strike"].Width = 80;
-            dgvBlotter.Columns.Add("Notional", "Notional");
-            dgvBlotter.Columns["Notional"].Width = 80;
-            dgvBlotter.Columns.Add("NotionalCcy", "Not Ccy");
-            dgvBlotter.Columns["NotionalCcy"].Width = 60;
-            dgvBlotter.Columns.Add("ExpDate", "Exp Date");
-            dgvBlotter.Columns["ExpDate"].Width = 80;
-            dgvBlotter.Columns.Add("SettlementDate", "Settle Date");
-            dgvBlotter.Columns["SettlementDate"].Width = 80;
-            dgvBlotter.Columns.Add("Cut", "Cut");
-            dgvBlotter.Columns["Cut"].Width = 50;
             dgvBlotter.Columns.Add("Premium", "Premium");
             dgvBlotter.Columns["Premium"].Width = 80;
-            dgvBlotter.Columns.Add("PremiumCcy", "Prem Ccy");
-            dgvBlotter.Columns["PremiumCcy"].Width = 70;
-            dgvBlotter.Columns.Add("PremiumDate", "Prem Date");
-            dgvBlotter.Columns["PremiumDate"].Width = 80;
             dgvBlotter.Columns.Add("Delta", "Delta");
             dgvBlotter.Columns["Delta"].Width = 70;
-            dgvBlotter.Columns.Add("Volatility", "Vol");
-            dgvBlotter.Columns["Volatility"].Width = 70;
             dgvBlotter.Columns.Add("Status", "Status");
             dgvBlotter.Columns["Status"].Width = 100;
 
@@ -458,7 +357,7 @@ namespace FXOAiTranslator
             btnRequestQuotes = new Button
             {
                 Text = "Request Quotes",
-                Location = new Point(20, 715),
+                Location = new Point(20, 705),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
@@ -468,7 +367,7 @@ namespace FXOAiTranslator
             btnExecute = new Button
             {
                 Text = "Sell (Hit Bid)",
-                Location = new Point(190, 715),
+                Location = new Point(190, 705),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -479,7 +378,7 @@ namespace FXOAiTranslator
             btnBuy = new Button
             {
                 Text = "Buy (Lift Offer)",
-                Location = new Point(360, 715),
+                Location = new Point(360, 705),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -490,7 +389,7 @@ namespace FXOAiTranslator
             btnCancel = new Button
             {
                 Text = "Close",
-                Location = new Point(530, 715),
+                Location = new Point(530, 705),
                 Size = new Size(150, 35),
                 DialogResult = DialogResult.Cancel
             };
@@ -507,93 +406,92 @@ namespace FXOAiTranslator
             _countdownTimer.Tick += CountdownTimer_Tick;
         }
 
-        private void InitializeCurrencyConversionCheckbox()
-        {
-            // Premium currency toggle - dynamically set text based on pair
-            string baseCcy = _trade.Underlying.Substring(0, 3);  // e.g., "EUR" from "EURUSD"
-            string termCcy = _trade.Underlying.Substring(3, 3);  // e.g., "USD" from "EURUSD"
-
-            togglePremiumCurrency = new ToggleSwitch
-            {
-                Location = new Point(20, 315),    // Left-aligned with other controls
-                Size = new Size(120, 24),         // Compact size (2/3 of previous)
-                LeftText = termCcy,               // Off state shows term currency (USD for EURUSD)
-                RightText = baseCcy,              // On state shows base currency (EUR for EURUSD)
-                Checked = false                   // Default: show in term currency (unchecked)
-            };
-            togglePremiumCurrency.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh display when toggled
-            this.Controls.Add(togglePremiumCurrency);
-
-            // Quote mode toggle - VOL vs PREM
-            toggleQuoteMode = new ToggleSwitch
-            {
-                Location = new Point(150, 315),   // Next to currency toggle
-                Size = new Size(120, 24),         // Compact size
-                LeftText = "PREM",                // Off state = Premium quotation
-                RightText = "VOL",                // On state = Volatility quotation
-                Checked = true                    // Default: VOL mode (checked)
-            };
-            toggleQuoteMode.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh highlighting when toggled
-            this.Controls.Add(toggleQuoteMode);
-
-            // Delta hedge dropdown
-            var lblDeltaHedge = new Label
-            {
-                Text = "Delta Hedge:",
-                Location = new Point(280, 318),
-                Size = new Size(80, 20),
-                TextAlign = ContentAlignment.MiddleRight
-            };
-            this.Controls.Add(lblDeltaHedge);
-
-            cboDeltaHedge = new ComboBox
-            {
-                Location = new Point(365, 315),
-                Size = new Size(80, 24),
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            cboDeltaHedge.Items.AddRange(new object[] { "Live", "Spot", "Forward" });
-            cboDeltaHedge.SelectedIndex = 1;  // Default: Spot hedge
-            this.Controls.Add(cboDeltaHedge);
-
-            // Premium type dropdown
-            var lblPremiumType = new Label
-            {
-                Text = "Prem Type:",
-                Location = new Point(455, 318),
-                Size = new Size(70, 20),
-                TextAlign = ContentAlignment.MiddleRight
-            };
-            this.Controls.Add(lblPremiumType);
-
-            cboPremiumType = new ComboBox
-            {
-                Location = new Point(530, 315),
-                Size = new Size(80, 24),
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            cboPremiumType.Items.AddRange(new object[] { "Spot", "Forward" });
-            cboPremiumType.SelectedIndex = 0;  // Default: Spot
-            this.Controls.Add(cboPremiumType);
-        }
-
         private void PopulateLegGrid()
         {
             dgvLegs.Rows.Clear();
 
+            // Calculate premium date ONCE for all legs (same for entire trade)
+            // Premium Date = Trade Date (TODAY) + Spot Lag (T+2 for EURUSD)
+            string premiumDateText = "-";
+            try
+            {
+                var P = GlobalDatePolicy.Policy;
+                string pair = _trade.Underlying;
+                string premiumCcy = _trade.PremiumCurrency;
+
+                var rules = new FxDateRules
+                {
+                    Ccy1 = pair.Substring(0, 3),
+                    Ccy2 = pair.Substring(3, 3),
+                    SpotLag = P.SpotLagForPair(pair),
+                    ExpiryConvention = P.ExpiryConvention,
+                    ExpiryEOM = P.ExpiryEOM,
+                    PremiumSettleDays = P.PremiumSettleDays,
+                    PremiumCalMode = P.PremiumCalendarMode,
+                    PremiumConvention = P.PremiumConvention
+                };
+
+                var nowUtc = DateTime.UtcNow;
+                // ComputeDates with "0D" tenor: spotDate = TODAY + spot lag
+                var (_, spotDt, _, _, _) = FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
+
+                var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+                premiumDateText = spotDt.ToString("dd-MMM-yy", enUS);
+
+                Console.WriteLine($"[PopulateLegGrid] Premium Date (spot from today): {premiumDateText}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PopulateLegGrid] Premium date calculation error: {ex.Message}");
+            }
+
             for (int i = 0; i < _trade.Legs.Count; i++)
             {
                 var leg = _trade.Legs[i];
+                string expiryText;
+                string settlementDateText = "-";
+
+                if (leg.ExpiryDate != DateTime.MinValue)
+                {
+                    // Format: "30-Dec-25, Tue (1M)" in English - force en-US culture
+                    var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+                    string dateStr = leg.ExpiryDate.ToString("dd-MMM-yy, ddd", enUS);
+                    expiryText = !string.IsNullOrEmpty(leg.Tenor)
+                        ? $"{dateStr} ({leg.Tenor})"
+                        : dateStr;
+
+                    // Settlement Date = leg.DeliveryDate (already calculated correctly)
+                    if (leg.DeliveryDate != DateTime.MinValue)
+                    {
+                        settlementDateText = leg.DeliveryDate.ToString("dd-MMM-yy", enUS);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[PopulateLegGrid] WARNING: Leg {i+1} has DeliveryDate = MinValue!");
+                    }
+
+                    Console.WriteLine($"[PopulateLegGrid] Leg {i+1}:");
+                    Console.WriteLine($"  ExpiryDate: {leg.ExpiryDate.ToString("dd-MMM-yy")}");
+                    Console.WriteLine($"  DeliveryDate: {(leg.DeliveryDate != DateTime.MinValue ? leg.DeliveryDate.ToString("dd-MMM-yy") : "NOT SET")}");
+                    Console.WriteLine($"  Settlement Date (display): {settlementDateText}");
+                    Console.WriteLine($"  Premium Date (display): {premiumDateText}");
+                }
+                else
+                {
+                    // Fallback to just tenor if no date calculated
+                    expiryText = !string.IsNullOrEmpty(leg.Tenor) ? $"({leg.Tenor})" : "N/A";
+                }
+
                 dgvLegs.Rows.Add(
-                    true,                                  // Include checkbox
-                    $"Leg {i + 1}",                        // Leg number
-                    leg.Direction,                         // BUY/SELL
-                    leg.OptionType,                        // CALL/PUT
-                    leg.Strike.ToString("F4"),             // Strike (EDITABLE)
-                    leg.Tenor,                             // Tenor (EDITABLE)
-                    leg.ExpiryDate.ToString("dd MMM yyyy"), // Expiry Date (EDITABLE)
-                    leg.NotionalMM.ToString("F1"),         // Notional (EDITABLE)
-                    leg.Cutoff ?? "NY"                     // Cutoff (EDITABLE) - default to NY
+                    true,
+                    $"Leg {i + 1}",
+                    leg.Direction,
+                    leg.OptionType,
+                    leg.Strike.ToString("F4"),
+                    expiryText,
+                    settlementDateText,
+                    premiumDateText,
+                    leg.NotionalMM.ToString("F1")
                 );
             }
         }
@@ -606,87 +504,65 @@ namespace FXOAiTranslator
             dgvQuotes.Columns.Add("LP", "LP");
             dgvQuotes.Columns["LP"].Width = 80;
 
-            // Will be updated dynamically based on currency display mode
-            dgvQuotes.Columns.Add("NetPremBid", "Rec");
-            dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.Format = "N0"; // Raw integer values
-            dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dgvQuotes.Columns.Add("NetPremBid", "Net Prem (Bid)");
+            dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.Format = "N2";
             dgvQuotes.Columns["NetPremBid"].Width = 100;
 
-            dgvQuotes.Columns.Add("NetPremOffer", "Pay");
-            dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Format = "N0"; // Raw integer values
-            dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dgvQuotes.Columns.Add("NetPremOffer", "Net Prem (Offer)");
+            dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Format = "N2";
             dgvQuotes.Columns["NetPremOffer"].Width = 110;
 
-            // Update headers with currency
-            UpdatePremiumColumnHeaders();
-
+            // Add leg columns based on display mode (Vol or Premium)
             for (int i = 1; i <= legCount; i++)
             {
-                dgvQuotes.Columns.Add($"Leg{i}BidVol", $"L{i} Bid Vol");
-                dgvQuotes.Columns[$"Leg{i}BidVol"].DefaultCellStyle.Format = "N2";
-                dgvQuotes.Columns[$"Leg{i}BidVol"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                dgvQuotes.Columns[$"Leg{i}BidVol"].Width = 80;
+                if (_showVolatility)
+                {
+                    // Volatility mode
+                    dgvQuotes.Columns.Add($"Leg{i}BidVol", $"L{i} Bid Vol");
+                    dgvQuotes.Columns[$"Leg{i}BidVol"].DefaultCellStyle.Format = "N2";
+                    dgvQuotes.Columns[$"Leg{i}BidVol"].Width = 80;
 
-                dgvQuotes.Columns.Add($"Leg{i}OfferVol", $"L{i} Offer Vol");
-                dgvQuotes.Columns[$"Leg{i}OfferVol"].DefaultCellStyle.Format = "N2";
-                dgvQuotes.Columns[$"Leg{i}OfferVol"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                dgvQuotes.Columns[$"Leg{i}OfferVol"].Width = 90;
+                    dgvQuotes.Columns.Add($"Leg{i}OfferVol", $"L{i} Offer Vol");
+                    dgvQuotes.Columns[$"Leg{i}OfferVol"].DefaultCellStyle.Format = "N2";
+                    dgvQuotes.Columns[$"Leg{i}OfferVol"].Width = 90;
+                }
+                else
+                {
+                    // Premium mode
+                    dgvQuotes.Columns.Add($"Leg{i}BidPrem", $"L{i} Bid Prem");
+                    dgvQuotes.Columns[$"Leg{i}BidPrem"].DefaultCellStyle.Format = "N2";
+                    dgvQuotes.Columns[$"Leg{i}BidPrem"].Width = 90;
+
+                    dgvQuotes.Columns.Add($"Leg{i}OfferPrem", $"L{i} Offer Prem");
+                    dgvQuotes.Columns[$"Leg{i}OfferPrem"].DefaultCellStyle.Format = "N2";
+                    dgvQuotes.Columns[$"Leg{i}OfferPrem"].Width = 100;
+                }
             }
 
+            dgvQuotes.Columns.Add("LastUpdate", "Last Update");
+            dgvQuotes.Columns["LastUpdate"].Width = 80;
+
             dgvQuotes.Columns.Add("TTL", "Expires In");
-            dgvQuotes.Columns["TTL"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             dgvQuotes.Columns["TTL"].Width = 90;
             dgvQuotes.Columns.Add("ValidUntilTime", "ValidUntilTime");  // Hidden column to store expiry time
             dgvQuotes.Columns["ValidUntilTime"].Visible = false;
-        }
-
-        private void UpdatePremiumColumnHeaders()
-        {
-            // Check if columns exist
-            if (!dgvQuotes.Columns.Contains("NetPremBid") || !dgvQuotes.Columns.Contains("NetPremOffer"))
-                return;
-
-            // Get base and term currencies from the pair
-            string baseCcy = _trade.Underlying.Substring(0, 3);  // EUR or USD
-            string termCcy = _trade.Underlying.Substring(3, 3);  // USD or SEK
-
-            // Determine currency to display
-            string displayCcy = "";
-            if (togglePremiumCurrency != null && togglePremiumCurrency.Checked)
-            {
-                // When checked, showing in base currency (converted)
-                displayCcy = baseCcy;
-            }
-            else
-            {
-                // When unchecked, showing in term currency (what LPs typically send)
-                displayCcy = termCcy;
-            }
-
-            // Lock column widths to prevent resizing when header text changes
-            dgvQuotes.Columns["NetPremBid"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-            dgvQuotes.Columns["NetPremOffer"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-
-            // Update column headers
-            dgvQuotes.Columns["NetPremBid"].HeaderText = $"Rec {displayCcy}";
-            dgvQuotes.Columns["NetPremOffer"].HeaderText = $"Pay {displayCcy}";
         }
 
         private void BtnRequestQuotes_Click(object sender, EventArgs e)
         {
             var lps = new List<string>();
 
-            // Check all LP checkboxes
-            if (chkMS.Checked) lps.Add("MS");
-            if (chkGoldman.Checked) lps.Add("GOLDMAN");
-            if (chkBarclays.Checked) lps.Add("BARCLAYS");
-            if (chkHSBC.Checked) lps.Add("HSBC");
-            if (chkBNP.Checked) lps.Add("BNP");
-            if (chkUBS.Checked) lps.Add("UBS");
-            if (chkNatwest.Checked) lps.Add("NATWEST");
+            // Check all LP checkboxes (matching FenicsConfig)
+            if (chkSOCGEN.Checked) lps.Add("SOCGEN");
             if (chkCIBC.Checked) lps.Add("CIBC");
-            if (chkDeut.Checked) lps.Add("DEUT");
-            if (chkDBS.Checked) lps.Add("DBS");
+            if (chkMS.Checked) lps.Add("MS");
+            if (chkHSBC.Checked) lps.Add("HSBC");
+            if (chkNATWEST.Checked) lps.Add("NATWEST");
+            if (chkSCBL.Checked) lps.Add("SCBL");
+            if (chkNOMURA.Checked) lps.Add("NOMURA");
+            if (chkBAML.Checked) lps.Add("BAML");
+            if (chkBNP.Checked) lps.Add("BNP");
+            if (chkDeut.Checked) lps.Add("DEUT");  // Testing only
 
             if (lps.Count == 0)
             {
@@ -719,38 +595,70 @@ namespace FXOAiTranslator
             // Generate group ID
             _groupId = $"3-REQ{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
+            // ====== ENHANCED DEBUG OUTPUT ======
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine("\n╔════════════════════════════════════════════════════════════════");
+            Console.WriteLine("║ 📤 REQUESTING QUOTES FROM LPs");
+            Console.WriteLine("╠════════════════════════════════════════════════════════════════");
+            Console.WriteLine($"║ Group ID: {_groupId}");
+            Console.WriteLine($"║ Underlying: {_trade.Underlying}");
+            Console.WriteLine($"║ Structure: {_trade.StructureType}");
+            Console.WriteLine($"║ Selected LPs ({lps.Count}): {string.Join(", ", lps)}");
+            Console.WriteLine("╠════════════════════════════════════════════════════════════════");
+            Console.WriteLine($"║ LEGS ({selectedLegCount}):");
+            for (int i = 0; i < _trade.Legs.Count; i++)
+            {
+                var leg = _trade.Legs[i];
+                Console.WriteLine($"║   Leg {i + 1}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike} exp:{leg.Tenor}");
+            }
+            Console.WriteLine("╚════════════════════════════════════════════════════════════════");
+            Console.ResetColor();
+
+            // Track which LPs successfully received requests
+            var successfulLPs = new List<string>();
+            var failedLPs = new List<string>();
+
             // Send quote request to each LP
-            // Determine quote mode from toggle: PREM (unchecked) or VOL (checked)
-            // Tag 9904 values: "1" = VOL (PCT), "2" = PREM (PTS)
-            string quoteMode = toggleQuoteMode.Checked ? "1" : "2";
-
-            // Get hedge type from dropdown: Live/Spot/Forward
-            // Tag 9016 (HedgeTradeType): "0"=Live (no hedge), "1"=Spot/Forward hedge
-            // Note: GFI spec only has 0/1, both Spot and Forward send "1"
-            string hedgeType = cboDeltaHedge.SelectedItem?.ToString() ?? "Live";
-            bool hedgeEnabled = hedgeType != "Live";
-            string hedgeCode = hedgeType == "Live" ? "0" : "1";
-
-            // Get premium type from dropdown: Spot/Forward
-            // Tag 5475 (PremDel): "S"=Spot, "F"=Forward
-            string premiumType = cboPremiumType.SelectedItem?.ToString() ?? "Spot";
-            string premDelCode = premiumType == "Spot" ? "S" : "F";
-
             foreach (var lp in lps)
             {
                 try
                 {
-                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId,
-                        hedgeEnabled: hedgeEnabled,
-                        hedgeType: hedgeCode,
-                        premiumDeliveryType: premDelCode,
-                        quoteMode: quoteMode);
+                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId);
+                    successfulLPs.Add(lp);
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"✓ Quote request sent to {lp,-15} | QuoteReqID: {quoteReqID}");
+                    Console.ResetColor();
                 }
                 catch (Exception ex)
                 {
-                    // Silently handle errors
+                    failedLPs.Add(lp);
+
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"✗ Failed to send to {lp,-15} | Error: {ex.Message}");
+                    Console.ResetColor();
                 }
             }
+
+            // Summary
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"\n┌─────────────────────────────────────────────┐");
+            Console.WriteLine($"│ QUOTE REQUEST SUMMARY");
+            Console.WriteLine($"├─────────────────────────────────────────────┤");
+            Console.WriteLine($"│ Successful: {successfulLPs.Count}/{lps.Count}  {string.Join(", ", successfulLPs)}");
+            if (failedLPs.Count > 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"│ Failed: {failedLPs.Count}      {string.Join(", ", failedLPs)}");
+            }
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"└─────────────────────────────────────────────┘\n");
+            Console.ResetColor();
+
+            // Start watching for responses
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"⏳ Waiting for quotes from {successfulLPs.Count} LPs...\n");
+            Console.ResetColor();
         }
 
         private void UpdateTradeFromGrid()
@@ -764,46 +672,11 @@ namespace FXOAiTranslator
                 if (include)
                 {
                     var originalLeg = _trade.Legs[i];
-
-                    // Read Strike
-                    var strikeStr = dgvLegs.Rows[i].Cells["Strike"].Value?.ToString();
-                    if (double.TryParse(strikeStr, out double strike))
-                    {
-                        originalLeg.Strike = strike;
-                    }
-
-                    // Read Tenor
-                    var tenor = dgvLegs.Rows[i].Cells["Tenor"].Value?.ToString();
-                    if (!string.IsNullOrEmpty(tenor))
-                    {
-                        originalLeg.Tenor = tenor.Trim().ToUpperInvariant();
-                    }
-
-                    // Read Expiry Date
-                    var expiryStr = dgvLegs.Rows[i].Cells["ExpiryDate"].Value?.ToString();
-                    if (DateTime.TryParse(expiryStr, out DateTime expiryDate))
-                    {
-                        originalLeg.ExpiryDate = expiryDate;
-                        // Also update delivery date (T+2 from expiry)
-                        originalLeg.DeliveryDate = expiryDate.AddDays(2);
-                    }
-
-                    // Read Notional
                     var notionalStr = dgvLegs.Rows[i].Cells["NotionalMM"].Value?.ToString();
+
                     if (double.TryParse(notionalStr, out double notionalMM))
                     {
                         originalLeg.NotionalMM = notionalMM;
-                    }
-
-                    // Read Cutoff
-                    var cutoff = dgvLegs.Rows[i].Cells["Cutoff"].Value?.ToString();
-                    if (!string.IsNullOrEmpty(cutoff))
-                    {
-                        originalLeg.Cutoff = cutoff.Trim().ToUpperInvariant();
-                    }
-                    else
-                    {
-                        originalLeg.Cutoff = "NY"; // Default to NY
                     }
 
                     selectedLegs.Add(originalLeg);
@@ -811,6 +684,13 @@ namespace FXOAiTranslator
             }
 
             _trade.Legs = selectedLegs;
+
+            Console.WriteLine($"\n[Quote Request] Sending {selectedLegs.Count} legs:");
+            for (int i = 0; i < selectedLegs.Count; i++)
+            {
+                var leg = selectedLegs[i];
+                Console.WriteLine($"  Leg {i}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike}");
+            }
         }
 
         private void QuoteTimer_Tick(object sender, EventArgs e)
@@ -827,230 +707,219 @@ namespace FXOAiTranslator
                 return;
             }
 
+            Console.WriteLine($"[UI] Quote received: {quoteReqID}");
             UpdateQuoteDisplay();
         }
 
         private void UpdateQuoteDisplay()
         {
-            // Update column headers based on currency display mode
-            UpdatePremiumColumnHeaders();
+            dgvQuotes.Rows.Clear();
+            var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
 
-            // Suspend drawing to prevent flicker
-            SendMessage(dgvQuotes.Handle, WM_SETREDRAW, false, 0);
-
-            try
+            foreach (var stream in streams)
             {
-                var streams = _fixSession.Application.GetActiveStreams(_groupId);
+                var rowData = new List<object>();
+                rowData.Add(stream.LP);
 
-                // Update existing rows or add new ones (don't clear and rebuild)
-                foreach (var stream in streams)
+                double? netPremBid = CalculateNetPremium(stream.BidQuote);
+                double? netPremOffer = CalculateNetPremium(stream.OfferQuote);
+
+                rowData.Add(netPremBid?.ToString("N2") ?? "-");
+                rowData.Add(netPremOffer?.ToString("N2") ?? "-");
+
+                // Add leg data based on display mode
+                for (int i = 1; i <= _selectedLegCount; i++)
                 {
-                    // Find existing row for this LP
-                    int rowIndex = -1;
-                    for (int i = 0; i < dgvQuotes.Rows.Count; i++)
+                    if (_showVolatility)
                     {
-                        if (dgvQuotes.Rows[i].Cells["LP"].Value?.ToString() == stream.LP)
-                        {
-                            rowIndex = i;
-                            break;
-                        }
-                    }
+                        // Volatility mode
+                        double? bidVol = GetLegVol(stream.BidQuote, i);
+                        double? offerVol = GetLegVol(stream.OfferQuote, i);
 
-                    double? netPremBid = CalculateNetPremium(stream.BidQuote);
-                    double? netPremOffer = CalculateNetPremium(stream.OfferQuote);
-
-                    // If row doesn't exist, create it
-                    if (rowIndex == -1)
-                    {
-                        var rowData = new List<object>();
-                        rowData.Add(stream.LP);
-                        rowData.Add(netPremBid?.ToString("N0") ?? "-");
-                        rowData.Add(netPremOffer?.ToString("N0") ?? "-");
-
-                        for (int i = 1; i <= _selectedLegCount; i++)
-                        {
-                            double? bidVol = GetLegVol(stream.BidQuote, i);
-                            double? offerVol = GetLegVol(stream.OfferQuote, i);
-                            rowData.Add(bidVol?.ToString("N2") ?? "-");
-                            rowData.Add(offerVol?.ToString("N2") ?? "-");
-                        }
-
-                        string validUntilStr = stream.OfferQuote?.Get("62") ?? stream.BidQuote?.Get("62");
-                        rowData.Add(""); // TTL - handled by timer
-                        rowData.Add(validUntilStr ?? "");
-
-                        rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
+                        rowData.Add(bidVol?.ToString("N2") ?? "-");
+                        rowData.Add(offerVol?.ToString("N2") ?? "-");
                     }
                     else
                     {
-                        // Update existing row (don't touch TTL column - let timer handle it)
-                        dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Value = netPremBid?.ToString("N0") ?? "-";
-                        dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Value = netPremOffer?.ToString("N0") ?? "-";
+                        // Premium mode
+                        double? bidPrem = GetLegPremium(stream.BidQuote, i);
+                        double? offerPrem = GetLegPremium(stream.OfferQuote, i);
 
-                        for (int i = 1; i <= _selectedLegCount; i++)
-                        {
-                            double? bidVol = GetLegVol(stream.BidQuote, i);
-                            double? offerVol = GetLegVol(stream.OfferQuote, i);
-                            dgvQuotes.Rows[rowIndex].Cells[$"Leg{i}BidVol"].Value = bidVol?.ToString("N2") ?? "-";
-                            dgvQuotes.Rows[rowIndex].Cells[$"Leg{i}OfferVol"].Value = offerVol?.ToString("N2") ?? "-";
-                        }
-
-                        // Update ValidUntilTime only (TTL is handled by timer)
-                        string validUntilStr = stream.OfferQuote?.Get("62") ?? stream.BidQuote?.Get("62");
-                        if (!string.IsNullOrEmpty(validUntilStr))
-                        {
-                            dgvQuotes.Rows[rowIndex].Cells["ValidUntilTime"].Value = validUntilStr;
-                        }
-                    }
-
-                    // Reset cell styles for premium columns
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.BackColor = Color.White;
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.Font = dgvQuotes.Font;
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.BackColor = Color.White;
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.Font = dgvQuotes.Font;
-
-                    // Reset cell styles for volatility columns
-                    for (int i = 1; i <= _selectedLegCount; i++)
-                    {
-                        dgvQuotes.Rows[rowIndex].Cells[$"Leg{i}BidVol"].Style.BackColor = Color.White;
-                        dgvQuotes.Rows[rowIndex].Cells[$"Leg{i}BidVol"].Style.Font = dgvQuotes.Font;
-                        dgvQuotes.Rows[rowIndex].Cells[$"Leg{i}OfferVol"].Style.BackColor = Color.White;
-                        dgvQuotes.Rows[rowIndex].Cells[$"Leg{i}OfferVol"].Style.Font = dgvQuotes.Font;
+                        rowData.Add(bidPrem?.ToString("N2") ?? "-");
+                        rowData.Add(offerPrem?.ToString("N2") ?? "-");
                     }
                 }
 
-                // Check if we're in VOL or PREM mode
-                bool isVolMode = toggleQuoteMode != null && toggleQuoteMode.Checked;
+                rowData.Add(stream.LastUpdate.ToString("HH:mm:ss"));
 
-                if (isVolMode)
+                // Extract ValidUntilTime (tag 62) from the quote
+                string validUntilStr = stream.OfferQuote?.Get("62") ?? stream.BidQuote?.Get("62");
+
+                // DEBUG: Log what we got for tag 62
+                Console.WriteLine($"[COUNTDOWN DEBUG] LP={stream.LP}, ValidUntilTime (tag 62)='{validUntilStr}'");
+
+                rowData.Add(""); // TTL - will be calculated by timer
+                rowData.Add(validUntilStr ?? ""); // Hidden ValidUntilTime column
+
+                var rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
+
+                // Apply highlighting based on toggle mode
+                if (_showVolatility)
                 {
-                    // VOL MODE: Highlight best volatilities for each leg
-                    for (int legNum = 1; legNum <= _selectedLegCount; legNum++)
+                    // Volatility mode - highlight best volatilities for leg 1
+                    var (bestBidVol, bestOfferVol) = GetBestVolatilities();
+        
+                    double? bidVol = GetLegVol(stream.BidQuote, 1);
+                    double? offerVol = GetLegVol(stream.OfferQuote, 1);
+
+                    if (bestBidVol.HasValue && bidVol.HasValue && Math.Abs(bidVol.Value - bestBidVol.Value) < 0.01)
                     {
-                        var (bestBidVol, bestOfferVol) = GetBestVolatilities(legNum);
-
-                        for (int i = 0; i < dgvQuotes.Rows.Count; i++)
+                        string colName = "Leg1BidVol";
+                        if (dgvQuotes.Columns.Contains(colName))
                         {
-                            var bidVolStr = dgvQuotes.Rows[i].Cells[$"Leg{legNum}BidVol"].Value?.ToString();
-                            var offerVolStr = dgvQuotes.Rows[i].Cells[$"Leg{legNum}OfferVol"].Value?.ToString();
+                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.BackColor = Color.LightGreen;
+                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+                        }
+                    }
 
-                            // Highlight best bid vol (highest)
-                            if (bestBidVol.HasValue && double.TryParse(bidVolStr, out double bidVolVal) &&
-                                Math.Abs(bidVolVal - bestBidVol.Value) < 0.01)
-                            {
-                                dgvQuotes.Rows[i].Cells[$"Leg{legNum}BidVol"].Style.BackColor = Color.LightGreen;
-                                dgvQuotes.Rows[i].Cells[$"Leg{legNum}BidVol"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
-                            }
-
-                            // Highlight best offer vol (lowest)
-                            if (bestOfferVol.HasValue && double.TryParse(offerVolStr, out double offerVolVal) &&
-                                Math.Abs(offerVolVal - bestOfferVol.Value) < 0.01)
-                            {
-                                dgvQuotes.Rows[i].Cells[$"Leg{legNum}OfferVol"].Style.BackColor = Color.LightGreen;
-                                dgvQuotes.Rows[i].Cells[$"Leg{legNum}OfferVol"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
-                            }
+                    if (bestOfferVol.HasValue && offerVol.HasValue && Math.Abs(offerVol.Value - bestOfferVol.Value) < 0.01)
+                    {
+                        string colName = "Leg1OfferVol";
+                        if (dgvQuotes.Columns.Contains(colName))
+                        {
+                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.BackColor = Color.LightGreen;
+                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
                         }
                     }
                 }
                 else
                 {
-                    // PREM MODE: Highlight best premiums
+                    // Premium mode - highlight best net premiums
                     var (bestBid, bestOffer) = GetBestPremiums();
-                    for (int i = 0; i < dgvQuotes.Rows.Count; i++)
+
+                    if (bestBid.HasValue && netPremBid.HasValue && Math.Abs(netPremBid.Value - bestBid.Value) < 0.01)
                     {
-                        var bidStr = dgvQuotes.Rows[i].Cells["NetPremBid"].Value?.ToString();
-                        var offerStr = dgvQuotes.Rows[i].Cells["NetPremOffer"].Value?.ToString();
+                        dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
+                        dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+                    }
 
-                        if (bestBid.HasValue && double.TryParse(bidStr?.Replace(",", ""), out double bidVal) &&
-                            Math.Abs(bidVal - bestBid.Value) < 0.01)
-                        {
-                            dgvQuotes.Rows[i].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
-                            dgvQuotes.Rows[i].Cells["NetPremBid"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
-                        }
-
-                        if (bestOffer.HasValue && double.TryParse(offerStr?.Replace(",", ""), out double offerVal) &&
-                            Math.Abs(offerVal - bestOffer.Value) < 0.01)
-                        {
-                            dgvQuotes.Rows[i].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
-                            dgvQuotes.Rows[i].Cells["NetPremOffer"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
-                        }
+                    if (bestOffer.HasValue && netPremOffer.HasValue && Math.Abs(netPremOffer.Value - bestOffer.Value) < 0.01)
+                    {
+                        dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
+                        dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
                     }
                 }
-
-                // Enable execute buttons if we have quotes
-                if (streams.Any(s => s.BidQuote != null || s.OfferQuote != null))
-                {
-                    btnExecute.Enabled = true;
-                    btnBuy.Enabled = true;
-                }
-
-                // Clear selection so best price highlighting is visible
-                dgvQuotes.ClearSelection();
-
-                // Start countdown timer
-                if (!_countdownTimer.Enabled)
-                    _countdownTimer.Start();
             }
-            finally
+            // Enable execute buttons if we have quotes
+            if (streams.Any(s => s.BidQuote != null || s.OfferQuote != null))
             {
-                // Resume drawing and refresh once
-                SendMessage(dgvQuotes.Handle, WM_SETREDRAW, true, 0);
-                dgvQuotes.Refresh();
+                btnExecute.Enabled = true;
+                btnBuy.Enabled = true;
             }
+
+            // Clear selection so best price highlighting is visible (not covered by blue selection)
+            dgvQuotes.ClearSelection();
+
+            // Start countdown timer - only if grid is properly initialized
+            if (!_countdownTimer.Enabled && dgvQuotes != null && dgvQuotes.Columns.Contains("TTL"))
+                _countdownTimer.Start();
         }
 
         private void CountdownTimer_Tick(object sender, EventArgs e)
         {
-            // Suspend drawing completely using WM_SETREDRAW
+            if (dgvQuotes.InvokeRequired)
+            {
+                dgvQuotes.Invoke(new Action(() => CountdownTimer_Tick(sender, e)));
+                return;
+            }
+
+            // Safety checks to prevent NullReferenceException
+            if (dgvQuotes == null || dgvQuotes.Columns == null || dgvQuotes.Rows == null)
+            {
+                return;
+            }
+
+            // Check if required columns exist
+            if (!dgvQuotes.Columns.Contains("TTL") || !dgvQuotes.Columns.Contains("ValidUntilTime"))
+            {
+                return;
+            }
+
+            var nowUtc = DateTime.UtcNow;
+
+            // Completely suspend painting using WinAPI (more aggressive than SuspendLayout)
             SendMessage(dgvQuotes.Handle, WM_SETREDRAW, false, 0);
 
             try
             {
-                // Update TTL for each row
-                for (int i = 0; i < dgvQuotes.Rows.Count; i++)
+                foreach (DataGridViewRow row in dgvQuotes.Rows)
                 {
-                    var validUntilStr = dgvQuotes.Rows[i].Cells["ValidUntilTime"].Value?.ToString();
-                    if (string.IsNullOrEmpty(validUntilStr))
+                    try
                     {
-                        dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
-                        continue;
-                    }
-
-                    // Parse ValidUntilTime as UTC (FIX timestamps are in UTC)
-                    if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss", null,
-                        System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
-                        out DateTime validUntilUtc))
-                    {
-                        // Compare with UTC time
-                        TimeSpan remaining = validUntilUtc - DateTime.UtcNow;
-
-                        if (remaining.TotalSeconds > 0)
+                        string validUntilStr = row.Cells["ValidUntilTime"].Value?.ToString();
+                        if (string.IsNullOrEmpty(validUntilStr))
                         {
-                            dgvQuotes.Rows[i].Cells["TTL"].Value = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
+                            if (row.Cells["TTL"].Value?.ToString() != "-")
+                                row.Cells["TTL"].Value = "-";
+                            continue;
+                        }
+
+                        // Parse ValidUntilTime: format is "YYYYMMDD-HH:mm:ss" (already in UTC)
+                        if (DateTime.TryParseExact(validUntilStr, "yyyyMMdd-HH:mm:ss",
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                            out DateTime validUntil))
+                        {
+                            var remainingTime = validUntil - nowUtc;
+                            var ttlCell = row.Cells["TTL"];
+                            string newValue;
+
+                            if (remainingTime.TotalSeconds <= 0)
+                            {
+                                newValue = "EXPIRED";
+                            }
+                            else
+                            {
+                                // Format as MM:SS
+                                int minutes = (int)remainingTime.TotalMinutes;
+                                int seconds = remainingTime.Seconds;
+                                newValue = $"{minutes}:{seconds:D2}";
+                            }
+
+                            // Only update if value changed (reduces redraws)
+                            if (ttlCell.Value?.ToString() != newValue)
+                            {
+                                ttlCell.Value = newValue;
+                            }
                         }
                         else
                         {
-                            dgvQuotes.Rows[i].Cells["TTL"].Value = "EXPIRED";
+                            if (row.Cells["TTL"].Value?.ToString() != "-")
+                                row.Cells["TTL"].Value = "-";
                         }
                     }
-                    else
+                    catch
                     {
-                        dgvQuotes.Rows[i].Cells["TTL"].Value = "-";
+                        if (row.Cells["TTL"].Value?.ToString() != "-")
+                            row.Cells["TTL"].Value = "-";
                     }
                 }
             }
             finally
             {
-                // Resume drawing and refresh once
+                // Resume painting and refresh only the TTL column
                 SendMessage(dgvQuotes.Handle, WM_SETREDRAW, true, 0);
-                dgvQuotes.Refresh();
+                // Additional safety check before invalidating
+                if (dgvQuotes.Columns.Contains("TTL"))
+                {
+                    dgvQuotes.Invalidate(dgvQuotes.GetColumnDisplayRectangle(dgvQuotes.Columns["TTL"].Index, false));
+                }
             }
         }
 
-
         private void DgvQuotes_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            // Format TTL column colors
+            // Only format TTL column
             if (dgvQuotes.Columns[e.ColumnIndex].Name != "TTL")
                 return;
 
@@ -1080,20 +949,17 @@ namespace FXOAiTranslator
 
                     if (totalSeconds > 60)
                     {
-                        // Fresh quote: Orange (avoid green which is used for best prices)
-                        e.CellStyle.BackColor = Color.Orange;
+                        e.CellStyle.BackColor = Color.LightGreen;
                         e.CellStyle.ForeColor = Color.Black;
                     }
                     else if (totalSeconds > 30)
                     {
-                        // Getting old: Dark Orange
-                        e.CellStyle.BackColor = Color.DarkOrange;
-                        e.CellStyle.ForeColor = Color.White;
+                        e.CellStyle.BackColor = Color.Yellow;
+                        e.CellStyle.ForeColor = Color.Black;
                     }
                     else
                     {
-                        // About to expire: Red
-                        e.CellStyle.BackColor = Color.Red;
+                        e.CellStyle.BackColor = Color.LightCoral;
                         e.CellStyle.ForeColor = Color.White;
                     }
                 }
@@ -1113,80 +979,53 @@ namespace FXOAiTranslator
                 ? quote.LegPricing[0].LegSpotRate
                 : null;
 
-            // Get premium currency from tag 9073 (inbound quote) or tag 5830 (fallback)
-            string premiumCcy = quote.Get("9073") ?? quote.Get("5830") ?? "";
-
-            double? rawPremium = null;
-
-            // PREFER Tag 6436 (Premium) if available - display raw value
+            // PREFER Tag 6436 (Premium) if available - it's in consistent units across all LPs
+            // Tag 6436 appears to be in hundredths of basis points (divide by 1000 for basis points)
             string tag6436 = quote.Get("6436");
             if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
             {
-                rawPremium = premium6436;
+                double basisPoints = premium6436 / 1000.0;
+                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={tag6436} -> Display={basisPoints:F2}, Spot={spotRef ?? "N/A"}");
+                return basisPoints;
             }
-            // FALLBACK: Use LegPricing structure - display raw values
-            else if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+
+            // FALLBACK: Use LegPricing structure (less reliable due to PriceIndicator differences)
+            if (quote.LegPricing != null && quote.LegPricing.Count > 0)
             {
                 double netPrem = 0;
                 foreach (var leg in quote.LegPricing)
                 {
                     if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
                     {
+                        // HSBC sends premiums in percentage, others in basis points
+                        // Convert HSBC from % to bps by multiplying with 100
+                        if (lpName == "HSBC")
+                        {
+                            prem *= 100.0;
+                        }
                         netPrem += prem;
                     }
                 }
-                rawPremium = netPrem;
+                return netPrem;
             }
+
             // Fallback to old field structure for backwards compatibility
-            else
+            double netPremOld = 0;
+            for (int i = 1; i <= _selectedLegCount; i++)
             {
-                double netPremOld = 0;
-                for (int i = 1; i <= _selectedLegCount; i++)
+                var premStr = quote.Get($"leg{i}_5844");
+                if (!string.IsNullOrEmpty(premStr) && double.TryParse(premStr, out double prem))
                 {
-                    var premStr = quote.Get($"leg{i}_5844");
-                    if (!string.IsNullOrEmpty(premStr) && double.TryParse(premStr, out double prem))
+                    // HSBC sends premiums in percentage, others in basis points
+                    if (lpName == "HSBC")
                     {
-                        netPremOld += prem;
+                        prem *= 100.0;
                     }
-                }
-                rawPremium = netPremOld;
-            }
-
-            if (!rawPremium.HasValue)
-                return null;
-
-            // Currency conversion if toggle is checked
-            // When checked: always show in BASE currency (convert from TERM if needed)
-            if (togglePremiumCurrency != null && togglePremiumCurrency.Checked && !string.IsNullOrEmpty(spotRef))
-            {
-                // Get base and term currencies from the pair
-                string pair = _trade.Underlying;  // e.g., "EURUSD" or "USDSEK"
-                string baseCcy = pair.Substring(0, 3);  // EUR or USD
-                string termCcy = pair.Substring(3, 3);  // USD or SEK
-
-                if (double.TryParse(spotRef, out double spot))
-                {
-                    string premCcy = premiumCcy.ToUpperInvariant();
-
-                    // If premium is in term currency, convert to base currency
-                    if (premCcy == termCcy.ToUpperInvariant())
-                    {
-                        // Formula: Term Premium / Spot = Base Premium
-                        // Example: USD/SEK with premium in SEK: SEK 1000 / 10.5 = USD 95.24
-                        // Example: EUR/USD with premium in USD: USD 1000 / 1.15 = EUR 869.57
-                        double convertedPremium = rawPremium.Value / spot;
-                        return convertedPremium;
-                    }
-                    // If premium is already in base currency, no conversion needed
-                    else if (premCcy == baseCcy.ToUpperInvariant())
-                    {
-                        return rawPremium.Value;
-                    }
+                    netPremOld += prem;
                 }
             }
 
-            // Return raw premium (original currency or conversion not possible)
-            return rawPremium.Value;
+            return netPremOld;
         }
 
         private double? GetLegVol(FIXMessage quote, int legNum)
@@ -1208,6 +1047,30 @@ namespace FXOAiTranslator
             if (!string.IsNullOrEmpty(volStr) && double.TryParse(volStr, out double volOld))
             {
                 return volOld;
+            }
+
+            return null;
+        }
+
+        private double? GetLegPremium(FIXMessage quote, int legNum)
+        {
+            if (quote == null) return null;
+
+            // Use new LegPricing structure (legNum is 1-indexed, array is 0-indexed)
+            if (quote.LegPricing != null && quote.LegPricing.Count >= legNum)
+            {
+                var leg = quote.LegPricing[legNum - 1];
+                if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
+                {
+                    return prem;
+                }
+            }
+
+            // Fallback to old field structure
+            var premStr = quote.Get($"leg{legNum}_5844");
+            if (!string.IsNullOrEmpty(premStr) && double.TryParse(premStr, out double premOld))
+            {
+                return premOld;
             }
 
             return null;
@@ -1237,72 +1100,49 @@ namespace FXOAiTranslator
             return (bestBid, bestOffer);
         }
 
-        private (double? bestBidVol, double? bestOfferVol) GetBestVolatilities(int legNum)
+        private (double? bestBid, double? bestOffer) GetBestVolatilities()
         {
             var streams = _fixSession.Application.GetActiveStreams(_groupId);
 
-            double? bestBidVol = null;
-            double? bestOfferVol = null;
+            double? bestBid = null;
+            double? bestOffer = null;
 
             foreach (var stream in streams)
             {
-                var bidVol = GetLegVol(stream.BidQuote, legNum);
-                var offerVol = GetLegVol(stream.OfferQuote, legNum);
+              // Get volatility for leg 1
+  var bid = GetLegVol(stream.BidQuote, 1);
+        var offer = GetLegVol(stream.OfferQuote, 1);
 
-                // Best BID VOL = highest (client receives most volatility when selling)
-                if (bidVol.HasValue && (!bestBidVol.HasValue || bidVol.Value > bestBidVol.Value))
-                    bestBidVol = bidVol.Value;
+      // Best BID VOL = highest (better for client to sell)
+     if (bid.HasValue && (!bestBid.HasValue || bid.Value > bestBid.Value))
+   bestBid = bid.Value;
 
-                // Best OFFER VOL = lowest (client pays least volatility when buying)
-                if (offerVol.HasValue && (!bestOfferVol.HasValue || offerVol.Value < bestOfferVol.Value))
-                    bestOfferVol = offerVol.Value;
-            }
+      // Best OFFER VOL = lowest (better for client to buy)
+        if (offer.HasValue && (!bestOffer.HasValue || offer.Value < bestOffer.Value))
+    bestOffer = offer.Value;
+  }
 
-            return (bestBidVol, bestOfferVol);
-        }
+  return (bestBid, bestOffer);
+  }
 
         private void BtnExecute_Click(string side)
         {
             _quoteTimer?.Stop();
 
+            // Get best bid quote
             var streams = _fixSession.Application.GetActiveStreams(_groupId);
-
-            // Check if we're in VOL or PREM mode
-            bool isVolMode = toggleQuoteMode != null && toggleQuoteMode.Checked;
-
-            // Find best bid quote
             FIXMessage bestBidQuote = null;
-            double bestBidValue = double.MinValue;
+            double bestBidPremium = double.MinValue;
 
-            if (isVolMode)
+            foreach (var stream in streams)
             {
-                // VOL mode: Find HIGHEST bid volatility (receive most)
-                foreach (var stream in streams)
+                if (stream.BidQuote != null)
                 {
-                    if (stream.BidQuote != null)
+                    var prem = CalculateNetPremium(stream.BidQuote);
+                    if (prem.HasValue && prem.Value > bestBidPremium)
                     {
-                        var vol = GetLegVol(stream.BidQuote, 1);  // First leg volatility
-                        if (vol.HasValue && vol.Value > bestBidValue)
-                        {
-                            bestBidValue = vol.Value;
-                            bestBidQuote = stream.BidQuote;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // PREM mode: Find highest bid premium (receive most)
-                foreach (var stream in streams)
-                {
-                    if (stream.BidQuote != null)
-                    {
-                        var prem = CalculateNetPremium(stream.BidQuote);
-                        if (prem.HasValue && prem.Value > bestBidValue)
-                        {
-                            bestBidValue = prem.Value;
-                            bestBidQuote = stream.BidQuote;
-                        }
+                        bestBidPremium = prem.Value;
+                        bestBidQuote = stream.BidQuote;
                     }
                 }
             }
@@ -1326,48 +1166,24 @@ namespace FXOAiTranslator
                 {
                     // Hit the bid - find best bid
                     selectedQuote = bestBidQuote;
-                    selectedPremium = bestBidValue;  // Could be premium or volatility depending on mode
+                    selectedPremium = bestBidPremium;
                     lpName = bestBidQuote.Get(Tags.OnBehalfOfCompID.ToString());
                 }
                 else // BUY
                 {
+                    // Lift the offer - find best offer
                     FIXMessage bestOfferQuote = null;
-                    double bestOfferValue = double.MinValue;
+                    double bestOfferPremium = double.MaxValue;
 
-                    // In VOL mode, compare volatilities; in PREM mode, compare premiums
-                    if (isVolMode)
+                    foreach (var stream in streams)
                     {
-                        // VOL mode: Find LOWEST volatility (pay least)
-                        bestOfferValue = double.MaxValue;  // Start from max to find minimum
-
-                        foreach (var stream in streams)
+                        if (stream.OfferQuote != null)
                         {
-                            if (stream.OfferQuote != null)
+                            var prem = CalculateNetPremium(stream.OfferQuote);
+                            if (prem.HasValue && prem.Value < bestOfferPremium)
                             {
-                                var vol = GetLegVol(stream.OfferQuote, 1);  // First leg volatility
-                                if (vol.HasValue && vol.Value < bestOfferValue)
-                                {
-                                    bestOfferValue = vol.Value;
-                                    bestOfferQuote = stream.OfferQuote;
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // PREM mode: Find highest premium (least negative = pay least)
-                        bestOfferValue = double.MinValue;  // Start from min to find maximum
-
-                        foreach (var stream in streams)
-                        {
-                            if (stream.OfferQuote != null)
-                            {
-                                var prem = CalculateNetPremium(stream.OfferQuote);
-                                if (prem.HasValue && prem.Value > bestOfferValue)
-                                {
-                                    bestOfferValue = prem.Value;
-                                    bestOfferQuote = stream.OfferQuote;
-                                }
+                                bestOfferPremium = prem.Value;
+                                bestOfferQuote = stream.OfferQuote;
                             }
                         }
                     }
@@ -1381,18 +1197,25 @@ namespace FXOAiTranslator
                     }
 
                     selectedQuote = bestOfferQuote;
-                    selectedPremium = bestOfferValue;  // Could be premium or volatility depending on mode
+                    selectedPremium = bestOfferPremium;
                     lpName = bestOfferQuote.Get(Tags.OnBehalfOfCompID.ToString());
                 }
 
                 // ===== QUOTE FRESHNESS VALIDATION =====
+                Console.WriteLine($"\n[VALIDATION] Starting quote freshness check for {lpName}");
+                Console.WriteLine($"[VALIDATION] Original QuoteID: {selectedQuote.Get(Tags.QuoteID.ToString())}");
+                Console.WriteLine($"[VALIDATION] Selected Quote Side (tag 54): {selectedQuote.Get("54")} ({(selectedQuote.Get("54") == "1" ? "BID" : selectedQuote.Get("54") == "2" ? "OFFER" : "UNKNOWN")})");
+                Console.WriteLine($"[VALIDATION] User Action: {side}");
+
                 // Re-fetch streams to check current quote state
                 // NOTE: No delay - execute as fast as possible to minimize window for LP to update quote
+                Console.WriteLine($"[VALIDATION] Re-fetching streams for GroupID: {_groupId}");
                 var refreshedStreams = _fixSession.Application.GetActiveStreams(_groupId);
                 var refreshedStream = refreshedStreams.FirstOrDefault(s => s.LP == lpName);
 
                 if (refreshedStream == null)
                 {
+                    Console.WriteLine($"[VALIDATION] ✗ Stream for {lpName} NOT FOUND - quote no longer available!");
                     MessageBox.Show(
                         $"Quote from {lpName} is no longer available.\n\nPlease request fresh quotes.",
                         "Quote No Longer Available",
@@ -1402,12 +1225,14 @@ namespace FXOAiTranslator
                     _quoteTimer?.Start();
                     return;
                 }
+                Console.WriteLine($"[VALIDATION] ✓ Stream for {lpName} found");
 
                 // Check if the specific side (bid/offer) was canceled
                 FIXMessage refreshedQuote = side == "SELL" ? refreshedStream.BidQuote : refreshedStream.OfferQuote;
 
                 if (refreshedQuote == null)
                 {
+                    Console.WriteLine($"[VALIDATION] ✗ Quote for side={side} from {lpName} is NULL - was canceled!");
                     MessageBox.Show(
                         $"Quote from {lpName} was just canceled.\n\nPlease request fresh quotes.",
                         "Quote Canceled",
@@ -1417,6 +1242,7 @@ namespace FXOAiTranslator
                     _quoteTimer?.Start();
                     return;
                 }
+                Console.WriteLine($"[VALIDATION] ✓ Quote for side={side} exists");
 
                 // Check if the QuoteID changed (quote was replaced)
                 string originalQuoteID = selectedQuote.Get(Tags.QuoteID.ToString());
@@ -1424,6 +1250,7 @@ namespace FXOAiTranslator
 
                 if (originalQuoteID != currentQuoteID)
                 {
+                    Console.WriteLine($"[VALIDATION] ✗ QuoteID CHANGED! Old={originalQuoteID}, New={currentQuoteID}");
                     MessageBox.Show(
                         $"Quote from {lpName} was updated.\n\nOld QuoteID: {originalQuoteID}\nNew QuoteID: {currentQuoteID}\n\nPlease review the updated price.",
                         "Quote Updated",
@@ -1437,8 +1264,11 @@ namespace FXOAiTranslator
                     return;
                 }
 
+                Console.WriteLine($"[VALIDATION] ✓ QuoteID unchanged: {currentQuoteID}");
+
                 // Check ValidUntilTime (tag 62) - quote expiration
                 string validUntilStr = refreshedQuote.Get("62");
+                Console.WriteLine($"[VALIDATION] ValidUntilTime (tag 62): {validUntilStr}");
 
                 if (!string.IsNullOrEmpty(validUntilStr))
                 {
@@ -1448,9 +1278,11 @@ namespace FXOAiTranslator
                         out DateTime validUntil))
                     {
                         var timeRemaining = validUntil - DateTime.UtcNow;
+                        Console.WriteLine($"[VALIDATION] Time remaining: {timeRemaining.TotalSeconds:F1}s");
 
                         if (timeRemaining.TotalSeconds <= 0)
                         {
+                            Console.WriteLine($"[VALIDATION] ✗ Quote EXPIRED! ValidUntil={validUntil:HH:mm:ss}, Now={DateTime.UtcNow:HH:mm:ss}");
                             MessageBox.Show(
                                 $"Quote from {lpName} has expired.\n\nExpired: {-timeRemaining.TotalSeconds:F1}s ago\n\nPlease request fresh quotes.",
                                 "Quote Expired",
@@ -1463,6 +1295,7 @@ namespace FXOAiTranslator
 
                         if (timeRemaining.TotalSeconds < 2)
                         {
+                            Console.WriteLine($"[VALIDATION] ⚠ Quote expiring very soon ({timeRemaining.TotalSeconds:F1}s)");
                             var result = MessageBox.Show(
                                 $"WARNING: Quote expires in {timeRemaining.TotalSeconds:F1}s!\n\nThere may not be enough time to execute.\n\nProceed anyway?",
                                 "Quote Expiring Soon",
@@ -1472,15 +1305,22 @@ namespace FXOAiTranslator
 
                             if (result == DialogResult.No)
                             {
+                                Console.WriteLine($"[VALIDATION] User declined to execute expiring quote");
                                 _quoteTimer?.Start();
                                 return;
                             }
                         }
+
+                        Console.WriteLine($"[VALIDATION] ✓ Quote is valid (expires in {timeRemaining.TotalSeconds:F1}s)");
                     }
                 }
 
+                Console.WriteLine($"[VALIDATION] ✓ All checks passed - proceeding with execution\n");
+
                 // Use the refreshed quote for execution to ensure we have the latest data
                 selectedQuote = refreshedQuote;
+                Console.WriteLine($"[VALIDATION] FINAL Quote Side before execution: {selectedQuote.Get("54")} ({(selectedQuote.Get("54") == "1" ? "BID" : selectedQuote.Get("54") == "2" ? "OFFER" : "UNKNOWN")})");
+                Console.WriteLine($"[VALIDATION] FINAL QuoteID before execution: {selectedQuote.Get(Tags.QuoteID.ToString())}");
                 // ===== END QUOTE FRESHNESS VALIDATION =====
 
                 string clOrdID = _fixSession.SendExecution(selectedQuote, side, _trade);
@@ -1513,14 +1353,6 @@ namespace FXOAiTranslator
                 deltaDisplay = deltaInMillions.ToString("N2") + "M";
             }
 
-            // Format volatility
-            string volDisplay = entry.Volatility.HasValue ? entry.Volatility.Value.ToString("N2") : "-";
-
-            // Format dates (convert yyyyMMdd to dd MMM yy)
-            string expDateDisplay = FormatBlotterDate(entry.ExpDate);
-            string settleDateDisplay = FormatBlotterDate(entry.SettlementDate);
-            string premDateDisplay = FormatBlotterDate(entry.PremiumDate);
-
             dgvBlotter.Rows.Add(
                 entry.TradeTime.ToString("HH:mm:ss"),
                 entry.ClOrdID,
@@ -1528,17 +1360,8 @@ namespace FXOAiTranslator
                 entry.Side,
                 entry.Underlying,
                 entry.StructureType,
-                entry.Strike?.ToString("F4") ?? "-",
-                entry.Notional?.ToString("N2") ?? "-",
-                entry.NotionalCcy ?? "-",
-                expDateDisplay,
-                settleDateDisplay,
-                entry.Cut ?? "-",
-                entry.NetPremium.ToString("N0"),
-                entry.PremiumCcy ?? "-",
-                premDateDisplay,
+                entry.NetPremium.ToString("N2"),
                 deltaDisplay,
-                volDisplay,
                 entry.Status
             );
 
@@ -1555,94 +1378,14 @@ namespace FXOAiTranslator
                 return;
             }
 
-            // Check if columns exist (grid might be recreating)
-            if (!dgvBlotter.Columns.Contains("ClOrdID") ||
-                !dgvBlotter.Columns.Contains("Status") ||
-                !dgvBlotter.Columns.Contains("Premium"))
-                return;
-
             // Find the row with matching ClOrdID and update it
             foreach (DataGridViewRow row in dgvBlotter.Rows)
             {
                 if (row.Cells["ClOrdID"].Value?.ToString() == entry.ClOrdID)
                 {
                     row.Cells["Status"].Value = entry.Status;
-                    row.Cells["Premium"].Value = entry.NetPremium.ToString("N0"); // Raw integer value
-
-                    // Update Premium Date if available
-                    if (dgvBlotter.Columns.Contains("PremiumDate"))
-                    {
-                        row.Cells["PremiumDate"].Value = FormatBlotterDate(entry.PremiumDate);
-                    }
-
+                    row.Cells["Premium"].Value = entry.NetPremium.ToString("N2");
                     ColorCodeBlotterRow(row, entry.Status);
-                    break;
-                }
-            }
-        }
-
-        private string FormatBlotterDate(string yyyyMMdd)
-        {
-            if (string.IsNullOrEmpty(yyyyMMdd) || yyyyMMdd.Length != 8)
-                return "-";
-
-            try
-            {
-                int year = int.Parse(yyyyMMdd.Substring(0, 4));
-                int month = int.Parse(yyyyMMdd.Substring(4, 2));
-                int day = int.Parse(yyyyMMdd.Substring(6, 2));
-                DateTime date = new DateTime(year, month, day);
-                return date.ToString("dd MMM yy"); // e.g., "16 Dec 25"
-            }
-            catch
-            {
-                return yyyyMMdd; // Return as-is if parsing fails
-            }
-        }
-
-        /// <summary>
-        /// Handle Trade Capture Report (35=AE) from STP session
-        /// This is the final confirmation with full trade economics
-        /// </summary>
-        private void OnTradeCaptureReceived(CapturedTrade trade)
-        {
-            if (dgvBlotter.InvokeRequired)
-            {
-                dgvBlotter.Invoke(new Action(() => OnTradeCaptureReceived(trade)));
-                return;
-            }
-
-            Console.WriteLine($"\n[GFIQuoteDialog] Trade Capture Report received:");
-            Console.WriteLine($"  Symbol: {trade.Symbol}");
-            Console.WriteLine($"  Side: {trade.Side}");
-            Console.WriteLine($"  Counterparty: {trade.CounterpartyName} (LEI: {trade.CounterpartyLEI})");
-            Console.WriteLine($"  ExecID: {trade.ExecID}");
-            Console.WriteLine($"  QuoteID: {trade.QuoteID}");
-            Console.WriteLine($"  ClOrdID: {trade.ClOrdID}");
-            Console.WriteLine($"  Option Legs: {trade.OptionLegs.Count}");
-            Console.WriteLine($"  Hedge Legs: {trade.HedgeLegs.Count}");
-
-            // Check if columns exist
-            if (!dgvBlotter.Columns.Contains("ClOrdID") ||
-                !dgvBlotter.Columns.Contains("Status") ||
-                !dgvBlotter.Columns.Contains("LP"))
-                return;
-
-            // Find the row with matching ClOrdID and update with final trade details
-            foreach (DataGridViewRow row in dgvBlotter.Rows)
-            {
-                if (row.Cells["ClOrdID"].Value?.ToString() == trade.ClOrdID)
-                {
-                    // Update with confirmed counterparty name
-                    row.Cells["LP"].Value = trade.CounterpartyName;
-
-                    // Update status to confirmed
-                    row.Cells["Status"].Value = "CONFIRMED";
-
-                    // Color code as confirmed (light blue)
-                    row.DefaultCellStyle.BackColor = Color.LightBlue;
-
-                    Console.WriteLine($"[GFIQuoteDialog] ✓ Updated blotter row with final confirmation");
                     break;
                 }
             }

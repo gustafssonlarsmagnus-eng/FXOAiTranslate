@@ -27,7 +27,21 @@ namespace FXOptionsSimulator
                 throw new ArgumentException("OVML string is empty");
             }
 
-            Console.WriteLine($"[OVMLBridge] Converting OVML: {ovml}");
+            // If underlying is null/empty, extract it from the OVML string
+            if (string.IsNullOrEmpty(underlying))
+            {
+                // Extract currency pair from OVML (should be first token after "OVML")
+                var parts = ovml.Replace("OVML", "").Trim().Split(' ');
+                if (parts.Length > 0)
+                {
+                    underlying = parts[0];
+                }
+            }
+
+            if (string.IsNullOrEmpty(underlying))
+            {
+                underlying = "EURUSD";
+            }
 
             // Parse the OVML string
             var parsed = ParseOVML(ovml);
@@ -53,20 +67,33 @@ namespace FXOptionsSimulator
                 Legs = new List<TradeStructure.OptionLeg>()
             };
 
+            // Extract actual tenor from formatted string if present
+            // Format: "31-Dec-25, Wed (1M)" -> extract "1M"
+            string actualTenor = expiry;
+            var tenorInParensMatch = Regex.Match(expiry, @"\(([^)]+)\)$");
+            if (tenorInParensMatch.Success)
+            {
+                actualTenor = tenorInParensMatch.Groups[1].Value;
+                Console.WriteLine($"[OVMLBridge] Extracted tenor '{actualTenor}' from formatted string '{expiry}'");
+            }
+
             // Convert each parsed leg to TradeStructure.OptionLeg
             for (int i = 0; i < parsed.Legs.Count; i++)
             {
                 var parsedLeg = parsed.Legs[i];
-                var expiryDate = CalculateExpiryDate(expiry);
+                var expiryDate = CalculateExpiryDate(actualTenor, underlying);
+
+                // Calculate delivery date = expiry + spot lag business days
+                var deliveryDate = CalculateDeliveryDate(expiryDate, underlying);
 
                 trade.Legs.Add(new TradeStructure.OptionLeg
                 {
                     Direction = parsedLeg.Direction,
                     OptionType = parsedLeg.OptionType,
                     Strike = parsedLeg.Strike,
-                    Tenor = expiry,
+                    Tenor = actualTenor,
                     ExpiryDate = expiryDate,
-                    DeliveryDate = expiryDate.AddDays(2),
+                    DeliveryDate = deliveryDate,
                     NotionalMM = parsedLeg.NotionalMM,
                     NotionalCurrency = GetTermCurrency(underlying),
                     Cutoff = "NY",
@@ -75,7 +102,6 @@ namespace FXOptionsSimulator
                 });
             }
 
-            Console.WriteLine($"[OVMLBridge] Created {structureType} with {trade.Legs.Count} legs");
             return trade;
         }
 
@@ -95,13 +121,42 @@ namespace FXOptionsSimulator
             string directions = "";
             string strikes = "";
             string notionals = "";
+            bool isDeltaBased = false;
+            string deltaSpec = "";
+            string optionTypeFromDelta = "";
+
+            // First pass: identify if this is delta-based and collect the option type
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].StartsWith("DS") || parts[i].StartsWith("DF"))
+                {
+                    isDeltaBased = true;
+                    deltaSpec = parts[i];
+                    // Next token should be C or P
+                    if (i + 1 < parts.Length && (parts[i + 1] == "C" || parts[i + 1] == "P"))
+                    {
+                        optionTypeFromDelta = parts[i + 1];
+                    }
+                }
+            }
 
             foreach (var part in parts)
             {
+                // Skip standalone C or P if it's part of delta spec
+                if (isDeltaBased && (part == "C" || part == "P"))
+                {
+                    continue;
+                }
+
                 // Directions: B,S,S
                 if (Regex.IsMatch(part, @"^[BS,]+$"))
                 {
                     directions = part;
+                }
+                // Delta specification: DS25, DF50
+                else if (part.StartsWith("DS") || part.StartsWith("DF"))
+                {
+                    strikes = part + optionTypeFromDelta; // Combine DS25 + C = DS25C
                 }
                 // Strikes: 9.6000P,9.1500P or 11.8000C,12.1000C
                 else if (Regex.IsMatch(part, @"[\d.]+[CP]"))
@@ -129,7 +184,21 @@ namespace FXOptionsSimulator
             {
                 var strikeStr = strikeList[i].Trim();
                 char optionType = strikeStr.EndsWith("P") ? 'P' : 'C';
-                double strike = double.Parse(strikeStr.TrimEnd('C', 'P'));
+                double strike;
+
+                // Handle delta specifications (DS25C, DF50P)
+                if (strikeStr.StartsWith("DS") || strikeStr.StartsWith("DF"))
+                {
+                    // Extract delta value from DS25C or DF50P
+                    string deltaValue = strikeStr.Substring(2).TrimEnd('C', 'P');
+                    strike = double.Parse(deltaValue);
+                    Console.WriteLine($"[OVMLBridge] Delta specification detected: {strikeStr} -> Delta value: {strike}");
+                }
+                else
+                {
+                    // Regular strike price
+                    strike = double.Parse(strikeStr.TrimEnd('C', 'P'));
+                }
 
                 string direction = i < directionList.Length ? directionList[i].Trim() : "B";
                 direction = direction == "B" ? "BUY" : "SELL";
@@ -182,33 +251,132 @@ namespace FXOptionsSimulator
         /// <summary>
         /// Calculate expiry date from tenor or date string
         /// </summary>
-        private static DateTime CalculateExpiryDate(string expiry)
+        private static DateTime CalculateExpiryDate(string expiry, string currencyPair = "EURUSD")
         {
             // Try tenor format (3M, 6M, 1Y)
             var tenorMatch = Regex.Match(expiry, @"^(\d+)([MYWDW])$", RegexOptions.IgnoreCase);
             if (tenorMatch.Success)
             {
-                int amount = int.Parse(tenorMatch.Groups[1].Value);
-                char period = char.ToUpper(tenorMatch.Groups[2].Value[0]);
-
-                return period switch
+                try
                 {
-                    'D' => DateTime.UtcNow.AddDays(amount),
-                    'W' => DateTime.UtcNow.AddDays(amount * 7),
-                    'M' => DateTime.UtcNow.AddMonths(amount),
-                    'Y' => DateTime.UtcNow.AddYears(amount),
-                    _ => DateTime.UtcNow.AddMonths(3)
-                };
+                    // Use FxCalendarService for database-backed business day calculation
+                    var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
+                        DateTime.UtcNow,
+                        expiry.ToUpper(),
+                        currencyPair
+                    );
+
+                    Console.WriteLine($"[CALENDAR-OVML] Tenor {expiry} for {currencyPair}: {expiryDate:yyyy-MM-dd (ddd)} (business day adjusted)");
+                    return expiryDate;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[CALENDAR-OVML] FxCalendarService failed for {expiry}/{currencyPair}: {ex.Message}, using fallback");
+
+                    // Fallback to simple calculation with weekend adjustment
+                    int amount = int.Parse(tenorMatch.Groups[1].Value);
+                    char period = char.ToUpper(tenorMatch.Groups[2].Value[0]);
+
+                    var date = period switch
+                    {
+                        'D' => DateTime.UtcNow.AddDays(amount),
+                        'W' => DateTime.UtcNow.AddDays(amount * 7),
+                        'M' => DateTime.UtcNow.AddMonths(amount),
+                        'Y' => DateTime.UtcNow.AddYears(amount),
+                        _ => DateTime.UtcNow.AddMonths(3)
+                    };
+
+                    // Simple weekend adjustment
+                    while (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        date = date.AddDays(1);
+                    }
+
+                    Console.WriteLine($"[CALENDAR-OVML] Fallback used - adjusted to {date:yyyy-MM-dd (ddd)}");
+                    return date;
+                }
             }
 
             // Try date format (MM/dd/yy or ddMMMyy)
             if (DateTime.TryParse(expiry, out DateTime result))
             {
+                // Check if it's a weekend and adjust if needed
+                if (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    Console.WriteLine($"[CALENDAR-OVML] WARNING: Parsed date {result:yyyy-MM-dd} is a weekend!");
+                    while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        result = result.AddDays(1);
+                    }
+                    Console.WriteLine($"[CALENDAR-OVML] Adjusted to next business day: {result:yyyy-MM-dd (ddd)}");
+                }
                 return result;
             }
 
-            // Default: 3 months
-            return DateTime.UtcNow.AddMonths(3);
+            // Default: 3 months with business day adjustment
+            try
+            {
+                var rules = new FxDateRules();
+                var defaultResult = FxDateService.ComputeDates(
+                    DateTime.UtcNow,
+                    currencyPair,
+                    "3M",
+                    premiumCcy: currencyPair.Length >= 6 ? currencyPair.Substring(3, 3) : "USD",
+                    rules
+                );
+                return defaultResult.expiryDate;
+            }
+            catch
+            {
+                return DateTime.UtcNow.AddMonths(3);
+            }
+        }
+
+        /// <summary>
+        /// Calculate delivery date from expiry date by adding spot lag business days
+        /// </summary>
+        private static DateTime CalculateDeliveryDate(DateTime expiryDate, string currencyPair = "EURUSD")
+        {
+            // Determine spot lag for the currency pair
+            int spotLag = GetSpotLag(currencyPair);
+
+            // Add spot lag business days to expiry date
+            DateTime deliveryDate = expiryDate;
+            int businessDaysAdded = 0;
+
+            while (businessDaysAdded < spotLag)
+            {
+                deliveryDate = deliveryDate.AddDays(1);
+
+                // Skip weekends
+                if (deliveryDate.DayOfWeek == DayOfWeek.Saturday || deliveryDate.DayOfWeek == DayOfWeek.Sunday)
+                    continue;
+
+                // Skip January 1st (global holiday)
+                if (deliveryDate.Month == 1 && deliveryDate.Day == 1)
+                    continue;
+
+                businessDaysAdded++;
+            }
+
+            Console.WriteLine($"[OVMLBridge] Delivery date for {currencyPair}: Expiry={expiryDate:yyyy-MM-dd (ddd)} + {spotLag} BD = {deliveryDate:yyyy-MM-dd (ddd)}");
+            return deliveryDate;
+        }
+
+        /// <summary>
+        /// Get spot lag for currency pair (T+1 or T+2)
+        /// </summary>
+        private static int GetSpotLag(string currencyPair)
+        {
+            // T+1 pairs
+            if (currencyPair == "USDCAD" || currencyPair == "USDTRY" ||
+                currencyPair == "USDPHP" || currencyPair == "USDRUB")
+            {
+                return 1;
+            }
+
+            // Most pairs are T+2
+            return 2;
         }
 
         /// <summary>
