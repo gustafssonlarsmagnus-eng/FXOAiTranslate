@@ -33,7 +33,6 @@ namespace FXOptionsSimulator
         public double NotionalMM { get; set; }  // Notional in millions
         public DateTime? ExpiryDate { get; set; }
         public DateTime? ValueDate { get; set; }
-        public string PremiumCcy { get; set; }  // Premium currency
         public string OptionType { get; set; }  // CALL, PUT, or structure description for multi-leg
     }
 
