@@ -42,7 +42,7 @@ namespace FXOAiTranslator
         private CheckBox chkDeut;  // Testing only
         private int _selectedLegCount;
         private bool _showVolatility = true;  // NEW: Toggle between Vol (true) and Premium (false)
-        private bool _spotHedge = false;  // NEW: Spot hedge toggle (default OFF)
+        private bool _spotHedge = true;  // NEW: Spot hedge toggle (default ON)
         private string _cutoff = "NY";  // NEW: Cutoff toggle (default NY)
 
         public GFIQuoteDialog(dynamic ovmlResult)
@@ -80,7 +80,7 @@ namespace FXOAiTranslator
         private void InitializeCustomComponents()
         {
             this.Text = "GFI Fenics - Request Quotes";
-            this.Size = new Size(1000, 840);  // Adjusted height
+            this.Size = new Size(1350, 840);  // Increased width for test case panel
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -289,15 +289,15 @@ namespace FXOAiTranslator
             // Toggle button for Spot Hedge - NEW
             var btnToggleHedge = new Button
             {
-                Text = "Hedge: OFF",
+                Text = "Hedge: ON",
                 Location = new Point(160, 305),
                 Size = new Size(110, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                BackColor = Color.LightCoral,
+                BackColor = Color.LightGreen,
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
-            btnToggleHedge.FlatAppearance.BorderColor = Color.Red;
+            btnToggleHedge.FlatAppearance.BorderColor = Color.Green;
             btnToggleHedge.Click += (s, e) =>
             {
                 _spotHedge = !_spotHedge;
@@ -326,6 +326,69 @@ namespace FXOAiTranslator
                 btnToggleCut.BackColor = (_cutoff == "NY") ? Color.LightSkyBlue : Color.LightSalmon;
             };
             this.Controls.Add(btnToggleCut);
+
+            // Test Case Checklist Panel - NEW
+            var gbTestCases = new GroupBox
+            {
+                Text = "GFI Test Protocol",
+                Location = new Point(980, 20),
+                Size = new Size(340, 780),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            this.Controls.Add(gbTestCases);
+
+            var pnlTestCases = new Panel
+            {
+                Location = new Point(10, 25),
+                Size = new Size(320, 745),
+                AutoScroll = true
+            };
+            gbTestCases.Controls.Add(pnlTestCases);
+
+            // Add all 26 test cases
+            var testCases = new[]
+            {
+                "1: NY EURUSD 1M Call",
+                "2: TKY EURUSD 2M Put",
+                "3: TKY USDJPY 3M Call",
+                "4: NY USDJPY 6M Put",
+                "5: NY EURSEK 1W Call",
+                "6: NY EURSEK 2W Put",
+                "7: TKY AUDUSD ON Call",
+                "8: NY AUDUSD 1Y Put",
+                "9: TKY USDSEK 3M Call",
+                "10: NY USDSEK 6M Put",
+                "11: TKY EURNOK 1M Call",
+                "12: NY EURNOK 2M Put",
+                "13: NY USDNOK 3M Call",
+                "14: TKY USDNOK 6M Put",
+                "15: NY EURCHF 1M Call",
+                "16: NY GBPUSD 1M Call Spread",
+                "17: NY GBPUSD 2M Put Spread",
+                "18: NY USDJPY 3M RR (S Put, B Call)",
+                "19: NY USDJPY 6M RR (B Put, S Call)",
+                "20: NY EURSEK 1M Straddle",
+                "21: NY EURSEK 2M Strangle",
+                "22: NY USDSEK 3M Seagull (B Put, S Put, S Call)",
+                "23: NY USDSEK 6M Seagull (B Call, S Call, S Put)",
+                "24: NY EURNOK 1M Collar (B Call, S Call, S Put)",
+                "25: TKY USDNOK VOL 2M Call",
+                "26: NY USDCNH 3M Put"
+            };
+
+            int yPos = 5;
+            foreach (var testCase in testCases)
+            {
+                var chk = new CheckBox
+                {
+                    Text = testCase,
+                    Location = new Point(5, yPos),
+                    Size = new Size(295, 20),
+                    Font = new Font("Segoe UI", 8, FontStyle.Regular)
+                };
+                pnlTestCases.Controls.Add(chk);
+                yPos += 25;
+            }
 
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
