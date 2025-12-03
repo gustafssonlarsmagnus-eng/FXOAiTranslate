@@ -263,7 +263,7 @@ namespace FXOAiTranslator
             toggleQuoteMode = new ToggleSwitch
             {
                 Location = new Point(20, 315),    // Aligned with other controls
-                Size = new Size(110, 24),         // Compact size
+                Size = new Size(100, 24),         // Compact size
                 LeftText = "PREM",                // Off state = Premium quotation
                 RightText = "VOL",                // On state = Volatility quotation
                 Checked = false                   // Default: PREM mode (unchecked)
@@ -275,27 +275,27 @@ namespace FXOAiTranslator
             var lblDeltaHedge = new Label
             {
                 Text = "Delta Hedge:",
-                Location = new Point(145, 318),
-                Size = new Size(80, 20),
+                Location = new Point(135, 318),
+                Size = new Size(75, 20),
                 TextAlign = ContentAlignment.MiddleRight
             };
             this.Controls.Add(lblDeltaHedge);
 
             cboDeltaHedge = new ComboBox
             {
-                Location = new Point(230, 315),
-                Size = new Size(85, 24),
+                Location = new Point(215, 315),
+                Size = new Size(75, 24),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             cboDeltaHedge.Items.AddRange(new object[] { "Live", "Spot", "Forward" });
-            cboDeltaHedge.SelectedIndex = 0;  // Default: Live (no hedge)
+            cboDeltaHedge.SelectedIndex = 1;  // Default: Spot (index 1)
             this.Controls.Add(cboDeltaHedge);
 
             // Premium type dropdown
             var lblPremiumType = new Label
             {
                 Text = "Prem Type:",
-                Location = new Point(330, 318),
+                Location = new Point(305, 318),
                 Size = new Size(70, 20),
                 TextAlign = ContentAlignment.MiddleRight
             };
@@ -303,8 +303,8 @@ namespace FXOAiTranslator
 
             cboPremiumType = new ComboBox
             {
-                Location = new Point(405, 315),
-                Size = new Size(85, 24),
+                Location = new Point(380, 315),
+                Size = new Size(75, 24),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             cboPremiumType.Items.AddRange(new object[] { "Spot", "Forward" });
