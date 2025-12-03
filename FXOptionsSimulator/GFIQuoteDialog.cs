@@ -77,7 +77,7 @@ namespace FXOAiTranslator
         private void InitializeCustomComponents()
         {
             this.Text = "GFI Fenics - Request Quotes";
-            this.Size = new Size(1000, 850);  // Increased height for blotter
+            this.Size = new Size(1000, 820);  // Adjusted height for new controls
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -242,10 +242,70 @@ namespace FXOAiTranslator
             };
             gbLPs.Controls.Add(chkDBS);
 
-            // Quotes Grid - reduced size to make room for blotter
+            // Delta Hedge control
+            var lblDeltaHedge = new Label
+            {
+                Text = "Delta Hedge:",
+                Location = new Point(20, 320),
+                Size = new Size(90, 20),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+            this.Controls.Add(lblDeltaHedge);
+
+            var cmbDeltaHedge = new ComboBox
+            {
+                Location = new Point(115, 318),
+                Size = new Size(100, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbDeltaHedge.Items.AddRange(new object[] { "VOL", "PREM" });
+            cmbDeltaHedge.SelectedIndex = 0; // Default to VOL
+            this.Controls.Add(cmbDeltaHedge);
+
+            // Spot control
+            var lblSpot = new Label
+            {
+                Text = "Spot:",
+                Location = new Point(230, 320),
+                Size = new Size(50, 20),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+            this.Controls.Add(lblSpot);
+
+            var cmbSpot = new ComboBox
+            {
+                Location = new Point(285, 318),
+                Size = new Size(100, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbSpot.Items.AddRange(new object[] { "Spot", "Forward" });
+            cmbSpot.SelectedIndex = 0; // Default to Spot
+            this.Controls.Add(cmbSpot);
+
+            // Prem Type control
+            var lblPremType = new Label
+            {
+                Text = "Prem Type:",
+                Location = new Point(400, 320),
+                Size = new Size(75, 20),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+            this.Controls.Add(lblPremType);
+
+            var cmbPremType = new ComboBox
+            {
+                Location = new Point(480, 318),
+                Size = new Size(100, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbPremType.Items.AddRange(new object[] { "Spot", "Percent" });
+            cmbPremType.SelectedIndex = 0; // Default to Spot
+            this.Controls.Add(cmbPremType);
+
+            // Quotes Grid - moved down to make room for new controls
             dgvQuotes = new DataGridView
             {
-                Location = new Point(20, 330),
+                Location = new Point(20, 355),
                 Size = new Size(940, 200),      // Reduced from 270
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -266,11 +326,11 @@ namespace FXOAiTranslator
 
             this.Controls.Add(dgvQuotes);
 
-            // Trade Blotter Grid - NEW
+            // Trade Blotter Grid - adjusted for new controls
             var lblBlotter = new Label
             {
                 Text = "Trade Blotter:",
-                Location = new Point(20, 540),  // Same as before
+                Location = new Point(20, 565),  // Moved down 25px
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
@@ -278,7 +338,7 @@ namespace FXOAiTranslator
 
             dgvBlotter = new DataGridView
             {
-                Location = new Point(20, 565),  // Same as before
+                Location = new Point(20, 590),  // Moved down 25px
                 Size = new Size(940, 135),      // Reduced slightly
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -311,11 +371,11 @@ namespace FXOAiTranslator
 
             this.Controls.Add(dgvBlotter);
 
-            // Buttons - moved down for blotter
+            // Buttons - adjusted for new controls
             btnRequestQuotes = new Button
             {
                 Text = "Request Quotes",
-                Location = new Point(20, 715),
+                Location = new Point(20, 740),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
@@ -325,7 +385,7 @@ namespace FXOAiTranslator
             btnExecute = new Button
             {
                 Text = "Sell (Hit Bid)",
-                Location = new Point(190, 715),
+                Location = new Point(190, 740),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -336,7 +396,7 @@ namespace FXOAiTranslator
             btnBuy = new Button
             {
                 Text = "Buy (Lift Offer)",
-                Location = new Point(360, 715),
+                Location = new Point(360, 740),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -347,7 +407,7 @@ namespace FXOAiTranslator
             btnCancel = new Button
             {
                 Text = "Close",
-                Location = new Point(530, 715),
+                Location = new Point(530, 740),
                 Size = new Size(150, 35),
                 DialogResult = DialogResult.Cancel
             };
