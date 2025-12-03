@@ -187,7 +187,11 @@ namespace FXOptionsSimulator.FIX
 
         #region Send Quote Request
 
-        public string SendQuoteRequest(TradeStructure trade, string lpName, string groupId, bool hedge = false)
+        public string SendQuoteRequest(TradeStructure trade, string lpName, string groupId,
+            bool hedgeEnabled = false,
+            string hedgeType = "0",
+            string premiumDeliveryType = "S",
+            string quoteMode = "2")
         {
             if (!IsLoggedOn)
                 throw new InvalidOperationException("Cannot send quote request - not logged on!");
@@ -200,7 +204,9 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"  GroupID: {groupId}");
             Console.WriteLine($"  Underlying: {trade.Underlying}");
             Console.WriteLine($"  Legs: {trade.Legs.Count}");
-            Console.WriteLine($"  Hedge: {(hedge ? "ON" : "OFF")}");
+            Console.WriteLine($"  Hedge: {(hedgeEnabled ? "ON" : "OFF")} (Type: {hedgeType})");
+            Console.WriteLine($"  Premium Type: {premiumDeliveryType}");
+            Console.WriteLine($"  Quote Mode: {(quoteMode == "1" ? "VOL" : "PREM")}");
 
             try
             {
@@ -246,7 +252,10 @@ namespace FXOptionsSimulator.FIX
                     trade, lpName, quoteReqID, groupId,
                     tag75Override: canonical75,
                     tag5020Override: canonical5020,
-                    hedge: hedge);
+                    hedge: hedgeEnabled,
+                    hedgeType: hedgeType,
+                    premiumDeliveryType: premiumDeliveryType,
+                    quoteMode: quoteMode);
 
                 Console.WriteLine($"\n[DEBUG] Raw Quote Request Message (SeqNum={seqNum}):");
                 Console.WriteLine($"{rawMessage.Replace("\x01", "|")}");

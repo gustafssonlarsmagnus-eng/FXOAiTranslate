@@ -39,7 +39,10 @@ namespace FXOptionsSimulator.FIX
             string groupId,
             string tag75Override = null,
             string tag5020Override = null,
-            bool hedge = false)  // Default to FALSE for OFFER quotes (BUY capability)
+            bool hedge = false,  // Default to FALSE for OFFER quotes (BUY capability)
+            string hedgeType = "0",  // "0"=Live (no hedge), "1"=Spot/Forward hedge
+            string premiumDeliveryType = "S",  // "S"=Spot, "F"=Forward
+            string quoteMode = "2")  // "1"=VOL, "2"=PREM
         {
             _body.Clear();
 
@@ -81,9 +84,10 @@ namespace FXOptionsSimulator.FIX
             // Body fields in EXACT GFI order
             AddField(75, tag75); // TradeDate  ✅ uses override if provided
             AddField(131, quoteReqID); // QuoteReqID
-            AddField(5475, "S"); // PremDel
+            AddField(648, quoteMode); // QuoteRequestType: "1"=VOL, "2"=PREM
+            AddField(5475, premiumDeliveryType); // PremDel: "S"=Spot, "F"=Forward
             AddField(5830, trade.PremiumCurrency); // PremiumCcy
-            AddField(9016, hedge ? "1" : "0"); // HedgeTradeType (1=hedge, 0=no hedge)
+            AddField(9016, hedgeType); // HedgeTradeType: "0"=Live (no hedge), "1"=Spot/Forward hedge
 
             int structureCode = GetStructureCode(trade.StructureType);
             AddField(9126, structureCode.ToString()); // Structure
