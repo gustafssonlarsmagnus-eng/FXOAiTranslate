@@ -227,13 +227,14 @@ namespace FXOptionsSimulator.FIX
                 // GFI explicitly requires: "Trade date has to be current date"
                 var canonical75 = nowUtc.ToString("yyyyMMdd");
 
-                // Tag 5020 (PremiumDelivery) is T+1 business day from today
-                var (_, _, _, _, premiumDt) =
+                // Tag 5020 (PremiumDelivery) should be SPOT date (T+2 for EURUSD, T+1 for USDCAD)
+                // This matches what the GUI displays in the Premium Date column
+                var (_, spotDt, _, _, _) =
                     FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
-                var canonical5020 = FxDateService.Ymd(premiumDt);
+                var canonical5020 = FxDateService.Ymd(spotDt);
 
                 Console.WriteLine($"[Dates] Policy: premium={P.PremiumCalendarMode}, conv={P.PremiumConvention}, spotLag={rules.SpotLag}");
-                Console.WriteLine($"[Dates] 75={canonical75} (TODAY) 5020={canonical5020} (T+{P.PremiumSettleDays})");
+                Console.WriteLine($"[Dates] 75={canonical75} (TODAY) 5020={canonical5020} (SPOT = T+{(int)rules.SpotLag})");
 
                 // ===== Get current sequence number and increment for next message =====
                 var session = Session.LookupSession(_sessionID);
