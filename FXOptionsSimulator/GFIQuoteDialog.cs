@@ -41,9 +41,6 @@ namespace FXOAiTranslator
         private CheckBox chkBNP;
         private CheckBox chkDeut;  // Testing only
         private int _selectedLegCount;
-        private ToggleSwitch toggleQuoteMode;  // Toggle for VOL vs PREM quotation mode
-        private ComboBox cboDeltaHedge;  // Delta hedge: Live / Spot / Forward
-        private ComboBox cboPremiumType;  // Premium type: Spot / Forward
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -258,58 +255,6 @@ namespace FXOAiTranslator
                 Checked = false
             };
             gbLPs.Controls.Add(chkDeut);
-
-            // Quote mode toggle - VOL vs PREM
-            toggleQuoteMode = new ToggleSwitch
-            {
-                Location = new Point(150, 315),   // Positioned below LP group
-                Size = new Size(120, 24),         // Compact size
-                LeftText = "PREM",                // Off state = Premium quotation
-                RightText = "VOL",                // On state = Volatility quotation
-                Checked = false                   // Default: PREM mode (unchecked)
-            };
-            toggleQuoteMode.CheckedChanged += (s, e) => UpdateQuoteDisplay();  // Refresh highlighting when toggled
-            this.Controls.Add(toggleQuoteMode);
-
-            // Delta hedge dropdown
-            var lblDeltaHedge = new Label
-            {
-                Text = "Delta Hedge:",
-                Location = new Point(280, 318),
-                Size = new Size(80, 20),
-                TextAlign = ContentAlignment.MiddleRight
-            };
-            this.Controls.Add(lblDeltaHedge);
-
-            cboDeltaHedge = new ComboBox
-            {
-                Location = new Point(365, 315),
-                Size = new Size(80, 24),
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            cboDeltaHedge.Items.AddRange(new object[] { "Live", "Spot", "Forward" });
-            cboDeltaHedge.SelectedIndex = 0;  // Default: Live (no hedge)
-            this.Controls.Add(cboDeltaHedge);
-
-            // Premium type dropdown
-            var lblPremiumType = new Label
-            {
-                Text = "Prem Type:",
-                Location = new Point(455, 318),
-                Size = new Size(70, 20),
-                TextAlign = ContentAlignment.MiddleRight
-            };
-            this.Controls.Add(lblPremiumType);
-
-            cboPremiumType = new ComboBox
-            {
-                Location = new Point(530, 315),
-                Size = new Size(80, 24),
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            cboPremiumType.Items.AddRange(new object[] { "Spot", "Forward" });
-            cboPremiumType.SelectedIndex = 0;  // Default: Spot
-            this.Controls.Add(cboPremiumType);
 
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
@@ -629,30 +574,12 @@ namespace FXOAiTranslator
             var successfulLPs = new List<string>();
             var failedLPs = new List<string>();
 
-            // Extract trading parameters from UI controls
-            string quoteMode = toggleQuoteMode.Checked ? "1" : "2";  // 1=VOL, 2=PREM
-
-            // Get hedge type from dropdown: Live/Spot/Forward
-            // Tag 9016 (HedgeTradeType): "0"=Live (no hedge), "1"=Spot/Forward hedge
-            string hedgeType = cboDeltaHedge.SelectedItem?.ToString() ?? "Live";
-            bool hedgeEnabled = hedgeType != "Live";
-            string hedgeCode = hedgeType == "Live" ? "0" : "1";
-
-            // Get premium type from dropdown: Spot/Forward
-            // Tag 5475 (PremDel): "S"=Spot, "F"=Forward
-            string premiumType = cboPremiumType.SelectedItem?.ToString() ?? "Spot";
-            string premDelCode = premiumType == "Spot" ? "S" : "F";
-
             // Send quote request to each LP
             foreach (var lp in lps)
             {
                 try
                 {
-                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId,
-                        hedgeEnabled: hedgeEnabled,
-                        hedgeType: hedgeCode,
-                        premiumDeliveryType: premDelCode,
-                        quoteMode: quoteMode);
+                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId);
                     successfulLPs.Add(lp);
 
                     Console.ForegroundColor = ConsoleColor.Green;
