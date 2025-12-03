@@ -83,6 +83,9 @@ namespace FXOptionsSimulator
                 var parsedLeg = parsed.Legs[i];
                 var expiryDate = CalculateExpiryDate(actualTenor, underlying);
 
+                // Calculate delivery date = expiry + spot lag business days
+                var deliveryDate = CalculateDeliveryDate(expiryDate, underlying);
+
                 trade.Legs.Add(new TradeStructure.OptionLeg
                 {
                     Direction = parsedLeg.Direction,
@@ -90,7 +93,7 @@ namespace FXOptionsSimulator
                     Strike = parsedLeg.Strike,
                     Tenor = actualTenor,
                     ExpiryDate = expiryDate,
-                    DeliveryDate = expiryDate.AddDays(2),
+                    DeliveryDate = deliveryDate,
                     NotionalMM = parsedLeg.NotionalMM,
                     NotionalCurrency = GetTermCurrency(underlying),
                     Cutoff = "NY",
@@ -327,6 +330,53 @@ namespace FXOptionsSimulator
             {
                 return DateTime.UtcNow.AddMonths(3);
             }
+        }
+
+        /// <summary>
+        /// Calculate delivery date from expiry date by adding spot lag business days
+        /// </summary>
+        private static DateTime CalculateDeliveryDate(DateTime expiryDate, string currencyPair = "EURUSD")
+        {
+            // Determine spot lag for the currency pair
+            int spotLag = GetSpotLag(currencyPair);
+
+            // Add spot lag business days to expiry date
+            DateTime deliveryDate = expiryDate;
+            int businessDaysAdded = 0;
+
+            while (businessDaysAdded < spotLag)
+            {
+                deliveryDate = deliveryDate.AddDays(1);
+
+                // Skip weekends
+                if (deliveryDate.DayOfWeek == DayOfWeek.Saturday || deliveryDate.DayOfWeek == DayOfWeek.Sunday)
+                    continue;
+
+                // Skip January 1st (global holiday)
+                if (deliveryDate.Month == 1 && deliveryDate.Day == 1)
+                    continue;
+
+                businessDaysAdded++;
+            }
+
+            Console.WriteLine($"[OVMLBridge] Delivery date for {currencyPair}: Expiry={expiryDate:yyyy-MM-dd (ddd)} + {spotLag} BD = {deliveryDate:yyyy-MM-dd (ddd)}");
+            return deliveryDate;
+        }
+
+        /// <summary>
+        /// Get spot lag for currency pair (T+1 or T+2)
+        /// </summary>
+        private static int GetSpotLag(string currencyPair)
+        {
+            // T+1 pairs
+            if (currencyPair == "USDCAD" || currencyPair == "USDTRY" ||
+                currencyPair == "USDPHP" || currencyPair == "USDRUB")
+            {
+                return 1;
+            }
+
+            // Most pairs are T+2
+            return 2;
         }
 
         /// <summary>
