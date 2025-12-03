@@ -42,6 +42,8 @@ namespace FXOAiTranslator
         private CheckBox chkDeut;  // Testing only
         private int _selectedLegCount;
         private bool _showVolatility = true;  // NEW: Toggle between Vol (true) and Premium (false)
+        private bool _spotHedge = false;  // NEW: Spot hedge toggle (default OFF)
+        private string _cutoff = "NY";  // NEW: Cutoff toggle (default NY)
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -283,6 +285,47 @@ namespace FXOAiTranslator
                 }
             };
             this.Controls.Add(btnToggleDisplay);
+
+            // Toggle button for Spot Hedge - NEW
+            var btnToggleHedge = new Button
+            {
+                Text = "Hedge: OFF",
+                Location = new Point(160, 305),
+                Size = new Size(110, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                BackColor = Color.LightCoral,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnToggleHedge.FlatAppearance.BorderColor = Color.Red;
+            btnToggleHedge.Click += (s, e) =>
+            {
+                _spotHedge = !_spotHedge;
+                btnToggleHedge.Text = _spotHedge ? "Hedge: ON" : "Hedge: OFF";
+                btnToggleHedge.BackColor = _spotHedge ? Color.LightGreen : Color.LightCoral;
+                btnToggleHedge.FlatAppearance.BorderColor = _spotHedge ? Color.Green : Color.Red;
+            };
+            this.Controls.Add(btnToggleHedge);
+
+            // Toggle button for Cutoff - NEW
+            var btnToggleCut = new Button
+            {
+                Text = "Cut: NY",
+                Location = new Point(280, 305),
+                Size = new Size(100, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                BackColor = Color.LightSkyBlue,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnToggleCut.FlatAppearance.BorderColor = Color.DodgerBlue;
+            btnToggleCut.Click += (s, e) =>
+            {
+                _cutoff = (_cutoff == "NY") ? "TKY" : "NY";
+                btnToggleCut.Text = $"Cut: {_cutoff}";
+                btnToggleCut.BackColor = (_cutoff == "NY") ? Color.LightSkyBlue : Color.LightSalmon;
+            };
+            this.Controls.Add(btnToggleCut);
 
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
@@ -592,6 +635,12 @@ namespace FXOAiTranslator
             SetupQuoteGrid(selectedLegCount);
             UpdateTradeFromGrid();
 
+            // Update cutoff for all legs based on toggle
+            foreach (var leg in _trade.Legs)
+            {
+                leg.Cutoff = _cutoff;
+            }
+
             // Generate group ID
             _groupId = $"3-REQ{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
@@ -603,6 +652,8 @@ namespace FXOAiTranslator
             Console.WriteLine($"║ Group ID: {_groupId}");
             Console.WriteLine($"║ Underlying: {_trade.Underlying}");
             Console.WriteLine($"║ Structure: {_trade.StructureType}");
+            Console.WriteLine($"║ Cutoff: {_cutoff}");
+            Console.WriteLine($"║ Spot Hedge: {(_spotHedge ? "ON" : "OFF")}");
             Console.WriteLine($"║ Selected LPs ({lps.Count}): {string.Join(", ", lps)}");
             Console.WriteLine("╠════════════════════════════════════════════════════════════════");
             Console.WriteLine($"║ LEGS ({selectedLegCount}):");
@@ -623,7 +674,7 @@ namespace FXOAiTranslator
             {
                 try
                 {
-                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId);
+                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId, _spotHedge);
                     successfulLPs.Add(lp);
 
                     Console.ForegroundColor = ConsoleColor.Green;
