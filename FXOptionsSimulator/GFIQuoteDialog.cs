@@ -437,8 +437,16 @@ namespace FXOAiTranslator
                     {
                         settlementDateText = leg.DeliveryDate.ToString("dd-MMM-yy", enUS);
                     }
+                    else
+                    {
+                        Console.WriteLine($"[PopulateLegGrid] WARNING: Leg {i+1} has DeliveryDate = MinValue!");
+                    }
 
-                    Console.WriteLine($"[PopulateLegGrid] Leg {i+1}: Settlement Date={settlementDateText}, Premium Date={premiumDateText}");
+                    Console.WriteLine($"[PopulateLegGrid] Leg {i+1}:");
+                    Console.WriteLine($"  ExpiryDate: {leg.ExpiryDate.ToString("dd-MMM-yy")}");
+                    Console.WriteLine($"  DeliveryDate: {(leg.DeliveryDate != DateTime.MinValue ? leg.DeliveryDate.ToString("dd-MMM-yy") : "NOT SET")}");
+                    Console.WriteLine($"  Settlement Date (display): {settlementDateText}");
+                    Console.WriteLine($"  Premium Date (display): {premiumDateText}");
                 }
                 else
                 {
