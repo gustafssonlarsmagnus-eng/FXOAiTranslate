@@ -55,15 +55,22 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
             "EURNOK",
             "GBPSEK",
             "AUDNOK",
-            "NOKSEK"
+            "NOKSEK",
+
+            // GFI Test Protocol Required - Missing Pairs
+            "AUDUSD",   // Tests 7, 8
+            "EURCHF",   // Test 15
+            "USDCNH"    // Test 26
         };
 
         // ========== CUTOFF MAPPINGS ==========
         public Dictionary<string, string> CutoffCodes { get; set; } = new Dictionary<string, string>
         {
-            ["NY"] = "1",      // New York 10:00
-            ["TK"] = "2",      // Tokyo 15:00
+            ["NY"] = "1",      // New York 10:00 (Tests 1, 4, 5, 6, 8, 10, 12, 13, 15)
+            ["TK"] = "2",      // Tokyo 15:00 (abbreviated)
+            ["TKY"] = "2",     // Tokyo 15:00 (Tests 2, 3, 7, 9, 11, 14, 25)
             ["LON"] = "157",   // London WMR 1pm
+            ["CNH"] = "???",   // ⚠️  TODO: Get correct GFI code for CNH cutoff (Test 26)
         };
 
         // ========== VALIDATION ==========
