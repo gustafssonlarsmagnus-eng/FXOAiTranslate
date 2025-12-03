@@ -261,7 +261,7 @@ namespace FXOAiTranslator
             var btnToggleDisplay = new Button
             {
                 Text = "Show: Volatility",
-                Location = new Point(20, 293),  // Aligned to left side
+                Location = new Point(20, 305),  // Increased from 293 to 305 for more spacing
                 Size = new Size(130, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 BackColor = Color.LightBlue,
@@ -287,7 +287,7 @@ namespace FXOAiTranslator
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
             {
-                Location = new Point(20, 320),
+                Location = new Point(20, 335),  // Increased from 320 to 335 to match button spacing
                 Size = new Size(940, 200),      // Reduced from 270
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -763,20 +763,51 @@ namespace FXOAiTranslator
 
                 var rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
 
-                var (bestBid, bestOffer) = GetBestPremiums();
-
-                if (bestBid.HasValue && netPremBid.HasValue && Math.Abs(netPremBid.Value - bestBid.Value) < 0.01)
+                // Apply highlighting based on toggle mode
+                if (_showVolatility)
                 {
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.Font =
-                        new Font(dgvQuotes.Font, FontStyle.Bold);
+                    // Volatility mode - highlight best volatilities for leg 1
+                    var (bestBidVol, bestOfferVol) = GetBestVolatilities();
+        
+                    double? bidVol = GetLegVol(stream.BidQuote, 1);
+                    double? offerVol = GetLegVol(stream.OfferQuote, 1);
+
+                    if (bestBidVol.HasValue && bidVol.HasValue && Math.Abs(bidVol.Value - bestBidVol.Value) < 0.01)
+                    {
+                        string colName = "Leg1BidVol";
+                        if (dgvQuotes.Columns.Contains(colName))
+                        {
+                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.BackColor = Color.LightGreen;
+                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+                        }
+                    }
+
+                    if (bestOfferVol.HasValue && offerVol.HasValue && Math.Abs(offerVol.Value - bestOfferVol.Value) < 0.01)
+                    {
+                        string colName = "Leg1OfferVol";
+                        if (dgvQuotes.Columns.Contains(colName))
+                        {
+                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.BackColor = Color.LightGreen;
+                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+                        }
+                    }
                 }
-
-                if (bestOffer.HasValue && netPremOffer.HasValue && Math.Abs(netPremOffer.Value - bestOffer.Value) < 0.01)
+                else
                 {
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
-                    dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.Font =
-                        new Font(dgvQuotes.Font, FontStyle.Bold);
+                    // Premium mode - highlight best net premiums
+                    var (bestBid, bestOffer) = GetBestPremiums();
+
+                    if (bestBid.HasValue && netPremBid.HasValue && Math.Abs(netPremBid.Value - bestBid.Value) < 0.01)
+                    {
+                        dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
+                        dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+                    }
+
+                    if (bestOffer.HasValue && netPremOffer.HasValue && Math.Abs(netPremOffer.Value - bestOffer.Value) < 0.01)
+                    {
+                        dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
+                        dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+                    }
                 }
             }
             // Enable execute buttons if we have quotes
@@ -1068,6 +1099,31 @@ namespace FXOAiTranslator
 
             return (bestBid, bestOffer);
         }
+
+        private (double? bestBid, double? bestOffer) GetBestVolatilities()
+        {
+            var streams = _fixSession.Application.GetActiveStreams(_groupId);
+
+            double? bestBid = null;
+            double? bestOffer = null;
+
+            foreach (var stream in streams)
+            {
+              // Get volatility for leg 1
+  var bid = GetLegVol(stream.BidQuote, 1);
+        var offer = GetLegVol(stream.OfferQuote, 1);
+
+      // Best BID VOL = highest (better for client to sell)
+     if (bid.HasValue && (!bestBid.HasValue || bid.Value > bestBid.Value))
+   bestBid = bid.Value;
+
+      // Best OFFER VOL = lowest (better for client to buy)
+        if (offer.HasValue && (!bestOffer.HasValue || offer.Value < bestOffer.Value))
+    bestOffer = offer.Value;
+  }
+
+  return (bestBid, bestOffer);
+  }
 
         private void BtnExecute_Click(string side)
         {
