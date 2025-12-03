@@ -41,6 +41,7 @@ namespace FXOAiTranslator
         private CheckBox chkBNP;
         private CheckBox chkDeut;  // Testing only
         private int _selectedLegCount;
+        private bool _showVolatility = true;  // NEW: Toggle between Vol (true) and Premium (false)
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -255,6 +256,33 @@ namespace FXOAiTranslator
                 Checked = false
             };
             gbLPs.Controls.Add(chkDeut);
+
+            // Toggle button for Vol/Premium pricing - NEW
+            var btnToggleDisplay = new Button
+            {
+                Text = "Show: Volatility",
+                Location = new Point(20, 293),  // Aligned to left side
+                Size = new Size(130, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                BackColor = Color.LightBlue,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnToggleDisplay.FlatAppearance.BorderColor = Color.DodgerBlue;
+            btnToggleDisplay.Click += (s, e) =>
+            {
+                _showVolatility = !_showVolatility;
+                btnToggleDisplay.Text = _showVolatility ? "Show: Volatility" : "Show: Premium";
+                btnToggleDisplay.BackColor = _showVolatility ? Color.LightBlue : Color.LightGreen;
+
+                // Rebuild quote grid with new columns
+                if (_selectedLegCount > 0)
+                {
+                    SetupQuoteGrid(_selectedLegCount);
+                    UpdateQuoteDisplay(); // Refresh data
+                }
+            };
+            this.Controls.Add(btnToggleDisplay);
 
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
@@ -484,15 +512,31 @@ namespace FXOAiTranslator
             dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Format = "N2";
             dgvQuotes.Columns["NetPremOffer"].Width = 110;
 
+            // Add leg columns based on display mode (Vol or Premium)
             for (int i = 1; i <= legCount; i++)
             {
-                dgvQuotes.Columns.Add($"Leg{i}BidVol", $"L{i} Bid Vol");
-                dgvQuotes.Columns[$"Leg{i}BidVol"].DefaultCellStyle.Format = "N2";
-                dgvQuotes.Columns[$"Leg{i}BidVol"].Width = 80;
+                if (_showVolatility)
+                {
+                    // Volatility mode
+                    dgvQuotes.Columns.Add($"Leg{i}BidVol", $"L{i} Bid Vol");
+                    dgvQuotes.Columns[$"Leg{i}BidVol"].DefaultCellStyle.Format = "N2";
+                    dgvQuotes.Columns[$"Leg{i}BidVol"].Width = 80;
 
-                dgvQuotes.Columns.Add($"Leg{i}OfferVol", $"L{i} Offer Vol");
-                dgvQuotes.Columns[$"Leg{i}OfferVol"].DefaultCellStyle.Format = "N2";
-                dgvQuotes.Columns[$"Leg{i}OfferVol"].Width = 90;
+                    dgvQuotes.Columns.Add($"Leg{i}OfferVol", $"L{i} Offer Vol");
+                    dgvQuotes.Columns[$"Leg{i}OfferVol"].DefaultCellStyle.Format = "N2";
+                    dgvQuotes.Columns[$"Leg{i}OfferVol"].Width = 90;
+                }
+                else
+                {
+                    // Premium mode
+                    dgvQuotes.Columns.Add($"Leg{i}BidPrem", $"L{i} Bid Prem");
+                    dgvQuotes.Columns[$"Leg{i}BidPrem"].DefaultCellStyle.Format = "N2";
+                    dgvQuotes.Columns[$"Leg{i}BidPrem"].Width = 90;
+
+                    dgvQuotes.Columns.Add($"Leg{i}OfferPrem", $"L{i} Offer Prem");
+                    dgvQuotes.Columns[$"Leg{i}OfferPrem"].DefaultCellStyle.Format = "N2";
+                    dgvQuotes.Columns[$"Leg{i}OfferPrem"].Width = 100;
+                }
             }
 
             dgvQuotes.Columns.Add("LastUpdate", "Last Update");
@@ -683,13 +727,27 @@ namespace FXOAiTranslator
                 rowData.Add(netPremBid?.ToString("N2") ?? "-");
                 rowData.Add(netPremOffer?.ToString("N2") ?? "-");
 
+                // Add leg data based on display mode
                 for (int i = 1; i <= _selectedLegCount; i++)
                 {
-                    double? bidVol = GetLegVol(stream.BidQuote, i);
-                    double? offerVol = GetLegVol(stream.OfferQuote, i);
+                    if (_showVolatility)
+                    {
+                        // Volatility mode
+                        double? bidVol = GetLegVol(stream.BidQuote, i);
+                        double? offerVol = GetLegVol(stream.OfferQuote, i);
 
-                    rowData.Add(bidVol?.ToString("N2") ?? "-");
-                    rowData.Add(offerVol?.ToString("N2") ?? "-");
+                        rowData.Add(bidVol?.ToString("N2") ?? "-");
+                        rowData.Add(offerVol?.ToString("N2") ?? "-");
+                    }
+                    else
+                    {
+                        // Premium mode
+                        double? bidPrem = GetLegPremium(stream.BidQuote, i);
+                        double? offerPrem = GetLegPremium(stream.OfferQuote, i);
+
+                        rowData.Add(bidPrem?.ToString("N2") ?? "-");
+                        rowData.Add(offerPrem?.ToString("N2") ?? "-");
+                    }
                 }
 
                 rowData.Add(stream.LastUpdate.ToString("HH:mm:ss"));
@@ -958,6 +1016,30 @@ namespace FXOAiTranslator
             if (!string.IsNullOrEmpty(volStr) && double.TryParse(volStr, out double volOld))
             {
                 return volOld;
+            }
+
+            return null;
+        }
+
+        private double? GetLegPremium(FIXMessage quote, int legNum)
+        {
+            if (quote == null) return null;
+
+            // Use new LegPricing structure (legNum is 1-indexed, array is 0-indexed)
+            if (quote.LegPricing != null && quote.LegPricing.Count >= legNum)
+            {
+                var leg = quote.LegPricing[legNum - 1];
+                if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
+                {
+                    return prem;
+                }
+            }
+
+            // Fallback to old field structure
+            var premStr = quote.Get($"leg{legNum}_5844");
+            if (!string.IsNullOrEmpty(premStr) && double.TryParse(premStr, out double premOld))
+            {
+                return premOld;
             }
 
             return null;
