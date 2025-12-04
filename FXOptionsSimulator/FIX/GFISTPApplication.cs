@@ -25,6 +25,29 @@ namespace FXOptionsSimulator.FIX
         {
             Console.WriteLine($"[STP] ✓ Logged on: {sessionID}");
             IsLoggedOn = true;
+
+            // Send TradeCaptureReportRequest (35=AD) to backfill + subscribe
+            try
+            {
+                var request = new TradeCaptureReportRequest();
+                // Unique TradeReqID
+                string tradeReqId = $"REQ-{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+                request.SetField(new TradeRequestID(tradeReqId)); // tag568
+                request.SetField(new TradeRequestType(TradeRequestType.ALL_TRADES)); // tag569=0
+                // SubscriptionRequestType: Snapshot + Updates (263=1)
+                request.SetField(new SubscriptionRequestType(SubscriptionRequestType.SNAPSHOT_PLUS_UPDATES));
+
+                // Optional: specify parties if required by venue (commented for now)
+                // var partyIDs = new NoPartyIDs(1);
+                // request.SetField(partyIDs);
+
+                Console.WriteLine($"[STP] → Sending TradeCaptureReportRequest35=AD (568={tradeReqId},569=0,263=1)");
+                Session.SendToTarget(request, sessionID);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[STP] ✗ Failed to send35=AD subscription: {ex.Message}");
+            }
         }
 
         public void OnLogout(SessionID sessionID)
@@ -63,6 +86,11 @@ namespace FXOptionsSimulator.FIX
         {
             try
             {
+                var msgType = message.Header.GetString(Tags.MsgType);
+                // FIX tag34 is MsgSeqNum; use literal if not available in Tags
+                int seq = -1;
+                try { seq = message.Header.IsSetField(34) ? message.Header.GetInt(34) : -1; } catch { }
+                Console.WriteLine($"[STP] ← App message: {msgType} (34={seq})");
                 Crack(message, sessionID);
             }
             catch (Exception ex)
