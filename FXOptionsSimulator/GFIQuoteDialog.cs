@@ -45,6 +45,9 @@ namespace FXOAiTranslator
         private bool _spotHedge = true;  // NEW: Spot hedge toggle (default ON)
         private string _cutoff = "NY";  // NEW: Cutoff toggle (default NY)
         private HashSet<int> _passedTests = new HashSet<int>();  // Track which tests passed
+        private List<CheckBox> _testCaseCheckboxes = new List<CheckBox>();  // All test case checkboxes
+        private int _currentTestId = -1;  // Currently active test case
+        private string _currentGroupId = null;  // Current test group ID for tracking
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -418,10 +421,14 @@ namespace FXOAiTranslator
                     }
                 };
 
+                _testCaseCheckboxes.Add(chk);  // Store reference for single-selection logic
                 pnlTestCases.Controls.Add(chk);
                 yPos += 25;
                 testIndex++;
             }
+
+            // Subscribe to trade blotter events for auto-marking successful tests
+            TradeBlotter.Instance.OnTradeUpdated += OnTradeStatusChanged;
 
             // Quotes Grid - reduced size to make room for blotter
             dgvQuotes = new DataGridView
@@ -1568,6 +1575,15 @@ namespace FXOAiTranslator
             int testId = (int)checkbox.Tag;
             string testDescription = checkbox.Text;
 
+            // SINGLE SELECTION: Uncheck all other test cases
+            foreach (var otherCheckbox in _testCaseCheckboxes)
+            {
+                if (otherCheckbox != checkbox && otherCheckbox.Checked)
+                {
+                    otherCheckbox.Checked = false;
+                }
+            }
+
             Console.WriteLine($"\n[TEST CASE {testId}] Initiating automatic quote request...");
 
             try
@@ -1596,8 +1612,10 @@ namespace FXOAiTranslator
                 PopulateLegGrid();
                 SetupQuoteGrid(_trade.Legs.Count);
 
-                // Generate group ID
+                // Generate group ID and store current test info
                 string groupId = $"TEST-{testId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                _currentTestId = testId;
+                _currentGroupId = groupId;
 
                 // Send quote requests
                 foreach (var lp in lps)
@@ -1965,6 +1983,35 @@ namespace FXOAiTranslator
             return lps;
         }
 
+        private void OnTradeStatusChanged(TradeBlotterEntry trade)
+        {
+            // Auto-mark test as successful when trade reaches CONFIRMED status
+            if (trade.Status == "CONFIRMED" && _currentTestId > 0)
+            {
+                // Find the checkbox for the current test
+                var checkbox = _testCaseCheckboxes.FirstOrDefault(chk => (int)chk.Tag == _currentTestId);
+                if (checkbox != null && !_passedTests.Contains(_currentTestId))
+                {
+                    // Mark as passed
+                    if (checkbox.InvokeRequired)
+                    {
+                        checkbox.Invoke(new Action(() =>
+                        {
+                            _passedTests.Add(_currentTestId);
+                            checkbox.BackColor = Color.LightGreen;
+                            Console.WriteLine($"[TEST CASE {_currentTestId}] ✓ Auto-marked as SUCCESSFUL (trade confirmed)");
+                        }));
+                    }
+                    else
+                    {
+                        _passedTests.Add(_currentTestId);
+                        checkbox.BackColor = Color.LightGreen;
+                        Console.WriteLine($"[TEST CASE {_currentTestId}] ✓ Auto-marked as SUCCESSFUL (trade confirmed)");
+                    }
+                }
+            }
+        }
+
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             _quoteTimer?.Stop();
@@ -1976,6 +2023,7 @@ namespace FXOAiTranslator
             // Unsubscribe from blotter events
             TradeBlotter.Instance.OnTradeAdded -= OnTradeAddedToBlotter;
             TradeBlotter.Instance.OnTradeUpdated -= OnTradeUpdatedInBlotter;
+            TradeBlotter.Instance.OnTradeUpdated -= OnTradeStatusChanged;  // Unsubscribe from auto-marking
 
             // Unsubscribe from events
             _fixSession.Application.OnQuoteReceived -= OnQuoteReceivedFromFIX;
