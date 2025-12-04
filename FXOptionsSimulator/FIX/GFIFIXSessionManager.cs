@@ -418,6 +418,9 @@ namespace FXOptionsSimulator.FIX
                         optionTypeDesc = string.Join(" / ", trade.Legs.Select(l => $"{l.Direction} {l.OptionType}"));
                     }
 
+                    // Get first leg data for display
+                    var firstLeg = trade.Legs.Count > 0 ? trade.Legs[0] : null;
+
                     var blotterEntry = new TradeBlotterEntry
                     {
                         TradeTime = DateTime.Now,
@@ -430,10 +433,18 @@ namespace FXOptionsSimulator.FIX
                         NetPremium = netPremium,
                         Delta = delta,
                         Status = "PENDING",
-                        // New fields
-                        NotionalMM = trade.Legs.Count > 0 ? trade.Legs[0].NotionalMM : 0,
-                        ExpiryDate = trade.Legs.Count > 0 ? trade.Legs[0].ExpiryDate : (DateTime?)null,
-                        ValueDate = trade.Legs.Count > 0 ? trade.Legs[0].DeliveryDate : (DateTime?)null,
+
+                        // Populated fields for blotter display
+                        NotionalMM = firstLeg?.NotionalMM ?? 0,
+                        Strike = firstLeg?.Strike,
+                        ExpiryDate = firstLeg?.ExpiryDate,
+                        ExpDate = firstLeg?.ExpiryDate.ToString("yyyyMMdd") ?? "",
+                        SettlementDate = firstLeg?.DeliveryDate.ToString("yyyyMMdd") ?? "",
+                        ValueDate = firstLeg?.DeliveryDate,
+                        Cut = firstLeg?.Cutoff ?? "",
+                        MyCenter = firstLeg?.Cutoff ?? "",
+                        SpotReference = trade.SpotReference,
+                        Volatility = firstLeg?.Volatility,
                         PremiumCcy = trade.PremiumCurrency,
                         OptionType = optionTypeDesc
                     };
