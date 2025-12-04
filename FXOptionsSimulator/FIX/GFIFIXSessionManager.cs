@@ -246,7 +246,8 @@ namespace FXOptionsSimulator.FIX
                     trade, lpName, quoteReqID, groupId,
                     tag75Override: canonical75,
                     tag5020Override: canonical5020,
-                    hedgeEnabled: hedge);
+                    hedgeEnabled: hedge,
+                    hedgeType: hedge ? "1" : "0");  // "1" = Hedge ON, "0" = No Hedge
 
                 Console.WriteLine($"\n[DEBUG] Raw Quote Request Message (SeqNum={seqNum}):");
                 Console.WriteLine($"{rawMessage.Replace("\x01", "|")}");
