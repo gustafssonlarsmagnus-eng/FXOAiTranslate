@@ -376,8 +376,8 @@ namespace FXOAiTranslator
                 "22: NY USDSEK 3M Seagull (B Put, S Put, S Call)",
                 "23: NY USDSEK 6M Seagull (B Call, S Call, S Put)",
                 "24: NY EURNOK 1M Collar (B Call, S Call, S Put)",
-                "25: TKY USDNOK VOL 2M Call",
-                "26: NY USDCNH 3M Put"
+                "25: TKY USDJPY VOL 1M Buy Call",  // VOL mode test
+                "26: CNH USDCNH 4M Sell Put"  // CNH cutoff test
             };
 
             int yPos = 5;
@@ -1630,17 +1630,22 @@ namespace FXOAiTranslator
             if (details.Length < 5)
                 return null;
 
-            string cutoff = details[0];        // NY or TKY
+            string cutoff = details[0];        // NY, TKY, or CNH
             string pair = details[1];          // EURUSD
-            string tenorOrDate = details[2];   // 1M or 10Dec26 (odd date)
-            string direction = details[3];     // Buy or Sell
-            string optionType = details[4];    // Call or Put (or structure)
+
+            // Check if "VOL" keyword is present (test 25)
+            bool isVolMode = details.Length > 2 && details[2].Equals("VOL", StringComparison.OrdinalIgnoreCase);
+            int offset = isVolMode ? 1 : 0;  // Skip "VOL" if present
+
+            string tenorOrDate = details[2 + offset];   // 1M or 10Dec26 (odd date)
+            string direction = details[3 + offset];     // Buy or Sell
+            string optionType = details[4 + offset];    // Call or Put (or structure)
 
             // Check for hedge flag
             bool hasHedge = testDescription.Contains("Hedge");
 
             // Remaining text for structures
-            string optionInfo = string.Join(" ", details.Skip(4));
+            string optionInfo = string.Join(" ", details.Skip(4 + offset));
 
             // Update cutoff toggle
             _cutoff = cutoff;
