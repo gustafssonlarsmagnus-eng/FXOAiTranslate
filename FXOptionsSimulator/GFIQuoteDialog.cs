@@ -1590,6 +1590,12 @@ namespace FXOAiTranslator
                     return;
                 }
 
+                // Update the dialog's trade and refresh UI
+                _trade = trade;
+                lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
+                PopulateLegGrid();
+                SetupQuoteGrid(_trade.Legs.Count);
+
                 // Generate group ID
                 string groupId = $"TEST-{testId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
