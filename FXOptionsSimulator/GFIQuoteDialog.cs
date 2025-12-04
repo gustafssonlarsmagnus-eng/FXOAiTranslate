@@ -44,6 +44,7 @@ namespace FXOAiTranslator
         private bool _showVolatility = true;  // NEW: Toggle between Vol (true) and Premium (false)
         private bool _spotHedge = true;  // NEW: Spot hedge toggle (default ON)
         private string _cutoff = "NY";  // NEW: Cutoff toggle (default NY)
+        private HashSet<int> _passedTests = new HashSet<int>();  // Track which tests passed
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -377,6 +378,7 @@ namespace FXOAiTranslator
             };
 
             int yPos = 5;
+            int testIndex = 0;
             foreach (var testCase in testCases)
             {
                 var chk = new CheckBox
@@ -384,10 +386,37 @@ namespace FXOAiTranslator
                     Text = testCase,
                     Location = new Point(5, yPos),
                     Size = new Size(295, 20),
-                    Font = new Font("Segoe UI", 8, FontStyle.Regular)
+                    Font = new Font("Segoe UI", 8, FontStyle.Regular),
+                    Tag = testIndex + 1  // Store test ID in Tag
                 };
+
+                // Auto-send quote request when checked
+                chk.CheckedChanged += TestCase_CheckedChanged;
+
+                // Right-click to mark as passed
+                chk.MouseClick += (s, e) =>
+                {
+                    if (e.Button == MouseButtons.Right)
+                    {
+                        var checkbox = (CheckBox)s;
+                        int testId = (int)checkbox.Tag;
+
+                        if (_passedTests.Contains(testId))
+                        {
+                            _passedTests.Remove(testId);
+                            checkbox.BackColor = Color.Transparent;
+                        }
+                        else
+                        {
+                            _passedTests.Add(testId);
+                            checkbox.BackColor = Color.LightGreen;
+                        }
+                    }
+                };
+
                 pnlTestCases.Controls.Add(chk);
                 yPos += 25;
+                testIndex++;
             }
 
             // Quotes Grid - reduced size to make room for blotter
@@ -1522,6 +1551,264 @@ namespace FXOAiTranslator
                     row.DefaultCellStyle.BackColor = Color.White;
                     break;
             }
+        }
+
+        private void TestCase_CheckedChanged(object sender, EventArgs e)
+        {
+            var checkbox = (CheckBox)sender;
+
+            // Only process when checking (not unchecking)
+            if (!checkbox.Checked)
+                return;
+
+            int testId = (int)checkbox.Tag;
+            string testDescription = checkbox.Text;
+
+            Console.WriteLine($"\n[TEST CASE {testId}] Initiating automatic quote request...");
+
+            try
+            {
+                // Parse test case and create trade structure
+                var trade = ParseTestCase(testDescription);
+                if (trade == null)
+                {
+                    MessageBox.Show($"Failed to parse test case: {testDescription}", "Parse Error");
+                    checkbox.Checked = false;
+                    return;
+                }
+
+                // Get selected LPs
+                var lps = GetSelectedLPs();
+                if (lps.Count == 0)
+                {
+                    MessageBox.Show("Please select at least one LP before checking test cases", "No LPs Selected");
+                    checkbox.Checked = false;
+                    return;
+                }
+
+                // Generate group ID
+                string groupId = $"TEST-{testId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+
+                // Send quote requests
+                foreach (var lp in lps)
+                {
+                    try
+                    {
+                        string quoteReqID = _fixSession.SendQuoteRequest(trade, lp, groupId, _spotHedge);
+                        Console.WriteLine($"[TEST CASE {testId}] ✓ Quote sent to {lp} | QuoteReqID: {quoteReqID}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[TEST CASE {testId}] ✗ Failed to send to {lp}: {ex.Message}");
+                    }
+                }
+
+                Console.WriteLine($"[TEST CASE {testId}] Quote requests completed");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error processing test case: {ex.Message}", "Error");
+                checkbox.Checked = false;
+            }
+        }
+
+        private TradeStructure ParseTestCase(string testDescription)
+        {
+            // Extract test ID and parameters from description
+            // Format: "1: NY EURUSD 1M Call"
+            var parts = testDescription.Split(':');
+            if (parts.Length < 2)
+                return null;
+
+            var details = parts[1].Trim().Split(' ');
+            if (details.Length < 4)
+                return null;
+
+            string cutoff = details[0];        // NY or TKY
+            string pair = details[1];          // EURUSD
+            string tenor = details[2];         // 1M
+            string optionInfo = string.Join(" ", details.Skip(3));  // Call, Put, or structure
+
+            // Update cutoff toggle
+            _cutoff = cutoff;
+
+            // Create trade structure with default values
+            var trade = new TradeStructure
+            {
+                Underlying = pair,
+                PremiumCurrency = pair.Substring(3, 3),  // Second currency
+                StructureType = "1"  // Default to vanilla, will adjust for structures
+            };
+
+            // Calculate expiry date from tenor
+            DateTime expiry = CalculateExpiryFromTenor(tenor);
+
+            // Build legs based on option type
+            if (optionInfo.Contains("Call Spread"))
+            {
+                trade.StructureType = "8";
+                trade.Legs = new List<TradeLeg>
+                {
+                    new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                };
+            }
+            else if (optionInfo.Contains("Put Spread"))
+            {
+                trade.StructureType = "9";
+                trade.Legs = new List<TradeLeg>
+                {
+                    new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                };
+            }
+            else if (optionInfo.Contains("RR"))
+            {
+                trade.StructureType = "5";
+                // Check direction from description
+                if (optionInfo.Contains("S Put, B Call"))
+                {
+                    trade.Legs = new List<TradeLeg>
+                    {
+                        new TradeLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    };
+                }
+                else
+                {
+                    trade.Legs = new List<TradeLeg>
+                    {
+                        new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    };
+                }
+            }
+            else if (optionInfo.Contains("Straddle"))
+            {
+                trade.StructureType = "6";
+                trade.Legs = new List<TradeLeg>
+                {
+                    new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                };
+            }
+            else if (optionInfo.Contains("Strangle"))
+            {
+                trade.StructureType = "7";
+                trade.Legs = new List<TradeLeg>
+                {
+                    new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                };
+            }
+            else if (optionInfo.Contains("Seagull"))
+            {
+                trade.StructureType = "10";
+                // Parse direction from description
+                if (optionInfo.Contains("B Put, S Put, S Call"))
+                {
+                    trade.Legs = new List<TradeLeg>
+                    {
+                        new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    };
+                }
+                else
+                {
+                    trade.Legs = new List<TradeLeg>
+                    {
+                        new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    };
+                }
+            }
+            else if (optionInfo.Contains("Collar"))
+            {
+                trade.StructureType = "11";
+                trade.Legs = new List<TradeLeg>
+                {
+                    new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                };
+            }
+            else if (optionInfo.Contains("Call"))
+            {
+                trade.Legs = new List<TradeLeg>
+                {
+                    new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                };
+            }
+            else if (optionInfo.Contains("Put"))
+            {
+                trade.Legs = new List<TradeLeg>
+                {
+                    new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                };
+            }
+            else
+            {
+                return null;  // Unknown option type
+            }
+
+            // Set expiry for all legs
+            foreach (var leg in trade.Legs)
+            {
+                leg.Expiry = expiry;
+            }
+
+            trade.Expiry = expiry;
+
+            Console.WriteLine($"[PARSED] {pair} {tenor} {optionInfo} -> {trade.Legs.Count} legs, Structure: {trade.StructureType}");
+
+            return trade;
+        }
+
+        private DateTime CalculateExpiryFromTenor(string tenor)
+        {
+            DateTime today = DateTime.Today;
+
+            if (tenor.EndsWith("M"))
+            {
+                int months = int.Parse(tenor.TrimEnd('M'));
+                return today.AddMonths(months);
+            }
+            else if (tenor.EndsWith("W"))
+            {
+                int weeks = int.Parse(tenor.TrimEnd('W'));
+                return today.AddDays(weeks * 7);
+            }
+            else if (tenor.EndsWith("Y"))
+            {
+                int years = int.Parse(tenor.TrimEnd('Y'));
+                return today.AddYears(years);
+            }
+            else if (tenor == "ON")
+            {
+                return today.AddDays(1);  // Overnight
+            }
+
+            return today.AddMonths(1);  // Default 1 month
+        }
+
+        private List<string> GetSelectedLPs()
+        {
+            var lps = new List<string>();
+
+            if (chkSOCGEN.Checked) lps.Add("SOCGEN");
+            if (chkCIBC.Checked) lps.Add("CIBC");
+            if (chkMS.Checked) lps.Add("MS");
+            if (chkHSBC.Checked) lps.Add("HSBC");
+            if (chkNATWEST.Checked) lps.Add("NATWEST");
+            if (chkSCBL.Checked) lps.Add("SCBL");
+            if (chkNOMURA.Checked) lps.Add("NOMURA");
+            if (chkBAML.Checked) lps.Add("BAML");
+            if (chkBNP.Checked) lps.Add("BNP");
+            if (chkDeut.Checked) lps.Add("DEUT");
+
+            return lps;
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
