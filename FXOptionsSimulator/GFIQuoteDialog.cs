@@ -478,24 +478,18 @@ namespace FXOAiTranslator
                 RowHeadersVisible = false
             };
 
-            // GFI-style comprehensive blotter columns
+            // STP Blotter columns (only fields we have data for)
             // Identification & Status
-            dgvBlotter.Columns.Add("AffirmedBy", "Affirmed By");
-            dgvBlotter.Columns["AffirmedBy"].Width = 80;
             dgvBlotter.Columns.Add("TradeID", "Trade ID");
-            dgvBlotter.Columns["TradeID"].Width = 180;
+            dgvBlotter.Columns["TradeID"].Width = 200;
             dgvBlotter.Columns.Add("ExecTS", "EXEC TS");
             dgvBlotter.Columns["ExecTS"].Width = 80;
             dgvBlotter.Columns.Add("STPStatus", "STP Status");
-            dgvBlotter.Columns["STPStatus"].Width = 90;
+            dgvBlotter.Columns["STPStatus"].Width = 95;
 
-            // Party Information
-            dgvBlotter.Columns.Add("MyBroker", "My Broker");
-            dgvBlotter.Columns["MyBroker"].Width = 80;
-            dgvBlotter.Columns.Add("MyTrader", "My Trader");
-            dgvBlotter.Columns["MyTrader"].Width = 80;
+            // Party & Trade Info
             dgvBlotter.Columns.Add("MyCenter", "My Center");
-            dgvBlotter.Columns["MyCenter"].Width = 70;
+            dgvBlotter.Columns["MyCenter"].Width = 75;
             dgvBlotter.Columns.Add("CCYPair", "CCY Pair");
             dgvBlotter.Columns["CCYPair"].Width = 80;
             dgvBlotter.Columns.Add("BuySell", "Buy/Sell");
@@ -503,54 +497,38 @@ namespace FXOAiTranslator
 
             // Trade Details
             dgvBlotter.Columns.Add("Vol", "Vol");
-            dgvBlotter.Columns["Vol"].Width = 60;
+            dgvBlotter.Columns["Vol"].Width = 70;
             dgvBlotter.Columns.Add("SizeM", "Size (M)");
-            dgvBlotter.Columns["SizeM"].Width = 70;
+            dgvBlotter.Columns["SizeM"].Width = 75;
             dgvBlotter.Columns.Add("Strike", "Strike");
-            dgvBlotter.Columns["Strike"].Width = 70;
+            dgvBlotter.Columns["Strike"].Width = 85;
             dgvBlotter.Columns.Add("Delta", "Delta");
-            dgvBlotter.Columns["Delta"].Width = 70;
+            dgvBlotter.Columns["Delta"].Width = 75;
             dgvBlotter.Columns.Add("Strategy", "Strategy");
-            dgvBlotter.Columns["Strategy"].Width = 90;
-            dgvBlotter.Columns.Add("Venue", "Venue");
-            dgvBlotter.Columns["Venue"].Width = 70;
+            dgvBlotter.Columns["Strategy"].Width = 95;
 
             // Dates
             dgvBlotter.Columns.Add("Expiry", "Expiry");
-            dgvBlotter.Columns["Expiry"].Width = 80;
+            dgvBlotter.Columns["Expiry"].Width = 90;
             dgvBlotter.Columns.Add("Delivery", "Delivery");
-            dgvBlotter.Columns["Delivery"].Width = 80;
+            dgvBlotter.Columns["Delivery"].Width = 90;
 
             // Pricing
             dgvBlotter.Columns.Add("Price", "Price");
-            dgvBlotter.Columns["Price"].Width = 80;
+            dgvBlotter.Columns["Price"].Width = 85;
             dgvBlotter.Columns.Add("Counterparty", "Counterparty");
             dgvBlotter.Columns["Counterparty"].Width = 100;
-            dgvBlotter.Columns.Add("CtpyCenter", "Ctpy Center");
-            dgvBlotter.Columns["CtpyCenter"].Width = 80;
             dgvBlotter.Columns.Add("Cut", "Cut");
-            dgvBlotter.Columns["Cut"].Width = 50;
+            dgvBlotter.Columns["Cut"].Width = 55;
             dgvBlotter.Columns.Add("Spot", "Spot");
-            dgvBlotter.Columns["Spot"].Width = 70;
+            dgvBlotter.Columns["Spot"].Width = 80;
             dgvBlotter.Columns.Add("Swap", "Swap");
-            dgvBlotter.Columns["Swap"].Width = 60;
+            dgvBlotter.Columns["Swap"].Width = 70;
             dgvBlotter.Columns.Add("Depo", "Depo");
-            dgvBlotter.Columns["Depo"].Width = 60;
-            dgvBlotter.Columns.Add("Value", "Value");
-            dgvBlotter.Columns["Value"].Width = 80;
-
-            // Hedge Information
-            dgvBlotter.Columns.Add("HedgeBS", "Hedge B/S");
-            dgvBlotter.Columns["HedgeBS"].Width = 80;
-            dgvBlotter.Columns.Add("HedgeAmt", "Hedge Amt");
-            dgvBlotter.Columns["HedgeAmt"].Width = 80;
-            dgvBlotter.Columns.Add("HedgeRate", "Hedge Rate");
-            dgvBlotter.Columns["HedgeRate"].Width = 80;
-            dgvBlotter.Columns.Add("HedgeDelDate", "Hedge Del Date");
-            dgvBlotter.Columns["HedgeDelDate"].Width = 100;
+            dgvBlotter.Columns["Depo"].Width = 70;
 
             dgvBlotter.Columns.Add("TradeTime", "Trade Time");
-            dgvBlotter.Columns["TradeTime"].Width = 80;
+            dgvBlotter.Columns["TradeTime"].Width = 85;
 
             this.Controls.Add(dgvBlotter);
 
@@ -1572,14 +1550,11 @@ namespace FXOAiTranslator
 
             dgvBlotter.Rows.Add(
                 // Identification & Status
-                entry.AffirmedBy ?? "-",                           // Affirmed By
                 entry.ClOrdID,                                      // Trade ID
                 entry.ExecTimestamp?.ToString("HH:mm:ss") ?? entry.TradeTime.ToString("HH:mm:ss"),  // EXEC TS
                 entry.Status,                                       // STP Status
 
-                // Party Information
-                entry.MyBroker ?? "-",                             // My Broker
-                entry.MyTrader ?? "-",                             // My Trader
+                // Party & Trade Info
                 entry.MyCenter ?? entry.Cut ?? "-",                // My Center
                 entry.Underlying,                                   // CCY Pair
                 entry.Side,                                         // Buy/Sell
@@ -1590,7 +1565,6 @@ namespace FXOAiTranslator
                 FormatValue(entry.Strike, "N4"),                   // Strike
                 deltaDisplay,                                       // Delta
                 strategyName,                                       // Strategy
-                entry.Venue ?? "-",                                // Venue
 
                 // Dates
                 FormatDate(entry.ExpDate),                         // Expiry
@@ -1599,18 +1573,10 @@ namespace FXOAiTranslator
                 // Pricing
                 entry.NetPremium.ToString("N2"),                   // Price
                 entry.LP ?? "-",                                   // Counterparty
-                entry.CounterpartyCenter ?? "-",                   // Ctpy Center
                 entry.Cut ?? "-",                                  // Cut
                 FormatValue(entry.SpotReference, "N4"),            // Spot
                 FormatValue(entry.Swap, "N4"),                     // Swap
                 FormatValue(entry.Depo, "N4"),                     // Depo
-                entry.ValueDate?.ToString("dd-MMM-yy") ?? "-",     // Value
-
-                // Hedge Information
-                entry.HedgeSide ?? "-",                            // Hedge B/S
-                FormatValue(entry.HedgeAmount, "N2"),              // Hedge Amt
-                FormatValue(entry.HedgeRate, "N4"),                // Hedge Rate
-                entry.HedgeDeliveryDate ?? "-",                    // Hedge Del Date
 
                 entry.TradeTime.ToString("HH:mm:ss")               // Trade Time
             );
@@ -1637,7 +1603,6 @@ namespace FXOAiTranslator
                     row.Cells["STPStatus"].Value = entry.Status;
                     row.Cells["Price"].Value = entry.NetPremium.ToString("N2");
                     row.Cells["Counterparty"].Value = entry.LP ?? "-";
-                    row.Cells["AffirmedBy"].Value = entry.AffirmedBy ?? "-";
 
                     ColorCodeBlotterRow(row, entry.Status);
                     break;
