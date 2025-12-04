@@ -1632,16 +1632,40 @@ namespace FXOAiTranslator
             // Update cutoff toggle
             _cutoff = cutoff;
 
+            // Extract currency components
+            string ccy1 = pair.Substring(0, 3);  // Base currency (EUR)
+            string ccy2 = pair.Substring(3, 3);  // Quote currency (USD)
+
             // Create trade structure with default values
             var trade = new TradeStructure
             {
                 Underlying = pair,
-                PremiumCurrency = pair.Substring(3, 3),  // Second currency
+                PremiumCurrency = ccy2,  // Premium in quote currency
                 StructureType = "1"  // Default to vanilla, will adjust for structures
             };
 
-            // Calculate expiry date from tenor
+            // Calculate expiry and delivery dates from tenor
             DateTime expiry = CalculateExpiryFromTenor(tenor);
+            DateTime delivery = expiry.AddDays(2);  // Standard T+2 delivery
+
+            // Helper to create a complete leg
+            TradeStructure.OptionLeg CreateLeg(string direction, string optionType, int legIndex)
+            {
+                return new TradeStructure.OptionLeg
+                {
+                    Direction = direction,
+                    OptionType = optionType,
+                    Strike = 0.0,  // Delta-neutral / ATM
+                    NotionalMM = 10,
+                    Tenor = tenor,
+                    ExpiryDate = expiry,
+                    DeliveryDate = delivery,
+                    NotionalCurrency = ccy1,  // Notional in base currency
+                    Cutoff = cutoff,
+                    Position = "SAME",
+                    LegID = $"SL{legIndex}"
+                };
+            }
 
             // Build legs based on option type
             if (optionInfo.Contains("Call Spread"))
@@ -1649,8 +1673,8 @@ namespace FXOAiTranslator
                 trade.StructureType = "8";
                 trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    CreateLeg("BUY", "CALL", 0),
+                    CreateLeg("SELL", "CALL", 1)
                 };
             }
             else if (optionInfo.Contains("Put Spread"))
@@ -1658,8 +1682,8 @@ namespace FXOAiTranslator
                 trade.StructureType = "9";
                 trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    CreateLeg("BUY", "PUT", 0),
+                    CreateLeg("SELL", "PUT", 1)
                 };
             }
             else if (optionInfo.Contains("RR"))
@@ -1670,16 +1694,16 @@ namespace FXOAiTranslator
                 {
                     trade.Legs = new List<TradeStructure.OptionLeg>
                     {
-                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                        CreateLeg("SELL", "PUT", 0),
+                        CreateLeg("BUY", "CALL", 1)
                     };
                 }
                 else
                 {
                     trade.Legs = new List<TradeStructure.OptionLeg>
                     {
-                        new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                        CreateLeg("BUY", "PUT", 0),
+                        CreateLeg("SELL", "CALL", 1)
                     };
                 }
             }
@@ -1688,8 +1712,8 @@ namespace FXOAiTranslator
                 trade.StructureType = "6";
                 trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    CreateLeg("BUY", "CALL", 0),
+                    CreateLeg("BUY", "PUT", 1)
                 };
             }
             else if (optionInfo.Contains("Strangle"))
@@ -1697,8 +1721,8 @@ namespace FXOAiTranslator
                 trade.StructureType = "7";
                 trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    CreateLeg("BUY", "PUT", 0),
+                    CreateLeg("BUY", "CALL", 1)
                 };
             }
             else if (optionInfo.Contains("Seagull"))
@@ -1709,18 +1733,18 @@ namespace FXOAiTranslator
                 {
                     trade.Legs = new List<TradeStructure.OptionLeg>
                     {
-                        new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                        CreateLeg("BUY", "PUT", 0),
+                        CreateLeg("SELL", "PUT", 1),
+                        CreateLeg("SELL", "CALL", 2)
                     };
                 }
                 else
                 {
                     trade.Legs = new List<TradeStructure.OptionLeg>
                     {
-                        new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                        CreateLeg("BUY", "CALL", 0),
+                        CreateLeg("SELL", "CALL", 1),
+                        CreateLeg("SELL", "PUT", 2)
                     };
                 }
             }
@@ -1729,34 +1753,28 @@ namespace FXOAiTranslator
                 trade.StructureType = "11";
                 trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    CreateLeg("BUY", "CALL", 0),
+                    CreateLeg("SELL", "CALL", 1),
+                    CreateLeg("SELL", "PUT", 2)
                 };
             }
             else if (optionInfo.Contains("Call"))
             {
                 trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    CreateLeg("BUY", "CALL", 0)
                 };
             }
             else if (optionInfo.Contains("Put"))
             {
                 trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    CreateLeg("BUY", "PUT", 0)
                 };
             }
             else
             {
                 return null;  // Unknown option type
-            }
-
-            // Set expiry for all legs
-            foreach (var leg in trade.Legs)
-            {
-                leg.ExpiryDate = expiry;
             }
 
             Console.WriteLine($"[PARSED] {pair} {tenor} {optionInfo} -> {trade.Legs.Count} legs, Structure: {trade.StructureType}");
