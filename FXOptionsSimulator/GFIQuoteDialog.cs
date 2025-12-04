@@ -346,38 +346,39 @@ namespace FXOAiTranslator
             };
             gbTestCases.Controls.Add(pnlTestCases);
 
-            // Add all test cases from official GFI FX Options Test Protocol
+            // Add all test cases from official GFI FX Options Test Protocol with full details
             var testCases = new[]
             {
+                // Format: "ID: Cut Pair Tenor Dir Type @ Strike (Notional) Mode"
                 // Vanilla tests (1-15)
-                "1: NY EURUSD 1M Buy Call",
-                "2: TKY USDJPY 10Dec26 Buy Put",  // Odd date
-                "3: TKY USDJPY 08Nov26 Sell Call",  // Odd date
-                "4: NY EURSEK 1M Sell Put",
-                "5: NY USDNOK 08Nov26 Buy Call",  // Odd date
-                "6: NY EURNOK 6M Buy Put",
-                "7: TKY AUDUSD 9M Sell Call",
-                "8: NY AUDUSD 1Y Sell Put",
-                "9: TKY USDJPY 08Mar26 Buy Call",  // Odd date
-                "10: NY EURUSD 3M Buy Put",
-                "11: TKY EURUSD 08Nov26 Sell Call",  // Odd date
-                "12: NY USDJPY 3M Sell Put",
-                "13: NY EURSEK 07Nov26 Buy Call + Spot Hedge",  // Odd date with hedge
-                "14: TKY GBPUSD 3M Buy Call + Fwd Hedge",
-                "15: NY EURCHF 6M Buy Put + Fwd Hedge",
+                "1: NY EURUSD 1M Buy Call @ 1.16 (10M EUR) PREM",
+                "2: TKY USDJPY 10Dec26 Buy Put @ 155 (10M USD) PREM",
+                "3: TKY USDJPY 08Nov26 Sell Call @ 7.15 (10M USD) PREM",
+                "4: NY EURSEK 1M Sell Put @ 7.16 (10M SEK) PREM",
+                "5: NY USDNOK 08Nov26 Buy Call @ 11.9 (10M USD) PREM",
+                "6: NY EURNOK 6M Buy Put @ 7.807 (10M NOK) PREM",
+                "7: TKY AUDUSD 9M Sell Call @ 0.69 (10M AUD) PREM Fwd",
+                "8: NY AUDUSD 1Y Sell Put @ 0.65 (10M USD) PREM Fwd",
+                "9: TKY USDJPY 08Mar26 Buy Call @ 147 (10M USD) PREM",
+                "10: NY EURUSD 3M Buy Put @ 1.15 (10M USD) PREM",
+                "11: TKY EURUSD 08Nov26 Sell Call @ 1.16 (10M EUR) PREM Fwd",
+                "12: NY USDJPY 3M Sell Put @ 155 (10M JPY) PREM Fwd",
+                "13: NY EURSEK 07Nov26 Buy Call @ 11.1 (10M EUR) PREM +Spot",
+                "14: TKY GBPUSD 3M Buy Call @ 1.32 (10M GBP) PREM +Fwd",
+                "15: NY EURCHF 6M Buy Put @ 0.93 (10M EUR) PREM +Fwd",
 
-                // Structure tests (16-26) - placeholder descriptions
-                "16: NY GBPUSD 1M Call Spread",
-                "17: NY GBPUSD 2M Put Spread",
-                "18: NY USDJPY 3M RR (S Put, B Call)",
-                "19: NY USDJPY 6M RR (B Put, S Call)",
-                "20: NY EURSEK 1M Straddle",
-                "21: NY EURSEK 2M Strangle",
-                "22: NY USDSEK 3M Seagull (B Put, S Put, S Call)",
-                "23: NY USDSEK 6M Seagull (B Call, S Call, S Put)",
-                "24: NY EURNOK 1M Collar (B Call, S Call, S Put)",
-                "25: TKY USDJPY VOL 1M Buy Call",  // VOL mode test
-                "26: CNH USDCNH 4M Sell Put"  // CNH cutoff test
+                // Structure tests (16-26)
+                "16: NY GBPUSD 1M Call Spread @ 1.30 (10M GBP) PREM",
+                "17: NY GBPUSD 2M Put Spread @ 1.30 (10M GBP) PREM",
+                "18: NY USDJPY 3M RR (S Put, B Call) @ 150 (10M USD)",
+                "19: NY USDJPY 6M RR (B Put, S Call) @ 150 (10M USD)",
+                "20: NY EURSEK 1M Straddle @ 11.3 (10M SEK) PREM",
+                "21: NY EURSEK 2M Strangle @ 11.3 (10M SEK) PREM",
+                "22: NY USDSEK 3M Seagull (B Put, S Put, S Call) @ 10.3",
+                "23: NY USDSEK 6M Seagull (B Call, S Call, S Put) @ 10.3",
+                "24: NY EURNOK 1M Collar (B Call, S Call, S Put) @ 11.5",
+                "25: TKY USDJPY VOL 1M Buy Call @ 155 (10M JPY) VOL",
+                "26: CNH USDCNH 4M Sell Put @ 7.10 (10M USD) PREM"
             };
 
             int yPos = 5;
