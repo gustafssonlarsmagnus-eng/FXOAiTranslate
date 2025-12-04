@@ -458,7 +458,7 @@ namespace FXOAiTranslator
             var lblBlotter = new Label
             {
                 Text = "Trade Blotter:",
-                Location = new Point(20, 530),
+                Location = new Point(20, 550),  // Increased from 530 for more spacing
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
@@ -466,7 +466,7 @@ namespace FXOAiTranslator
 
             dgvBlotter = new DataGridView
             {
-                Location = new Point(20, 555),
+                Location = new Point(20, 575),  // Increased from 555 for more spacing
                 Size = new Size(940, 135),      // Reduced slightly
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
