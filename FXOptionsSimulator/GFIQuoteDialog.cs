@@ -346,24 +346,27 @@ namespace FXOAiTranslator
             };
             gbTestCases.Controls.Add(pnlTestCases);
 
-            // Add all 26 test cases
+            // Add all test cases from official GFI FX Options Test Protocol
             var testCases = new[]
             {
-                "1: NY EURUSD 1M Call",
-                "2: TKY EURUSD 2M Put",
-                "3: TKY USDJPY 3M Call",
-                "4: NY USDJPY 6M Put",
-                "5: NY EURSEK 1W Call",
-                "6: NY EURSEK 2W Put",
-                "7: TKY AUDUSD ON Call",
-                "8: NY AUDUSD 1Y Put",
-                "9: TKY USDSEK 3M Call",
-                "10: NY USDSEK 6M Put",
-                "11: TKY EURNOK 1M Call",
-                "12: NY EURNOK 2M Put",
-                "13: NY USDNOK 3M Call",
-                "14: TKY USDNOK 6M Put",
-                "15: NY EURCHF 1M Call",
+                // Vanilla tests (1-15)
+                "1: NY EURUSD 1M Buy Call",
+                "2: TKY USDJPY 10Dec26 Buy Put",  // Odd date
+                "3: TKY USDJPY 08Nov26 Sell Call",  // Odd date
+                "4: NY EURSEK 1M Sell Put",
+                "5: NY USDNOK 08Nov26 Buy Call",  // Odd date
+                "6: NY EURNOK 6M Buy Put",
+                "7: TKY AUDUSD 9M Sell Call",
+                "8: NY AUDUSD 1Y Sell Put",
+                "9: TKY USDJPY 08Mar26 Buy Call",  // Odd date
+                "10: NY EURUSD 3M Buy Put",
+                "11: TKY EURUSD 08Nov26 Sell Call",  // Odd date
+                "12: NY USDJPY 3M Sell Put",
+                "13: NY EURSEK 07Nov26 Buy Call + Spot Hedge",  // Odd date with hedge
+                "14: TKY GBPUSD 3M Buy Call + Fwd Hedge",
+                "15: NY EURCHF 6M Buy Put + Fwd Hedge",
+
+                // Structure tests (16-26) - placeholder descriptions
                 "16: NY GBPUSD 1M Call Spread",
                 "17: NY GBPUSD 2M Put Spread",
                 "18: NY USDJPY 3M RR (S Put, B Call)",
@@ -1615,19 +1618,29 @@ namespace FXOAiTranslator
         private TradeStructure ParseTestCase(string testDescription)
         {
             // Extract test ID and parameters from description
-            // Format: "1: NY EURUSD 1M Call"
+            // Format examples:
+            // "1: NY EURUSD 1M Buy Call"
+            // "2: TKY USDJPY 10Dec26 Buy Put"
+            // "13: NY EURSEK 07Nov26 Buy Call + Spot Hedge"
             var parts = testDescription.Split(':');
             if (parts.Length < 2)
                 return null;
 
-            var details = parts[1].Trim().Split(' ');
-            if (details.Length < 4)
+            var details = parts[1].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (details.Length < 5)
                 return null;
 
             string cutoff = details[0];        // NY or TKY
             string pair = details[1];          // EURUSD
-            string tenor = details[2];         // 1M
-            string optionInfo = string.Join(" ", details.Skip(3));  // Call, Put, or structure
+            string tenorOrDate = details[2];   // 1M or 10Dec26 (odd date)
+            string direction = details[3];     // Buy or Sell
+            string optionType = details[4];    // Call or Put (or structure)
+
+            // Check for hedge flag
+            bool hasHedge = testDescription.Contains("Hedge");
+
+            // Remaining text for structures
+            string optionInfo = string.Join(" ", details.Skip(4));
 
             // Update cutoff toggle
             _cutoff = cutoff;
@@ -1635,6 +1648,9 @@ namespace FXOAiTranslator
             // Extract currency components
             string ccy1 = pair.Substring(0, 3);  // Base currency (EUR)
             string ccy2 = pair.Substring(3, 3);  // Quote currency (USD)
+
+            // Normalize direction to uppercase
+            direction = direction.ToUpper();
 
             // Create trade structure with default values
             var trade = new TradeStructure
@@ -1644,17 +1660,32 @@ namespace FXOAiTranslator
                 StructureType = "1"  // Default to vanilla, will adjust for structures
             };
 
-            // Calculate expiry and delivery dates from tenor
-            DateTime expiry = CalculateExpiryFromTenor(tenor);
+            // Calculate expiry and delivery dates from tenor or odd date
+            DateTime expiry;
+            string tenor;
+
+            if (tenorOrDate.Contains("Dec") || tenorOrDate.Contains("Nov") || tenorOrDate.Contains("Mar"))
+            {
+                // Odd date format: "10Dec26" or "08Nov26"
+                expiry = ParseOddDate(tenorOrDate);
+                tenor = tenorOrDate;  // Use the date string as tenor
+            }
+            else
+            {
+                // Standard tenor: "1M", "3M", "6M", "9M", "1Y"
+                expiry = CalculateExpiryFromTenor(tenorOrDate);
+                tenor = tenorOrDate;
+            }
+
             DateTime delivery = expiry.AddDays(2);  // Standard T+2 delivery
 
             // Helper to create a complete leg
-            TradeStructure.OptionLeg CreateLeg(string direction, string optionType, int legIndex)
+            TradeStructure.OptionLeg CreateLeg(string legDirection, string legOptionType, int legIndex)
             {
                 return new TradeStructure.OptionLeg
                 {
-                    Direction = direction,
-                    OptionType = optionType,
+                    Direction = legDirection,
+                    OptionType = legOptionType.ToUpper(),
                     Strike = 0.0,  // Delta-neutral / ATM
                     NotionalMM = 10,
                     Tenor = tenor,
@@ -1758,18 +1789,20 @@ namespace FXOAiTranslator
                     CreateLeg("SELL", "PUT", 2)
                 };
             }
-            else if (optionInfo.Contains("Call"))
+            else if (optionType.Contains("Call", StringComparison.OrdinalIgnoreCase))
             {
+                // Vanilla Call - use direction from test case
                 trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    CreateLeg("BUY", "CALL", 0)
+                    CreateLeg(direction, "CALL", 0)
                 };
             }
-            else if (optionInfo.Contains("Put"))
+            else if (optionType.Contains("Put", StringComparison.OrdinalIgnoreCase))
             {
+                // Vanilla Put - use direction from test case
                 trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    CreateLeg("BUY", "PUT", 0)
+                    CreateLeg(direction, "PUT", 0)
                 };
             }
             else
@@ -1807,6 +1840,38 @@ namespace FXOAiTranslator
             }
 
             return today.AddMonths(1);  // Default 1 month
+        }
+
+        private DateTime ParseOddDate(string oddDate)
+        {
+            // Parse odd date format: "10Dec26" or "08Nov26" or "08Mar26"
+            // Extract day, month, year
+            try
+            {
+                string dayStr = oddDate.Substring(0, 2);  // "10"
+                string monthStr = oddDate.Substring(2, 3);  // "Dec"
+                string yearStr = oddDate.Substring(5, 2);  // "26"
+
+                int day = int.Parse(dayStr);
+                int year = 2000 + int.Parse(yearStr);  // "26" -> 2026
+
+                // Map month names
+                int month = monthStr.ToUpper() switch
+                {
+                    "JAN" => 1, "FEB" => 2, "MAR" => 3,
+                    "APR" => 4, "MAY" => 5, "JUN" => 6,
+                    "JUL" => 7, "AUG" => 8, "SEP" => 9,
+                    "OCT" => 10, "NOV" => 11, "DEC" => 12,
+                    _ => 1
+                };
+
+                return new DateTime(year, month, day);
+            }
+            catch
+            {
+                // Fallback to 1 month from today
+                return DateTime.Today.AddMonths(1);
+            }
         }
 
         private List<string> GetSelectedLPs()
