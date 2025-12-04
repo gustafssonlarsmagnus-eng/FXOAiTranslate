@@ -1647,19 +1647,19 @@ namespace FXOAiTranslator
             if (optionInfo.Contains("Call Spread"))
             {
                 trade.StructureType = "8";
-                trade.Legs = new List<TradeLeg>
+                trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                 };
             }
             else if (optionInfo.Contains("Put Spread"))
             {
                 trade.StructureType = "9";
-                trade.Legs = new List<TradeLeg>
+                trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                 };
             }
             else if (optionInfo.Contains("RR"))
@@ -1668,37 +1668,37 @@ namespace FXOAiTranslator
                 // Check direction from description
                 if (optionInfo.Contains("S Put, B Call"))
                 {
-                    trade.Legs = new List<TradeLeg>
+                    trade.Legs = new List<TradeStructure.OptionLeg>
                     {
-                        new TradeLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                     };
                 }
                 else
                 {
-                    trade.Legs = new List<TradeLeg>
+                    trade.Legs = new List<TradeStructure.OptionLeg>
                     {
-                        new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                        new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                     };
                 }
             }
             else if (optionInfo.Contains("Straddle"))
             {
                 trade.StructureType = "6";
-                trade.Legs = new List<TradeLeg>
+                trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                 };
             }
             else if (optionInfo.Contains("Strangle"))
             {
                 trade.StructureType = "7";
-                trade.Legs = new List<TradeLeg>
+                trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                 };
             }
             else if (optionInfo.Contains("Seagull"))
@@ -1707,45 +1707,45 @@ namespace FXOAiTranslator
                 // Parse direction from description
                 if (optionInfo.Contains("B Put, S Put, S Call"))
                 {
-                    trade.Legs = new List<TradeLeg>
+                    trade.Legs = new List<TradeStructure.OptionLeg>
                     {
-                        new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                        new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                     };
                 }
                 else
                 {
-                    trade.Legs = new List<TradeLeg>
+                    trade.Legs = new List<TradeStructure.OptionLeg>
                     {
-                        new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                        new TradeLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                        new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                        new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                     };
                 }
             }
             else if (optionInfo.Contains("Collar"))
             {
                 trade.StructureType = "11";
-                trade.Legs = new List<TradeLeg>
+                trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
-                    new TradeLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff },
+                    new TradeStructure.OptionLeg { Direction = "SELL", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                 };
             }
             else if (optionInfo.Contains("Call"))
             {
-                trade.Legs = new List<TradeLeg>
+                trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "CALL", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                 };
             }
             else if (optionInfo.Contains("Put"))
             {
-                trade.Legs = new List<TradeLeg>
+                trade.Legs = new List<TradeStructure.OptionLeg>
                 {
-                    new TradeLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
+                    new TradeStructure.OptionLeg { Direction = "BUY", OptionType = "PUT", Strike = 0.0, NotionalMM = 10, Tenor = tenor, Cutoff = cutoff }
                 };
             }
             else
