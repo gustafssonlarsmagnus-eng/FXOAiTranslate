@@ -418,8 +418,8 @@ namespace FXOptionsSimulator.FIX
                         optionTypeDesc = string.Join(" / ", trade.Legs.Select(l => $"{l.Direction} {l.OptionType}"));
                     }
 
-                    // Get first leg data for display
-                    var firstLeg = trade.Legs.Count > 0 ? trade.Legs[0] : null;
+                    // Get first trade leg data for display
+                    var tradeLeg = trade.Legs.Count > 0 ? trade.Legs[0] : null;
 
                     var blotterEntry = new TradeBlotterEntry
                     {
@@ -435,16 +435,15 @@ namespace FXOptionsSimulator.FIX
                         Status = "PENDING",
 
                         // Populated fields for blotter display
-                        NotionalMM = firstLeg?.NotionalMM ?? 0,
-                        Strike = firstLeg?.Strike,
-                        ExpiryDate = firstLeg?.ExpiryDate,
-                        ExpDate = firstLeg?.ExpiryDate.ToString("yyyyMMdd") ?? "",
-                        SettlementDate = firstLeg?.DeliveryDate.ToString("yyyyMMdd") ?? "",
-                        ValueDate = firstLeg?.DeliveryDate,
-                        Cut = firstLeg?.Cutoff ?? "",
-                        MyCenter = firstLeg?.Cutoff ?? "",
+                        NotionalMM = tradeLeg?.NotionalMM ?? 0,
+                        Strike = tradeLeg?.Strike,
+                        ExpiryDate = tradeLeg?.ExpiryDate,
+                        ExpDate = tradeLeg?.ExpiryDate.ToString("yyyyMMdd") ?? "",
+                        SettlementDate = tradeLeg?.DeliveryDate.ToString("yyyyMMdd") ?? "",
+                        ValueDate = tradeLeg?.DeliveryDate,
+                        Cut = tradeLeg?.Cutoff ?? "",
+                        MyCenter = tradeLeg?.Cutoff ?? "",
                         SpotReference = trade.SpotReference,
-                        Volatility = firstLeg?.Volatility,
                         PremiumCcy = trade.PremiumCurrency,
                         OptionType = optionTypeDesc
                     };
