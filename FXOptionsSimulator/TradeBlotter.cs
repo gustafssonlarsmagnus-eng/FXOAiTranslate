@@ -6,34 +6,60 @@ namespace FXOptionsSimulator
 {
     public class TradeBlotterEntry
     {
+        // Core Identification
         public DateTime TradeTime { get; set; }
         public string ClOrdID { get; set; }
-        public string LP { get; set; }
-        public string Side { get; set; }
-        public string Underlying { get; set; }
-        public string StructureType { get; set; }
-        public int LegCount { get; set; }
-        public double? Strike { get; set; }  // Strike price (first leg for multi-leg)
-        public double? Notional { get; set; }  // Notional amount
-        public string NotionalCcy { get; set; }  // Notional currency
-        public string ExpDate { get; set; }  // Expiry date (yyyyMMdd format)
-        public string SettlementDate { get; set; }  // Settlement/delivery date (yyyyMMdd format)
-        public string Cut { get; set; }  // Cutoff (NY/TK/LON)
-        public double NetPremium { get; set; }
-        public string PremiumCcy { get; set; }  // Premium currency
-        public string PremiumDate { get; set; }  // Premium payment date (yyyyMMdd format)
-        public double? Delta { get; set; }  // Option delta from quote
-        public double? Volatility { get; set; }  // Executed volatility (average for multi-leg)
-        public string Status { get; set; } // PENDING, FILLED, REJECTED, CONFIRMED
-        public string RejectReason { get; set; }
         public string ExecID { get; set; }
-        public double? FillPrice { get; set; }
+        public DateTime? ExecTimestamp { get; set; }  // EXEC TS
 
-        // New fields for enhanced blotter display
-        public double NotionalMM { get; set; }  // Notional in millions
-        public DateTime? ExpiryDate { get; set; }
-        public DateTime? ValueDate { get; set; }
-        public string OptionType { get; set; }  // CALL, PUT, or structure description for multi-leg
+        // Status & Parties
+        public string Status { get; set; } // PENDING, FILLED, REJECTED, CONFIRMED (STP Status)
+        public string AffirmedBy { get; set; }  // Who confirmed the trade
+        public string MyBroker { get; set; }
+        public string MyTrader { get; set; }
+        public string MyCenter { get; set; }  // NY/TKY/CNH
+        public string LP { get; set; }  // Counterparty
+        public string CounterpartyCenter { get; set; }  // Ctpy Center
+        public string Venue { get; set; }
+
+        // Trade Details
+        public string Underlying { get; set; }  // CCY Pair
+        public string Side { get; set; }  // Buy/Sell
+        public string StructureType { get; set; }  // Strategy (numeric)
+        public string StrategyName { get; set; }  // Strategy (readable: Vanilla, RR, etc.)
+        public int LegCount { get; set; }
+        public double? Strike { get; set; }  // Strike price
+        public double? Notional { get; set; }  // Notional amount
+        public double NotionalMM { get; set; }  // Size (M) - Notional in millions
+        public string NotionalCcy { get; set; }  // Notional currency
+        public double? Delta { get; set; }  // Delta
+        public double? Volatility { get; set; }  // Vol
+        public string OptionType { get; set; }  // CALL, PUT, or structure description
+
+        // Dates
+        public DateTime? ExpiryDate { get; set; }  // Expiry
+        public string ExpDate { get; set; }  // Expiry date (yyyyMMdd format)
+        public string SettlementDate { get; set; }  // Delivery (yyyyMMdd format)
+        public DateTime? ValueDate { get; set; }  // Value date
+
+        // Pricing
+        public double NetPremium { get; set; }  // Price
+        public string PremiumCcy { get; set; }  // Premium currency
+        public string PremiumDate { get; set; }  // Premium payment date
+        public double? FillPrice { get; set; }
+        public string Cut { get; set; }  // Cut (NY/TKY/CNH)
+        public double? SpotReference { get; set; }  // Spot
+        public double? Swap { get; set; }  // Swap points
+        public double? Depo { get; set; }  // Deposit rate
+
+        // Hedge Information
+        public string HedgeSide { get; set; }  // Hedge B/S
+        public double? HedgeAmount { get; set; }  // Hedge Amt
+        public double? HedgeRate { get; set; }  // Hedge Rate
+        public string HedgeDeliveryDate { get; set; }  // Hedge Del Date
+
+        // Reject Handling
+        public string RejectReason { get; set; }
     }
 
     public class TradeBlotter
