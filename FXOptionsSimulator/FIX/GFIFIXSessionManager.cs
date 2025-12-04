@@ -377,8 +377,9 @@ namespace FXOptionsSimulator.FIX
                 // Add to blotter
                 if (trade != null)
                 {
-                    // Extract delta and premium from quote
+                    // Extract delta, premium, and volatility from quote
                     double? delta = null;
+                    double? volatility = null;
                     double netPremium = 0;
 
                     if (quote.LegPricing != null && quote.LegPricing.Count > 0)
@@ -392,7 +393,7 @@ namespace FXOptionsSimulator.FIX
                             }
                         }
 
-                        // Calculate nominal delta (Delta × Notional)
+                        // Calculate nominal delta (Delta × Notional) and extract volatility
                         var firstLeg = quote.LegPricing[0];
                         if (!string.IsNullOrEmpty(firstLeg.LegDelta) && double.TryParse(firstLeg.LegDelta, out double deltaPercent))
                         {
@@ -403,6 +404,12 @@ namespace FXOptionsSimulator.FIX
                             // Nominal Delta = (Delta% / 100) × Notional in full units
                             double notionalFull = notionalMM * 1_000_000; // Convert millions to full units
                             delta = (deltaPercent / 100.0) * notionalFull;
+                        }
+
+                        // Extract volatility from first leg (Tag 5678)
+                        if (!string.IsNullOrEmpty(firstLeg.Volatility) && double.TryParse(firstLeg.Volatility, out double vol))
+                        {
+                            volatility = vol;
                         }
                     }
 
@@ -444,6 +451,7 @@ namespace FXOptionsSimulator.FIX
                         Cut = tradeLeg?.Cutoff ?? "",
                         MyCenter = tradeLeg?.Cutoff ?? "",
                         SpotReference = trade.SpotReference,
+                        Volatility = volatility,  // Captured from quote
                         PremiumCcy = trade.PremiumCurrency,
                         OptionType = optionTypeDesc
                     };
