@@ -1756,10 +1756,8 @@ namespace FXOAiTranslator
             // Set expiry for all legs
             foreach (var leg in trade.Legs)
             {
-                leg.Expiry = expiry;
+                leg.ExpiryDate = expiry;
             }
-
-            trade.Expiry = expiry;
 
             Console.WriteLine($"[PARSED] {pair} {tenor} {optionInfo} -> {trade.Legs.Count} legs, Structure: {trade.StructureType}");
 
