@@ -1530,6 +1530,57 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
             string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
             string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
 
+            // Handle Expiry column changes - calculate all dates
+            if (columnName == "Expiry")
+            {
+                string expiryInput = row.Cells["Expiry"].Value?.ToString()?.Trim() ?? "";
+
+                if (string.IsNullOrEmpty(expiryInput))
+                {
+                    Console.WriteLine("[EXPIRY EDIT] Empty expiry value");
+                    return;
+                }
+
+                try
+                {
+                    // Determine premium currency (base currency of pair)
+                    string premiumCcy = ccy1;
+
+                    // Use FxDateService to calculate all dates
+                    var rules = new FxDateRules();
+                    var (tradeDate, spotDate, expiryDate, deliveryDate, premiumDate) =
+                        FxDateService.ComputeDates(
+                            DateTime.UtcNow,
+                            _trade?.Underlying ?? "EURUSD",
+                            expiryInput.ToUpper(),
+                            premiumCcy,
+                            rules
+                        );
+
+                    // Update grid cells
+                    row.Cells["Expiry"].Value = $"{expiryInput.ToUpper()} ({expiryDate:dd-MMM-yy})";
+                    row.Cells["SettlementDate"].Value = deliveryDate.ToString("dd-MMM-yy");
+                    row.Cells["PremiumDate"].Value = premiumDate.ToString("dd-MMM-yy");
+
+                    Console.WriteLine($"[EXPIRY CALC] {expiryInput} → Expiry: {expiryDate:dd-MMM-yy}, Settlement: {deliveryDate:dd-MMM-yy}, Premium: {premiumDate:dd-MMM-yy}");
+
+                    // Update trade structure
+                    if (_trade != null && e.RowIndex < _trade.Legs.Count)
+                    {
+                        _trade.Legs[e.RowIndex].Tenor = expiryInput.ToUpper();
+                        _trade.Legs[e.RowIndex].ExpiryDate = expiryDate;
+                        _trade.Legs[e.RowIndex].DeliveryDate = deliveryDate;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[EXPIRY EDIT] Error calculating dates: {ex.Message}");
+                    MessageBox.Show($"Could not calculate dates for '{expiryInput}'. Please use format like: 3M, 6M, 1Y, or dd-MMM-yy",
+                                    "Invalid Expiry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                return;
+            }
+
             // Handle Strike column changes - recalculate notionals
             if (columnName == "Strike")
             {
