@@ -50,6 +50,12 @@ namespace FXOAiTranslator
         private int _currentTestId = -1;  // Currently active test case
         private string _currentGroupId = null;  // Current test group ID for tracking
 
+        // UI elements stored as fields for dynamic updates
+        private Button _btnCcy1;
+        private Button _btnCcy2;
+        private Label _lblCcyToggle;
+        private Button _btnToggleCut;
+
         public GFIQuoteDialog(dynamic ovmlResult)
         {
             InitializeComponent();
@@ -316,10 +322,10 @@ namespace FXOAiTranslator
             };
             this.Controls.Add(btnToggleHedge);
 
-            // Toggle button for Cutoff - NEW
-            var btnToggleCut = new Button
+            // Toggle button for Cutoff - stored as class field for dynamic updates
+            _btnToggleCut = new Button
             {
-                Text = "Cut: NY",
+                Text = $"Cut: {_cutoff}",
                 Location = new Point(280, 305),
                 Size = new Size(100, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
@@ -327,95 +333,48 @@ namespace FXOAiTranslator
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
-            btnToggleCut.FlatAppearance.BorderColor = Color.DodgerBlue;
-            btnToggleCut.Click += (s, e) =>
-            {
-                _cutoff = (_cutoff == "NY") ? "TKY" : "NY";
-                btnToggleCut.Text = $"Cut: {_cutoff}";
-                btnToggleCut.BackColor = (_cutoff == "NY") ? Color.LightSkyBlue : Color.LightSalmon;
-            };
-            this.Controls.Add(btnToggleCut);
+            _btnToggleCut.FlatAppearance.BorderColor = Color.DodgerBlue;
+            _btnToggleCut.Click += BtnToggleCut_Click;
+            this.Controls.Add(_btnToggleCut);
 
-            // Currency Toggle Buttons - NEW (like GFI's EUR | USD toggle)
-            // Extract currencies from pair (e.g., EURUSD -> EUR, USD)
-            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "USD";
-            string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "JPY";
-      
-      // Default premium currency logic:
-    // - For USD-base pairs (USDJPY, USDCHF, etc.), default to USD (ccy1)
-            // - For other pairs (EURUSD, GBPUSD, etc.), default to USD if present, otherwise ccy2
-   if (ccy1 == "USD")
+            // Currency Toggle Buttons - created initially, updated dynamically via UpdateCurrencyButtons()
+            _btnCcy1 = new Button
             {
-      _premiumCurrency = ccy1;  // USD is base currency, use it
-     }
-    else if (ccy2 == "USD")
+                Location = new Point(390, 305),
+                Size = new Size(55, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            _btnCcy1.FlatAppearance.BorderColor = Color.Gray;
+            _btnCcy1.Click += BtnCcy1_Click;
+            this.Controls.Add(_btnCcy1);
+
+            _btnCcy2 = new Button
             {
-     _premiumCurrency = ccy2;  // USD is quote currency, use it
-            }
-        else
-    {
-      _premiumCurrency = ccy1;  // No USD in pair, default to base currency
-       }
-            
-     bool ccy1Selected = (_premiumCurrency == ccy1);
-
-            var btnCcy1 = new Button
-     {
-    Text = ccy1,
-            Location = new Point(390, 305),
-     Size = new Size(55, 25),
-      Font = new Font("Segoe UI", 9, FontStyle.Bold),
-      BackColor = ccy1Selected ? Color.MediumPurple : Color.White,
-                ForeColor = ccy1Selected ? Color.White : Color.Black,
-       FlatStyle = FlatStyle.Flat,
-    Cursor = Cursors.Hand
+                Location = new Point(450, 305),
+                Size = new Size(55, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
             };
-            btnCcy1.FlatAppearance.BorderColor = Color.Gray;
-
-            var btnCcy2 = new Button
-            {
-    Text = ccy2,
-    Location = new Point(450, 305),
-Size = new Size(55, 25),
-  Font = new Font("Segoe UI", 9, FontStyle.Bold),
-         BackColor = ccy1Selected ? Color.White : Color.MediumPurple,
-       ForeColor = ccy1Selected ? Color.Black : Color.White,
-         FlatStyle = FlatStyle.Flat,
-            Cursor = Cursors.Hand
-            };
-         btnCcy2.FlatAppearance.BorderColor = Color.Gray;
-
-     btnCcy1.Click += (s, e) =>
-  {
-                _premiumCurrency = ccy1;
-                btnCcy1.BackColor = Color.MediumPurple;
-                btnCcy1.ForeColor = Color.White;
-                btnCcy2.BackColor = Color.White;
-                btnCcy2.ForeColor = Color.Black;
-                UpdateQuoteDisplay(); // Refresh to show premiums in new currency
-            };
-            this.Controls.Add(btnCcy1);
-
-            btnCcy2.Click += (s, e) =>
-            {
-                _premiumCurrency = ccy2;
-                btnCcy2.BackColor = Color.MediumPurple;
-                btnCcy2.ForeColor = Color.White;
-                btnCcy1.BackColor = Color.White;
-                btnCcy1.ForeColor = Color.Black;
-                UpdateQuoteDisplay(); // Refresh to show premiums in new currency
-            };
-            this.Controls.Add(btnCcy2);
+            _btnCcy2.FlatAppearance.BorderColor = Color.Gray;
+            _btnCcy2.Click += BtnCcy2_Click;
+            this.Controls.Add(_btnCcy2);
 
             // Label for currency toggle
-            var lblCcyToggle = new Label
+            _lblCcyToggle = new Label
             {
                 Text = "Premium Ccy:",
                 Location = new Point(390, 285),
                 Size = new Size(115, 15),
                 Font = new Font("Segoe UI", 8, FontStyle.Regular)
             };
-            this.Controls.Add(lblCcyToggle);
+            this.Controls.Add(_lblCcyToggle);
+
+            // Initialize toggle buttons with current trade data
+            UpdateCurrencyButtons();
+            UpdateCutoffButton();
 
             // Test Case Checklist Panel - NEW
             var gbTestCases = new GroupBox
@@ -951,7 +910,15 @@ Size = new Size(55, 25),
             {
                 var leg = selectedLegs[i];
                 Console.WriteLine($"  Leg {i}: {leg.Direction} {leg.NotionalMM}MM {leg.OptionType} @ {leg.Strike}");
-            }
+
+                // Log detailed leg information for debugging
+                Console.WriteLine($"    NotionalMM: {leg.NotionalMM}");
+                Console.WriteLine($"    Direction: {leg.Direction}");
+                Console.WriteLine($"    OptionType: {leg.OptionType}");
+                Console.WriteLine($"    Strike: {leg.Strike}");
+                Console.WriteLine($"    Tenor: {leg.Tenor}");
+                Console.WriteLine($"    ExpiryDate: {leg.ExpiryDate:dd-MM-yyyy HH:mm:ss}");
+     }
         }
 
         private void QuoteTimer_Tick(object sender, EventArgs e)
@@ -1399,39 +1366,145 @@ Console.WriteLine($"  Notional: {totalNotionalMM}MM");
         {
             if (quote == null) return null;
 
-            // Use new LegPricing structure (legNum is 1-indexed, array is 0-indexed)
-            if (quote.LegPricing != null && quote.LegPricing.Count >= legNum)
-            {
-                var leg = quote.LegPricing[legNum - 1];
-                if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
-                {
-                    return prem;
-                }
-            }
+         // Use new LegPricing structure (legNum is 1-indexed, array is 0-indexed)
+     if (quote.LegPricing != null && quote.LegPricing.Count >= legNum)
+         {
+  var leg = quote.LegPricing[legNum - 1];
+          if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
+       {
+  return prem;
+ }
+    }
 
-            // Fallback to old field structure
-            var premStr = quote.Get($"leg{legNum}_5844");
-            if (!string.IsNullOrEmpty(premStr) && double.TryParse(premStr, out double premOld))
-            {
-                return premOld;
-            }
+  // Fallback to old field structure
+   var premStr = quote.Get($"leg{legNum}_5844");
+      if (!string.IsNullOrEmpty(premStr) && double.TryParse(premStr, out double premOld))
+    {
+      return premOld;
+  }
 
-            return null;
+       return null;
         }
 
-        private (double? bestBid, double? bestOffer) GetBestPremiums()
+        #region Dynamic UI Update Methods
+
+        /// <summary>
+/// Updates the currency toggle buttons based on the current trade's underlying pair.
+        /// Called when the dialog loads or when a different test case is selected.
+        /// </summary>
+ private void UpdateCurrencyButtons()
+        {
+    if (_btnCcy1 == null || _btnCcy2 == null) return;
+
+       // Extract currencies from pair (e.g., EURUSD -> EUR, USD)
+        string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "USD";
+  string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "JPY";
+
+       // Update button text
+            _btnCcy1.Text = ccy1;
+        _btnCcy2.Text = ccy2;
+
+    // Determine default premium currency:
+            // - For USD-base pairs (USDJPY, USDCHF, etc.), default to USD (ccy1)
+       // - For other pairs (EURUSD, GBPUSD, etc.), default to USD if present, otherwise ccy1
+            if (ccy1 == "USD")
+            {
+                _premiumCurrency = ccy1;  // USD is base currency, use it
+  }
+       else if (ccy2 == "USD")
+   {
+     _premiumCurrency = ccy2;  // USD is quote currency, use it
+            }
+      else
+         {
+         _premiumCurrency = ccy1;  // No USD in pair, default to base currency
+            }
+
+            // Update button styles based on selection
+       bool ccy1Selected = (_premiumCurrency == ccy1);
+       _btnCcy1.BackColor = ccy1Selected ? Color.MediumPurple : Color.White;
+            _btnCcy1.ForeColor = ccy1Selected ? Color.White : Color.Black;
+        _btnCcy2.BackColor = ccy1Selected ? Color.White : Color.MediumPurple;
+    _btnCcy2.ForeColor = ccy1Selected ? Color.Black : Color.White;
+
+            Console.WriteLine($"[CCY] Updated currency buttons: {ccy1}/{ccy2}, default selection: {_premiumCurrency}");
+        }
+
+    private void BtnCcy1_Click(object sender, EventArgs e)
+        {
+     string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "USD";
+          _premiumCurrency = ccy1;
+       _btnCcy1.BackColor = Color.MediumPurple;
+      _btnCcy1.ForeColor = Color.White;
+     _btnCcy2.BackColor = Color.White;
+            _btnCcy2.ForeColor = Color.Black;
+UpdateQuoteDisplay(); // Refresh to show premiums in new currency
+        }
+
+     private void BtnCcy2_Click(object sender, EventArgs e)
+  {
+  string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "JPY";
+            _premiumCurrency = ccy2;
+  _btnCcy2.BackColor = Color.MediumPurple;
+   _btnCcy2.ForeColor = Color.White;
+       _btnCcy1.BackColor = Color.White;
+            _btnCcy1.ForeColor = Color.Black;
+  UpdateQuoteDisplay(); // Refresh to show premiums in new currency
+        }
+
+        /// <summary>
+    /// Click handler for cutoff toggle button - cycles through NY -> TKY -> CNH -> NY
+        /// </summary>
+     private void BtnToggleCut_Click(object sender, EventArgs e)
+        {
+            // Cycle through cutoffs: NY -> TKY -> CNH -> NY
+            _cutoff = _cutoff switch
+    {
+       "NY" => "TKY",
+            "TKY" => "CNH",
+    "CNH" => "NY",
+           _ => "NY"
+ };
+      UpdateCutoffButton();
+    }
+
+        /// <summary>
+        /// Updates the cutoff toggle button based on the current _cutoff value.
+     /// Called when the dialog loads or when a different test case is selected.
+   /// </summary>
+  private void UpdateCutoffButton()
+        {
+     if (_btnToggleCut == null) return;
+
+    _btnToggleCut.Text = $"Cut: {_cutoff}";
+
+            // Color coding by cutoff
+     (_btnToggleCut.BackColor, _btnToggleCut.FlatAppearance.BorderColor) = _cutoff switch
+            {
+     "NY" => (Color.LightSkyBlue, Color.DodgerBlue),
+        "TKY" => (Color.LightSalmon, Color.OrangeRed),
+           "CNH" => (Color.LightGreen, Color.Green),
+        _ => (Color.LightSkyBlue, Color.DodgerBlue)
+ };
+
+            Console.WriteLine($"[CUT] Updated cutoff button: {_cutoff}");
+        }
+
+        #endregion
+
+      private (double? bestBid, double? bestOffer) GetBestPremiums()
         {
             var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
 
             double? bestBid = null;
-            double? bestOffer = null;
+     double? bestOffer = null;
 
-            foreach (var stream in streams)
-            {
-                var bid = CalculateNetPremium(stream.BidQuote);
-                var offer = CalculateNetPremium(stream.OfferQuote);
+  foreach (var stream in streams)
+  {
+      var bid = CalculateNetPremium(stream.BidQuote);
+   var offer = CalculateNetPremium(stream.OfferQuote);
 
-                // Best BID = highest (client sells at best price)
+   // Best BID = highest (client sells at best price)
                 if (bid.HasValue && (!bestBid.HasValue || bid.Value > bestBid.Value))
                     bestBid = bid.Value;
 
@@ -1728,7 +1801,7 @@ Console.WriteLine($"  Notional: {totalNotionalMM}MM");
 
                 // Pricing
                 entry.NetPremium.ToString("N2"),                   // Price
-                entry.LP ?? "-",                                   // Counterparty
+                entry.LP ?? "-",                                   // // Counterparty
                 entry.Cut ?? "-",                                  // Cut
                 FormatValue(entry.SpotReference, "N4"),            // Spot
                 FormatValue(entry.Swap, "N4"),                     // Swap
@@ -1836,12 +1909,16 @@ Console.WriteLine($"  Notional: {totalNotionalMM}MM");
 
                 // Update the dialog's trade and refresh UI
                 _trade = trade;
-                lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
-                PopulateLegGrid();
-                SetupQuoteGrid(_trade.Legs.Count);
+  lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
+          PopulateLegGrid();
+ SetupQuoteGrid(_trade.Legs.Count);
 
-                // Generate group ID and store current test info
-                string groupId = $"TEST-{testId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+        // Update toggle buttons for new trade (ParseTestCase already set _cutoff)
+UpdateCurrencyButtons();
+  UpdateCutoffButton();
+
+     // Generate group ID and store current test info
+    string groupId = $"TEST-{testId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
                 _currentTestId = testId;
                 _currentGroupId = groupId;
 
