@@ -140,11 +140,14 @@ namespace FXOAiTranslator
                 Size = new Size(920, 105),
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                SelectionMode = DataGridViewSelectionMode.CellSelect,
                 MultiSelect = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells,
                 RowHeadersVisible = false
             };
+            // Set subtle selection color
+            dgvLegs.DefaultCellStyle.SelectionBackColor = Color.LightSteelBlue;
+            dgvLegs.DefaultCellStyle.SelectionForeColor = Color.Black;
             gbLegs.Controls.Add(dgvLegs);
 
             var chkCol = new DataGridViewCheckBoxColumn
@@ -1541,10 +1544,27 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                     return;
                 }
 
+                // Extract just the tenor if cell contains "3M (09-Jan-26)" format
+                // Use regex to extract first word before parenthesis
+                var tenorMatch = System.Text.RegularExpressions.Regex.Match(expiryInput, @"^(\S+)");
+                if (tenorMatch.Success)
+                {
+                    expiryInput = tenorMatch.Groups[1].Value;
+                }
+
+                Console.WriteLine($"[EXPIRY EDIT] Parsed tenor: '{expiryInput}'");
+
                 try
                 {
                     // Determine premium currency (base currency of pair)
                     string premiumCcy = ccy1;
+
+                    // Validate tenor format before calling ComputeDates
+                    string tenorUpper = expiryInput.ToUpper();
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(tenorUpper, @"^\d+[DWMY]$"))
+                    {
+                        throw new ArgumentException($"Invalid tenor format: '{expiryInput}'. Use format like: 3M, 6M, 1Y, 7D, 2W");
+                    }
 
                     // Use FxDateService to calculate all dates
                     var rules = new FxDateRules();
@@ -1552,30 +1572,31 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                         FxDateService.ComputeDates(
                             DateTime.UtcNow,
                             _trade?.Underlying ?? "EURUSD",
-                            expiryInput.ToUpper(),
+                            tenorUpper,
                             premiumCcy,
                             rules
                         );
 
                     // Update grid cells
-                    row.Cells["Expiry"].Value = $"{expiryInput.ToUpper()} ({expiryDate:dd-MMM-yy})";
+                    row.Cells["Expiry"].Value = $"{tenorUpper} ({expiryDate:dd-MMM-yy})";
                     row.Cells["SettlementDate"].Value = deliveryDate.ToString("dd-MMM-yy");
                     row.Cells["PremiumDate"].Value = premiumDate.ToString("dd-MMM-yy");
 
-                    Console.WriteLine($"[EXPIRY CALC] {expiryInput} → Expiry: {expiryDate:dd-MMM-yy}, Settlement: {deliveryDate:dd-MMM-yy}, Premium: {premiumDate:dd-MMM-yy}");
+                    Console.WriteLine($"[EXPIRY CALC] {tenorUpper} → Expiry: {expiryDate:dd-MMM-yy}, Settlement: {deliveryDate:dd-MMM-yy}, Premium: {premiumDate:dd-MMM-yy}");
 
                     // Update trade structure
                     if (_trade != null && e.RowIndex < _trade.Legs.Count)
                     {
-                        _trade.Legs[e.RowIndex].Tenor = expiryInput.ToUpper();
+                        _trade.Legs[e.RowIndex].Tenor = tenorUpper;
                         _trade.Legs[e.RowIndex].ExpiryDate = expiryDate;
                         _trade.Legs[e.RowIndex].DeliveryDate = deliveryDate;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[EXPIRY EDIT] Error calculating dates: {ex.Message}");
-                    MessageBox.Show($"Could not calculate dates for '{expiryInput}'. Please use format like: 3M, 6M, 1Y, or dd-MMM-yy",
+                    Console.WriteLine($"[EXPIRY EDIT] Error: {ex.Message}");
+                    Console.WriteLine($"[EXPIRY EDIT] Stack trace: {ex.StackTrace}");
+                    MessageBox.Show($"Could not calculate dates for '{expiryInput}'.\n\nPlease use format like: 3M, 6M, 1Y, 7D, 2W\n\nError: {ex.Message}",
                                     "Invalid Expiry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
                 return;
