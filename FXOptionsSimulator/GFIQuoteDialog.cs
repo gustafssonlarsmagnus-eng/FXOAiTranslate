@@ -53,33 +53,37 @@ namespace FXOAiTranslator
         public GFIQuoteDialog(dynamic ovmlResult)
         {
             InitializeComponent();
-            InitializeCustomComponents();
+            
+            // IMPORTANT: Convert trade structure BEFORE InitializeCustomComponents
+            // so that currency-dependent UI elements can use the underlying pair
+          _trade = OVMLBridge.ConvertToTradeStructure(ovmlResult);
+            
+         InitializeCustomComponents();
+            
+  _fixSession = GlobalFIXSession.Instance;
 
-            _trade = OVMLBridge.ConvertToTradeStructure(ovmlResult);
-            _fixSession = GlobalFIXSession.Instance;  // Changed
+    Console.WriteLine($"\n=== TRADE STRUCTURE DEBUG ===");
+    Console.WriteLine($"StructureType: {_trade.StructureType}");
+    Console.WriteLine($"Underlying: {_trade.Underlying}");
+    Console.WriteLine($"Leg Count: {_trade.Legs.Count}");
 
-            Console.WriteLine($"\n=== TRADE STRUCTURE DEBUG ===");
-            Console.WriteLine($"StructureType: {_trade.StructureType}");
-            Console.WriteLine($"Underlying: {_trade.Underlying}");
-            Console.WriteLine($"Leg Count: {_trade.Legs.Count}");
+    for (int i = 0; i < _trade.Legs.Count; i++)
+    {
+        var leg = _trade.Legs[i];
+        Console.WriteLine($"\nLeg {i}:");
+        Console.WriteLine($"  Direction: {leg.Direction}");
+        Console.WriteLine($"  OptionType: {leg.OptionType}");
+        Console.WriteLine($"  Strike: {leg.Strike}");
+        Console.WriteLine($"  NotionalMM: {leg.NotionalMM}");
+        Console.WriteLine($"  Tenor: {leg.Tenor}");
+    }
+    Console.WriteLine($"=========================\n");
 
-            for (int i = 0; i < _trade.Legs.Count; i++)
-            {
-                var leg = _trade.Legs[i];
-                Console.WriteLine($"\nLeg {i}:");
-                Console.WriteLine($"  Direction: {leg.Direction}");
-                Console.WriteLine($"  OptionType: {leg.OptionType}");
-                Console.WriteLine($"  Strike: {leg.Strike}");
-                Console.WriteLine($"  NotionalMM: {leg.NotionalMM}");
-                Console.WriteLine($"  Tenor: {leg.Tenor}");
-            }
-            Console.WriteLine($"=========================\n");
+    lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
+    PopulateLegGrid();
 
-            lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
-            PopulateLegGrid();
-
-            // Subscribe to quote events
-            _fixSession.Application.OnQuoteReceived += OnQuoteReceivedFromFIX;
+    // Subscribe to quote events
+    _fixSession.Application.OnQuoteReceived += OnQuoteReceivedFromFIX;
         }
 
         private void InitializeCustomComponents()
@@ -334,23 +338,55 @@ namespace FXOAiTranslator
 
             // Currency Toggle Buttons - NEW (like GFI's EUR | USD toggle)
             // Extract currencies from pair (e.g., EURUSD -> EUR, USD)
-            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
-            string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
-            _premiumCurrency = ccy2;  // Default to quote currency (second currency)
+            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "USD";
+            string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "JPY";
+      
+      // Default premium currency logic:
+    // - For USD-base pairs (USDJPY, USDCHF, etc.), default to USD (ccy1)
+            // - For other pairs (EURUSD, GBPUSD, etc.), default to USD if present, otherwise ccy2
+   if (ccy1 == "USD")
+            {
+      _premiumCurrency = ccy1;  // USD is base currency, use it
+     }
+    else if (ccy2 == "USD")
+            {
+     _premiumCurrency = ccy2;  // USD is quote currency, use it
+            }
+        else
+    {
+      _premiumCurrency = ccy1;  // No USD in pair, default to base currency
+       }
+            
+     bool ccy1Selected = (_premiumCurrency == ccy1);
 
             var btnCcy1 = new Button
-            {
-                Text = ccy1,
-                Location = new Point(390, 305),
-                Size = new Size(55, 25),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
+     {
+    Text = ccy1,
+            Location = new Point(390, 305),
+     Size = new Size(55, 25),
+      Font = new Font("Segoe UI", 9, FontStyle.Bold),
+      BackColor = ccy1Selected ? Color.MediumPurple : Color.White,
+                ForeColor = ccy1Selected ? Color.White : Color.Black,
+       FlatStyle = FlatStyle.Flat,
+    Cursor = Cursors.Hand
             };
             btnCcy1.FlatAppearance.BorderColor = Color.Gray;
-            btnCcy1.Click += (s, e) =>
+
+            var btnCcy2 = new Button
             {
+    Text = ccy2,
+    Location = new Point(450, 305),
+Size = new Size(55, 25),
+  Font = new Font("Segoe UI", 9, FontStyle.Bold),
+         BackColor = ccy1Selected ? Color.White : Color.MediumPurple,
+       ForeColor = ccy1Selected ? Color.Black : Color.White,
+         FlatStyle = FlatStyle.Flat,
+            Cursor = Cursors.Hand
+            };
+         btnCcy2.FlatAppearance.BorderColor = Color.Gray;
+
+     btnCcy1.Click += (s, e) =>
+  {
                 _premiumCurrency = ccy1;
                 btnCcy1.BackColor = Color.MediumPurple;
                 btnCcy1.ForeColor = Color.White;
@@ -360,18 +396,6 @@ namespace FXOAiTranslator
             };
             this.Controls.Add(btnCcy1);
 
-            var btnCcy2 = new Button
-            {
-                Text = ccy2,
-                Location = new Point(450, 305),
-                Size = new Size(55, 25),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                BackColor = Color.MediumPurple,  // Default selected
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            btnCcy2.FlatAppearance.BorderColor = Color.Gray;
             btnCcy2.Click += (s, e) =>
             {
                 _premiumCurrency = ccy2;
@@ -855,7 +879,6 @@ namespace FXOAiTranslator
             // Track which LPs successfully received requests
             var successfulLPs = new List<string>();
             var failedLPs = new List<string>();
-
             // Send quote request to each LP
             foreach (var lp in lps)
             {
@@ -952,50 +975,75 @@ namespace FXOAiTranslator
         private void UpdateQuoteDisplay()
         {
             dgvQuotes.Rows.Clear();
-            var streams = _fixSession.Application.GetActiveStreams(_groupId);  // Changed
+     var streams = _fixSession.Application.GetActiveStreams(_groupId);
 
-            foreach (var stream in streams)
-            {
-                var rowData = new List<object>();
-                rowData.Add(stream.LP);
+     foreach (var stream in streams)
+    {
+       var rowData = new List<object>();
+   rowData.Add(stream.LP);
 
-                double? netPremBid = CalculateNetPremium(stream.BidQuote);
-                double? netPremOffer = CalculateNetPremium(stream.OfferQuote);
+       double? netPremBid = CalculateNetPremium(stream.BidQuote);
+ double? netPremOffer = CalculateNetPremium(stream.OfferQuote);
 
-                // Get spot rate for currency conversion
-                double spotRate = _trade?.SpotReference ?? 1.0;
+         // Extract premium currency from the quote itself (Tag 5830)
+      // This is the authoritative source - GFI tells us what currency the premium is in
+         string quotePremCcyBid = stream.BidQuote?.Get("5830");
+              string quotePremCcyOffer = stream.OfferQuote?.Get("5830");
+         string quotePremCcy = quotePremCcyBid ?? quotePremCcyOffer;
 
-                // Extract currencies from pair
-                string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
-                string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
+       // Get spot rate for currency conversion (if needed)
+     double spotRate = _trade?.SpotReference ?? 1.0;
 
-                // Get base premium currency from trade (usually quote currency = ccy2)
-                string basePremCcy = _trade?.PremiumCurrency ?? ccy2;
+       // Extract currencies from pair
+string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
+    string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
 
-                // Convert premium to selected display currency if needed
-                double conversionFactor = 1.0;
-                if (_premiumCurrency != basePremCcy && spotRate > 0)
-                {
-                    // Converting between currencies using spot rate
-                    // If basePremCcy is ccy2 (USD) and we want ccy1 (EUR): divide by spot
-                    // If basePremCcy is ccy1 (EUR) and we want ccy2 (USD): multiply by spot
-                    if (basePremCcy == ccy2 && _premiumCurrency == ccy1)
-                    {
-                        conversionFactor = 1.0 / spotRate;  // USD -> EUR: divide
-                    }
-                    else if (basePremCcy == ccy1 && _premiumCurrency == ccy2)
-                    {
-                        conversionFactor = spotRate;  // EUR -> USD: multiply
-                    }
-                }
+    // Determine base premium currency:
+ // 1. Use Tag 5830 from quote if available (most reliable)
+         // 2. If USD is in the pair, premium is typically in USD
+  // 3. Otherwise, premium is typically in the quote currency (ccy2)
+             string basePremCcy;
+       if (!string.IsNullOrEmpty(quotePremCcy))
+    {
+       // GFI told us explicitly what currency the premium is in
+     basePremCcy = quotePremCcy;
+    }
+    else if (ccy1 == "USD" || ccy2 == "USD")
+    {
+        // If USD is in the pair, premium is in USD
+         basePremCcy = "USD";
+      }
+   else
+         {
+          // For crosses without USD (e.g., EURSEK, EURJPY, GBPJPY)
+        // Premium is typically in the quote currency (ccy2)
+           basePremCcy = ccy2;
+      }
 
-                double? displayBid = netPremBid.HasValue ? netPremBid.Value * conversionFactor : (double?)null;
-                double? displayOffer = netPremOffer.HasValue ? netPremOffer.Value * conversionFactor : (double?)null;
+  // Only convert if user wants a DIFFERENT currency than what we received
+          double conversionFactor = 1.0;
+          if (_premiumCurrency != basePremCcy && spotRate > 0)
+       {
+            // Need to convert between currencies
+           if (_premiumCurrency == ccy1 && basePremCcy == ccy2)
+         {
+ // Convert from ccy2 to ccy1 (e.g., SEK to EUR): divide by spot
+            conversionFactor = 1.0 / spotRate;
+  }
+       else if (_premiumCurrency == ccy2 && basePremCcy == ccy1)
+    {
+                  // Convert from ccy1 to ccy2 (e.g., EUR to SEK): multiply by spot
+             conversionFactor = spotRate;
+          }
+          }
 
-                rowData.Add(displayBid.HasValue ? $"{displayBid.Value:N0} {_premiumCurrency}" : "-");
-                rowData.Add(displayOffer.HasValue ? $"{displayOffer.Value:N0} {_premiumCurrency}" : "-");
+        double? displayBid = netPremBid.HasValue ? netPremBid.Value * conversionFactor : (double?)null;
+             double? displayOffer = netPremOffer.HasValue ? netPremOffer.Value * conversionFactor : (double?)null;
 
-                // Add leg data based on display mode
+    rowData.Add(displayBid.HasValue ? $"{displayBid.Value:N0} {_premiumCurrency}" : "-");
+       rowData.Add(displayOffer.HasValue ? $"{displayOffer.Value:N0} {_premiumCurrency}" : "-");
+
+    // Add leg data based on display mode
                 for (int i = 1; i <= _selectedLegCount; i++)
                 {
                     if (_showVolatility)
@@ -1013,8 +1061,8 @@ namespace FXOAiTranslator
                         double? bidPrem = GetLegPremium(stream.BidQuote, i);
                         double? offerPrem = GetLegPremium(stream.OfferQuote, i);
 
-                        rowData.Add(bidPrem.HasValue ? $"{bidPrem.Value:N2} PTS {premCcy}" : "-");
-                        rowData.Add(offerPrem.HasValue ? $"{offerPrem.Value:N2} PTS {premCcy}" : "-");
+                        rowData.Add(bidPrem.HasValue ? $"{bidPrem.Value:N2} PTS {_premiumCurrency}" : "-");
+                        rowData.Add(offerPrem.HasValue ? $"{offerPrem.Value:N2} PTS {_premiumCurrency}" : "-");
                     }
                 }
 
@@ -1240,59 +1288,87 @@ namespace FXOAiTranslator
 
             // Get LP name to check for LP-specific premium units
             string lpName = quote.Get(Tags.OnBehalfOfCompID.ToString()) ?? "";
-            string side = quote.Get("54") == "1" ? "BID" : "OFFER";
+       string side = quote.Get("54") == "1" ? "BID" : "OFFER";
 
-            // Extract spot reference from first leg (tag 5235)
+    // Extract spot reference from first leg (tag 5235)
             string spotRef = quote.LegPricing != null && quote.LegPricing.Count > 0
-                ? quote.LegPricing[0].LegSpotRate
+         ? quote.LegPricing[0].LegSpotRate
                 : null;
 
-            // PREFER Tag 6436 (Premium) if available - return actual USD amount (not divided by 1000)
-            string tag6436 = quote.Get("6436");
-            if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
-            {
-                // Return actual USD amount (Tag 6436 already in correct units)
-                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={tag6436} -> Display={premium6436:N0} USD, Spot={spotRef ?? "N/A"}");
-                return premium6436;
-            }
+          // Get total notional from trade legs (in millions)
+ double totalNotionalMM = _trade?.Legs?.Sum(l => l.NotionalMM) ?? 1.0;
+        
+            // Get currencies for logging
+            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "USD";
+    string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "JPY";
+string premCcy = _trade?.PremiumCurrency ?? ccy1; // For USD-based pairs, premium is typically in USD
 
-            // FALLBACK: Use LegPricing structure (less reliable due to PriceIndicator differences)
-            if (quote.LegPricing != null && quote.LegPricing.Count > 0)
-            {
-                double netPrem = 0;
-                foreach (var leg in quote.LegPricing)
-                {
-                    if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double prem))
-                    {
-                        // HSBC sends premiums in percentage, others in basis points
-                        // Convert HSBC from % to bps by multiplying with 100
-                        if (lpName == "HSBC")
-                        {
-                            prem *= 100.0;
-                        }
-                        netPrem += prem;
-                    }
-                }
-                return netPrem;
-            }
+ // PREFER Tag 6436 (Premium) if available
+    // GFI sends premium as INTEGER in the quote currency (e.g., 33600 = $33,600 USD)
+       string tag6436 = quote.Get("6436");
+     if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, 
+      System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, 
+  out double premium6436))
+  {
+           // Tag 6436 IS the actual premium amount in the premium currency
+     // Note: Premium can be positive (you receive) or negative (you pay)
+   Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side}:");
+           Console.WriteLine($"  Tag6436 raw value: '{tag6436}'");
+       Console.WriteLine($"  Parsed as: {premium6436:N2} {premCcy}");
+   Console.WriteLine($"  Notional: {totalNotionalMM}MM");
+    Console.WriteLine($"  Spot: {spotRef ?? "N/A"}");
 
-            // Fallback to old field structure for backwards compatibility
+       return premium6436;
+   }
+
+       // FALLBACK: Use LegPricing structure (sum of leg premiums)
+  if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+      {
+       double netPremPoints = 0;
+       var legDetails = new List<string>();
+      
+      foreach (var leg in quote.LegPricing)
+     {
+   if (!string.IsNullOrEmpty(leg.LegPremPrice) && 
+              double.TryParse(leg.LegPremPrice, 
+       System.Globalization.NumberStyles.Any,
+ System.Globalization.CultureInfo.InvariantCulture,
+       out double prem))
+    {
+       netPremPoints += prem;
+     legDetails.Add($"Leg{quote.LegPricing.IndexOf(leg)+1}={prem:F2}");
+      }
+     }
+
+  Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side} (from LegPricing):");
+     Console.WriteLine($"  Leg premiums: [{string.Join(", ", legDetails)}]");
+     Console.WriteLine($"  Net points: {netPremPoints:F2}");
+Console.WriteLine($"  Notional: {totalNotionalMM}MM");
+         
+   // LegPremPrice (tag 5844) is typically in PIPS per notional unit
+       // For display, we may need to scale by notional
+    // But first, let's see what the raw values are
+       return netPremPoints;
+       }
+
+       // Fallback to old field structure for backwards compatibility
             double netPremOld = 0;
-            for (int i = 1; i <= _selectedLegCount; i++)
-            {
-                var premStr = quote.Get($"leg{i}_5844");
-                if (!string.IsNullOrEmpty(premStr) && double.TryParse(premStr, out double prem))
-                {
-                    // HSBC sends premiums in percentage, others in basis points
-                    if (lpName == "HSBC")
-                    {
-                        prem *= 100.0;
-                    }
-                    netPremOld += prem;
-                }
-            }
+      for (int i = 1; i <= _selectedLegCount; i++)
+ {
+       var premStr = quote.Get($"leg{i}_5844");
+       if (!string.IsNullOrEmpty(premStr) && 
+         double.TryParse(premStr, 
+     System.Globalization.NumberStyles.Any,
+         System.Globalization.CultureInfo.InvariantCulture,
+       out double prem))
+{
+         netPremOld += prem;
+   }
+  }
 
-            return netPremOld;
+     Console.WriteLine($"[PREMIUM-DEBUG] {lpName} {side} (old format): {netPremOld:F2}");
+   return netPremOld;
         }
 
         private double? GetLegVol(FIXMessage quote, int legNum)
@@ -1661,9 +1737,8 @@ namespace FXOAiTranslator
                 entry.TradeTime.ToString("HH:mm:ss")               // Trade Time
             );
 
-            // Color code by status
-            var row = dgvBlotter.Rows[dgvBlotter.Rows.Count - 1];
-            ColorCodeBlotterRow(row, entry.Status);
+            // Color coding logic
+            ColorCodeBlotterRow(dgvBlotter.Rows[dgvBlotter.Rows.Count - 1], entry.Status);
         }
 
         private void OnTradeUpdatedInBlotter(TradeBlotterEntry entry)
@@ -2173,7 +2248,7 @@ namespace FXOAiTranslator
                 }
                 else
                 {
-                    Console.WriteLine($"[AUTO-MARK] ✗ Checkbox NOT found for TestID={_currentTestId}");
+                    Console.WriteLine("[AUTO-MARK] ✗ Checkbox NOT found for TestID=" + _currentTestId);
                 }
             }
         }
@@ -2183,8 +2258,8 @@ namespace FXOAiTranslator
             _quoteTimer?.Stop();
             _quoteTimer?.Dispose();
 
-            _countdownTimer?.Stop();
-            _countdownTimer?.Dispose();
+        _countdownTimer?.Stop();
+       _countdownTimer?.Dispose();
 
             // Unsubscribe from blotter events
             TradeBlotter.Instance.OnTradeAdded -= OnTradeAddedToBlotter;
