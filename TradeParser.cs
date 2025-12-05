@@ -216,12 +216,12 @@ namespace FXOAiTranslator
                                     for (int i = 0; i < legMatches.Count; i++)
                                     {
                                         var legMatch = legMatches[i];
-                                        string notional = legMatch.Groups[1].Value;
-                                        string strike = legMatch.Groups[3].Value;
+                                        string legNotional = legMatch.Groups[1].Value;
+                                        string legStrike = legMatch.Groups[3].Value;
                                         string legType = legMatch.Groups[4].Value.ToUpper().StartsWith("C") ? "C" : "P";
 
-                                        strikes.Add($"{strike}{legType}");
-                                        notionals.Add($"{notional}M");
+                                        strikes.Add($"{legStrike}{legType}");
+                                        notionals.Add($"{legNotional}M");
                                     }
 
                                     result.LegCount = legMatches.Count;
