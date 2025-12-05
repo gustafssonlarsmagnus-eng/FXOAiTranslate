@@ -1606,7 +1606,7 @@ namespace FXOAiTranslator
             switch (status?.ToUpper())
             {
                 case "CONFIRMED":
-                    row.DefaultCellStyle.BackColor = Color.LightBlue;  // Bright blue for confirmed
+                    row.DefaultCellStyle.BackColor = Color.LightGreen;  // Green for confirmed (STP success)
                     row.DefaultCellStyle.ForeColor = Color.Black;
                     break;
                 case "FILLED":
@@ -2049,29 +2049,42 @@ namespace FXOAiTranslator
 
         private void OnTradeStatusChanged(TradeBlotterEntry trade)
         {
+            Console.WriteLine($"[AUTO-MARK] Trade status changed: {trade.Status}, CurrentTestID: {_currentTestId}");
+
             // Auto-mark test as successful when trade reaches CONFIRMED status
             if (trade.Status == "CONFIRMED" && _currentTestId > 0)
             {
+                Console.WriteLine($"[AUTO-MARK] Looking for checkbox with TestID={_currentTestId}");
+
                 // Find the checkbox for the current test
                 var checkbox = _testCaseCheckboxes.FirstOrDefault(chk => (int)chk.Tag == _currentTestId);
-                if (checkbox != null && !_passedTests.Contains(_currentTestId))
+                if (checkbox != null)
                 {
-                    // Mark as passed
-                    if (checkbox.InvokeRequired)
+                    Console.WriteLine($"[AUTO-MARK] Checkbox found. Already passed: {_passedTests.Contains(_currentTestId)}");
+
+                    if (!_passedTests.Contains(_currentTestId))
                     {
-                        checkbox.Invoke(new Action(() =>
+                        // Mark as passed
+                        if (checkbox.InvokeRequired)
+                        {
+                            checkbox.Invoke(new Action(() =>
+                            {
+                                _passedTests.Add(_currentTestId);
+                                checkbox.BackColor = Color.LightGreen;
+                                Console.WriteLine($"[TEST CASE {_currentTestId}] ✓✓✓ Auto-marked as SUCCESSFUL (trade confirmed) - GREEN CHECKBOX");
+                            }));
+                        }
+                        else
                         {
                             _passedTests.Add(_currentTestId);
                             checkbox.BackColor = Color.LightGreen;
-                            Console.WriteLine($"[TEST CASE {_currentTestId}] ✓ Auto-marked as SUCCESSFUL (trade confirmed)");
-                        }));
+                            Console.WriteLine($"[TEST CASE {_currentTestId}] ✓✓✓ Auto-marked as SUCCESSFUL (trade confirmed) - GREEN CHECKBOX");
+                        }
                     }
-                    else
-                    {
-                        _passedTests.Add(_currentTestId);
-                        checkbox.BackColor = Color.LightGreen;
-                        Console.WriteLine($"[TEST CASE {_currentTestId}] ✓ Auto-marked as SUCCESSFUL (trade confirmed)");
-                    }
+                }
+                else
+                {
+                    Console.WriteLine($"[AUTO-MARK] ✗ Checkbox NOT found for TestID={_currentTestId}");
                 }
             }
         }
