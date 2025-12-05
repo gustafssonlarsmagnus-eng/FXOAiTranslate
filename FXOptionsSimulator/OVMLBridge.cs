@@ -95,7 +95,7 @@ namespace FXOptionsSimulator
                     ExpiryDate = expiryDate,
                     DeliveryDate = deliveryDate,
                     NotionalMM = parsedLeg.NotionalMM,
-                    NotionalCurrency = GetTermCurrency(underlying),
+                    NotionalCurrency = GetBaseCurrency(underlying),  // Use base currency (EUR for EURUSD)
                     Cutoff = "NY",
                     Position = i == 0 ? "SAME" : "INVERSE",
                     LegID = $"SL{i}"
@@ -382,6 +382,14 @@ namespace FXOptionsSimulator
         /// <summary>
         /// Get term currency (second currency in pair)
         /// </summary>
+        private static string GetBaseCurrency(string underlying)
+        {
+            if (underlying.Length >= 6)
+                return underlying.Substring(0, 3);
+
+            return "EUR"; // Default
+        }
+
         private static string GetTermCurrency(string underlying)
         {
             if (underlying.Length >= 6)
