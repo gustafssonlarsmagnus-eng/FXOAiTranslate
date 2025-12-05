@@ -721,14 +721,16 @@ namespace FXOAiTranslator
             dgvQuotes.Columns["LP"].Width = 80;
 
             dgvQuotes.Columns.Add("NetPremBid", "Net Prem (Bid)");
-            // Format: "Rec USD 247,994\n248 pips" (two lines like GFI)
+  // Format: "Rec USD 37,130\n37 pips" (two lines, centered like GFI)
      dgvQuotes.Columns["NetPremBid"].Width = 140;
-        dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+      dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+     dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
 
-            dgvQuotes.Columns.Add("NetPremOffer", "Net Prem (Offer)");
-       // Format: "Pay USD 249,116\n-249 pips" (two lines like GFI)
-       dgvQuotes.Columns["NetPremOffer"].Width = 150;
+  dgvQuotes.Columns.Add("NetPremOffer", "Net Prem (Offer)");
+       // Format: "Pay USD 38,620\n39 pips" (two lines, centered like GFI)
+    dgvQuotes.Columns["NetPremOffer"].Width = 150;
 dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+     dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
 
             // Add leg columns based on display mode (Vol or Premium)
             for (int i = 1; i <= legCount; i++)
@@ -992,41 +994,42 @@ string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3
 
   // Only convert if user wants a DIFFERENT currency than what we received
           double conversionFactor = 1.0;
-          if (_premiumCurrency != basePremCcy && spotRate > 0)
+      if (_premiumCurrency != basePremCcy && spotRate > 0)
        {
 // Need to convert between currencies
     if (_premiumCurrency == ccy1 && basePremCcy == ccy2)
-         {
+{
  // Convert from ccy2 to ccy1 (e.g., SEK to EUR): divide by spot
   conversionFactor = 1.0 / spotRate;
   }
        else if (_premiumCurrency == ccy2 && basePremCcy == ccy1)
-    {
+  {
          // Convert from ccy1 to ccy2 (e.g., EUR to SEK): multiply by spot
 conversionFactor = spotRate;
        }
-          }
+       }
 
         double? displayBid = netPremBid.HasValue ? netPremBid.Value * conversionFactor : (double?)null;
     double? displayOffer = netPremOffer.HasValue ? netPremOffer.Value * conversionFactor : (double?)null;
 
-        // Get pips values from Tag 5844 for display (like GFI shows)
-     double? bidPips = GetLegPremium(stream.BidQuote, 1);  // Tag 5844
-        double? offerPips = GetLegPremium(stream.OfferQuote, 1);  // Tag 5844
+        // Calculate pips from Tag 6436 (USD amount) / 1000 for consistency across all LPs
+        // Tag 5844 is LP-specific and not reliable for comparison
+        double? bidPips = displayBid.HasValue ? displayBid.Value / 1000.0 : (double?)null;
+      double? offerPips = displayOffer.HasValue ? displayOffer.Value / 1000.0 : (double?)null;
 
-        // Format like GFI: "Rec USD 247,994\n248 pips" or "Pay USD 249,116\n-249 pips"
-        string FormatPremiumCell(double? usdAmount, double? pips, string ccy)
+        // Format like GFI: "Rec USD 37,130\n37 pips" centered
+      string FormatPremiumCell(double? usdAmount, double? pips, string ccy)
         {
       if (!usdAmount.HasValue) return "-";
    
     string direction = usdAmount.Value >= 0 ? "Rec" : "Pay";
      string absAmount = Math.Abs(usdAmount.Value).ToString("N0");
-       string pipsStr = pips.HasValue ? $"{pips.Value:N0} pips" : "";
+       string pipsStr = pips.HasValue ? $"{Math.Abs(pips.Value):N0} pips" : "";
        
         return $"{direction} {ccy} {absAmount}\n{pipsStr}";
         }
 
-        rowData.Add(FormatPremiumCell(displayBid, bidPips, _premiumCurrency));
+     rowData.Add(FormatPremiumCell(displayBid, bidPips, _premiumCurrency));
         rowData.Add(FormatPremiumCell(displayOffer, offerPips, _premiumCurrency));
 
   // Add leg data based on display mode
