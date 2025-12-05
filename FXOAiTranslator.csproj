@@ -11,9 +11,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="GFI_STP_Monitor\**" />
+    <EmbeddedResource Remove="GFI_STP_Monitor\**" />
+    <None Remove="GFI_STP_Monitor\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="QLNet" Version="1.13.1" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.9" />
-    <PackageReference Include="System.Speech" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

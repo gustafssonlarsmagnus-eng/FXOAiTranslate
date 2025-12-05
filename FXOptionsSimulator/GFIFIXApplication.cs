@@ -26,6 +26,7 @@ namespace FXOptionsSimulator.FIX
         public event Action<string> OnLogoutEvent;
         public event Action<string, FIXMessage> OnQuoteReceived;
         public event Action<string, string, string> OnExecutionReport; // ClOrdID, Status, ExecID
+        public event Action<string, string, string> OnTradeCaptureReceived; // ClOrdID, CounterpartyName, LEI
 
         public bool IsLoggedOn { get; private set; }
 
@@ -45,14 +46,16 @@ namespace FXOptionsSimulator.FIX
         public void OnLogon(SessionID sessionID)
         {
             IsLoggedOn = true;
-            Console.WriteLine($"[GFI FIX] ✓✓✓ LOGGED ON ✓✓✓");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"[{session}] ✓✓✓ LOGGED ON ✓✓✓");
             OnLogonEvent?.Invoke(sessionID.ToString());
         }
 
         public void OnLogout(SessionID sessionID)
         {
             IsLoggedOn = false;
-            Console.WriteLine($"[GFI FIX] ✗ LOGGED OUT");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"[{session}] ✗ LOGGED OUT");
             OnLogoutEvent?.Invoke(sessionID.ToString());
         }
 
@@ -62,10 +65,41 @@ namespace FXOptionsSimulator.FIX
 
             if (msgType == QuickFix.Fields.MsgType.LOGON)
             {
-                message.SetField(new Username("swed.obo.stg.api"));
-                message.SetField(new Password("ZQcZokEOLjb9"));
+                // Determine credentials based on SenderCompID
+                string senderCompID = sessionID.SenderCompID;
+                string username, password, sessionType;
 
-                Console.WriteLine("[GFI FIX] >>> Sending Logon with credentials");
+                if (senderCompID == "WEBFENICS55")
+                {
+                    // Trading credentials
+                    username = "swed.obo.stg.api";
+                    password = "ZQcZokEOLjb9";
+                    sessionType = "Trading";
+
+                    // Trading session includes OnBehalfOfCompID in HEADER (not body)
+                    message.Header.SetField(new OnBehalfOfCompID("SWES"));
+                }
+                else if (senderCompID == "GFI_BFXO_SWED_TC1")
+                {
+                    // STP credentials
+                    username = "gfi_bfxo_swed_tc1";
+                    password = "ylhU6Q1eaxXf";
+                    sessionType = "STP";
+                    // STP session does NOT include OnBehalfOfCompID
+                }
+                else
+                {
+                    Console.WriteLine($"[GFI FIX] WARNING: Unknown SenderCompID: {senderCompID}");
+                    username = "swed.obo.stg.api";
+                    password = "ZQcZokEOLjb9";
+                    sessionType = "Unknown";
+                }
+
+                message.SetField(new Username(username));
+                message.SetField(new Password(password));
+
+                Console.WriteLine($"[{sessionType}] >>> Sending Logon: {sessionID}");
+                Console.WriteLine($"[{sessionType}] Username: {username}");
 
                 Console.WriteLine($"[DEBUG] Full Logon Message:");
                 Console.WriteLine($"{message.ToString()}");
@@ -76,7 +110,8 @@ namespace FXOptionsSimulator.FIX
         public void FromAdmin(QuickFix.Message message, SessionID sessionID)
         {
             var msgType = message.Header.GetField(Tags.MsgType);
-            Console.WriteLine($"[GFI FIX] <<< Admin: {msgType}");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"[{session}] <<< Admin: {msgType}");
 
             if (msgType == "3")
             {
@@ -87,7 +122,8 @@ namespace FXOptionsSimulator.FIX
         public void ToApp(QuickFix.Message message, SessionID sessionID)
         {
             var msgType = message.Header.GetField(Tags.MsgType);
-            Console.WriteLine($"[GFI FIX] >>> Sending: {msgType}");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"[{session}] >>> Sending: {msgType}");
 
             if (msgType == "R")
             {
@@ -100,7 +136,8 @@ namespace FXOptionsSimulator.FIX
         public void FromApp(QuickFix.Message message, SessionID sessionID)
         {
             string msgType = message.Header.GetString(35);
-            Console.WriteLine($"[GFI FIX] <<< App: {msgType}");
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"[{session}] <<< App: {msgType}");
 
             try
             {
@@ -132,44 +169,116 @@ namespace FXOptionsSimulator.FIX
                 string sideStr = quote.GetString(Tags.Side);
                 string side = sideStr == "1" ? "BID" : "OFFER";
 
-                // Compact trace for easy timeline analysis
+                // ====== ENHANCED DEBUG LOGGING ======
                 string timestamp = quote.Header.GetString(Tags.SendingTime);
-                Console.WriteLine($"[TRACE] {timestamp} | QUOTE_RCV | {side,5} {quoteID} | LP={lpName}");
+                
+   // Extract volatility for debugging
+    string vol = "N/A";
+      try
+{
+if (quote.IsSetField(5678)) // Volatility tag
+              {
+      vol = quote.GetString(5678);
+           }
+      }
+  catch { }
 
-                var fixMsg = ConvertQuoteToFIXMessage(quote);
+        // Color-coded console output
+   Console.ForegroundColor = side == "BID" ? ConsoleColor.Green : ConsoleColor.Cyan;
+        Console.WriteLine($"╔══════════════════════════════════════════════════════════════");
+     Console.WriteLine($"║ QUOTE RECEIVED from {lpName}");
+                Console.WriteLine($"║ Side: {side,-6} | QuoteID: {quoteID}");
+        Console.WriteLine($"║ Vol: {vol,-8} | Time: {timestamp}");
+                Console.WriteLine($"╚══════════════════════════════════════════════════════════════");
+       Console.ResetColor();
 
-                string key = $"{quoteReqID}_{lpName}";
-                string groupID = GetGroupIDForQuoteReqID(quoteReqID);
+       var fixMsg = ConvertQuoteToFIXMessage(quote);
 
-                _quotes.AddOrUpdate(key,
-                    new StreamInfo
-                    {
-                        LP = lpName,
-                        QuoteReqID = quoteReqID,
-                        GroupID = groupID,
-                        BidQuote = side == "BID" ? fixMsg : null,
-                        OfferQuote = side == "OFFER" ? fixMsg : null,
-                        LastUpdate = DateTime.UtcNow
-                    },
-                    (k, existing) =>
-                    {
-                        if (side == "BID")
-                            existing.BidQuote = fixMsg;
-                        else
-                            existing.OfferQuote = fixMsg;
-                        existing.LastUpdate = DateTime.UtcNow;
-                        return existing;
-                    });
+        string key = $"{quoteReqID}_{lpName}";
+      string groupID = GetGroupIDForQuoteReqID(quoteReqID);
 
-                OnQuoteReceived?.Invoke(quoteReqID, fixMsg);
+        _quotes.AddOrUpdate(key,
+         new StreamInfo
+          {
+        LP = lpName,
+    QuoteReqID = quoteReqID,
+                GroupID = groupID,
+    BidQuote = side == "BID" ? fixMsg : null,
+ OfferQuote = side == "OFFER" ? fixMsg : null,
+     LastUpdate = DateTime.UtcNow
+     },
+     (k, existing) =>
+  {
+   if (side == "BID")
+         existing.BidQuote = fixMsg;
+            else
+            existing.OfferQuote = fixMsg;
+     existing.LastUpdate = DateTime.UtcNow;
+        return existing;
+     });
+
+     OnQuoteReceived?.Invoke(quoteReqID, fixMsg);
+
+                // ====== ACTIVE LP SUMMARY ======
+      PrintActiveLPSummary(groupID);
             }
-            catch (Exception ex)
+     catch (Exception ex)
             {
-                Console.WriteLine($"[GFI FIX] ERROR: {ex.Message}");
+            Console.ForegroundColor = ConsoleColor.Red;
+   Console.WriteLine($"[GFI FIX] ERROR: {ex.Message}");
                 Console.WriteLine($"[GFI FIX] Stack: {ex.StackTrace}");
+     Console.ResetColor();
             }
         }
 
+        /// <summary>
+        /// Print a summary of which LPs are actively streaming
+      /// </summary>
+        private void PrintActiveLPSummary(string groupID)
+        {
+ var lpStreams = _quotes.Values
+     .Where(s => s.GroupID == groupID)
+      .GroupBy(s => s.LP)
+   .Select(g => new
+{
+             LP = g.Key,
+      HasBid = g.Any(s => s.BidQuote != null),
+        HasOffer = g.Any(s => s.OfferQuote != null),
+       LastUpdate = g.Max(s => s.LastUpdate)
+    })
+        .OrderBy(x => x.LP)
+    .ToList();
+
+    Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine($"\n┌─────────────────────────────────────────────────────────┐");
+            Console.WriteLine($"│ ACTIVE LP SUMMARY (Group: {groupID})");
+    Console.WriteLine($"├─────────────────────────────────────────────────────────┤");
+            
+ if (lpStreams.Count == 0)
+            {
+   Console.ForegroundColor = ConsoleColor.Red;
+   Console.WriteLine($"│ ⚠️  NO ACTIVE LPs STREAMING            │");
+   }
+     else
+  {
+        foreach (var lp in lpStreams)
+      {
+   string bidStatus = lp.HasBid ? "✓" : "✗";
+     string offerStatus = lp.HasOffer ? "✓" : "✗";
+         string ageSeconds = $"{(DateTime.UtcNow - lp.LastUpdate).TotalSeconds:F1}s ago";
+    
+  Console.ForegroundColor = (lp.HasBid && lp.HasOffer) ? ConsoleColor.Green : ConsoleColor.Yellow;
+               Console.WriteLine($"│ {lp.LP,-20} | Bid:{bidStatus} Offer:{offerStatus} | {ageSeconds,-12} │");
+   }
+     
+           Console.ForegroundColor = ConsoleColor.Yellow;
+ Console.WriteLine($"│ Total LPs: {lpStreams.Count}         │");
+  }
+   
+      Console.WriteLine($"└─────────────────────────────────────────────────────────┘\n");
+    Console.ResetColor();
+        }
+        
         public void OnMessage(QuickFix.FIX44.QuoteCancel message, SessionID sessionID)
         {
             try
@@ -341,6 +450,18 @@ namespace FXOptionsSimulator.FIX
             string ordStatus = execReport.GetString(Tags.OrdStatus);
             string execID = execReport.IsSetField(Tags.ExecID) ? execReport.GetString(Tags.ExecID) : "N/A";
 
+            // Extract premium delivery date (tag 5020)
+            string premiumDate = null;
+            if (execReport.IsSetField(5020))
+            {
+                premiumDate = execReport.GetString(5020);
+                Console.WriteLine($"[DEBUG] ✓ Found tag 5020 (Premium Date): {premiumDate}");
+            }
+            else
+            {
+                Console.WriteLine($"[DEBUG] ✗ Tag 5020 (Premium Date) NOT present in execution report");
+            }
+
             string statusText = "PENDING";
             string rejectReason = null;
 
@@ -363,11 +484,83 @@ namespace FXOptionsSimulator.FIX
             string reason = rejectReason != null ? $" | {rejectReason}" : "";
             Console.WriteLine($"[TRACE] {timestamp} | EXEC_RPT  | {statusText} {clOrdID}{reason}");
 
-            // Update blotter
-            TradeBlotter.Instance.UpdateTradeStatus(clOrdID, statusText, execID, null, rejectReason);
+            // Update blotter (including premium date)
+            TradeBlotter.Instance.UpdateTradeStatus(clOrdID, statusText, execID, null, rejectReason, premiumDate);
 
             // Notify listeners
             OnExecutionReport?.Invoke(clOrdID, statusText, execID);
+        }
+
+        public void OnMessage(QuickFix.FIX44.TradeCaptureReport report, SessionID sessionID)
+        {
+            string session = GetSessionLabel(sessionID);
+            Console.WriteLine($"\n[{session}] <<< TRADE CAPTURE REPORT (35=AE)");
+            Console.WriteLine(new string('=', 60));
+
+            try
+            {
+                // Extract ClOrdID (tag 11)
+                string clOrdID = report.IsSetField(Tags.ClOrdID) ? report.GetString(Tags.ClOrdID) : "N/A";
+                Console.WriteLine($"  ClOrdID: {clOrdID}");
+
+                // Extract ExecID (tag 17)
+                string execID = report.IsSetField(Tags.ExecID) ? report.GetString(Tags.ExecID) : "N/A";
+                Console.WriteLine($"  ExecID: {execID}");
+
+                // Extract TradeReportID (tag 571)
+                string tradeReportID = report.IsSetField(571) ? report.GetString(571) : "N/A";
+                Console.WriteLine($"  TradeReportID: {tradeReportID}");
+
+                // Extract LEI from tag 1 (Account field - GFI puts LEI here)
+                string lei = "UNKNOWN";
+                string counterpartyName = "Unknown Counterparty";
+
+                if (report.IsSetField(1))
+                {
+                    lei = report.GetString(1);
+                    Console.WriteLine($"  LEI (tag 1): {lei}");
+
+                    // Map LEI to bank name
+                    counterpartyName = MapLEIToBankName(lei);
+                    Console.WriteLine($"  Counterparty: {counterpartyName}");
+                }
+
+                // Extract Symbol (tag 55)
+                if (report.IsSetField(Tags.Symbol))
+                {
+                    string symbol = report.GetString(Tags.Symbol);
+                    Console.WriteLine($"  Symbol: {symbol}");
+                }
+
+                // Extract Premium Date (tag 5020)
+                string premiumDate = null;
+                if (report.IsSetField(5020))
+                {
+                    premiumDate = report.GetString(5020);
+                    Console.WriteLine($"  Premium Date (5020): {premiumDate}");
+                }
+                else
+                {
+                    Console.WriteLine($"  Premium Date (5020): NOT PRESENT");
+                }
+
+                // Compact trace for STP confirmation
+                string timestamp = report.Header.GetString(Tags.SendingTime);
+                Console.WriteLine($"[TRACE] {timestamp} | STP_CONF  | {clOrdID} | {counterpartyName}");
+
+                Console.WriteLine(new string('=', 60));
+
+                // Update blotter with STP confirmation and premium date
+                TradeBlotter.Instance.UpdateTradeWithSTPConfirmation(clOrdID, counterpartyName, premiumDate);
+
+                // Fire event to notify UI
+                OnTradeCaptureReceived?.Invoke(clOrdID, counterpartyName, lei);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GFI FIX] ERROR processing Trade Capture Report: {ex.Message}");
+                Console.WriteLine($"[GFI FIX] Stack: {ex.StackTrace}");
+            }
         }
 
         public void OnMessage(QuickFix.FIX44.BusinessMessageReject reject, SessionID sessionID)
@@ -543,6 +736,14 @@ namespace FXOptionsSimulator.FIX
                 string premiumCcy = quote.GetString(5830);
                 msg.Set("5830", premiumCcy);
                 Console.WriteLine($"  [DEBUG] PremiumCcy (tag 5830): {premiumCcy}");
+            }
+
+            // Extract PremiumCcy from tag 9073 (DepoRateCcy, often used for premium currency in responses)
+            if (quote.IsSetField(9073))
+            {
+                string premiumCcy9073 = quote.GetString(9073);
+                msg.Set("9073", premiumCcy9073);
+                Console.WriteLine($"  [DEBUG] DepoRateCcy/PremiumCcy (tag 9073): {premiumCcy9073}");
             }
 
             // For debugging - print the full raw message
@@ -727,6 +928,53 @@ namespace FXOptionsSimulator.FIX
                 6 => "Not Authorized",
                 7 => "DeliverTo firm not available at this time",
                 _ => $"Unknown ({reason})"
+            };
+        }
+
+        private string MapLEIToBankName(string lei)
+        {
+            // LEI mappings from GFI STP 35=AE tag 1 (4th pipe-separated value)
+            var leiMapping = new Dictionary<string, string>
+            {
+                { "G5GSEF7VJP5I7OUK5573", "Barclays Bank PLC London" },
+                { "R0MUWSFPU8MPRO8K5P83", "BNP Paribas" },
+                { "2IGI19DL77OX0HC3ZE78", "Canadian Imperial Bank of Commerce" },
+                { "ATUEL7OJR5057F2PV266", "DBS" },
+                { "7LTWFZYICNSX8D621K86", "Deutsche Bank AG" },
+                { "W22LROWP2IHZNBB6K528", "Goldman Sachs International" },
+                { "MP6I5ZYZBEU3UXPYFY54", "HSBC Bank PLC London" },
+                { "GGDZP1UYGU9STUHRDP48", "Merrill Lynch International" },
+                { "4PQUHN3JPFGFNF3BB653", "Morgan Stanley International London" },
+                { "RR3QWICWWIPCS8A4S074", "Natwest Markets London" },
+                { "DGQCSV2PHVF7I2743539", "Nomura International PLC London" },
+                { "894500A9DTYKF33B7Z76", "Optiver FX Limited" },
+                { "O2RNE8IBXP4R0TD8PU41", "Societe Generale" },
+                { "RILFO74KP1CM8P6PCT96", "Standard Chartered Bank London" },
+                { "BFM8T61CT2L1QCEMIK50", "UBS AG Zurich" },
+                { "KB1H1DSPRFMYMCUFXT09", "Wells Fargo Bank N.A." },
+                { "165GRDQ39W63PHVONY02", "Zurcher Kantonalbank" }
+            };
+
+            // Extract first LEI if multiple are present (some systems send pipe-separated list)
+            string primaryLEI = lei.Contains("|") ? lei.Split('|')[0].Trim() : lei.Trim();
+
+            if (leiMapping.TryGetValue(primaryLEI, out string bankName))
+            {
+                return bankName;
+            }
+
+            // Return LEI if not found in mapping
+            return $"Unknown Bank ({primaryLEI})";
+        }
+
+        private string GetSessionLabel(SessionID sessionID)
+        {
+            string senderCompID = sessionID.SenderCompID;
+            return senderCompID switch
+            {
+                "WEBFENICS55" => "Trading",
+                "GFI_BFXO_SWED_TC1" => "STP",
+                _ => senderCompID
             };
         }
 

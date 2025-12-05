@@ -8,6 +8,19 @@ namespace FXOAiTranslator
         public static readonly List<TradePattern> Patterns = new List<TradePattern>
 
         {
+// DELTA PATTERN: Delta-based vanilla options
+// Matches: "eurusd 1m 25delta call in 20mio" or "eurusd 25d put 10m" or "25 forward delta call 15mio"
+// Generates: DS25 (spot delta) or DF25 (forward delta)
+new TradePattern(
+    "Vanilla_Delta",
+    new Regex(
+        @"(?<delta>\d+)\s*(?<deltaType>d|delta|fdelta|forward\s+delta|fd|f\s+delta)\s+" +  // 25delta or 25d or 25 forward delta
+        @"(?<type>call|put)\s+" +                                                          // call or put
+        @"(?:in\s+)?(?<notional>\d+)\s*(?:m|mio|million)",                                 // in 20 mio
+        RegexOptions.IgnoreCase
+    )
+),
+
 // NEW PATTERN 1: Currency-led vanilla with expiry
 // Matches: "EURUSD 1m 1.1600 call in 10 mio"
 new TradePattern(

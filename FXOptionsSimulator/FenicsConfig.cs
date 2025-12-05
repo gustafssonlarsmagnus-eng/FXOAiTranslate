@@ -6,6 +6,11 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
     /// <summary>
     /// Configuration matching GFI Fenics requirements
     /// These will be provided by GFI when you onboard
+    ///
+    /// NOTE: Actual connection configuration is now in quickfix.cfg:
+    /// - SSLTargetHost and SSLTargetPort control the SSL proxy target
+    /// - SenderCompID, TargetCompID control the FIX session identity
+    /// - Credentials are in GFIFIXApplication.cs ToAdmin() method
     /// </summary>
     public class FenicsConfig
     {
@@ -13,6 +18,9 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
         public string Environment { get; set; } = "UAT";  // ← ADDED: Was missing
 
         // ========== UAT CREDENTIALS (RECEIVED FROM GFI) ==========
+        // NOTE: These are reference values. Actual values used:
+        //   - SenderCompID: from quickfix.cfg
+        //   - Username/Password: from GFIFIXApplication.cs ToAdmin()
         public string SenderCompID { get; set; } = "WEBFENICS55";
         public string OnBehalfOfCompID { get; set; } = "SWES";
         public string Username { get; set; } = "swed.obo.stg.api";
@@ -21,6 +29,9 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
         public bool IsTestMode { get; set; } = false;
 
         // ========== CONNECTION SETTINGS ==========
+        // NOTE: Actual host/port now configured in quickfix.cfg:
+        //   - SSLTargetHost (default: quotes.stage2.gfifx.com)
+        //   - SSLTargetPort (default: 443)
         public string Host { get; set; } = "quotes.stage2.gfifx.com";
         public int Port { get; set; } = 443;
         public int HeartbeatInterval { get; set; } = 10;
@@ -31,17 +42,16 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
         // ========== LIQUIDITY PROVIDERS (UAT VALUES) ==========
         public Dictionary<string, string> LiquidityProviders { get; set; } = new Dictionary<string, string>
         {
-            // Ask GFI for actual UAT CompIDs - these are likely correct for UAT
+            // Your authorized trading lines
+            ["SOCGEN"] = "SOCGEN",   // Societe Generale
+            ["CIBC"] = "CIBC",       // Canadian Imperial Bank of Commerce
             ["MS"] = "MS",           // Morgan Stanley
-            ["UBS"] = "UBS",         // UBS
-            ["CITI"] = "CITI",       // Citibank
-            ["JPM"] = "JPM",         // JP Morgan
-            ["GS"] = "GS",           // Goldman Sachs
-            ["BARC"] = "BARC",       // Barclays
-            ["DB"] = "DB",           // Deutsche Bank
+            ["HSBC"] = "HSBC",       // HSBC
             ["NATWEST"] = "NATWEST", // NatWest Markets
-            ["NOMU"] = "NOMU",       // Nomura
-            ["SG"] = "SG"            // Societe Generale
+            ["SCBL"] = "SCBL",       // Standard Chartered
+            ["NOMURA"] = "NOMURA",   // Nomura
+            ["BAML"] = "BAML",       // Bank of America Merrill Lynch
+            ["BNP"] = "BNP"          // BNP Paribas
         };
 
         // ========== AUTHORIZED CURRENCY PAIRS ==========
@@ -56,15 +66,22 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
             "EURNOK",
             "GBPSEK",
             "AUDNOK",
-            "NOKSEK"
+            "NOKSEK",
+
+            // GFI Test Protocol Required - Missing Pairs
+            "AUDUSD",   // Tests 7, 8
+            "EURCHF",   // Test 15
+            "USDCNH"    // Test 26
         };
 
         // ========== CUTOFF MAPPINGS ==========
         public Dictionary<string, string> CutoffCodes { get; set; } = new Dictionary<string, string>
         {
-            ["NY"] = "1",      // New York 10:00
-            ["TK"] = "2",      // Tokyo 15:00
+            ["NY"] = "1",      // New York 10:00 (Tests 1, 4, 5, 6, 8, 10, 12, 13, 15)
+            ["TK"] = "2",      // Tokyo 15:00 (abbreviated)
+            ["TKY"] = "2",     // Tokyo 15:00 (Tests 2, 3, 7, 9, 11, 14, 25)
             ["LON"] = "157",   // London WMR 1pm
+            ["CNH"] = "???",   // ⚠️  TODO: Get correct GFI code for CNH cutoff (Test 26)
         };
 
         // ========== VALIDATION ==========

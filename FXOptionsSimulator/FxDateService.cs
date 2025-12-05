@@ -28,21 +28,92 @@ public static class FxDateService
         var (ccy1, ccy2) = ParsePair(pair);
         rules = rules with { Ccy1 = ccy1, Ccy2 = ccy2 }; // now valid because FxDateRules is a record
 
-        var calPair = JointCalendarForPair(rules.Ccy1, rules.Ccy2)
-                      ?? throw new ArgumentException($"Unsupported pair calendars: {rules.Ccy1}/{rules.Ccy2}");
+        // Get individual calendars for custom holiday checking
+        var cal1 = CalendarFromCcy(ccy1);
+        var cal2 = CalendarFromCcy(ccy2);
+        var calPair = new JointCalendar(cal1, cal2, JointCalendarRule.JoinHolidays);
+
         var calPremium = rules.PremiumCalMode == CalendarMode.PremiumCcyOnly
             ? CalendarFromCcy(premiumCcy) ?? throw new ArgumentException($"Unsupported premium calendar for {premiumCcy}")
             : calPair;
 
         var trade = ToQl(tradeDateUtc.Date);
-        if (!calPair.isBusinessDay(trade)) trade = calPair.adjust(trade, BusinessDayConvention.Following);
+        if (!IsBusinessDay(trade, cal1, cal2)) trade = AdjustDate(trade, cal1, cal2, BusinessDayConvention.Following);
 
-        var spot = AdvanceBusinessDays(calPair, trade, (int)rules.SpotLag, BusinessDayConvention.Following);
-        var expiry = ComputeExpiryFromTenor(tenor, trade, calPair, rules.ExpiryConvention, rules.ExpiryEOM);
-        var delivery = AdvanceBusinessDays(calPair, expiry, (int)rules.SpotLag, BusinessDayConvention.Following);
-        var premium = AdvanceBusinessDays(calPremium, trade, rules.PremiumSettleDays, rules.PremiumConvention);
+        var spot = AdvanceBusinessDaysCustom(trade, (int)rules.SpotLag, cal1, cal2, BusinessDayConvention.Following);
+        var expiry = ComputeExpiryFromTenorCustom(tenor, trade, cal1, cal2, rules.ExpiryConvention, rules.ExpiryEOM);
+        var delivery = AdvanceBusinessDaysCustom(expiry, (int)rules.SpotLag, cal1, cal2, BusinessDayConvention.Following);
+        var premium = AdvanceBusinessDaysCustom(trade, rules.PremiumSettleDays, CalendarFromCcy(premiumCcy), null, rules.PremiumConvention);
 
         return (ToSys(trade), ToSys(spot), ToSys(expiry), ToSys(delivery), ToSys(premium));
+    }
+
+    // Check if a date is a business day in BOTH calendars (accounting for custom holidays)
+    private static bool IsBusinessDay(Date d, QLCal cal1, QLCal cal2)
+    {
+        bool isBD1 = (cal1 is FXCalendars.UnitedStatesFX usFX) ? usFX.isBusinessDay(d) :
+                     (cal1 is FXCalendars.TargetFX targetFX) ? targetFX.isBusinessDay(d) :
+                     (cal1 is FXCalendars.SwedenFX sekFX) ? sekFX.isBusinessDay(d) :
+                     cal1.isBusinessDay(d);
+
+        if (cal2 == null) return isBD1;
+
+        bool isBD2 = (cal2 is FXCalendars.UnitedStatesFX usFX2) ? usFX2.isBusinessDay(d) :
+                     (cal2 is FXCalendars.TargetFX targetFX2) ? targetFX2.isBusinessDay(d) :
+                     (cal2 is FXCalendars.SwedenFX sekFX2) ? sekFX2.isBusinessDay(d) :
+                     cal2.isBusinessDay(d);
+
+        return isBD1 && isBD2;
+    }
+
+    // Adjust date using custom calendar logic
+    private static Date AdjustDate(Date d, QLCal cal1, QLCal cal2, BusinessDayConvention conv)
+    {
+        while (!IsBusinessDay(d, cal1, cal2))
+        {
+            if (conv == BusinessDayConvention.Following || conv == BusinessDayConvention.ModifiedFollowing)
+                d = d + 1;
+            else if (conv == BusinessDayConvention.Preceding || conv == BusinessDayConvention.ModifiedPreceding)
+                d = d - 1;
+            else
+                break;
+        }
+        return d;
+    }
+
+    // Advance business days using custom calendar logic
+    private static Date AdvanceBusinessDaysCustom(Date start, int bd, QLCal cal1, QLCal cal2, BusinessDayConvention conv)
+    {
+        var d = start;
+        var moved = 0;
+        while (moved < bd)
+        {
+            d = d + 1;
+            if (IsBusinessDay(d, cal1, cal2)) moved++;
+        }
+        return AdjustDate(d, cal1, cal2, conv);
+    }
+
+    // Compute expiry using custom calendar logic
+    private static Date ComputeExpiryFromTenorCustom(string tenor, Date trade, QLCal cal1, QLCal cal2, BusinessDayConvention conv, bool eom)
+    {
+        tenor = (tenor ?? "").Trim().ToUpperInvariant();
+        if (tenor.EndsWith("D")) return AdvanceBusinessDaysCustom(trade, int.Parse(tenor[..^1]), cal1, cal2, conv);
+        if (tenor.EndsWith("W")) return AdvanceBusinessDaysCustom(trade, int.Parse(tenor[..^1]) * 5, cal1, cal2, conv);
+
+        // For month/year tenors, use QLNet's advance but then adjust with our custom logic
+        Date result;
+        if (tenor.EndsWith("M"))
+            result = cal1.advance(trade, new Period(int.Parse(tenor[..^1]), TimeUnit.Months), conv, eom);
+        else if (tenor.EndsWith("Y"))
+            result = cal1.advance(trade, new Period(int.Parse(tenor[..^1]), TimeUnit.Years), conv, eom);
+        else if (int.TryParse(tenor, out var d))
+            return AdvanceBusinessDaysCustom(trade, d, cal1, cal2, conv);
+        else
+            throw new ArgumentException($"Unsupported tenor: {tenor}");
+
+        // Adjust result using our custom calendar logic
+        return AdjustDate(result, cal1, cal2, conv);
     }
 
     public static string Ymd(DateTime dt) => dt.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
@@ -82,15 +153,15 @@ public static class FxDateService
 
     private static QLCal CalendarFromCcy(string ccy) => (ccy ?? "").ToUpperInvariant() switch
     {
-        "USD" => new UnitedStates(UnitedStates.Market.Settlement),
-        "EUR" => new TARGET(),
+        "USD" => new FXCalendars.UnitedStatesFX(),      // Use custom FX calendar
+        "EUR" => new FXCalendars.TargetFX(),            // Use custom FX calendar (same as TARGET for now)
+        "SEK" => new FXCalendars.SwedenFX(),            // Use custom FX calendar with Midsummer, etc.
         "GBP" => new UnitedKingdom(UnitedKingdom.Market.Settlement),
         "JPY" => new Japan(),
         "CHF" => new Switzerland(),
         "CAD" => new Canada(),
         "AUD" => new Australia(),
         "NZD" => new NewZealand(),
-        "SEK" => new Sweden(),
         "NOK" => new Norway(),
         "DKK" => new Denmark(),
         _ => null

@@ -227,13 +227,14 @@ namespace FXOptionsSimulator.FIX
                 // GFI explicitly requires: "Trade date has to be current date"
                 var canonical75 = nowUtc.ToString("yyyyMMdd");
 
-                // Tag 5020 (PremiumDelivery) is T+1 business day from today
-                var (_, _, _, _, premiumDt) =
+                // Tag 5020 (PremiumDelivery) should be SPOT date (T+2 for EURUSD, T+1 for USDCAD)
+                // This matches what the GUI displays in the Premium Date column
+                var (_, spotDt, _, _, _) =
                     FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
-                var canonical5020 = FxDateService.Ymd(premiumDt);
+                var canonical5020 = FxDateService.Ymd(spotDt);
 
                 Console.WriteLine($"[Dates] Policy: premium={P.PremiumCalendarMode}, conv={P.PremiumConvention}, spotLag={rules.SpotLag}");
-                Console.WriteLine($"[Dates] 75={canonical75} (TODAY) 5020={canonical5020} (T+{P.PremiumSettleDays})");
+                Console.WriteLine($"[Dates] 75={canonical75} (TODAY) 5020={canonical5020} (SPOT = T+{(int)rules.SpotLag})");
 
                 // ===== Get current sequence number and increment for next message =====
                 var session = Session.LookupSession(_sessionID);
@@ -245,7 +246,8 @@ namespace FXOptionsSimulator.FIX
                     trade, lpName, quoteReqID, groupId,
                     tag75Override: canonical75,
                     tag5020Override: canonical5020,
-                    hedge: hedge);
+                    hedgeEnabled: hedge,
+                    hedgeType: hedge ? "1" : "0");  // "1" = Hedge ON, "0" = No Hedge
 
                 Console.WriteLine($"\n[DEBUG] Raw Quote Request Message (SeqNum={seqNum}):");
                 Console.WriteLine($"{rawMessage.Replace("\x01", "|")}");
@@ -375,8 +377,9 @@ namespace FXOptionsSimulator.FIX
                 // Add to blotter
                 if (trade != null)
                 {
-                    // Extract delta and premium from quote
+                    // Extract delta, premium, and volatility from quote
                     double? delta = null;
+                    double? volatility = null;
                     double netPremium = 0;
 
                     if (quote.LegPricing != null && quote.LegPricing.Count > 0)
@@ -390,7 +393,7 @@ namespace FXOptionsSimulator.FIX
                             }
                         }
 
-                        // Calculate nominal delta (Delta × Notional)
+                        // Calculate nominal delta (Delta × Notional) and extract volatility
                         var firstLeg = quote.LegPricing[0];
                         if (!string.IsNullOrEmpty(firstLeg.LegDelta) && double.TryParse(firstLeg.LegDelta, out double deltaPercent))
                         {
@@ -402,7 +405,28 @@ namespace FXOptionsSimulator.FIX
                             double notionalFull = notionalMM * 1_000_000; // Convert millions to full units
                             delta = (deltaPercent / 100.0) * notionalFull;
                         }
+
+                        // Extract volatility from first leg (Tag 5678)
+                        if (!string.IsNullOrEmpty(firstLeg.Volatility) && double.TryParse(firstLeg.Volatility, out double vol))
+                        {
+                            volatility = vol;
+                        }
                     }
+
+                    // Determine option type description
+                    string optionTypeDesc = "";
+                    if (trade.Legs.Count == 1)
+                    {
+                        optionTypeDesc = trade.Legs[0].OptionType; // "CALL" or "PUT"
+                    }
+                    else if (trade.Legs.Count > 1)
+                    {
+                        // Multi-leg: show combination (e.g., "SELL PUT / BUY CALL")
+                        optionTypeDesc = string.Join(" / ", trade.Legs.Select(l => $"{l.Direction} {l.OptionType}"));
+                    }
+
+                    // Get first trade leg data for display
+                    var tradeLeg = trade.Legs.Count > 0 ? trade.Legs[0] : null;
 
                     var blotterEntry = new TradeBlotterEntry
                     {
@@ -415,7 +439,21 @@ namespace FXOptionsSimulator.FIX
                         LegCount = trade.Legs.Count,
                         NetPremium = netPremium,
                         Delta = delta,
-                        Status = "PENDING"
+                        Status = "PENDING",
+
+                        // Populated fields for blotter display
+                        NotionalMM = tradeLeg?.NotionalMM ?? 0,
+                        Strike = tradeLeg?.Strike,
+                        ExpiryDate = tradeLeg?.ExpiryDate,
+                        ExpDate = tradeLeg?.ExpiryDate.ToString("yyyyMMdd") ?? "",
+                        SettlementDate = tradeLeg?.DeliveryDate.ToString("yyyyMMdd") ?? "",
+                        ValueDate = tradeLeg?.DeliveryDate,
+                        Cut = tradeLeg?.Cutoff ?? "",
+                        MyCenter = tradeLeg?.Cutoff ?? "",
+                        SpotReference = trade.SpotReference,
+                        Volatility = volatility,  // Captured from quote
+                        PremiumCcy = trade.PremiumCurrency,
+                        OptionType = optionTypeDesc
                     };
                     TradeBlotter.Instance.AddTrade(blotterEntry);
                 }

@@ -39,7 +39,10 @@ namespace FXOptionsSimulator.FIX
             string groupId,
             string tag75Override = null,
             string tag5020Override = null,
-            bool hedge = false)  // Default to FALSE for OFFER quotes (BUY capability)
+            bool hedgeEnabled = false,  // Hedge ON/OFF
+            string hedgeType = "0",  // "0"=Live (no hedge), "1"=Hedge ON (Spot/Forward) - tag 9016
+            string premiumDeliveryType = "S",  // "S"=Spot, "F"=Forward (tag 5475)
+            string quoteMode = "2")  // "1" = VOL (volatility), "2" = PREM (premium/points)
         {
             _body.Clear();
 
@@ -61,8 +64,8 @@ namespace FXOptionsSimulator.FIX
             // ✅ canonical override for 75 & 5020
             var tag75 = tag75Override ?? tradeDate.ToString("yyyyMMdd");
             // Note: tag5020Override is always provided by caller, this fallback should never be used
-            // But if it is, use T+1 from today as a safe default
-            var tag5020 = tag5020Override ?? tradeDate.AddDays(1).ToString("yyyyMMdd");
+            // But if it is, use T+2 from today as a safe default (standard FX spot settlement)
+            var tag5020 = tag5020Override ?? tradeDate.AddDays(2).ToString("yyyyMMdd");
 
             // === QLNet policy & calendars for expiry/delivery ===
             var pair = trade.Underlying;               // e.g. EURUSD
@@ -81,9 +84,9 @@ namespace FXOptionsSimulator.FIX
             // Body fields in EXACT GFI order
             AddField(75, tag75); // TradeDate  ✅ uses override if provided
             AddField(131, quoteReqID); // QuoteReqID
-            AddField(5475, "S"); // PremDel
+            AddField(5475, premiumDeliveryType); // PremDel: "S"=Spot, "F"=Forward
             AddField(5830, trade.PremiumCurrency); // PremiumCcy
-            AddField(9016, hedge ? "1" : "0"); // HedgeTradeType (1=hedge, 0=no hedge)
+            AddField(9016, hedgeType); // HedgeTradeType: "0"=None, "1"=Spot, "2"=Forward
 
             int structureCode = GetStructureCode(trade.StructureType);
             AddField(9126, structureCode.ToString()); // Structure
@@ -100,7 +103,8 @@ namespace FXOptionsSimulator.FIX
             // DIAGNOSTIC: Show all leg directions before building
             Console.WriteLine($"\n========== QUOTE REQUEST DEBUG ==========");
             Console.WriteLine($"Building {trade.Legs.Count}-leg structure for {trade.Underlying}:");
-            Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")} (Note: GFI sends both BID and OFFER quotes regardless)");
+            Console.WriteLine($"Hedge (9016): {hedgeType} ({(hedgeType == "0" ? "Live" : "Hedge ON")})");
+            Console.WriteLine($"Premium Type (5475): {premiumDeliveryType} ({(premiumDeliveryType == "S" ? "Spot" : "Forward")})");
             Console.WriteLine($"Position mapping: BUY=1, SELL=2");
             for (int i = 0; i < trade.Legs.Count; i++)
             {
@@ -119,7 +123,7 @@ namespace FXOptionsSimulator.FIX
                 // EXACT order from GFI sample
                 AddField(600, trade.Underlying); // LegSymbol
                 AddField(6714, leg.OptionType == "CALL" ? "1" : "2"); // LegStrategy
-                AddField(9125, "1"); // Cutoff
+                AddField(9125, MapCutoffToValue(leg.Cutoff)); // Cutoff: NY=1, TKY=2, LON=3
                 // GFI requires BOTH tenor AND maturity date (even though docs say "either")
                 AddField(6215, leg.Tenor); // Tenor (e.g., "1M")
 
@@ -189,11 +193,11 @@ namespace FXOptionsSimulator.FIX
                 // This was getting quotes, even if wrong type for BUY+Hedge=ON
                 string positionValue = leg.Direction == "BUY" ? "1" : "2";
                 AddField(6351, positionValue); // Position
-                AddField(9904, "2"); // PriceIndicator
+                AddField(9904, quoteMode); // PriceIndicator: "1" = VOL (PCT), "2" = PREM (PTS)
 
-                // LegSpotRate (5235) is ONLY allowed when Hedge=ON
+                // LegSpotRate (5235) is ONLY allowed when Hedge is enabled (not "0")
                 // GFI rejects with "LegSpotRate not supported for No Hedge" if sent when Hedge=OFF
-                if (hedge && trade.SpotReference > 0)
+                if (hedgeEnabled && trade.SpotReference > 0)
                 {
                     AddField(5235, trade.SpotReference.ToString("F4", CultureInfo.InvariantCulture)); // LegSpotRate
                 }
@@ -216,7 +220,8 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"LP: {lpName}");
             Console.WriteLine($"TradeDate (75): {tag75}");
             Console.WriteLine($"PremiumDelivery (5020): {tag5020}");
-            Console.WriteLine($"Hedge (9016): {(hedge ? "1 (ON)" : "0 (OFF)")}");
+            Console.WriteLine($"Hedge (9016): {hedgeType} ({(hedgeType == "0" ? "Live" : "Hedge ON")})");
+            Console.WriteLine($"Premium Type (5475): {premiumDeliveryType} ({(premiumDeliveryType == "S" ? "Spot" : "Forward")})");
             Console.WriteLine($"Legs: {trade.Legs.Count}");
             for (int i = 0; i < trade.Legs.Count; i++)
             {
@@ -283,45 +288,59 @@ namespace FXOptionsSimulator.FIX
             }
 
             // Premium and PremiumCcy
-            // Try to get Premium (6436) from quote first
-            string quotePremium = quote.Get("6436");
-            string premiumCcy = quote.Get("5830");
+            // Check if this is a VOL mode quote (9904=1)
+            // In VOL mode, we should NOT send premium amount (6436) or premium currency (5830)
+            string priceIndicator = quote.Get("9904");
+            bool isVolMode = priceIndicator == "1";
 
-            if (string.IsNullOrEmpty(premiumCcy))
+            if (!isVolMode)
             {
-                // Fallback: for EURUSD, premium is typically in USD (term currency)
-                premiumCcy = symbol.Length >= 6 ? symbol.Substring(3, 3) : "USD";
-            }
+                // PREM mode: Include premium and premium currency
+                // Try to get Premium (6436) from quote first
+                string quotePremium = quote.Get("6436");
+                string premiumCcy = quote.Get("5830");
 
-            AddField(5830, premiumCcy); // PremiumCcy
-
-            // If Premium not in quote, calculate from leg pricing
-            // GFI sends Premium as INTEGER (e.g., -53600, not -536.00)
-            if (string.IsNullOrEmpty(quotePremium))
-            {
-                // Calculate from legs if needed
-                if (quote.LegPricing != null && quote.LegPricing.Count > 0)
+                if (string.IsNullOrEmpty(premiumCcy))
                 {
-                    double totalPremium = 0;
-                    foreach (var leg in quote.LegPricing)
+                    // Fallback: for EURUSD, premium is typically in USD (term currency)
+                    premiumCcy = symbol.Length >= 6 ? symbol.Substring(3, 3) : "USD";
+                }
+
+                AddField(5830, premiumCcy); // PremiumCcy
+
+                // If Premium not in quote, calculate from leg pricing
+                // GFI sends Premium as INTEGER (e.g., -53600, not -536.00)
+                if (string.IsNullOrEmpty(quotePremium))
+                {
+                    // Calculate from legs if needed
+                    if (quote.LegPricing != null && quote.LegPricing.Count > 0)
                     {
-                        if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
+                        double totalPremium = 0;
+                        foreach (var leg in quote.LegPricing)
                         {
-                            totalPremium += legPrem;
+                            if (!string.IsNullOrEmpty(leg.LegPremPrice) && double.TryParse(leg.LegPremPrice, out double legPrem))
+                            {
+                                totalPremium += legPrem;
+                            }
                         }
+                        // Format as decimal with 2 places (fallback format)
+                        quotePremium = totalPremium.ToString("F2");
                     }
-                    // Format as decimal with 2 places (fallback format)
-                    quotePremium = totalPremium.ToString("F2");
+                }
+
+                if (!string.IsNullOrEmpty(quotePremium))
+                {
+                    // Use premium exactly as received from quote, or calculated if not available
+                    AddField(6436, quotePremium);
                 }
             }
-
-            if (!string.IsNullOrEmpty(quotePremium))
-            {
-                // Use premium exactly as received from quote, or calculated if not available
-                AddField(6436, quotePremium);
-            }
+            // In VOL mode, we skip both 5830 (PremiumCcy) and 6436 (Premium)
 
             AddField(9126, structureCode.ToString()); // Structure
+
+            // NOTE: Tag 9904 (PriceIndicator) is NOT allowed in execution orders (35=AB)
+            // GFI rejects with "Tag not defined for this message type, field=9904"
+            // The QuoteID already identifies which quote is being executed
 
             // PartyIDs component - GFI requires this AFTER Structure, BEFORE NoLegs
             // (Different from standard FIX 4.4 which has it after ClOrdID)
@@ -468,5 +487,20 @@ namespace FXOptionsSimulator.FIX
             "DKK" => new Denmark(),
             _ => new TARGET() // safe default
         };
+
+        /// <summary>
+        /// Maps cutoff string to FIX tag 9125 value
+        /// </summary>
+        private static string MapCutoffToValue(string cutoff)
+        {
+            return (cutoff ?? "").ToUpperInvariant().Trim() switch
+            {
+                "NY" => "1",    // New York 10am cut
+                "TKY" => "2",   // Tokyo 3pm cut
+                "TK" => "2",    // Tokyo 3pm cut (alternate)
+                "LON" => "3",   // London 3pm cut
+                _ => "1"        // Default to NY
+            };
+        }
     }
 }

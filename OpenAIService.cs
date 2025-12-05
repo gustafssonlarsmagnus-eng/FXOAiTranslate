@@ -176,10 +176,12 @@ OVML (currency) (expiry) (direction) (strike)(C/P) N(notional)M VA [SP(spot)]
 Example: OVML NOKSEK 08/14/26 B 0.9500C N150M VA SP0.9463
 
 EXPIRY FORMAT CRITICAL RULE:
-The expiry MUST be normalized to MM/DD/YY format (e.g., 06/11/26, not 11Jun).
-Position: OVML (currency) (MM/DD/YY) (rest of trade)
+IMPORTANT: If input has TENOR (1M, 2M, 3M, 6M, 1Y), keep it as tenor in output.
+Only convert to MM/DD/YY format when input has explicit dates (June 14, 06/14, 14Jun).
+Position: OVML (currency) (expiry) (rest of trade)
 WRONG: OVML USDNOK 11Jun B 9.9000P 06/11/26 VA
-RIGHT: OVML USDNOK 06/11/26 B 9.9000P N10M VA
+RIGHT: OVML USDNOK 06/11/26 B 9.9000P N10M VA (explicit date converted)
+RIGHT: OVML EURUSD 2M B 1.1650C N10M VA (tenor preserved)
 
 CRITICAL: Single-leg OVML structure is ALWAYS:
 OVML (currency) (expiry) (direction) (strike)(C/P) N(notional)M VA [SP(spot)]
@@ -390,21 +392,54 @@ Output ONLY the OVML line:";
                 bool userSpecifiedOptionType = Regex.IsMatch(input, @"\b(call|put)\b", RegexOptions.IgnoreCase);
                 bool userProvidedSpotRef = !string.IsNullOrEmpty(explicitSpot);
 
+                Console.WriteLine($"[AI-TYPE-CHECK] userSpecifiedOptionType={userSpecifiedOptionType}, userProvidedSpotRef={userProvidedSpotRef}");
+
                 if (!userSpecifiedOptionType && !userProvidedSpotRef)
                 {
                     var ovmlPartsForType = ovml.Split(' ');
-                    if (ovmlPartsForType.Length >= 4 && !string.IsNullOrEmpty(liveSpot))
+                    Console.WriteLine($"[AI-TYPE-CHECK] OVML parts: {string.Join(" | ", ovmlPartsForType)}");
+
+                    // Only apply correction to single-leg trades (multi-leg strategies are intentional)
+                    bool isMultiLeg = ovml.Contains("L ") || ovml.Contains("L,");
+
+                    if (!isMultiLeg && ovmlPartsForType.Length >= 5 && !string.IsNullOrEmpty(liveSpot))
                     {
-                        if (double.TryParse(ovmlPartsForType[4], out double strike) && double.TryParse(liveSpot, out double spot))
+                        // Extract strike from format like "11.7500C" or "11.7500P"
+                        string strikePart = ovmlPartsForType[4];
+                        var strikeMatch = Regex.Match(strikePart, @"^([\d.]+)([CP])");
+
+                        if (strikeMatch.Success && double.TryParse(liveSpot, out double spot))
                         {
-                            bool isCall = ovml.Contains(" C ");
+                            double strike = double.Parse(strikeMatch.Groups[1].Value);
+                            string optionType = strikeMatch.Groups[2].Value;
+                            bool isCall = optionType == "C";
                             bool shouldBeCall = strike > spot;
+
+                            Console.WriteLine($"[AI-TYPE-CHECK] Strike={strike:F4}, Spot={spot:F4}, IsCall={isCall}, ShouldBeCall={shouldBeCall}");
 
                             if (isCall != shouldBeCall)
                             {
-                                ovml = ovml.Replace(isCall ? " C " : " P ", shouldBeCall ? " C " : " P ");
+                                string correctType = shouldBeCall ? "C" : "P";
+                                string oldStrike = strikePart;
+                                string newStrike = $"{strike:F4}{correctType}";
+                                ovml = ovml.Replace(oldStrike, newStrike);
+
+                                Console.WriteLine($"[AI-TYPE-CHECK] ✓ CORRECTED: {oldStrike} → {newStrike}");
+                                Console.WriteLine($"[AI-TYPE-CHECK]   Reason: Strike {(shouldBeCall ? ">" : "<")} Spot → Should be {correctType} (OTM)");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[AI-TYPE-CHECK] ✓ Already correct (OTM option)");
                             }
                         }
+                        else
+                        {
+                            Console.WriteLine($"[AI-TYPE-CHECK] × Failed to parse strike from '{strikePart}'");
+                        }
+                    }
+                    else if (isMultiLeg)
+                    {
+                        Console.WriteLine($"[AI-TYPE-CHECK] Skipping multi-leg trade (strategies are intentional)");
                     }
                 }
 
@@ -503,8 +538,12 @@ Output ONLY the OVML line:";
 
         public async Task<TradeParseResult> TryLearnedPatterns(string input, string underlying, string expiry)
         {
+            Console.WriteLine($"[AI] TryLearnedPatterns called - _learnedPatterns null: {_learnedPatterns == null}");
+            Console.WriteLine($"[AI] _learnedPatterns count: {_learnedPatterns?.Count ?? 0}");
+
             if (_learnedPatterns == null || _learnedPatterns.Count == 0)
             {
+                Console.WriteLine($"[AI] No learned patterns available, returning null");
                 return null;
             }
 
@@ -514,16 +553,109 @@ Output ONLY the OVML line:";
             {
                 try
                 {
-                    var regex = new Regex(pattern.RegexPattern, RegexOptions.IgnoreCase);
-
-                    if (regex.IsMatch(input))
+                    // Use similarity matching instead of regex (since regex pattern may be empty)
+                    if (IsSimilarTrade(input, pattern.ExampleInput))
                     {
-                        Console.WriteLine($"[AI] ✓ Pattern matched: {pattern.Description}");
+                        Console.WriteLine($"[AI] ✓ Learned pattern matched: {pattern.Name}");
+
+                        // Check if OVML is stored (old patterns might not have it)
+                        if (string.IsNullOrEmpty(pattern.ExampleOVML))
+                        {
+                            Console.WriteLine($"[AI]   Pattern has no stored OVML (old pattern), skipping...");
+                            continue;  // Skip to next pattern
+                        }
+
+                        // Check if OVML has date format - skip bad patterns
+                        if (System.Text.RegularExpressions.Regex.IsMatch(pattern.ExampleOVML, @"\d{1,2}/\d{1,2}/\d{2,4}"))
+                        {
+                            Console.WriteLine($"[AI]   Pattern has date format OVML (bad pattern), skipping...");
+                            continue;  // Skip to next pattern
+                        }
+
+                        Console.WriteLine($"[AI]   Using stored OVML: {pattern.ExampleOVML}");
                         pattern.UsageCount++;
                         SaveLearnedPatterns();
 
-                        // Pattern matched - let AI handle the actual OVML generation with correct values
-                        return null;
+                        // Extract values from NEW input and substitute into OVML template
+                        var newExpiry = ExtractTenorFromInput(input);
+                        var newStrike = ExtractStrikeFromInput(input);
+                        var newNotional = ExtractNotionalFromInput(input);
+                        var ovmlWithNewValues = pattern.ExampleOVML;
+
+                        // Replace the old tenor with the new one
+                        if (!string.IsNullOrEmpty(newExpiry))
+                        {
+                            var oldExpiry = ExtractTenorFromInput(pattern.ExampleInput);
+                            if (!string.IsNullOrEmpty(oldExpiry) && oldExpiry != newExpiry)
+                            {
+                                ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
+                                    ovmlWithNewValues,
+                                    @"\b" + oldExpiry + @"\b",
+                                    newExpiry,
+                                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                                );
+                                Console.WriteLine($"[AI]   Adapted tenor: {oldExpiry} → {newExpiry}");
+                            }
+                        }
+
+                        // Replace the strike and determine Call/Put
+                        if (!string.IsNullOrEmpty(newStrike))
+                        {
+                            var oldStrike = ExtractStrikeFromInput(pattern.ExampleInput);
+                            if (!string.IsNullOrEmpty(oldStrike) && oldStrike != newStrike)
+                            {
+                                // Format strike to 4 decimals for OVML
+                                var formattedNewStrike = FormatStrikeForOVML(newStrike);
+                                var formattedOldStrike = FormatStrikeForOVML(oldStrike);
+
+                                // Extract spot reference from OVML to determine if Call or Put
+                                var spotMatch = System.Text.RegularExpressions.Regex.Match(ovmlWithNewValues, @"SP(\d+\.\d+)");
+                                string optionType = "C"; // Default to Call
+
+                                if (spotMatch.Success && double.TryParse(formattedNewStrike, out double strikeVal)
+                                    && double.TryParse(spotMatch.Groups[1].Value, out double spotVal))
+                                {
+                                    // If strike < spot → PUT (OTM put)
+                                    // If strike > spot → CALL (OTM call)
+                                    optionType = strikeVal < spotVal ? "P" : "C";
+                                    Console.WriteLine($"[AI]   Strike {strikeVal} vs Spot {spotVal} → {(optionType == "C" ? "CALL" : "PUT")}");
+                                }
+
+                                // Replace strike and option type in OVML
+                                ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
+                                    ovmlWithNewValues,
+                                    formattedOldStrike + @"[CP]",
+                                    formattedNewStrike + optionType
+                                );
+                                Console.WriteLine($"[AI]   Adapted strike: {oldStrike} → {newStrike} ({optionType})");
+                            }
+                        }
+
+                        // Replace the notional
+                        if (!string.IsNullOrEmpty(newNotional))
+                        {
+                            var oldNotional = ExtractNotionalFromInput(pattern.ExampleInput);
+                            if (!string.IsNullOrEmpty(oldNotional) && oldNotional != newNotional)
+                            {
+                                // Replace notional in OVML (format: N15M)
+                                var formattedNewNotional = "N" + newNotional + "M";
+                                var formattedOldNotional = "N" + oldNotional + "M";
+
+                                ovmlWithNewValues = ovmlWithNewValues.Replace(formattedOldNotional, formattedNewNotional);
+                                Console.WriteLine($"[AI]   Adapted notional: {oldNotional} → {newNotional}");
+                            }
+                        }
+
+                        // Return the adapted OVML result
+                        var result = new TradeParseResult
+                        {
+                            OVML = ovmlWithNewValues,
+                            Underlying = underlying,
+                            Expiry = expiry,
+                            ParseMethod = $"Learned-Pattern-{pattern.Name}"
+                        };
+                        result.GenerateUBS();
+                        return result;
                     }
                 }
                 catch (Exception ex)
@@ -572,17 +704,24 @@ Output ONLY the OVML line:";
         {
             try
             {
+                Console.WriteLine($"[AI] LoadLearnedPatterns - file path: {_patternsFilePath}");
+                Console.WriteLine($"[AI] LoadLearnedPatterns - file exists: {File.Exists(_patternsFilePath)}");
+
                 if (File.Exists(_patternsFilePath))
                 {
                     var json = File.ReadAllText(_patternsFilePath);
+                    Console.WriteLine($"[AI] LoadLearnedPatterns - JSON length: {json?.Length ?? 0}");
+
                     var options = new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
                     };
                     _learnedPatterns = JsonSerializer.Deserialize<List<LearnedPattern>>(json, options) ?? new List<LearnedPattern>();
+                    Console.WriteLine($"[AI] LoadLearnedPatterns - Loaded {_learnedPatterns.Count} patterns");
                 }
                 else
                 {
+                    Console.WriteLine($"[AI] LoadLearnedPatterns - File doesn't exist, creating empty list");
                     _learnedPatterns = new List<LearnedPattern>();
                 }
             }
@@ -597,6 +736,9 @@ Output ONLY the OVML line:";
         {
             try
             {
+                var fullPath = Path.GetFullPath(_patternsFilePath);
+                Console.WriteLine($"[AI] Saving patterns to: {fullPath}");
+
                 var options = new JsonSerializerOptions
                 {
                     WriteIndented = true
@@ -604,10 +746,13 @@ Output ONLY the OVML line:";
 
                 var json = JsonSerializer.Serialize(_learnedPatterns, options);
                 File.WriteAllText(_patternsFilePath, json);
+
+                Console.WriteLine($"[AI] ✓ Saved {_learnedPatterns.Count} patterns successfully");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[AI] Error saving patterns: {ex.Message}");
+                Console.WriteLine($"[AI] Stack trace: {ex.StackTrace}");
             }
         }
 
@@ -657,6 +802,28 @@ Output ONLY the OVML line:";
         {
             try
             {
+                // Validate OVML format - should have tenor (1M, 2M, etc.), not date (12/26/25)
+                if (string.IsNullOrEmpty(result.OVML))
+                {
+                    Console.WriteLine($"[AI] Skipping pattern learning - empty OVML");
+                    return null;
+                }
+
+                // Check if OVML has date format (/) instead of tenor format
+                if (System.Text.RegularExpressions.Regex.IsMatch(result.OVML, @"\d{1,2}/\d{1,2}/\d{2,4}"))
+                {
+                    Console.WriteLine($"[AI] Skipping pattern learning - OVML has date format instead of tenor");
+                    Console.WriteLine($"[AI]   Bad OVML: {result.OVML}");
+                    return null;
+                }
+
+                // Check if OVML has tenor format (1M, 2M, 3M, 6M, 1Y, etc.)
+                if (!System.Text.RegularExpressions.Regex.IsMatch(result.OVML, @"\b\d+[MWYD]\b"))
+                {
+                    Console.WriteLine($"[AI] Skipping pattern learning - OVML missing tenor format");
+                    return null;
+                }
+
                 var pattern = new LearnedPattern
                 {
                     Name = $"Learned-{DateTime.Now:yyyyMMdd-HHmmss}",
@@ -664,7 +831,8 @@ Output ONLY the OVML line:";
                     Description = $"{result.LegCount}-leg trade",
                     CreatedAt = DateTime.Now,
                     UsageCount = 1,
-                    ExampleInput = input.Trim()
+                    ExampleInput = input.Trim(),
+                    ExampleOVML = result.OVML  // Save the OVML output
                 };
                 _learnedPatterns.Add(pattern);
                 SaveLearnedPatterns();
@@ -692,6 +860,54 @@ Output ONLY the OVML line:";
 
             return (double)commonTokens / totalTokens > 0.6;
         }
+
+        private string ExtractTenorFromInput(string input)
+        {
+            // Extract tenor like "1M", "2M", "3M", "1Y", "1W" from input
+            var tenorMatch = System.Text.RegularExpressions.Regex.Match(
+                input,
+                @"\b(\d+[mMwWyYdD])\b",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+            );
+
+            return tenorMatch.Success ? tenorMatch.Value.ToUpper() : null;
+        }
+
+        private string ExtractStrikeFromInput(string input)
+        {
+            // Extract strike price like "1.15", "1.1650", "9.75" from input
+            // Look for decimal numbers that are likely strikes (not dates, not notionals)
+            var strikeMatch = System.Text.RegularExpressions.Regex.Match(
+                input,
+                @"\b(\d+\.\d{2,4})\b",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+            );
+
+            return strikeMatch.Success ? strikeMatch.Value : null;
+        }
+
+        private string ExtractNotionalFromInput(string input)
+        {
+            // Extract notional like "10mio", "15m", "150nok" from input
+            // Match patterns: "15mio", "15m", "15mil", "10 mio"
+            var notionalMatch = System.Text.RegularExpressions.Regex.Match(
+                input,
+                @"(?:in\s+)?(\d+)\s*(?:mio|m|mil|million)\b",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+            );
+
+            return notionalMatch.Success ? notionalMatch.Groups[1].Value : null;
+        }
+
+        private string FormatStrikeForOVML(string strike)
+        {
+            // Format strike to 4 decimals (OVML standard)
+            if (double.TryParse(strike, out double strikeValue))
+            {
+                return strikeValue.ToString("0.0000");
+            }
+            return strike;
+        }
     }
 
 
@@ -701,6 +917,7 @@ Output ONLY the OVML line:";
         public string RegexPattern { get; set; }
         public string Description { get; set; }
         public string ExampleInput { get; set; }
+        public string ExampleOVML { get; set; }  // Store the OVML output for this pattern
         public DateTime CreatedAt { get; set; }
         public int UsageCount { get; set; }
     }
