@@ -8,6 +8,25 @@ namespace FXOAiTranslator
         public static readonly List<TradePattern> Patterns = new List<TradePattern>
 
         {
+// COMPACT MULTI-LEG PATTERN: Multiple legs with direction codes (sb, sbb, etc.)
+// Matches:
+//   15mm USDNOK 10 usd call
+//   23mm USDNOK 11.5 usd call
+//   exp 15-Jun-26,
+//   fwd ref 10.1045,
+//   sb
+// Direction codes: s=SELL, b=BUY (e.g., "sb" = SELL first leg, BUY second leg)
+new TradePattern(
+    "CompactMultiLeg_DirectionCodes",
+    new Regex(
+        @"(?<legs>(?:\d+(?:\.\d+)?mm?\s+[A-Z]{6}\s+[\d.]+\s+(?:usd|eur|nok|sek|gbp|aud|cad|chf|jpy|nzd)?\s*(?:call|put)\s*[\r\n]*)+)" +  // Multiple legs
+        @"exp\s+(?<expiry>[\d\-A-Za-z]+),?\s*" +      // Expiry date
+        @"(?:fwd\s+ref|sr|spot)\s+(?<fwdref>[\d.]+),?\s*" +  // Forward/spot reference
+        @"(?<directions>[sb]+)\s*$",                  // Direction codes (sb, sbb, etc.)
+        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Multiline
+    )
+),
+
 // DELTA PATTERN: Delta-based vanilla options
 // Matches: "eurusd 1m 25delta call in 20mio" or "eurusd 25d put 10m" or "25 forward delta call 15mio"
 // Generates: DS25 (spot delta) or DF25 (forward delta)

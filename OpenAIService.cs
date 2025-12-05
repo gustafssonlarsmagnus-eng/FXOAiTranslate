@@ -272,6 +272,20 @@ NOTIONAL PARSING:
 - Always include the N prefix and M suffix
 - For multi-leg: N100M,150M (comma-separated)
 
+COMPACT MULTI-LEG NOTATION WITH DIRECTION CODES:
+- Format: Multiple legs listed, followed by expiry, forward ref, and direction codes
+- Direction codes: 's' = SELL, 'b' = BUY (lowercase)
+- Example: ""15mm USDNOK 10 usd call\n23mm USDNOK 11.5 usd call\nexp 15-Jun-26,\nfwd ref 10.1045,\nsb""
+  * First leg: 15M USDNOK 10.0000 call
+  * Second leg: 23M USDNOK 11.5000 call
+  * Direction codes ""sb"" = first leg SELL, second leg BUY → But user corrected: ""sb"" = BUY first, SELL second (B,S)
+  * Output: OVML USDNOK 06/15/26 2L B,S 10.0000C,11.5000C N15M,23M VA FW10.1045
+- Example: ""20mm USDSEK 9.4 usd call\n10mm USDSEK 10.5 usd call\n30mm USDSEK 11 usd call\nexp 10-Aug-26,\nfwd ref 9.293,\nsbb""
+  * Direction codes ""sbb"" = S,B,B (Sell first leg, Buy second leg, Buy third leg)
+  * Output: OVML USDSEK 08/10/26 3L S,B,B 9.4000C,10.5000C,11.0000C N20M,10M,30M VA FW9.293
+- CRITICAL: Each letter in the direction code corresponds to one leg in order
+- 'fwd ref' or 'sr' becomes the FW field (forward reference) in OVML output
+
 OPTION TYPE INFERENCE (when call/put not specified):
 - If strike > spot reference → Default to CALL (out-of-the-money call)
 - If strike < spot reference → Default to PUT (out-of-the-money put)

@@ -186,6 +186,54 @@ namespace FXOAiTranslator
                         {
                             switch (pattern.Name)
                             {
+                                case "CompactMultiLeg_DirectionCodes":
+                                    LogDebug($"DEBUG: Processing CompactMultiLeg_DirectionCodes pattern");
+
+                                    // Parse individual legs
+                                    string legsText = match.Groups["legs"].Value;
+                                    var legMatches = Regex.Matches(legsText, @"(\d+(?:\.\d+)?)mm?\s+([A-Z]{6})\s+([\d.]+)\s+(?:usd|eur|nok|sek|gbp|aud|cad|chf|jpy|nzd)?\s*(call|put)",
+                                        RegexOptions.IgnoreCase);
+
+                                    // Parse direction codes (sb → B,S; sbb → S,B,B)
+                                    string directionCodes = match.Groups["directions"].Value.ToLower();
+                                    var directions = new List<string>();
+                                    foreach (char c in directionCodes)
+                                    {
+                                        directions.Add(c == 'b' ? "B" : "S");
+                                    }
+
+                                    // Extract expiry and forward reference
+                                    string expiryRaw = match.Groups["expiry"].Value;
+                                    string fwdRef = match.Groups["fwdref"].Value;
+
+                                    // Convert expiry to OVML date format
+                                    string ovmlExpiryCompact = ConvertExpiryToOVMLDate(expiryRaw, result.Underlying);
+
+                                    // Build strikes and notionals
+                                    var strikes = new List<string>();
+                                    var notionals = new List<string>();
+
+                                    for (int i = 0; i < legMatches.Count; i++)
+                                    {
+                                        var legMatch = legMatches[i];
+                                        string notional = legMatch.Groups[1].Value;
+                                        string strike = legMatch.Groups[3].Value;
+                                        string legType = legMatch.Groups[4].Value.ToUpper().StartsWith("C") ? "C" : "P";
+
+                                        strikes.Add($"{strike}{legType}");
+                                        notionals.Add($"{notional}M");
+                                    }
+
+                                    result.LegCount = legMatches.Count;
+
+                                    // Build OVML: OVML USDNOK 06/15/26 2L B,S 10.0000C,11.5000C N15M,23M VA FW10.1045
+                                    result.OVML = $"OVML {result.Underlying} {ovmlExpiryCompact} {result.LegCount}L " +
+                                                  $"{string.Join(",", directions)} {string.Join(",", strikes)} " +
+                                                  $"N{string.Join(",", notionals)} VA FW{fwdRef}";
+
+                                    LogDebug($"DEBUG: Built OVML: {result.OVML}");
+                                    break;
+
                                 case "Vanilla_Delta":
                                     LogDebug($"DEBUG: Processing Vanilla_Delta pattern");
                                     result.LegCount = 1;
