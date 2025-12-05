@@ -523,11 +523,11 @@ namespace FXOAiTranslator
 
             this.Controls.Add(dgvBlotter);
 
-            // Buttons - moved down for blotter
+            // Buttons - moved down for blotter with proper spacing
             btnRequestQuotes = new Button
             {
                 Text = "Request Quotes",
-                Location = new Point(20, 705),
+                Location = new Point(20, 730),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
@@ -537,7 +537,7 @@ namespace FXOAiTranslator
             btnExecute = new Button
             {
                 Text = "Sell (Hit Bid)",
-                Location = new Point(190, 705),
+                Location = new Point(190, 730),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -548,7 +548,7 @@ namespace FXOAiTranslator
             btnBuy = new Button
             {
                 Text = "Buy (Lift Offer)",
-                Location = new Point(360, 705),
+                Location = new Point(360, 730),
                 Size = new Size(150, 35),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Enabled = false
@@ -559,7 +559,7 @@ namespace FXOAiTranslator
             btnCancel = new Button
             {
                 Text = "Close",
-                Location = new Point(530, 705),
+                Location = new Point(530, 730),
                 Size = new Size(150, 35),
                 DialogResult = DialogResult.Cancel
             };
