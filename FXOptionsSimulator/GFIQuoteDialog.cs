@@ -675,12 +675,12 @@ namespace FXOAiTranslator
             dgvQuotes.Columns["LP"].Width = 80;
 
             dgvQuotes.Columns.Add("NetPremBid", "Net Prem (Bid)");
-            dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.Format = "N2";
-            dgvQuotes.Columns["NetPremBid"].Width = 100;
+            // Format handled manually in UpdateQuoteDisplay (e.g., "288,400 USD")
+            dgvQuotes.Columns["NetPremBid"].Width = 130;
 
             dgvQuotes.Columns.Add("NetPremOffer", "Net Prem (Offer)");
-            dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.Format = "N2";
-            dgvQuotes.Columns["NetPremOffer"].Width = 110;
+            // Format handled manually in UpdateQuoteDisplay (e.g., "288,400 USD")
+            dgvQuotes.Columns["NetPremOffer"].Width = 140;
 
             // Add leg columns based on display mode (Vol or Premium)
             for (int i = 1; i <= legCount; i++)
@@ -698,14 +698,12 @@ namespace FXOAiTranslator
                 }
                 else
                 {
-                    // Premium mode
+                    // Premium mode - format handled manually with "PTS CCY" suffix
                     dgvQuotes.Columns.Add($"Leg{i}BidPrem", $"L{i} Bid Prem");
-                    dgvQuotes.Columns[$"Leg{i}BidPrem"].DefaultCellStyle.Format = "N2";
-                    dgvQuotes.Columns[$"Leg{i}BidPrem"].Width = 90;
+                    dgvQuotes.Columns[$"Leg{i}BidPrem"].Width = 120;  // Increased for "PTS USD"
 
                     dgvQuotes.Columns.Add($"Leg{i}OfferPrem", $"L{i} Offer Prem");
-                    dgvQuotes.Columns[$"Leg{i}OfferPrem"].DefaultCellStyle.Format = "N2";
-                    dgvQuotes.Columns[$"Leg{i}OfferPrem"].Width = 100;
+                    dgvQuotes.Columns[$"Leg{i}OfferPrem"].Width = 130;  // Increased for "PTS USD"
                 }
             }
 
@@ -902,8 +900,11 @@ namespace FXOAiTranslator
                 double? netPremBid = CalculateNetPremium(stream.BidQuote);
                 double? netPremOffer = CalculateNetPremium(stream.OfferQuote);
 
-                rowData.Add(netPremBid?.ToString("N2") ?? "-");
-                rowData.Add(netPremOffer?.ToString("N2") ?? "-");
+                // Get premium currency from trade structure
+                string premCcy = _trade?.PremiumCurrency ?? "USD";
+
+                rowData.Add(netPremBid.HasValue ? $"{netPremBid.Value:N0} {premCcy}" : "-");
+                rowData.Add(netPremOffer.HasValue ? $"{netPremOffer.Value:N0} {premCcy}" : "-");
 
                 // Add leg data based on display mode
                 for (int i = 1; i <= _selectedLegCount; i++)
@@ -919,12 +920,12 @@ namespace FXOAiTranslator
                     }
                     else
                     {
-                        // Premium mode
+                        // Premium mode - show with "PTS CCY" label
                         double? bidPrem = GetLegPremium(stream.BidQuote, i);
                         double? offerPrem = GetLegPremium(stream.OfferQuote, i);
 
-                        rowData.Add(bidPrem?.ToString("N2") ?? "-");
-                        rowData.Add(offerPrem?.ToString("N2") ?? "-");
+                        rowData.Add(bidPrem.HasValue ? $"{bidPrem.Value:N2} PTS {premCcy}" : "-");
+                        rowData.Add(offerPrem.HasValue ? $"{offerPrem.Value:N2} PTS {premCcy}" : "-");
                     }
                 }
 
@@ -975,13 +976,13 @@ namespace FXOAiTranslator
                     // Premium mode - highlight best net premiums
                     var (bestBid, bestOffer) = GetBestPremiums();
 
-                    if (bestBid.HasValue && netPremBid.HasValue && Math.Abs(netPremBid.Value - bestBid.Value) < 0.01)
+                    if (bestBid.HasValue && netPremBid.HasValue && Math.Abs(netPremBid.Value - bestBid.Value) < 1.0)
                     {
                         dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
                         dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
                     }
 
-                    if (bestOffer.HasValue && netPremOffer.HasValue && Math.Abs(netPremOffer.Value - bestOffer.Value) < 0.01)
+                    if (bestOffer.HasValue && netPremOffer.HasValue && Math.Abs(netPremOffer.Value - bestOffer.Value) < 1.0)
                     {
                         dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
                         dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
@@ -1157,14 +1158,13 @@ namespace FXOAiTranslator
                 ? quote.LegPricing[0].LegSpotRate
                 : null;
 
-            // PREFER Tag 6436 (Premium) if available - it's in consistent units across all LPs
-            // Tag 6436 appears to be in hundredths of basis points (divide by 1000 for basis points)
+            // PREFER Tag 6436 (Premium) if available - return actual USD amount (not divided by 1000)
             string tag6436 = quote.Get("6436");
             if (!string.IsNullOrEmpty(tag6436) && double.TryParse(tag6436, out double premium6436))
             {
-                double basisPoints = premium6436 / 1000.0;
-                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={tag6436} -> Display={basisPoints:F2}, Spot={spotRef ?? "N/A"}");
-                return basisPoints;
+                // Return actual USD amount (Tag 6436 already in correct units)
+                Console.WriteLine($"[PREMIUM] {lpName} {side}: Tag6436={tag6436} -> Display={premium6436:N0} USD, Spot={spotRef ?? "N/A"}");
+                return premium6436;
             }
 
             // FALLBACK: Use LegPricing structure (less reliable due to PriceIndicator differences)
