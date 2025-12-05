@@ -206,6 +206,10 @@ namespace FXOAiTranslator
                                     string expiryRaw = match.Groups["expiry"].Value;
                                     string fwdRef = match.Groups["fwdref"].Value;
 
+                                    // Pre-process expiry: remove dashes (15-Jun-26 → 15Jun26)
+                                    expiryRaw = expiryRaw.Replace("-", "");
+                                    LogDebug($"DEBUG: Preprocessed expiry: {expiryRaw}");
+
                                     // Convert expiry to OVML date format
                                     string ovmlExpiryCompact = ConvertExpiryToOVMLDate(expiryRaw, result.Underlying);
 
