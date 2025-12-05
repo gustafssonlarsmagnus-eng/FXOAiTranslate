@@ -124,12 +124,12 @@ namespace FXOAiTranslator
             };
             this.Controls.Add(lblLegs);
 
-            // GroupBox for legs grid
+            // GroupBox for legs grid (increased height for notional controls)
             var gbLegs = new GroupBox
             {
                 Text = "",
                 Location = new Point(20, 65),
-                Size = new Size(940, 135)
+                Size = new Size(940, 170)  // Increased from 135 to 170 for notional controls
             };
             this.Controls.Add(gbLegs);
 
@@ -178,11 +178,64 @@ namespace FXOAiTranslator
             };
             dgvLegs.Columns.Add(notionalCol);
 
-            // LP Selection GroupBox - EXPANDED
+            // Notional Amount and Currency Controls (inside gbLegs)
+            _lblNotional = new Label
+            {
+                Text = "Set All Notionals:",
+                Location = new Point(15, 128),
+                Size = new Size(115, 15),
+                Font = new Font("Segoe UI", 8, FontStyle.Bold)
+            };
+            gbLegs.Controls.Add(_lblNotional);
+
+            _txtNotionalAmount = new TextBox
+            {
+                Location = new Point(135, 125),
+                Size = new Size(70, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
+                Text = "10.0"
+            };
+            _txtNotionalAmount.Leave += TxtNotionalAmount_Leave;
+            gbLegs.Controls.Add(_txtNotionalAmount);
+
+            var lblM = new Label
+            {
+                Text = "M",
+                Location = new Point(210, 128),
+                Size = new Size(15, 20),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            gbLegs.Controls.Add(lblM);
+
+            _btnNotionalCcy1 = new Button
+            {
+                Location = new Point(230, 125),
+                Size = new Size(55, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            _btnNotionalCcy1.FlatAppearance.BorderColor = Color.Gray;
+            _btnNotionalCcy1.Click += BtnNotionalCcy1_Click;
+            gbLegs.Controls.Add(_btnNotionalCcy1);
+
+            _btnNotionalCcy2 = new Button
+            {
+                Location = new Point(290, 125),
+                Size = new Size(55, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            _btnNotionalCcy2.FlatAppearance.BorderColor = Color.Gray;
+            _btnNotionalCcy2.Click += BtnNotionalCcy2_Click;
+            gbLegs.Controls.Add(_btnNotionalCcy2);
+
+            // LP Selection GroupBox - EXPANDED (moved down due to taller gbLegs)
             gbLPs = new GroupBox
             {
                 Text = "Select Liquidity Providers",
-                Location = new Point(20, 210),
+                Location = new Point(20, 245),  // Moved from 210 to 245 (+35px)
                 Size = new Size(940, 90)  // Increased height for 2 rows
             };
             this.Controls.Add(gbLPs);
@@ -376,59 +429,6 @@ namespace FXOAiTranslator
                 Font = new Font("Segoe UI", 8, FontStyle.Regular)
             };
             this.Controls.Add(_lblCcyToggle);
-
-            // Notional Amount and Currency Controls
-            _lblNotional = new Label
-            {
-                Text = "Notional:",
-                Location = new Point(390, 335),
-                Size = new Size(60, 15),
-                Font = new Font("Segoe UI", 8, FontStyle.Regular)
-            };
-            this.Controls.Add(_lblNotional);
-
-            _txtNotionalAmount = new TextBox
-            {
-                Location = new Point(390, 355),
-                Size = new Size(70, 25),
-                Font = new Font("Segoe UI", 10, FontStyle.Regular),
-                Text = "10.0"
-            };
-            _txtNotionalAmount.Leave += TxtNotionalAmount_Leave;
-            this.Controls.Add(_txtNotionalAmount);
-
-            var lblM = new Label
-            {
-                Text = "M",
-                Location = new Point(465, 358),
-                Size = new Size(15, 20),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
-            };
-            this.Controls.Add(lblM);
-
-            _btnNotionalCcy1 = new Button
-            {
-                Location = new Point(485, 355),
-                Size = new Size(55, 25),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            _btnNotionalCcy1.FlatAppearance.BorderColor = Color.Gray;
-            _btnNotionalCcy1.Click += BtnNotionalCcy1_Click;
-            this.Controls.Add(_btnNotionalCcy1);
-
-            _btnNotionalCcy2 = new Button
-            {
-                Location = new Point(545, 355),
-                Size = new Size(55, 25),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            _btnNotionalCcy2.FlatAppearance.BorderColor = Color.Gray;
-            _btnNotionalCcy2.Click += BtnNotionalCcy2_Click;
-            this.Controls.Add(_btnNotionalCcy2);
 
             // Initialize toggle buttons with current trade data
             UpdateCurrencyButtons();
