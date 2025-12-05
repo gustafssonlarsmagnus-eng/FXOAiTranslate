@@ -1,6 +1,6 @@
-﻿using QLNet;
-using System;
+﻿using System;
 using System.Globalization;
+using QLNet;
 using static QLNet.JointCalendar;
 using QLCal = QLNet.Calendar;   // <-- disambiguate Calendar
 
@@ -29,12 +29,16 @@ public static class FxDateService
         rules = rules with { Ccy1 = ccy1, Ccy2 = ccy2 }; // now valid because FxDateRules is a record
 
         // Get individual calendars for custom holiday checking
+        // CalendarFromCcy now always returns a valid calendar (TARGET as fallback)
         var cal1 = CalendarFromCcy(ccy1);
         var cal2 = CalendarFromCcy(ccy2);
+     
+ // Create joint calendar for the pair
         var calPair = new JointCalendar(cal1, cal2, JointCalendarRule.JoinHolidays);
 
+        // Get premium calendar - use the premium currency's calendar
         var calPremium = rules.PremiumCalMode == CalendarMode.PremiumCcyOnly
-            ? CalendarFromCcy(premiumCcy) ?? throw new ArgumentException($"Unsupported premium calendar for {premiumCcy}")
+            ? CalendarFromCcy(premiumCcy)  // CalendarFromCcy now always returns a valid calendar
             : calPair;
 
         var trade = ToQl(tradeDateUtc.Date);
@@ -43,7 +47,7 @@ public static class FxDateService
         var spot = AdvanceBusinessDaysCustom(trade, (int)rules.SpotLag, cal1, cal2, BusinessDayConvention.Following);
         var expiry = ComputeExpiryFromTenorCustom(tenor, trade, cal1, cal2, rules.ExpiryConvention, rules.ExpiryEOM);
         var delivery = AdvanceBusinessDaysCustom(expiry, (int)rules.SpotLag, cal1, cal2, BusinessDayConvention.Following);
-        var premium = AdvanceBusinessDaysCustom(trade, rules.PremiumSettleDays, CalendarFromCcy(premiumCcy), null, rules.PremiumConvention);
+     var premium = AdvanceBusinessDaysCustom(trade, rules.PremiumSettleDays, CalendarFromCcy(premiumCcy), null, rules.PremiumConvention);
 
         return (ToSys(trade), ToSys(spot), ToSys(expiry), ToSys(delivery), ToSys(premium));
     }
@@ -164,7 +168,7 @@ public static class FxDateService
         "NZD" => new NewZealand(),
         "NOK" => new Norway(),
         "DKK" => new Denmark(),
-        _ => null
+        _ => new TARGET()
     };
 
     private static Date ToQl(DateTime dt) => new Date(dt.Day, (Month)dt.Month, dt.Year);
