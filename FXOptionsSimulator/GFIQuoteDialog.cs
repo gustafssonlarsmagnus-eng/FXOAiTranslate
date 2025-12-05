@@ -44,6 +44,7 @@ namespace FXOAiTranslator
         private bool _showVolatility = true;  // NEW: Toggle between Vol (true) and Premium (false)
         private bool _spotHedge = true;  // NEW: Spot hedge toggle (default ON)
         private string _cutoff = "NY";  // NEW: Cutoff toggle (default NY)
+        private string _premiumCurrency = null;  // NEW: Premium currency toggle (EUR/USD, etc.)
         private HashSet<int> _passedTests = new HashSet<int>();  // Track which tests passed
         private List<CheckBox> _testCaseCheckboxes = new List<CheckBox>();  // All test case checkboxes
         private int _currentTestId = -1;  // Currently active test case
@@ -330,6 +331,67 @@ namespace FXOAiTranslator
                 btnToggleCut.BackColor = (_cutoff == "NY") ? Color.LightSkyBlue : Color.LightSalmon;
             };
             this.Controls.Add(btnToggleCut);
+
+            // Currency Toggle Buttons - NEW (like GFI's EUR | USD toggle)
+            // Extract currencies from pair (e.g., EURUSD -> EUR, USD)
+            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
+            string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
+            _premiumCurrency = ccy2;  // Default to quote currency (second currency)
+
+            var btnCcy1 = new Button
+            {
+                Text = ccy1,
+                Location = new Point(390, 305),
+                Size = new Size(55, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnCcy1.FlatAppearance.BorderColor = Color.Gray;
+            btnCcy1.Click += (s, e) =>
+            {
+                _premiumCurrency = ccy1;
+                btnCcy1.BackColor = Color.MediumPurple;
+                btnCcy1.ForeColor = Color.White;
+                btnCcy2.BackColor = Color.White;
+                btnCcy2.ForeColor = Color.Black;
+                UpdateQuoteDisplay(); // Refresh to show premiums in new currency
+            };
+            this.Controls.Add(btnCcy1);
+
+            var btnCcy2 = new Button
+            {
+                Text = ccy2,
+                Location = new Point(450, 305),
+                Size = new Size(55, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                BackColor = Color.MediumPurple,  // Default selected
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnCcy2.FlatAppearance.BorderColor = Color.Gray;
+            btnCcy2.Click += (s, e) =>
+            {
+                _premiumCurrency = ccy2;
+                btnCcy2.BackColor = Color.MediumPurple;
+                btnCcy2.ForeColor = Color.White;
+                btnCcy1.BackColor = Color.White;
+                btnCcy1.ForeColor = Color.Black;
+                UpdateQuoteDisplay(); // Refresh to show premiums in new currency
+            };
+            this.Controls.Add(btnCcy2);
+
+            // Label for currency toggle
+            var lblCcyToggle = new Label
+            {
+                Text = "Premium Ccy:",
+                Location = new Point(390, 285),
+                Size = new Size(115, 15),
+                Font = new Font("Segoe UI", 8, FontStyle.Regular)
+            };
+            this.Controls.Add(lblCcyToggle);
 
             // Test Case Checklist Panel - NEW
             var gbTestCases = new GroupBox
@@ -900,11 +962,38 @@ namespace FXOAiTranslator
                 double? netPremBid = CalculateNetPremium(stream.BidQuote);
                 double? netPremOffer = CalculateNetPremium(stream.OfferQuote);
 
-                // Get premium currency from trade structure
-                string premCcy = _trade?.PremiumCurrency ?? "USD";
+                // Get spot rate for currency conversion
+                double spotRate = _trade?.SpotReference ?? 1.0;
 
-                rowData.Add(netPremBid.HasValue ? $"{netPremBid.Value:N0} {premCcy}" : "-");
-                rowData.Add(netPremOffer.HasValue ? $"{netPremOffer.Value:N0} {premCcy}" : "-");
+                // Extract currencies from pair
+                string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
+                string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
+
+                // Get base premium currency from trade (usually quote currency = ccy2)
+                string basePremCcy = _trade?.PremiumCurrency ?? ccy2;
+
+                // Convert premium to selected display currency if needed
+                double conversionFactor = 1.0;
+                if (_premiumCurrency != basePremCcy && spotRate > 0)
+                {
+                    // Converting between currencies using spot rate
+                    // If basePremCcy is ccy2 (USD) and we want ccy1 (EUR): divide by spot
+                    // If basePremCcy is ccy1 (EUR) and we want ccy2 (USD): multiply by spot
+                    if (basePremCcy == ccy2 && _premiumCurrency == ccy1)
+                    {
+                        conversionFactor = 1.0 / spotRate;  // USD -> EUR: divide
+                    }
+                    else if (basePremCcy == ccy1 && _premiumCurrency == ccy2)
+                    {
+                        conversionFactor = spotRate;  // EUR -> USD: multiply
+                    }
+                }
+
+                double? displayBid = netPremBid.HasValue ? netPremBid.Value * conversionFactor : (double?)null;
+                double? displayOffer = netPremOffer.HasValue ? netPremOffer.Value * conversionFactor : (double?)null;
+
+                rowData.Add(displayBid.HasValue ? $"{displayBid.Value:N0} {_premiumCurrency}" : "-");
+                rowData.Add(displayOffer.HasValue ? $"{displayOffer.Value:N0} {_premiumCurrency}" : "-");
 
                 // Add leg data based on display mode
                 for (int i = 1; i <= _selectedLegCount; i++)
