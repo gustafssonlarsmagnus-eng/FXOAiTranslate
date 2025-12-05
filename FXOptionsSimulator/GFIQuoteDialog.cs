@@ -477,7 +477,8 @@ namespace FXOAiTranslator
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells,
-                RowHeadersVisible = false
+                RowHeadersVisible = false,
+                RowTemplate = { Height = 38 }  // Taller rows for two-line premium display
             };
 
             // Enable double buffering to reduce flicker (via reflection since DoubleBuffered is protected)
@@ -720,12 +721,14 @@ namespace FXOAiTranslator
             dgvQuotes.Columns["LP"].Width = 80;
 
             dgvQuotes.Columns.Add("NetPremBid", "Net Prem (Bid)");
-            // Format handled manually in UpdateQuoteDisplay (e.g., "288,400 USD")
-            dgvQuotes.Columns["NetPremBid"].Width = 130;
+            // Format: "Rec USD 247,994\n248 pips" (two lines like GFI)
+     dgvQuotes.Columns["NetPremBid"].Width = 140;
+        dgvQuotes.Columns["NetPremBid"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
 
             dgvQuotes.Columns.Add("NetPremOffer", "Net Prem (Offer)");
-            // Format handled manually in UpdateQuoteDisplay (e.g., "288,400 USD")
-            dgvQuotes.Columns["NetPremOffer"].Width = 140;
+       // Format: "Pay USD 249,116\n-249 pips" (two lines like GFI)
+       dgvQuotes.Columns["NetPremOffer"].Width = 150;
+dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
 
             // Add leg columns based on display mode (Vol or Premium)
             for (int i = 1; i <= legCount; i++)
@@ -862,9 +865,9 @@ namespace FXOAiTranslator
 
             // Summary
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"\n┌─────────────────────────────────────────────┐");
+            Console.WriteLine($"\n┌─────────────────────────────────────────────────┐");
             Console.WriteLine($"│ QUOTE REQUEST SUMMARY");
-            Console.WriteLine($"├─────────────────────────────────────────────┤");
+            Console.WriteLine($"├─────────────────────────────────────────────────┤");
             Console.WriteLine($"│ Successful: {successfulLPs.Count}/{lps.Count}  {string.Join(", ", successfulLPs)}");
             if (failedLPs.Count > 0)
             {
@@ -872,7 +875,7 @@ namespace FXOAiTranslator
                 Console.WriteLine($"│ Failed: {failedLPs.Count}      {string.Join(", ", failedLPs)}");
             }
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"└─────────────────────────────────────────────┘\n");
+            Console.WriteLine($"└─────────────────────────────────────────────────┘\n");
             Console.ResetColor();
 
             // Start watching for responses
@@ -976,8 +979,8 @@ string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3
      basePremCcy = quotePremCcy;
     }
     else if (ccy1 == "USD" || ccy2 == "USD")
-    {
-        // If USD is in the pair, premium is in USD
+   {
+     // If USD is in the pair, premium is in USD
          basePremCcy = "USD";
       }
    else
@@ -991,28 +994,44 @@ string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3
           double conversionFactor = 1.0;
           if (_premiumCurrency != basePremCcy && spotRate > 0)
        {
-            // Need to convert between currencies
-           if (_premiumCurrency == ccy1 && basePremCcy == ccy2)
+// Need to convert between currencies
+    if (_premiumCurrency == ccy1 && basePremCcy == ccy2)
          {
  // Convert from ccy2 to ccy1 (e.g., SEK to EUR): divide by spot
-            conversionFactor = 1.0 / spotRate;
+  conversionFactor = 1.0 / spotRate;
   }
        else if (_premiumCurrency == ccy2 && basePremCcy == ccy1)
     {
-                  // Convert from ccy1 to ccy2 (e.g., EUR to SEK): multiply by spot
-             conversionFactor = spotRate;
-          }
+         // Convert from ccy1 to ccy2 (e.g., EUR to SEK): multiply by spot
+conversionFactor = spotRate;
+       }
           }
 
         double? displayBid = netPremBid.HasValue ? netPremBid.Value * conversionFactor : (double?)null;
-             double? displayOffer = netPremOffer.HasValue ? netPremOffer.Value * conversionFactor : (double?)null;
+    double? displayOffer = netPremOffer.HasValue ? netPremOffer.Value * conversionFactor : (double?)null;
 
-    rowData.Add(displayBid.HasValue ? $"{displayBid.Value:N0} {_premiumCurrency}" : "-");
-       rowData.Add(displayOffer.HasValue ? $"{displayOffer.Value:N0} {_premiumCurrency}" : "-");
+        // Get pips values from Tag 5844 for display (like GFI shows)
+     double? bidPips = GetLegPremium(stream.BidQuote, 1);  // Tag 5844
+        double? offerPips = GetLegPremium(stream.OfferQuote, 1);  // Tag 5844
 
-    // Add leg data based on display mode
+        // Format like GFI: "Rec USD 247,994\n248 pips" or "Pay USD 249,116\n-249 pips"
+        string FormatPremiumCell(double? usdAmount, double? pips, string ccy)
+        {
+      if (!usdAmount.HasValue) return "-";
+   
+    string direction = usdAmount.Value >= 0 ? "Rec" : "Pay";
+     string absAmount = Math.Abs(usdAmount.Value).ToString("N0");
+       string pipsStr = pips.HasValue ? $"{pips.Value:N0} pips" : "";
+       
+        return $"{direction} {ccy} {absAmount}\n{pipsStr}";
+        }
+
+        rowData.Add(FormatPremiumCell(displayBid, bidPips, _premiumCurrency));
+        rowData.Add(FormatPremiumCell(displayOffer, offerPips, _premiumCurrency));
+
+  // Add leg data based on display mode
                 for (int i = 1; i <= _selectedLegCount; i++)
-                {
+     {
                     if (_showVolatility)
                     {
                         // Volatility mode
@@ -1046,54 +1065,55 @@ string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3
 
                 var rowIndex = dgvQuotes.Rows.Add(rowData.ToArray());
 
-                // Apply highlighting based on toggle mode
-                if (_showVolatility)
+  // ALWAYS highlight Net Premium columns based on Tag 6436 (actual USD amount)
+        // This applies in BOTH Volatility and Premium modes
+    var (bestBid, bestOffer) = GetBestPremiums();
+
+    if (bestBid.HasValue && netPremBid.HasValue && Math.Abs(netPremBid.Value - bestBid.Value) < 1.0)
                 {
-                    // Volatility mode - highlight best volatilities for leg 1
-                    var (bestBidVol, bestOfferVol) = GetBestVolatilities();
-        
-                    double? bidVol = GetLegVol(stream.BidQuote, 1);
-                    double? offerVol = GetLegVol(stream.OfferQuote, 1);
+          dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
+          dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+       }
 
-                    if (bestBidVol.HasValue && bidVol.HasValue && Math.Abs(bidVol.Value - bestBidVol.Value) < 0.01)
-                    {
-                        string colName = "Leg1BidVol";
-                        if (dgvQuotes.Columns.Contains(colName))
-                        {
-                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.BackColor = Color.LightGreen;
-                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
-                        }
-                    }
+        if (bestOffer.HasValue && netPremOffer.HasValue && Math.Abs(netPremOffer.Value - bestOffer.Value) < 1.0)
+         {
+     dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
+       dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+         }
 
-                    if (bestOfferVol.HasValue && offerVol.HasValue && Math.Abs(offerVol.Value - bestOfferVol.Value) < 0.01)
-                    {
-                        string colName = "Leg1OfferVol";
-                        if (dgvQuotes.Columns.Contains(colName))
-                        {
-                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.BackColor = Color.LightGreen;
-                            dgvQuotes.Rows[rowIndex].Cells[colName].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
-                        }
-                    }
-                }
-                else
-                {
-                    // Premium mode - highlight best net premiums
-                    var (bestBid, bestOffer) = GetBestPremiums();
+      // Additionally highlight leg columns based on display mode
+          if (_showVolatility)
+       {
+         // Volatility mode - also highlight best volatilities for leg 1
+                 var (bestBidVol, bestOfferVol) = GetBestVolatilities();
+   
+  double? bidVol = GetLegVol(stream.BidQuote, 1);
+             double? offerVol = GetLegVol(stream.OfferQuote, 1);
 
-                    if (bestBid.HasValue && netPremBid.HasValue && Math.Abs(netPremBid.Value - bestBid.Value) < 1.0)
-                    {
-                        dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.BackColor = Color.LightGreen;
-                        dgvQuotes.Rows[rowIndex].Cells["NetPremBid"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
-                    }
+     if (bestBidVol.HasValue && bidVol.HasValue && Math.Abs(bidVol.Value - bestBidVol.Value) < 0.01)
+       {
+  string colName = "Leg1BidVol";
+               if (dgvQuotes.Columns.Contains(colName))
+         {
+  dgvQuotes.Rows[rowIndex].Cells[colName].Style.BackColor = Color.LightGreen;
+         dgvQuotes.Rows[rowIndex].Cells[colName].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+     }
+           }
 
-                    if (bestOffer.HasValue && netPremOffer.HasValue && Math.Abs(netPremOffer.Value - bestOffer.Value) < 1.0)
-                    {
-                        dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.BackColor = Color.LightGreen;
-                        dgvQuotes.Rows[rowIndex].Cells["NetPremOffer"].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
-                    }
-                }
+           if (bestOfferVol.HasValue && offerVol.HasValue && Math.Abs(offerVol.Value - bestOfferVol.Value) < 0.01)
+              {
+       string colName = "Leg1OfferVol";
+    if (dgvQuotes.Columns.Contains(colName))
+     {
+    dgvQuotes.Rows[rowIndex].Cells[colName].Style.BackColor = Color.LightGreen;
+     dgvQuotes.Rows[rowIndex].Cells[colName].Style.Font = new Font(dgvQuotes.Font, FontStyle.Bold);
+              }
+        }
+         }
+     // Note: In Premium mode, we already highlighted Net Premium above,
+   // and the leg columns show Tag 5844 which is LP-specific and not comparable
             }
-            // Enable execute buttons if we have quotes
+       // Enable execute buttons if we have quotes
             if (streams.Any(s => s.BidQuote != null || s.OfferQuote != null))
             {
                 btnExecute.Enabled = true;
