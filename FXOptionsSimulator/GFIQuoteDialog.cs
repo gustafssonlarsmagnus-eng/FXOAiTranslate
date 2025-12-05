@@ -56,10 +56,10 @@ namespace FXOAiTranslator
         private Button _btnCcy2;
         private Label _lblCcyToggle;
         private Button _btnToggleCut;
-        private TextBox _txtNotionalAmount;
-        private Button _btnNotionalCcy1;
-        private Button _btnNotionalCcy2;
-        private Label _lblNotional;
+        private TextBox _txtNotionalAmount;  // Ccy1 amount (e.g., EUR)
+        private TextBox _txtNotionalCcy2;     // Ccy2 amount (e.g., USD)
+        private Label _lblNotionalCcy1;
+        private Label _lblNotionalCcy2;
 
         public GFIQuoteDialog(dynamic ovmlResult)
         {
@@ -174,62 +174,68 @@ namespace FXOAiTranslator
             {
                 Name = "NotionalMM",
                 HeaderText = "Notional (MM)",
-                Width = 70
+                Width = 70,
+                ReadOnly = false  // Make editable
             };
             dgvLegs.Columns.Add(notionalCol);
 
-            // Notional Amount and Currency Controls (inside gbLegs)
-            _lblNotional = new Label
+            // Linked Notional Amount Fields (inside gbLegs)
+            var lblNotionalTitle = new Label
             {
-                Text = "Set All Notionals:",
+                Text = "Set All Notionals (linked by strike):",
                 Location = new Point(15, 128),
-                Size = new Size(115, 15),
+                Size = new Size(220, 15),
                 Font = new Font("Segoe UI", 8, FontStyle.Bold)
             };
-            gbLegs.Controls.Add(_lblNotional);
+            gbLegs.Controls.Add(lblNotionalTitle);
 
-            _txtNotionalAmount = new TextBox
+            // Extract currencies from pair for labels
+            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
+            string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
+
+            // Currency 1 (e.g., EUR) label and textbox
+            _lblNotionalCcy1 = new Label
             {
-                Location = new Point(135, 125),
-                Size = new Size(70, 25),
-                Font = new Font("Segoe UI", 10, FontStyle.Regular),
-                Text = "10.0"
+                Text = $"{ccy1}:",
+                Location = new Point(240, 128),
+                Size = new Size(35, 15),
+                Font = new Font("Segoe UI", 8, FontStyle.Regular)
             };
-            _txtNotionalAmount.Leave += TxtNotionalAmount_Leave;
+            gbLegs.Controls.Add(_lblNotionalCcy1);
+
+            _txtNotionalAmount = new TextBox  // Ccy1 amount
+            {
+                Location = new Point(275, 125),
+                Size = new Size(110, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                Text = "10000000",
+                TextAlign = HorizontalAlignment.Right
+            };
+            _txtNotionalAmount.Leave += TxtNotionalCcy1_Leave;
+            _txtNotionalAmount.KeyPress += Numeric_KeyPress;
             gbLegs.Controls.Add(_txtNotionalAmount);
 
-            var lblM = new Label
+            // Currency 2 (e.g., USD) label and textbox
+            _lblNotionalCcy2 = new Label
             {
-                Text = "M",
-                Location = new Point(210, 128),
-                Size = new Size(15, 20),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+                Text = $"{ccy2}:",
+                Location = new Point(400, 128),
+                Size = new Size(35, 15),
+                Font = new Font("Segoe UI", 8, FontStyle.Regular)
             };
-            gbLegs.Controls.Add(lblM);
+            gbLegs.Controls.Add(_lblNotionalCcy2);
 
-            _btnNotionalCcy1 = new Button
+            _txtNotionalCcy2 = new TextBox
             {
-                Location = new Point(230, 125),
-                Size = new Size(55, 25),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
+                Location = new Point(435, 125),
+                Size = new Size(110, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                Text = "11500000",
+                TextAlign = HorizontalAlignment.Right
             };
-            _btnNotionalCcy1.FlatAppearance.BorderColor = Color.Gray;
-            _btnNotionalCcy1.Click += BtnNotionalCcy1_Click;
-            gbLegs.Controls.Add(_btnNotionalCcy1);
-
-            _btnNotionalCcy2 = new Button
-            {
-                Location = new Point(290, 125),
-                Size = new Size(55, 25),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            _btnNotionalCcy2.FlatAppearance.BorderColor = Color.Gray;
-            _btnNotionalCcy2.Click += BtnNotionalCcy2_Click;
-            gbLegs.Controls.Add(_btnNotionalCcy2);
+            _txtNotionalCcy2.Leave += TxtNotionalCcy2_Leave;
+            _txtNotionalCcy2.KeyPress += Numeric_KeyPress;
+            gbLegs.Controls.Add(_txtNotionalCcy2);
 
             // LP Selection GroupBox - EXPANDED (moved down due to taller gbLegs)
             gbLPs = new GroupBox
@@ -1532,116 +1538,125 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
             _btnCcy1.ForeColor = Color.Black;
   UpdateQuoteDisplay(); // Refresh to show premiums in new currency
         }
-
         /// <summary>
-        /// Updates notional amount and currency button labels based on trade structure
+        /// Initializes notional textboxes from trade data
         /// </summary>
         private void UpdateNotionalControls()
         {
-            if (_btnNotionalCcy1 == null || _btnNotionalCcy2 == null || _txtNotionalAmount == null) return;
+            if (_txtNotionalAmount == null || _txtNotionalCcy2 == null || _trade == null) return;
 
-            // Extract currencies from pair
+            // Get strike from first leg
+            double strike = _trade.Legs?.Count > 0 ? _trade.Legs[0].Strike : 1.0;
+
+            // Get notional from first leg (in MM)
+            double notionalMM = _trade.Legs?.Count > 0 ? _trade.Legs[0].NotionalMM : 10.0;
+
+            // Get notional currency
             string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
-            string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "NOK";
+            string notionalCcy = _trade.Legs?.Count > 0 ? _trade.Legs[0].NotionalCurrency ?? ccy1 : ccy1;
 
-            // Update button text
-            _btnNotionalCcy1.Text = ccy1;
-            _btnNotionalCcy2.Text = ccy2;
-
-            // Determine default notional currency (typically base currency = ccy1)
-            if (string.IsNullOrEmpty(_notionalCurrency))
+            // Update textboxes (show full amounts, not MM)
+            if (notionalCcy == ccy1)
             {
-                _notionalCurrency = ccy1;
-            }
-
-            // Update button colors based on selected currency
-            if (_notionalCurrency == ccy1)
-            {
-                _btnNotionalCcy1.BackColor = Color.MediumPurple;
-                _btnNotionalCcy1.ForeColor = Color.White;
-                _btnNotionalCcy2.BackColor = Color.White;
-                _btnNotionalCcy2.ForeColor = Color.Black;
+                // Notional is in ccy1 (EUR)
+                _txtNotionalAmount.Text = (notionalMM * 1000000).ToString("N0");
+                _txtNotionalCcy2.Text = (notionalMM * 1000000 * strike).ToString("N0");
             }
             else
             {
-                _btnNotionalCcy2.BackColor = Color.MediumPurple;
-                _btnNotionalCcy2.ForeColor = Color.White;
-                _btnNotionalCcy1.BackColor = Color.White;
-                _btnNotionalCcy1.ForeColor = Color.Black;
-            }
-
-            // Update text field from first leg if available
-            if (_trade?.Legs?.Count > 0)
-            {
-                _txtNotionalAmount.Text = _trade.Legs[0].NotionalMM.ToString("F1");
-                _notionalCurrency = _trade.Legs[0].NotionalCurrency ?? ccy1;
-            }
-        }
-
-        private void BtnNotionalCcy1_Click(object sender, EventArgs e)
-        {
-            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
-            _notionalCurrency = ccy1;
-            _btnNotionalCcy1.BackColor = Color.MediumPurple;
-            _btnNotionalCcy1.ForeColor = Color.White;
-            _btnNotionalCcy2.BackColor = Color.White;
-            _btnNotionalCcy2.ForeColor = Color.Black;
-
-            Console.WriteLine($"[NOTIONAL TOGGLE] Switched to {ccy1}");
-            ApplyNotionalChanges();
-        }
-
-        private void BtnNotionalCcy2_Click(object sender, EventArgs e)
-        {
-            string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "NOK";
-            _notionalCurrency = ccy2;
-            _btnNotionalCcy2.BackColor = Color.MediumPurple;
-            _btnNotionalCcy2.ForeColor = Color.White;
-            _btnNotionalCcy1.BackColor = Color.White;
-            _btnNotionalCcy1.ForeColor = Color.Black;
-
-            Console.WriteLine($"[NOTIONAL TOGGLE] Switched to {ccy2}");
-            ApplyNotionalChanges();
-        }
-
-        private void TxtNotionalAmount_Leave(object sender, EventArgs e)
-        {
-            if (double.TryParse(_txtNotionalAmount.Text, out double amount) && amount > 0)
-            {
-                Console.WriteLine($"[NOTIONAL AMOUNT] Changed to {amount}M {_notionalCurrency}");
-                ApplyNotionalChanges();
-            }
-            else
-            {
-                MessageBox.Show("Please enter a valid positive number", "Invalid Amount", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                // Restore previous value
-                if (_trade?.Legs?.Count > 0)
-                {
-                    _txtNotionalAmount.Text = _trade.Legs[0].NotionalMM.ToString("F1");
-                }
+                // Notional is in ccy2 (USD)
+                _txtNotionalCcy2.Text = (notionalMM * 1000000).ToString("N0");
+                _txtNotionalAmount.Text = (notionalMM * 1000000 / strike).ToString("N0");
             }
         }
 
         /// <summary>
-        /// Applies notional amount and currency changes to all legs and re-requests quotes if applicable
+        /// Only allow numeric input (0-9)
         /// </summary>
-        private void ApplyNotionalChanges()
+        private void Numeric_KeyPress(object sender, KeyPressEventArgs e)
         {
-            if (_trade == null || !double.TryParse(_txtNotionalAmount.Text, out double amount)) return;
-
-            // Update all legs with new notional amount and currency
-            foreach (var leg in _trade.Legs)
+            if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
             {
-                leg.NotionalMM = amount;
-                leg.NotionalCurrency = _notionalCurrency;
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// When Ccy1 (EUR) amount changes, calculate Ccy2 (USD) amount
+        /// </summary>
+        private void TxtNotionalCcy1_Leave(object sender, EventArgs e)
+        {
+            if (!double.TryParse(_txtNotionalAmount.Text, out double ccy1Amount) || ccy1Amount <= 0)
+            {
+                MessageBox.Show("Please enter a valid positive number", "Invalid Amount", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                UpdateNotionalControls(); // Restore previous values
+                return;
             }
 
-            Console.WriteLine($"[NOTIONAL UPDATE] All legs updated to {amount}M {_notionalCurrency}");
+            // Get strike from first leg
+            double strike = _trade?.Legs?.Count > 0 ? _trade.Legs[0].Strike : 1.0;
+
+            // Calculate Ccy2 amount (USD = EUR × strike)
+            double ccy2Amount = ccy1Amount * strike;
+            _txtNotionalCcy2.Text = ccy2Amount.ToString("N0");
+
+            Console.WriteLine($"[NOTIONAL] Ccy1: {ccy1Amount:N0} → Ccy2: {ccy2Amount:N0} (strike: {strike})");
+
+            // Apply to all legs
+            ApplyNotionalChanges(ccy1Amount, "CCY1");
+        }
+
+        /// <summary>
+        /// When Ccy2 (USD) amount changes, calculate Ccy1 (EUR) amount
+        /// </summary>
+        private void TxtNotionalCcy2_Leave(object sender, EventArgs e)
+        {
+            if (!double.TryParse(_txtNotionalCcy2.Text, out double ccy2Amount) || ccy2Amount <= 0)
+            {
+                MessageBox.Show("Please enter a valid positive number", "Invalid Amount", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                UpdateNotionalControls(); // Restore previous values
+                return;
+            }
+
+            // Get strike from first leg
+            double strike = _trade?.Legs?.Count > 0 ? _trade.Legs[0].Strike : 1.0;
+
+            // Calculate Ccy1 amount (EUR = USD / strike)
+            double ccy1Amount = ccy2Amount / strike;
+            _txtNotionalAmount.Text = ccy1Amount.ToString("N0");
+
+            Console.WriteLine($"[NOTIONAL] Ccy2: {ccy2Amount:N0} → Ccy1: {ccy1Amount:N0} (strike: {strike})");
+
+            // Apply to all legs
+            ApplyNotionalChanges(ccy2Amount, "CCY2");
+        }
+
+        /// <summary>
+        /// Applies notional changes to all legs and re-requests quotes
+        /// </summary>
+        private void ApplyNotionalChanges(double amount, string sourceCurrency)
+        {
+            if (_trade == null) return;
+
+            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
+            string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
+
+            // Convert to MM and update all legs
+            double notionalMM = amount / 1000000.0;
+            string notionalCcy = sourceCurrency == "CCY1" ? ccy1 : ccy2;
+
+            foreach (var leg in _trade.Legs)
+            {
+                leg.NotionalMM = notionalMM;
+                leg.NotionalCurrency = notionalCcy;
+            }
+
+            Console.WriteLine($"[NOTIONAL UPDATE] All legs: {notionalMM:F2}M {notionalCcy}");
 
             // Re-request quotes if already requested
             if (!string.IsNullOrEmpty(_groupId))
             {
-                Console.WriteLine($"[NOTIONAL UPDATE] Re-requesting quotes with new notional");
+                Console.WriteLine($"[NOTIONAL UPDATE] Re-requesting quotes");
                 BtnRequestQuotes_Click(null, EventArgs.Empty);
             }
         }
