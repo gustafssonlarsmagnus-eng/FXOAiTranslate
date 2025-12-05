@@ -1517,7 +1517,7 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
   UpdateQuoteDisplay(); // Refresh to show premiums in new currency
         }
         /// <summary>
-        /// Handles cell editing in dgvLegs - links the two notional columns
+        /// Handles cell editing in dgvLegs - links notional columns and handles strike changes
         /// </summary>
         private void DgvLegs_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
@@ -1526,7 +1526,35 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
             var row = dgvLegs.Rows[e.RowIndex];
             string columnName = dgvLegs.Columns[e.ColumnIndex].Name;
 
-            // Only handle notional columns
+            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
+            string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
+
+            // Handle Strike column changes - recalculate notionals
+            if (columnName == "Strike")
+            {
+                if (!double.TryParse(row.Cells["Strike"].Value?.ToString(), out double newStrike) || newStrike <= 0)
+                {
+                    Console.WriteLine("[STRIKE EDIT] Invalid strike value");
+                    return;
+                }
+
+                // Get current notional in Ccy1 (keep this constant, recalculate Ccy2)
+                if (double.TryParse(row.Cells["NotionalCcy1"].Value?.ToString(), out double ccy1Amount))
+                {
+                    double ccy2Amount = ccy1Amount * newStrike;
+                    row.Cells["NotionalCcy2"].Value = ccy2Amount.ToString("N0");
+                    Console.WriteLine($"[STRIKE CHANGE] {newStrike:F4} → {ccy2} recalculated: {ccy2Amount:N0}");
+
+                    // Update trade structure
+                    if (e.RowIndex < _trade.Legs.Count)
+                    {
+                        _trade.Legs[e.RowIndex].Strike = newStrike;
+                    }
+                }
+                return;
+            }
+
+            // Handle notional column edits
             if (columnName != "NotionalCcy1" && columnName != "NotionalCcy2") return;
 
             // Get strike from Strike column
@@ -1536,15 +1564,16 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                 return;
             }
 
-            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
-            string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
-
             if (columnName == "NotionalCcy1")
             {
                 // User edited Ccy1, calculate Ccy2
-                if (double.TryParse(row.Cells["NotionalCcy1"].Value?.ToString(), out double ccy1Amount) && ccy1Amount > 0)
+                string rawValue = row.Cells["NotionalCcy1"].Value?.ToString() ?? "";
+                double ccy1Amount = ParseNotionalAmount(rawValue);
+
+                if (ccy1Amount > 0)
                 {
                     double ccy2Amount = ccy1Amount * strike;
+                    row.Cells["NotionalCcy1"].Value = ccy1Amount.ToString("N0");
                     row.Cells["NotionalCcy2"].Value = ccy2Amount.ToString("N0");
 
                     Console.WriteLine($"[NOTIONAL] {ccy1} {ccy1Amount:N0} → {ccy2} {ccy2Amount:N0} (strike {strike})");
@@ -1556,10 +1585,14 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
             else if (columnName == "NotionalCcy2")
             {
                 // User edited Ccy2, calculate Ccy1
-                if (double.TryParse(row.Cells["NotionalCcy2"].Value?.ToString(), out double ccy2Amount) && ccy2Amount > 0)
+                string rawValue = row.Cells["NotionalCcy2"].Value?.ToString() ?? "";
+                double ccy2Amount = ParseNotionalAmount(rawValue);
+
+                if (ccy2Amount > 0)
                 {
                     double ccy1Amount = ccy2Amount / strike;
                     row.Cells["NotionalCcy1"].Value = ccy1Amount.ToString("N0");
+                    row.Cells["NotionalCcy2"].Value = ccy2Amount.ToString("N0");
 
                     Console.WriteLine($"[NOTIONAL] {ccy2} {ccy2Amount:N0} → {ccy1} {ccy1Amount:N0} (strike {strike})");
 
@@ -1567,6 +1600,41 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                     UpdateTradeNotionals(e.RowIndex, ccy2Amount, ccy2);
                 }
             }
+        }
+
+        /// <summary>
+        /// Parses notional amount with support for M (millions) and K (thousands)
+        /// Examples: "15m" → 15000000, "250k" → 250000, "10000000" → 10000000
+        /// </summary>
+        private double ParseNotionalAmount(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return 0;
+
+            input = input.Trim().Replace(",", "").Replace(" ", "");
+
+            // Check for M or K suffix
+            if (input.EndsWith("m", StringComparison.OrdinalIgnoreCase))
+            {
+                string numPart = input.Substring(0, input.Length - 1);
+                if (double.TryParse(numPart, out double value))
+                {
+                    return value * 1000000;
+                }
+            }
+            else if (input.EndsWith("k", StringComparison.OrdinalIgnoreCase))
+            {
+                string numPart = input.Substring(0, input.Length - 1);
+                if (double.TryParse(numPart, out double value))
+                {
+                    return value * 1000;
+                }
+            }
+            else if (double.TryParse(input, out double value))
+            {
+                return value;
+            }
+
+            return 0;
         }
 
         /// <summary>
@@ -2151,6 +2219,23 @@ UpdateCurrencyButtons();
 
             DateTime delivery = expiry.AddDays(2);  // Standard T+2 delivery
 
+            // Extract notional amount and currency from test description
+            // Format: "(10M EUR)" or "(50M USD)"
+            double notionalMM = 10;  // Default
+            string notionalCcy = ccy1;  // Default to base currency
+
+            var notionalMatch = Regex.Match(testDescription, @"\((\d+(?:\.\d+)?)M?\s+([A-Z]{3})\)");
+            if (notionalMatch.Success)
+            {
+                double amount = double.Parse(notionalMatch.Groups[1].Value);
+                string currency = notionalMatch.Groups[2].Value;
+
+                notionalMM = amount;
+                notionalCcy = currency;
+
+                Console.WriteLine($"[TEST PARSE] Extracted notional: {notionalMM}M {notionalCcy}");
+            }
+
             // Helper to create a complete leg
             TradeStructure.OptionLeg CreateLeg(string legDirection, string legOptionType, int legIndex)
             {
@@ -2159,11 +2244,11 @@ UpdateCurrencyButtons();
                     Direction = legDirection,
                     OptionType = legOptionType.ToUpper(),
                     Strike = strike,  // Use official test protocol strike
-                    NotionalMM = 10,
+                    NotionalMM = notionalMM,
                     Tenor = tenor,
                     ExpiryDate = expiry,
                     DeliveryDate = delivery,
-                    NotionalCurrency = ccy1,  // Notional in base currency
+                    NotionalCurrency = notionalCcy,  // Use extracted currency
                     Cutoff = cutoff,
                     Position = "SAME",
                     LegID = $"SL{legIndex}"
