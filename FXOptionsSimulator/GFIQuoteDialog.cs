@@ -483,7 +483,7 @@ namespace FXOAiTranslator
                 {
                     Text = testCase,
                     Location = new Point(5, yPos),
-                    Size = new Size(295, 20),
+                    Size = new Size(320, 20),  // Increased width to show [Prem:X, Hedge:Y] labels
                     Font = new Font("Segoe UI", 8, FontStyle.Regular),
                     Tag = testIndex + 1  // Store test ID in Tag
                 };
