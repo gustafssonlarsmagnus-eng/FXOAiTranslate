@@ -43,7 +43,7 @@ namespace FXOAiTranslator
         private CheckBox chkDeut;  // Testing only
         private int _selectedLegCount;
         private bool _showVolatility = true;  // NEW: Toggle between Vol (true) and Premium (false)
-        private string _hedgeType = "Spot";  // NEW: Hedge type: "Live", "Spot", or "Forward"
+        private string _hedgeType = "Live";  // NEW: Hedge type: "Live", "Spot", or "Forward" (default: Live for vanilla)
         private string _premiumType = "Spot";  // NEW: Premium delivery: "Spot" or "Forward"
         private string _cutoff = "NY";  // NEW: Cutoff toggle (default NY)
         private string _premiumCurrency = null;  // NEW: Premium currency toggle (EUR/USD, etc.)
@@ -367,7 +367,7 @@ namespace FXOAiTranslator
                 BackColor = Color.White
             };
             _cmbHedgeType.Items.AddRange(new object[] { "Live", "Spot", "Forward" });
-            _cmbHedgeType.SelectedIndex = 1; // Default to "Spot"
+            _cmbHedgeType.SelectedIndex = 0; // Default to "Live" (vanilla, no hedge)
             _cmbHedgeType.SelectedIndexChanged += (s, e) =>
             {
                 // Update hedge type when dropdown selection changes
@@ -454,16 +454,16 @@ namespace FXOAiTranslator
             {
                 // Format: "ID: Cut Pair Tenor Dir Type @ Strike (Notional) Mode"
                 // Vanilla tests (1-15)
-                "1: NY EURUSD 1M Buy Call @ 1.16 (10M EUR) PREM [Prem:Spot, Hedge:Spot]",
-                "2: TKY USDJPY 10Dec26 Buy Put @ 155 (10M USD) PREM [Prem:Spot, Hedge:Spot]",
-                "3: TKY USDJPY 08Nov26 Sell Call @ 156.00 (10M USD) PREM [Prem:Spot, Hedge:Spot]",
-                "4: NY EURSEK 1M Sell Put @ 7.16 (10M SEK) PREM [Prem:Spot, Hedge:Spot]",
-                "5: NY USDNOK 08Nov26 Buy Call @ 11.9 (10M USD) PREM [Prem:Spot, Hedge:Spot]",
-                "6: NY EURNOK 6M Buy Put @ 7.807 (10M NOK) PREM [Prem:Spot, Hedge:Spot]",
+                "1: NY EURUSD 1M Buy Call @ 1.16 (10M EUR) PREM [Prem:Spot, Hedge:Live]",
+                "2: TKY USDJPY 10Dec26 Buy Put @ 155 (10M USD) PREM [Prem:Spot, Hedge:Live]",
+                "3: TKY USDJPY 08Nov26 Sell Call @ 156.00 (10M USD) PREM [Prem:Spot, Hedge:Live]",
+                "4: NY EURSEK 1M Sell Put @ 7.16 (10M SEK) PREM [Prem:Spot, Hedge:Live]",
+                "5: NY USDNOK 08Nov26 Buy Call @ 11.9 (10M USD) PREM [Prem:Spot, Hedge:Live]",
+                "6: NY EURNOK 6M Buy Put @ 7.807 (10M NOK) PREM [Prem:Spot, Hedge:Live]",
                 "7: TKY AUDUSD 9M Sell Call @ 0.69 (10M AUD) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
                 "8: NY AUDUSD 1Y Sell Put @ 0.65 (10M USD) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
-                "9: TKY USDJPY 08Mar26 Buy Call @ 147 (10M USD) PREM [Prem:Spot, Hedge:Spot]",
-                "10: NY EURUSD 3M Buy Put @ 1.15 (10M USD) PREM [Prem:Spot, Hedge:Spot]",
+                "9: TKY USDJPY 08Mar26 Buy Call @ 147 (10M USD) PREM [Prem:Spot, Hedge:Live]",
+                "10: NY EURUSD 3M Buy Put @ 1.15 (10M USD) PREM [Prem:Spot, Hedge:Live]",
                 "11: TKY EURUSD 08Nov26 Sell Call @ 1.16 (10M EUR) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
                 "12: NY USDJPY 3M Sell Put @ 155 (10M JPY) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
                 "13: NY EURSEK 07Nov26 Buy Call @ 11.1 (10M EUR) PREM +Spot [Prem:Spot, Hedge:Spot]",
@@ -472,7 +472,7 @@ namespace FXOAiTranslator
 
                 // Structure tests (25-26 only, removed 16-24)
                 "25: TKY USDJPY VOL 1M Buy Call @ 155 (10M JPY) VOL [Volatility Mode]",
-                "26: CNH USDCNH 4M Sell Put @ 7.10 (10M USD) PREM [Prem:Spot, Hedge:Spot]"
+                "26: CNH USDCNH 4M Sell Put @ 7.10 (10M USD) PREM [Prem:Spot, Hedge:Live]"
             };
 
             int yPos = 5;
@@ -2367,7 +2367,7 @@ UpdateCurrencyButtons();
 
             // Detect quote type, premium type, and hedge type from end of description
             string quoteType = "PREM";  // Default to premium
-            string hedgeType = "Spot";  // Default to spot hedge
+            string hedgeType = "Live";  // Default to Live (no hedge)
             string premiumType = "Spot";  // Default to spot premium
 
             string descriptionUpper = testDescription.ToUpper();
@@ -2402,7 +2402,8 @@ UpdateCurrencyButtons();
             else if (descriptionUpper.EndsWith("PREM"))
             {
                 quoteType = "PREM";
-                Console.WriteLine($"[TEST PARSE] Detected PREM mode for test {testId}");
+                hedgeType = "Live";  // Vanilla - no hedge
+                Console.WriteLine($"[TEST PARSE] Detected PREM mode for test {testId} (Premium: Spot, Hedge: Live)");
             }
 
             var details = parts[1].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
