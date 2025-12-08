@@ -652,6 +652,24 @@ namespace FXOAiTranslator
         {
             dgvLegs.Rows.Clear();
 
+            // Update notional column headers based on current trade's currency pair
+            if (_trade != null && _trade.Underlying?.Length >= 6)
+            {
+                string ccy1 = _trade.Underlying.Substring(0, 3);
+                string ccy2 = _trade.Underlying.Substring(3, 3);
+
+                if (dgvLegs.Columns["NotionalCcy1"] != null)
+                {
+                    dgvLegs.Columns["NotionalCcy1"].HeaderText = $"Notional ({ccy1})";
+                }
+                if (dgvLegs.Columns["NotionalCcy2"] != null)
+                {
+                    dgvLegs.Columns["NotionalCcy2"].HeaderText = $"Notional ({ccy2})";
+                }
+
+                Console.WriteLine($"[PopulateLegGrid] Updated column headers: {ccy1} / {ccy2}");
+            }
+
             // Calculate premium date ONCE for all legs (same for entire trade)
             // Premium Date = Trade Date (TODAY) + Spot Lag (T+2 for EURUSD)
             string premiumDateText = "-";
@@ -1568,12 +1586,15 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                         throw new ArgumentException($"Invalid tenor format: '{expiryInput}'. Use format like: 3M, 6M, 1Y, 7D, 2W");
                     }
 
+                    string underlying = _trade?.Underlying ?? "EURUSD";
+                    Console.WriteLine($"[EXPIRY CALC] Input values: Underlying={underlying}, Tenor={tenorUpper}, PremiumCcy={premiumCcy}");
+
                     // Use FxDateService to calculate all dates
                     var rules = new FxDateRules();
                     var (tradeDate, spotDate, expiryDate, deliveryDate, premiumDate) =
                         FxDateService.ComputeDates(
                             DateTime.UtcNow,
-                            _trade?.Underlying ?? "EURUSD",
+                            underlying,
                             tenorUpper,
                             premiumCcy,
                             rules
@@ -2051,7 +2072,8 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                 entry.StructureType == "9" ? "Put Spread" :
                 entry.StructureType == "10" ? "Seagull" : entry.StructureType);
 
-            dgvBlotter.Rows.Add(
+            // Insert at top (index 0) instead of adding to bottom
+            dgvBlotter.Rows.Insert(0,
                 // Identification & Status
                 entry.ClOrdID,                                      // Trade ID
                 entry.ExecTimestamp?.ToString("HH:mm:ss") ?? entry.TradeTime.ToString("HH:mm:ss"),  // EXEC TS
@@ -2084,8 +2106,8 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                 entry.TradeTime.ToString("HH:mm:ss")               // Trade Time
             );
 
-            // Color coding logic
-            ColorCodeBlotterRow(dgvBlotter.Rows[dgvBlotter.Rows.Count - 1], entry.Status);
+            // Color coding logic - now reference first row (index 0)
+            ColorCodeBlotterRow(dgvBlotter.Rows[0], entry.Status);
         }
 
         private void OnTradeUpdatedInBlotter(TradeBlotterEntry entry)
@@ -2223,15 +2245,30 @@ UpdateCurrencyButtons();
         {
             // Extract test ID and parameters from description
             // Format examples:
-            // "1: NY EURUSD 1M Buy Call"
-            // "2: TKY USDJPY 10Dec26 Buy Put"
+            // "1: NY EURUSD 1M Buy Call @ 1.16 (10M EUR) PREM"
+            // "2: TKY USDJPY 10Dec26 Buy Put @ 155 (10M USD)"
             // "13: NY EURSEK 07Nov26 Buy Call + Spot Hedge"
+            // "25: TKY USDJPY VOL 1M Buy Call @ 155 (10M JPY) VOL"
             var parts = testDescription.Split(':');
             if (parts.Length < 2)
                 return null;
 
             // Extract test ID
             int testId = int.Parse(parts[0].Trim());
+
+            // Detect quote type from end of description (PREM or VOL)
+            string quoteType = "PREM";  // Default to premium
+            string descriptionUpper = testDescription.ToUpper();
+            if (descriptionUpper.EndsWith("VOL"))
+            {
+                quoteType = "VOL";
+                Console.WriteLine($"[TEST PARSE] Detected VOL mode for test {testId}");
+            }
+            else if (descriptionUpper.EndsWith("PREM"))
+            {
+                quoteType = "PREM";
+                Console.WriteLine($"[TEST PARSE] Detected PREM mode for test {testId}");
+            }
 
             var details = parts[1].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (details.Length < 5)
@@ -2272,7 +2309,8 @@ UpdateCurrencyButtons();
             {
                 Underlying = pair,
                 PremiumCurrency = ccy2,  // Premium in quote currency
-                StructureType = "1"  // Default to vanilla, will adjust for structures
+                StructureType = "1",  // Default to vanilla, will adjust for structures
+                QuoteType = quoteType  // PREM or VOL based on test description
             };
 
             // Calculate expiry and delivery dates from tenor or odd date
