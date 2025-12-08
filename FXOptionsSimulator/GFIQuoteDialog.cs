@@ -1566,12 +1566,15 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                         throw new ArgumentException($"Invalid tenor format: '{expiryInput}'. Use format like: 3M, 6M, 1Y, 7D, 2W");
                     }
 
+                    string underlying = _trade?.Underlying ?? "EURUSD";
+                    Console.WriteLine($"[EXPIRY CALC] Input values: Underlying={underlying}, Tenor={tenorUpper}, PremiumCcy={premiumCcy}");
+
                     // Use FxDateService to calculate all dates
                     var rules = new FxDateRules();
                     var (tradeDate, spotDate, expiryDate, deliveryDate, premiumDate) =
                         FxDateService.ComputeDates(
                             DateTime.UtcNow,
-                            _trade?.Underlying ?? "EURUSD",
+                            underlying,
                             tenorUpper,
                             premiumCcy,
                             rules
