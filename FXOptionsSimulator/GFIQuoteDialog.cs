@@ -704,9 +704,10 @@ namespace FXOAiTranslator
                 Console.WriteLine($"[PopulateLegGrid] Updated column headers: {ccy1} / {ccy2}");
             }
 
-            // Calculate premium date ONCE for all legs (same for entire trade)
-            // Premium Date = Trade Date (TODAY) + Spot Lag (T+2 for EURUSD)
-            string premiumDateText = "-";
+            // Calculate premium date based on premium type
+            // Spot Premium: T+2 from today (spot date)
+            // Forward Premium: T+2 from expiry (delivery date)
+            DateTime? spotPremiumDate = null;
             try
             {
                 var P = GlobalDatePolicy.Policy;
@@ -728,11 +729,10 @@ namespace FXOAiTranslator
                 var nowUtc = DateTime.UtcNow;
                 // ComputeDates with "0D" tenor: spotDate = TODAY + spot lag
                 var (_, spotDt, _, _, _) = FxDateService.ComputeDates(nowUtc, pair, "0D", premiumCcy, rules);
+                spotPremiumDate = spotDt;
 
-                var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
-                premiumDateText = spotDt.ToString("dd-MMM-yy", enUS);
-
-                Console.WriteLine($"[PopulateLegGrid] Premium Date (spot from today): {premiumDateText}");
+                Console.WriteLine($"[PopulateLegGrid] Premium Type: {_premiumType}");
+                Console.WriteLine($"[PopulateLegGrid] Spot Premium Date (T+2 from today): {spotDt:dd-MMM-yy}");
             }
             catch (Exception ex)
             {
@@ -744,6 +744,7 @@ namespace FXOAiTranslator
                 var leg = _trade.Legs[i];
                 string expiryText;
                 string settlementDateText = "-";
+                string premiumDateText = "-";
 
                 if (leg.ExpiryDate != DateTime.MinValue)
                 {
@@ -762,6 +763,20 @@ namespace FXOAiTranslator
                     else
                     {
                         Console.WriteLine($"[PopulateLegGrid] WARNING: Leg {i+1} has DeliveryDate = MinValue!");
+                    }
+
+                    // Premium Date depends on premium type
+                    if (_premiumType == "Forward" && leg.DeliveryDate != DateTime.MinValue)
+                    {
+                        // Forward premium: paid at delivery date
+                        premiumDateText = leg.DeliveryDate.ToString("dd-MMM-yy", enUS);
+                        Console.WriteLine($"[PopulateLegGrid] Leg {i+1} Forward Premium Date: {premiumDateText}");
+                    }
+                    else if (spotPremiumDate.HasValue)
+                    {
+                        // Spot premium: paid at spot date (T+2 from today)
+                        premiumDateText = spotPremiumDate.Value.ToString("dd-MMM-yy", enUS);
+                        Console.WriteLine($"[PopulateLegGrid] Leg {i+1} Spot Premium Date: {premiumDateText}");
                     }
 
                     Console.WriteLine($"[PopulateLegGrid] Leg {i+1}:");
