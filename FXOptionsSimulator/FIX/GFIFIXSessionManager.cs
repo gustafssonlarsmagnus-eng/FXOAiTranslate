@@ -187,7 +187,7 @@ namespace FXOptionsSimulator.FIX
 
         #region Send Quote Request
 
-        public string SendQuoteRequest(TradeStructure trade, string lpName, string groupId, bool hedge = false)
+        public string SendQuoteRequest(TradeStructure trade, string lpName, string groupId, string hedgeType = "Spot", string premiumType = "Spot")
         {
             if (!IsLoggedOn)
                 throw new InvalidOperationException("Cannot send quote request - not logged on!");
@@ -200,7 +200,8 @@ namespace FXOptionsSimulator.FIX
             Console.WriteLine($"  GroupID: {groupId}");
             Console.WriteLine($"  Underlying: {trade.Underlying}");
             Console.WriteLine($"  Legs: {trade.Legs.Count}");
-            Console.WriteLine($"  Hedge: {(hedge ? "ON" : "OFF")}");
+            Console.WriteLine($"  Hedge Type: {hedgeType}");
+            Console.WriteLine($"  Premium Type: {premiumType}");
 
             try
             {
@@ -241,13 +242,25 @@ namespace FXOptionsSimulator.FIX
                 int seqNum = session.NextSenderMsgSeqNum;
                 _rawBuilder.SetMsgSeqNum(seqNum);
 
+                // Convert hedge type to FIX tag value: "None"=0, "Spot"=1, "Forward"=2
+                string hedgeTypeTag = hedgeType switch
+                {
+                    "Forward" => "2",
+                    "Spot" => "1",
+                    _ => "0"  // "None"
+                };
+
+                // Convert premium type to FIX tag value: "Spot"="S", "Forward"="F"
+                string premiumDeliveryType = premiumType == "Forward" ? "F" : "S";
+
                 // ===== Build raw message with exact field order, passing canonical overrides =====
                 string rawMessage = _rawBuilder.BuildQuoteRequest(
                     trade, lpName, quoteReqID, groupId,
                     tag75Override: canonical75,
                     tag5020Override: canonical5020,
-                    hedgeEnabled: hedge,
-                    hedgeType: hedge ? "1" : "0");  // "1" = Hedge ON, "0" = No Hedge
+                    hedgeEnabled: hedgeType != "None",
+                    hedgeType: hedgeTypeTag,  // "0"=None, "1"=Spot, "2"=Forward (Tag 9016)
+                    premiumDeliveryType: premiumDeliveryType);  // "S"=Spot, "F"=Forward (Tag 5475)
 
                 Console.WriteLine($"\n[DEBUG] Raw Quote Request Message (SeqNum={seqNum}):");
                 Console.WriteLine($"{rawMessage.Replace("\x01", "|")}");

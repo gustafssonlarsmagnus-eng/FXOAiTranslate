@@ -43,7 +43,8 @@ namespace FXOAiTranslator
         private CheckBox chkDeut;  // Testing only
         private int _selectedLegCount;
         private bool _showVolatility = true;  // NEW: Toggle between Vol (true) and Premium (false)
-        private bool _spotHedge = true;  // NEW: Spot hedge toggle (default ON)
+        private string _hedgeType = "Spot";  // NEW: Hedge type: "None", "Spot", or "Forward"
+        private string _premiumType = "Spot";  // NEW: Premium delivery: "Spot" or "Forward"
         private string _cutoff = "NY";  // NEW: Cutoff toggle (default NY)
         private string _premiumCurrency = null;  // NEW: Premium currency toggle (EUR/USD, etc.)
         private string _notionalCurrency = null;  // NEW: Notional currency (EUR/NOK, etc.)
@@ -58,6 +59,8 @@ namespace FXOAiTranslator
         private Label _lblCcyToggle;
         private Button _btnToggleCut;
         private Button _btnToggleDisplay;  // Vol/Premium toggle button
+        private Button _btnTogglePremType;  // Premium Type toggle (Spot/Forward)
+        private Button _btnToggleHedgeType;  // Delta Hedge toggle (None/Spot/Forward)
         private TextBox _txtNotionalAmount;  // Ccy1 amount (e.g., EUR)
         private TextBox _txtNotionalCcy2;     // Ccy2 amount (e.g., USD)
         private Label _lblNotionalCcy1;
@@ -328,10 +331,10 @@ namespace FXOAiTranslator
             };
             this.Controls.Add(_btnToggleDisplay);
 
-            // Toggle button for Spot Hedge - NEW
-            var btnToggleHedge = new Button
+            // Toggle button for Premium Type (Spot/Forward)
+            _btnTogglePremType = new Button
             {
-                Text = "Hedge: ON",
+                Text = "Prem: Spot",
                 Location = new Point(160, 305),
                 Size = new Size(110, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
@@ -339,21 +342,51 @@ namespace FXOAiTranslator
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
-            btnToggleHedge.FlatAppearance.BorderColor = Color.Green;
-            btnToggleHedge.Click += (s, e) =>
+            _btnTogglePremType.FlatAppearance.BorderColor = Color.Green;
+            _btnTogglePremType.Click += (s, e) =>
             {
-                _spotHedge = !_spotHedge;
-                btnToggleHedge.Text = _spotHedge ? "Hedge: ON" : "Hedge: OFF";
-                btnToggleHedge.BackColor = _spotHedge ? Color.LightGreen : Color.LightCoral;
-                btnToggleHedge.FlatAppearance.BorderColor = _spotHedge ? Color.Green : Color.Red;
+                // Toggle between Spot and Forward
+                _premiumType = _premiumType == "Spot" ? "Forward" : "Spot";
+                UpdatePremiumTypeButton();
+
+                // Recalculate premium dates if trade exists
+                if (_trade != null)
+                {
+                    PopulateLegGrid();
+                }
             };
-            this.Controls.Add(btnToggleHedge);
+            this.Controls.Add(_btnTogglePremType);
+
+            // Toggle button for Delta Hedge (None/Spot/Forward) - 3-way toggle
+            _btnToggleHedgeType = new Button
+            {
+                Text = "Hedge: Spot",
+                Location = new Point(280, 305),
+                Size = new Size(120, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                BackColor = Color.LightGreen,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            _btnToggleHedgeType.FlatAppearance.BorderColor = Color.Green;
+            _btnToggleHedgeType.Click += (s, e) =>
+            {
+                // 3-way toggle: Spot → Forward → None → Spot
+                _hedgeType = _hedgeType switch
+                {
+                    "Spot" => "Forward",
+                    "Forward" => "None",
+                    _ => "Spot"
+                };
+                UpdateHedgeTypeButton();
+            };
+            this.Controls.Add(_btnToggleHedgeType);
 
             // Toggle button for Cutoff - stored as class field for dynamic updates
             _btnToggleCut = new Button
             {
                 Text = $"Cut: {_cutoff}",
-                Location = new Point(280, 305),
+                Location = new Point(410, 305),
                 Size = new Size(100, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 BackColor = Color.LightSkyBlue,
@@ -367,7 +400,7 @@ namespace FXOAiTranslator
             // Currency Toggle Buttons - created initially, updated dynamically via UpdateCurrencyButtons()
             _btnCcy1 = new Button
             {
-                Location = new Point(390, 305),
+                Location = new Point(520, 305),
                 Size = new Size(55, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
@@ -379,7 +412,7 @@ namespace FXOAiTranslator
 
             _btnCcy2 = new Button
             {
-                Location = new Point(450, 305),
+                Location = new Point(580, 305),
                 Size = new Size(55, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
@@ -894,7 +927,8 @@ dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.WrapMode = DataGridViewTriSta
             Console.WriteLine($"║ Underlying: {_trade.Underlying}");
             Console.WriteLine($"║ Structure: {_trade.StructureType}");
             Console.WriteLine($"║ Cutoff: {_cutoff}");
-            Console.WriteLine($"║ Spot Hedge: {(_spotHedge ? "ON" : "OFF")}");
+            Console.WriteLine($"║ Hedge Type: {_hedgeType}");
+            Console.WriteLine($"║ Premium Type: {_premiumType}");
             Console.WriteLine($"║ Selected LPs ({lps.Count}): {string.Join(", ", lps)}");
             Console.WriteLine("╠════════════════════════════════════════════════════════════════");
             Console.WriteLine($"║ LEGS ({selectedLegCount}):");
@@ -914,7 +948,7 @@ dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.WrapMode = DataGridViewTriSta
             {
                 try
                 {
-                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId, _spotHedge);
+                    string quoteReqID = _fixSession.SendQuoteRequest(_trade, lp, _groupId, _hedgeType, _premiumType);
                     successfulLPs.Add(lp);
 
                     Console.ForegroundColor = ConsoleColor.Green;
@@ -1812,6 +1846,45 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
             Console.WriteLine($"[QUOTE TYPE] Updated button to: {quoteType} (_showVolatility={_showVolatility})");
         }
 
+        private void UpdatePremiumTypeButton()
+        {
+            if (_btnTogglePremType == null) return;
+
+            _btnTogglePremType.Text = $"Prem: {_premiumType}";
+
+            // Color coding: Spot = Green, Forward = Blue
+            if (_premiumType == "Forward")
+            {
+                _btnTogglePremType.BackColor = Color.LightBlue;
+                _btnTogglePremType.FlatAppearance.BorderColor = Color.DodgerBlue;
+            }
+            else // Spot
+            {
+                _btnTogglePremType.BackColor = Color.LightGreen;
+                _btnTogglePremType.FlatAppearance.BorderColor = Color.Green;
+            }
+
+            Console.WriteLine($"[PREMIUM TYPE] Updated to: {_premiumType}");
+        }
+
+        private void UpdateHedgeTypeButton()
+        {
+            if (_btnToggleHedgeType == null) return;
+
+            _btnToggleHedgeType.Text = $"Hedge: {_hedgeType}";
+
+            // Color coding: Spot = Green, Forward = Blue, None = Gray
+            (_btnToggleHedgeType.BackColor, _btnToggleHedgeType.FlatAppearance.BorderColor) = _hedgeType switch
+            {
+                "Spot" => (Color.LightGreen, Color.Green),
+                "Forward" => (Color.LightBlue, Color.DodgerBlue),
+                "None" => (Color.LightGray, Color.Gray),
+                _ => (Color.LightGreen, Color.Green)
+            };
+
+            Console.WriteLine($"[HEDGE TYPE] Updated to: {_hedgeType}");
+        }
+
         #endregion
 
       private (double? bestBid, double? bestOffer) GetBestPremiums()
@@ -2236,10 +2309,12 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
           PopulateLegGrid();
  SetupQuoteGrid(_trade.Legs.Count);
 
-        // Update toggle buttons for new trade (ParseTestCase already set _cutoff)
+        // Update toggle buttons for new trade (ParseTestCase already set _cutoff, _hedgeType, _premiumType)
 UpdateCurrencyButtons();
   UpdateCutoffButton();
                 UpdateQuoteTypeButton();  // Update Vol/Premium button based on test case
+                UpdatePremiumTypeButton();  // Update Premium Type button (Spot/Forward)
+                UpdateHedgeTypeButton();  // Update Hedge Type button (None/Spot/Forward)
 
      // Generate group ID and store current test info
     string groupId = $"TEST-{testId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
@@ -2251,7 +2326,7 @@ UpdateCurrencyButtons();
                 {
                     try
                     {
-                        string quoteReqID = _fixSession.SendQuoteRequest(trade, lp, groupId, _spotHedge);
+                        string quoteReqID = _fixSession.SendQuoteRequest(trade, lp, groupId, _hedgeType, _premiumType);
                         Console.WriteLine($"[TEST CASE {testId}] ✓ Quote sent to {lp} | QuoteReqID: {quoteReqID}");
                     }
                     catch (Exception ex)
@@ -2284,13 +2359,39 @@ UpdateCurrencyButtons();
             // Extract test ID
             int testId = int.Parse(parts[0].Trim());
 
-            // Detect quote type from end of description (PREM or VOL)
+            // Detect quote type, premium type, and hedge type from end of description
             string quoteType = "PREM";  // Default to premium
+            string hedgeType = "Spot";  // Default to spot hedge
+            string premiumType = "Spot";  // Default to spot premium
+
             string descriptionUpper = testDescription.ToUpper();
+
+            // Parse suffixes: "PREM", "PREM Fwd", "PREM +Spot", "PREM +Fwd", "VOL"
             if (descriptionUpper.EndsWith("VOL"))
             {
                 quoteType = "VOL";
                 Console.WriteLine($"[TEST PARSE] Detected VOL mode for test {testId}");
+            }
+            else if (descriptionUpper.Contains("PREM FWD"))
+            {
+                quoteType = "PREM";
+                premiumType = "Forward";
+                hedgeType = "Forward";
+                Console.WriteLine($"[TEST PARSE] Detected PREM Fwd mode for test {testId} (Premium: Forward, Hedge: Forward)");
+            }
+            else if (descriptionUpper.Contains("PREM +FWD"))
+            {
+                quoteType = "PREM";
+                premiumType = "Spot";
+                hedgeType = "Forward";
+                Console.WriteLine($"[TEST PARSE] Detected PREM +Fwd mode for test {testId} (Premium: Spot, Hedge: Forward)");
+            }
+            else if (descriptionUpper.Contains("PREM +SPOT"))
+            {
+                quoteType = "PREM";
+                premiumType = "Spot";
+                hedgeType = "Spot";
+                Console.WriteLine($"[TEST PARSE] Detected PREM +Spot mode for test {testId} (Premium: Spot, Hedge: Spot)");
             }
             else if (descriptionUpper.EndsWith("PREM"))
             {
@@ -2322,6 +2423,10 @@ UpdateCurrencyButtons();
             // Update cutoff toggle
             _cutoff = cutoff;
 
+            // Update hedge and premium type toggles
+            _hedgeType = hedgeType;
+            _premiumType = premiumType;
+
             // Extract currency components
             string ccy1 = pair.Substring(0, 3);  // Base currency (EUR)
             string ccy2 = pair.Substring(3, 3);  // Quote currency (USD)
@@ -2338,7 +2443,8 @@ UpdateCurrencyButtons();
                 Underlying = pair,
                 PremiumCurrency = ccy2,  // Premium in quote currency
                 StructureType = "1",  // Default to vanilla, will adjust for structures
-                QuoteType = quoteType  // PREM or VOL based on test description
+                QuoteType = quoteType,  // PREM or VOL based on test description
+                HedgeType = hedgeType.ToUpper()  // SPOT or FORWARD
             };
 
             // Calculate expiry and delivery dates from tenor or odd date
