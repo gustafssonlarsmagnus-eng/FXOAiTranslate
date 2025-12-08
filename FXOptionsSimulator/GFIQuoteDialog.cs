@@ -2070,7 +2070,8 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                 entry.StructureType == "9" ? "Put Spread" :
                 entry.StructureType == "10" ? "Seagull" : entry.StructureType);
 
-            dgvBlotter.Rows.Add(
+            // Insert at top (index 0) instead of adding to bottom
+            dgvBlotter.Rows.Insert(0,
                 // Identification & Status
                 entry.ClOrdID,                                      // Trade ID
                 entry.ExecTimestamp?.ToString("HH:mm:ss") ?? entry.TradeTime.ToString("HH:mm:ss"),  // EXEC TS
@@ -2103,8 +2104,8 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                 entry.TradeTime.ToString("HH:mm:ss")               // Trade Time
             );
 
-            // Color coding logic
-            ColorCodeBlotterRow(dgvBlotter.Rows[dgvBlotter.Rows.Count - 1], entry.Status);
+            // Color coding logic - now reference first row (index 0)
+            ColorCodeBlotterRow(dgvBlotter.Rows[0], entry.Status);
         }
 
         private void OnTradeUpdatedInBlotter(TradeBlotterEntry entry)
