@@ -105,7 +105,7 @@ namespace FXOAiTranslator
         private void InitializeCustomComponents()
         {
             this.Text = "GFI Fenics - Request Quotes";
-            this.Size = new Size(1350, 840);  // Increased width for test case panel
+            this.Size = new Size(1460, 840);  // Increased width for wider test case panel
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -436,7 +436,7 @@ namespace FXOAiTranslator
             {
                 Text = "GFI Test Protocol",
                 Location = new Point(980, 20),
-                Size = new Size(340, 780),
+                Size = new Size(450, 780),  // Wider to fit long format
                 Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
             this.Controls.Add(gbTestCases);
@@ -444,7 +444,7 @@ namespace FXOAiTranslator
             var pnlTestCases = new Panel
             {
                 Location = new Point(10, 25),
-                Size = new Size(320, 745),
+                Size = new Size(430, 745),  // Wider panel
                 AutoScroll = true
             };
             gbTestCases.Controls.Add(pnlTestCases);
@@ -452,41 +452,41 @@ namespace FXOAiTranslator
             // Add all test cases from official GFI FX Options Test Protocol with full details
             var testCases = new[]
             {
-                // Format: "ID: Cut Pair Tenor Dir Type @ Strike (Notional) Mode"
-                // Vanilla tests (1-15)
-                "1: NY EURUSD 1M Buy Call @ 1.16 (10M EUR) PREM [Prem:Spot, Hedge:Live]",
-                "2: TKY USDJPY 10Dec26 Buy Put @ 155 (10M USD) PREM [Prem:Spot, Hedge:Live]",
-                "3: TKY USDJPY 08Nov26 Sell Call @ 156.00 (10M USD) PREM [Prem:Spot, Hedge:Live]",
-                "4: NY EURSEK 1M Sell Put @ 7.16 (10M SEK) PREM [Prem:Spot, Hedge:Live]",
-                "5: NY USDNOK 08Nov26 Buy Call @ 11.9 (10M USD) PREM [Prem:Spot, Hedge:Live]",
-                "6: NY EURNOK 6M Buy Put @ 7.807 (10M NOK) PREM [Prem:Spot, Hedge:Live]",
-                "7: TKY AUDUSD 9M Sell Call @ 0.69 (10M AUD) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
-                "8: NY AUDUSD 1Y Sell Put @ 0.65 (10M USD) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
-                "9: TKY USDJPY 08Mar26 Buy Call @ 147 (10M USD) PREM [Prem:Spot, Hedge:Live]",
-                "10: NY EURUSD 3M Buy Put @ 1.15 (10M USD) PREM [Prem:Spot, Hedge:Live]",
-                "11: TKY EURUSD 08Nov26 Sell Call @ 1.16 (10M EUR) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
-                "12: NY USDJPY 3M Sell Put @ 155 (10M JPY) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
-                "13: NY EURSEK 07Nov26 Buy Call @ 11.1 (10M EUR) PREM +Spot [Prem:Spot, Hedge:Spot]",
-                "14: TKY GBPUSD 3M Buy Call @ 1.32 (10M GBP) PREM +Fwd [Prem:Spot, Hedge:Fwd]",
-                "15: NY EURCHF 6M Buy Put @ 0.93 (10M EUR) PREM +Fwd [Prem:Spot, Hedge:Fwd]",
+    // Format: "ID: Cut Pair Tenor Dir Type @ Strike (Notional) Mode [Prem:X, Hedge:Y]"
+       // Vanilla tests (1-15)
+   "1: NY EURUSD 1M Buy Call @ 1.16 (10M EUR) PREM [Prem:Spot, Hedge:Live]",
+        "2: TKY USDJPY 10Dec26 Buy Put @ 155 (10M USD) PREM [Prem:Spot, Hedge:Live]",
+        "3: TKY USDJPY 08Nov26 Sell Call @ 156.00 (10M USD) PREM [Prem:Spot, Hedge:Live]",
+           "4: NY EURSEK 1M Sell Put @ 7.16 (10M SEK) PREM [Prem:Spot, Hedge:Live]",
+      "5: NY USDNOK 08Nov26 Buy Call @ 11.9 (10M USD) PREM [Prem:Spot, Hedge:Live]",
+         "6: NY EURNOK 6M Buy Put @ 7.807 (10M NOK) PREM [Prem:Spot, Hedge:Live]",
+      "7: TKY AUDUSD 9M Sell Call @ 0.69 (10M AUD) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
+         "8: NY AUDUSD 1Y Sell Put @ 0.65 (10M USD) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
+    "9: TKY USDJPY 08Mar26 Buy Call @ 147 (10M USD) PREM [Prem:Spot, Hedge:Live]",
+"10: NY EURUSD 3M Buy Put @ 1.15 (10M USD) PREM [Prem:Spot, Hedge:Live]",
+       "11: TKY EURUSD 08Nov26 Sell Call @ 1.16 (10M EUR) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
+         "12: NY USDJPY 3M Sell Put @ 155 (10M JPY) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
+         "13: NY EURSEK 07Nov26 Buy Call @ 11.1 (10M EUR) PREM +Spot [Prem:Spot, Hedge:Spot]",
+        "14: TKY GBPUSD 3M Buy Call @ 1.32 (10M GBP) PREM +Fwd [Prem:Spot, Hedge:Fwd]",
+         "15: NY EURCHF 6M Buy Put @ 0.93 (10M EUR) PREM +Fwd [Prem:Spot, Hedge:Fwd]",
 
-                // Structure tests (25-26 only, removed 16-24)
-                "25: TKY USDJPY VOL 1M Buy Call @ 155 (10M JPY) VOL [Volatility Mode]",
-                "26: CNH USDCNH 4M Sell Put @ 7.10 (10M USD) PREM [Prem:Spot, Hedge:Live]"
-            };
+   // Structure tests (25-26 only)
+    "25: TKY USDJPY VOL 1M Buy Call @ 155 (10M JPY) VOL [Volatility Mode]",
+           "26: CNH USDCNH 4M Sell Put @ 7.10 (10M USD) PREM [Prem:Spot, Hedge:Live]"
+       };
 
             int yPos = 5;
             int testIndex = 0;
             foreach (var testCase in testCases)
-            {
-                var chk = new CheckBox
-                {
-                    Text = testCase,
-                    Location = new Point(5, yPos),
-                    Size = new Size(320, 20),  // Increased width to show [Prem:X, Hedge:Y] labels
-                    Font = new Font("Segoe UI", 8, FontStyle.Regular),
-                    Tag = testIndex + 1  // Store test ID in Tag
-                };
+       {
+     var chk = new CheckBox
+      {
+    Text = testCase,
+Location = new Point(5, yPos),
+    Size = new Size(420, 20),  // Wider to fit full text
+      Font = new Font("Segoe UI", 8, FontStyle.Regular),
+              Tag = testIndex + 1  // Store test ID in Tag
+        };
 
                 // Auto-send quote request when checked
                 chk.CheckedChanged += TestCase_CheckedChanged;
@@ -1860,21 +1860,23 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
         {
             if (_btnTogglePremType == null) return;
 
-            _btnTogglePremType.Text = $"Prem: {_premiumType}";
+            // Use short labels: "Spot" or "Fwd" to match test case format
+            string displayLabel = _premiumType == "Forward" ? "Fwd" : "Spot";
+       _btnTogglePremType.Text = $"Prem: {displayLabel}";
 
-            // Color coding: Spot = Green, Forward = Blue
-            if (_premiumType == "Forward")
-            {
-                _btnTogglePremType.BackColor = Color.LightBlue;
-                _btnTogglePremType.FlatAppearance.BorderColor = Color.DodgerBlue;
+      // Color coding: Spot = Green, Forward = Blue
+        if (_premiumType == "Forward")
+  {
+       _btnTogglePremType.BackColor = Color.LightBlue;
+   _btnTogglePremType.FlatAppearance.BorderColor = Color.DodgerBlue;
             }
-            else // Spot
-            {
-                _btnTogglePremType.BackColor = Color.LightGreen;
-                _btnTogglePremType.FlatAppearance.BorderColor = Color.Green;
-            }
+  else // Spot
+          {
+     _btnTogglePremType.BackColor = Color.LightGreen;
+        _btnTogglePremType.FlatAppearance.BorderColor = Color.Green;
+       }
 
-            Console.WriteLine($"[PREMIUM TYPE] Updated to: {_premiumType}");
+      Console.WriteLine($"[PREMIUM TYPE] Updated to: {_premiumType} (display: {displayLabel})");
         }
 
         private void UpdateHedgeTypeDropdown()
@@ -1940,7 +1942,7 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
   }
 
   return (bestBid, bestOffer);
-  }
+        }
 
         private void BtnExecute_Click(string side)
         {
@@ -2095,7 +2097,7 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                         out DateTime validUntil))
                     {
                         var timeRemaining = validUntil - DateTime.UtcNow;
-                        Console.WriteLine($"[VALIDATION] Time remaining: {timeRemaining.TotalSeconds:F1}s");
+                        var ttlCell = refreshedQuote.Get("TTL");
 
                         if (timeRemaining.TotalSeconds <= 0)
                         {
@@ -2132,7 +2134,7 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                     }
                 }
 
-                Console.WriteLine($"[VALIDATION] ✓ All checks passed - proceeding with execution\n");
+ Console.WriteLine($"[VALIDATION] ✓ All checks passed - proceeding with execution\n");
 
                 // Use the refreshed quote for execution to ensure we have the latest data
                 selectedQuote = refreshedQuote;
