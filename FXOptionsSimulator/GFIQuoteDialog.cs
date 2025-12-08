@@ -57,6 +57,7 @@ namespace FXOAiTranslator
         private Button _btnCcy2;
         private Label _lblCcyToggle;
         private Button _btnToggleCut;
+        private Button _btnToggleDisplay;  // Vol/Premium toggle button
         private TextBox _txtNotionalAmount;  // Ccy1 amount (e.g., EUR)
         private TextBox _txtNotionalCcy2;     // Ccy2 amount (e.g., USD)
         private Label _lblNotionalCcy1;
@@ -301,7 +302,7 @@ namespace FXOAiTranslator
             gbLPs.Controls.Add(chkDeut);
 
             // Toggle button for Vol/Premium pricing - NEW
-            var btnToggleDisplay = new Button
+            _btnToggleDisplay = new Button
             {
                 Text = "Show: Volatility",
                 Location = new Point(20, 305),  // Increased from 293 to 305 for more spacing
@@ -311,12 +312,12 @@ namespace FXOAiTranslator
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
-            btnToggleDisplay.FlatAppearance.BorderColor = Color.DodgerBlue;
-            btnToggleDisplay.Click += (s, e) =>
+            _btnToggleDisplay.FlatAppearance.BorderColor = Color.DodgerBlue;
+            _btnToggleDisplay.Click += (s, e) =>
             {
                 _showVolatility = !_showVolatility;
-                btnToggleDisplay.Text = _showVolatility ? "Show: Volatility" : "Show: Premium";
-                btnToggleDisplay.BackColor = _showVolatility ? Color.LightBlue : Color.LightGreen;
+                _btnToggleDisplay.Text = _showVolatility ? "Show: Volatility" : "Show: Premium";
+                _btnToggleDisplay.BackColor = _showVolatility ? Color.LightBlue : Color.LightGreen;
 
                 // Rebuild quote grid with new columns
                 if (_selectedLegCount > 0)
@@ -325,7 +326,7 @@ namespace FXOAiTranslator
                     UpdateQuoteDisplay(); // Refresh data
                 }
             };
-            this.Controls.Add(btnToggleDisplay);
+            this.Controls.Add(_btnToggleDisplay);
 
             // Toggle button for Spot Hedge - NEW
             var btnToggleHedge = new Button
@@ -1785,6 +1786,32 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
             Console.WriteLine($"[CUT] Updated cutoff button: {_cutoff}");
         }
 
+        private void UpdateQuoteTypeButton()
+        {
+            if (_btnToggleDisplay == null) return;
+
+            // Get quote type from trade structure (default to PREM if not set)
+            string quoteType = _trade?.QuoteType ?? "PREM";
+
+            // Update button state based on quote type
+            if (quoteType == "VOL")
+            {
+                _showVolatility = true;
+                _btnToggleDisplay.Text = "Show: Volatility";
+                _btnToggleDisplay.BackColor = Color.LightBlue;
+                _btnToggleDisplay.FlatAppearance.BorderColor = Color.DodgerBlue;
+            }
+            else // PREM
+            {
+                _showVolatility = false;
+                _btnToggleDisplay.Text = "Show: Premium";
+                _btnToggleDisplay.BackColor = Color.LightGreen;
+                _btnToggleDisplay.FlatAppearance.BorderColor = Color.Green;
+            }
+
+            Console.WriteLine($"[QUOTE TYPE] Updated button to: {quoteType} (_showVolatility={_showVolatility})");
+        }
+
         #endregion
 
       private (double? bestBid, double? bestOffer) GetBestPremiums()
@@ -2212,6 +2239,7 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
         // Update toggle buttons for new trade (ParseTestCase already set _cutoff)
 UpdateCurrencyButtons();
   UpdateCutoffButton();
+                UpdateQuoteTypeButton();  // Update Vol/Premium button based on test case
 
      // Generate group ID and store current test info
     string groupId = $"TEST-{testId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
