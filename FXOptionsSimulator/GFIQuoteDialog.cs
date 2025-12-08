@@ -944,11 +944,13 @@ dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.WrapMode = DataGridViewTriSta
                 if (include)
                 {
                     var originalLeg = _trade.Legs[i];
-                    var notionalStr = dgvLegs.Rows[i].Cells["NotionalMM"].Value?.ToString();
+                    // Use NotionalCcy1 column (full amount) and convert to millions
+                    var notionalStr = dgvLegs.Rows[i].Cells["NotionalCcy1"].Value?.ToString()?.Replace(",", "");
 
-                    if (double.TryParse(notionalStr, out double notionalMM))
+                    if (double.TryParse(notionalStr, out double notionalAmount))
                     {
-                        originalLeg.NotionalMM = notionalMM;
+                        // Convert from full amount to millions (e.g., 10,000,000 -> 10)
+                        originalLeg.NotionalMM = notionalAmount / 1_000_000.0;
                     }
 
                     selectedLegs.Add(originalLeg);
@@ -1619,7 +1621,7 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                     Console.WriteLine($"[STRIKE CHANGE] {newStrike:F4} → {ccy2} recalculated: {ccy2Amount:N0}");
 
                     // Update trade structure
-                    if (e.RowIndex < _trade.Legs.Count)
+                    if (_trade.Legs.Count > e.RowIndex)
                     {
                         _trade.Legs[e.RowIndex].Strike = newStrike;
                     }
