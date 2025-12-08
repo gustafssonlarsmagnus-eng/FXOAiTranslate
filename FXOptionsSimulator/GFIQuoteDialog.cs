@@ -2243,15 +2243,30 @@ UpdateCurrencyButtons();
         {
             // Extract test ID and parameters from description
             // Format examples:
-            // "1: NY EURUSD 1M Buy Call"
-            // "2: TKY USDJPY 10Dec26 Buy Put"
+            // "1: NY EURUSD 1M Buy Call @ 1.16 (10M EUR) PREM"
+            // "2: TKY USDJPY 10Dec26 Buy Put @ 155 (10M USD)"
             // "13: NY EURSEK 07Nov26 Buy Call + Spot Hedge"
+            // "25: TKY USDJPY VOL 1M Buy Call @ 155 (10M JPY) VOL"
             var parts = testDescription.Split(':');
             if (parts.Length < 2)
                 return null;
 
             // Extract test ID
             int testId = int.Parse(parts[0].Trim());
+
+            // Detect quote type from end of description (PREM or VOL)
+            string quoteType = "PREM";  // Default to premium
+            string descriptionUpper = testDescription.ToUpper();
+            if (descriptionUpper.EndsWith("VOL"))
+            {
+                quoteType = "VOL";
+                Console.WriteLine($"[TEST PARSE] Detected VOL mode for test {testId}");
+            }
+            else if (descriptionUpper.EndsWith("PREM"))
+            {
+                quoteType = "PREM";
+                Console.WriteLine($"[TEST PARSE] Detected PREM mode for test {testId}");
+            }
 
             var details = parts[1].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (details.Length < 5)
@@ -2292,7 +2307,8 @@ UpdateCurrencyButtons();
             {
                 Underlying = pair,
                 PremiumCurrency = ccy2,  // Premium in quote currency
-                StructureType = "1"  // Default to vanilla, will adjust for structures
+                StructureType = "1",  // Default to vanilla, will adjust for structures
+                QuoteType = quoteType  // PREM or VOL based on test description
             };
 
             // Calculate expiry and delivery dates from tenor or odd date
