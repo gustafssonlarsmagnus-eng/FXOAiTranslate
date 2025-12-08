@@ -242,12 +242,12 @@ namespace FXOptionsSimulator.FIX
                 int seqNum = session.NextSenderMsgSeqNum;
                 _rawBuilder.SetMsgSeqNum(seqNum);
 
-                // Convert hedge type to FIX tag value: "None"=0, "Spot"=1, "Forward"=2
+                // Convert hedge type to FIX tag value: "Live"=0, "Spot"=1, "Forward"=2
                 string hedgeTypeTag = hedgeType switch
                 {
                     "Forward" => "2",
                     "Spot" => "1",
-                    _ => "0"  // "None"
+                    _ => "0"  // "Live" (no hedge)
                 };
 
                 // Convert premium type to FIX tag value: "Spot"="S", "Forward"="F"
@@ -258,8 +258,8 @@ namespace FXOptionsSimulator.FIX
                     trade, lpName, quoteReqID, groupId,
                     tag75Override: canonical75,
                     tag5020Override: canonical5020,
-                    hedgeEnabled: hedgeType != "None",
-                    hedgeType: hedgeTypeTag,  // "0"=None, "1"=Spot, "2"=Forward (Tag 9016)
+                    hedgeEnabled: hedgeType != "Live",
+                    hedgeType: hedgeTypeTag,  // "0"=Live, "1"=Spot, "2"=Forward (Tag 9016)
                     premiumDeliveryType: premiumDeliveryType);  // "S"=Spot, "F"=Forward (Tag 5475)
 
                 Console.WriteLine($"\n[DEBUG] Raw Quote Request Message (SeqNum={seqNum}):");

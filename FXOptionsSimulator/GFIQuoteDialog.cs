@@ -43,7 +43,7 @@ namespace FXOAiTranslator
         private CheckBox chkDeut;  // Testing only
         private int _selectedLegCount;
         private bool _showVolatility = true;  // NEW: Toggle between Vol (true) and Premium (false)
-        private string _hedgeType = "Spot";  // NEW: Hedge type: "None", "Spot", or "Forward"
+        private string _hedgeType = "Spot";  // NEW: Hedge type: "Live", "Spot", or "Forward"
         private string _premiumType = "Spot";  // NEW: Premium delivery: "Spot" or "Forward"
         private string _cutoff = "NY";  // NEW: Cutoff toggle (default NY)
         private string _premiumCurrency = null;  // NEW: Premium currency toggle (EUR/USD, etc.)
@@ -60,7 +60,7 @@ namespace FXOAiTranslator
         private Button _btnToggleCut;
         private Button _btnToggleDisplay;  // Vol/Premium toggle button
         private Button _btnTogglePremType;  // Premium Type toggle (Spot/Forward)
-        private Button _btnToggleHedgeType;  // Delta Hedge toggle (None/Spot/Forward)
+        private ComboBox _cmbHedgeType;  // Delta Hedge dropdown (Live/Spot/Forward)
         private TextBox _txtNotionalAmount;  // Ccy1 amount (e.g., EUR)
         private TextBox _txtNotionalCcy2;     // Ccy2 amount (e.g., USD)
         private Label _lblNotionalCcy1;
@@ -357,30 +357,25 @@ namespace FXOAiTranslator
             };
             this.Controls.Add(_btnTogglePremType);
 
-            // Toggle button for Delta Hedge (None/Spot/Forward) - 3-way toggle
-            _btnToggleHedgeType = new Button
+            // Dropdown for Delta Hedge (Live/Spot/Forward)
+            _cmbHedgeType = new ComboBox
             {
-                Text = "Hedge: Spot",
                 Location = new Point(280, 305),
                 Size = new Size(120, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                BackColor = Color.LightGreen,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.White
             };
-            _btnToggleHedgeType.FlatAppearance.BorderColor = Color.Green;
-            _btnToggleHedgeType.Click += (s, e) =>
+            _cmbHedgeType.Items.AddRange(new object[] { "Live", "Spot", "Forward" });
+            _cmbHedgeType.SelectedIndex = 1; // Default to "Spot"
+            _cmbHedgeType.SelectedIndexChanged += (s, e) =>
             {
-                // 3-way toggle: Spot → Forward → None → Spot
-                _hedgeType = _hedgeType switch
-                {
-                    "Spot" => "Forward",
-                    "Forward" => "None",
-                    _ => "Spot"
-                };
-                UpdateHedgeTypeButton();
+                // Update hedge type when dropdown selection changes
+                _hedgeType = _cmbHedgeType.SelectedItem.ToString();
+                UpdateHedgeTypeDropdown();
+                Console.WriteLine($"[HEDGE TYPE] Changed to: {_hedgeType}");
             };
-            this.Controls.Add(_btnToggleHedgeType);
+            this.Controls.Add(_cmbHedgeType);
 
             // Toggle button for Cutoff - stored as class field for dynamic updates
             _btnToggleCut = new Button
@@ -1882,22 +1877,18 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
             Console.WriteLine($"[PREMIUM TYPE] Updated to: {_premiumType}");
         }
 
-        private void UpdateHedgeTypeButton()
+        private void UpdateHedgeTypeDropdown()
         {
-            if (_btnToggleHedgeType == null) return;
+            if (_cmbHedgeType == null) return;
 
-            _btnToggleHedgeType.Text = $"Hedge: {_hedgeType}";
-
-            // Color coding: Spot = Green, Forward = Blue, None = Gray
-            (_btnToggleHedgeType.BackColor, _btnToggleHedgeType.FlatAppearance.BorderColor) = _hedgeType switch
+            // Update dropdown selection based on hedge type
+            string displayValue = _hedgeType;
+            if (_cmbHedgeType.Items.Contains(displayValue))
             {
-                "Spot" => (Color.LightGreen, Color.Green),
-                "Forward" => (Color.LightBlue, Color.DodgerBlue),
-                "None" => (Color.LightGray, Color.Gray),
-                _ => (Color.LightGreen, Color.Green)
-            };
+                _cmbHedgeType.SelectedItem = displayValue;
+            }
 
-            Console.WriteLine($"[HEDGE TYPE] Updated to: {_hedgeType}");
+            Console.WriteLine($"[HEDGE TYPE] Updated dropdown to: {_hedgeType}");
         }
 
         #endregion
@@ -2329,7 +2320,7 @@ UpdateCurrencyButtons();
   UpdateCutoffButton();
                 UpdateQuoteTypeButton();  // Update Vol/Premium button based on test case
                 UpdatePremiumTypeButton();  // Update Premium Type button (Spot/Forward)
-                UpdateHedgeTypeButton();  // Update Hedge Type button (None/Spot/Forward)
+                UpdateHedgeTypeDropdown();  // Update Hedge Type dropdown (Live/Spot/Forward)
 
      // Generate group ID and store current test info
     string groupId = $"TEST-{testId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
