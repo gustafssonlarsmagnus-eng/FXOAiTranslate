@@ -652,6 +652,24 @@ namespace FXOAiTranslator
         {
             dgvLegs.Rows.Clear();
 
+            // Update notional column headers based on current trade's currency pair
+            if (_trade != null && _trade.Underlying?.Length >= 6)
+            {
+                string ccy1 = _trade.Underlying.Substring(0, 3);
+                string ccy2 = _trade.Underlying.Substring(3, 3);
+
+                if (dgvLegs.Columns["NotionalCcy1"] != null)
+                {
+                    dgvLegs.Columns["NotionalCcy1"].HeaderText = $"Notional ({ccy1})";
+                }
+                if (dgvLegs.Columns["NotionalCcy2"] != null)
+                {
+                    dgvLegs.Columns["NotionalCcy2"].HeaderText = $"Notional ({ccy2})";
+                }
+
+                Console.WriteLine($"[PopulateLegGrid] Updated column headers: {ccy1} / {ccy2}");
+            }
+
             // Calculate premium date ONCE for all legs (same for entire trade)
             // Premium Date = Trade Date (TODAY) + Spot Lag (T+2 for EURUSD)
             string premiumDateText = "-";
