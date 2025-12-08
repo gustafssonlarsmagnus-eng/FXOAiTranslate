@@ -454,25 +454,25 @@ namespace FXOAiTranslator
             {
                 // Format: "ID: Cut Pair Tenor Dir Type @ Strike (Notional) Mode"
                 // Vanilla tests (1-15)
-                "1: NY EURUSD 1M Buy Call @ 1.16 (10M EUR) PREM",
-                "2: TKY USDJPY 10Dec26 Buy Put @ 155 (10M USD) PREM",
-                "3: TKY USDJPY 08Nov26 Sell Call @ 156.00 (10M USD) PREM",
-                "4: NY EURSEK 1M Sell Put @ 7.16 (10M SEK) PREM",
-                "5: NY USDNOK 08Nov26 Buy Call @ 11.9 (10M USD) PREM",
-                "6: NY EURNOK 6M Buy Put @ 7.807 (10M NOK) PREM",
-                "7: TKY AUDUSD 9M Sell Call @ 0.69 (10M AUD) PREM Fwd",
-                "8: NY AUDUSD 1Y Sell Put @ 0.65 (10M USD) PREM Fwd",
-                "9: TKY USDJPY 08Mar26 Buy Call @ 147 (10M USD) PREM",
-                "10: NY EURUSD 3M Buy Put @ 1.15 (10M USD) PREM",
-                "11: TKY EURUSD 08Nov26 Sell Call @ 1.16 (10M EUR) PREM Fwd",
-                "12: NY USDJPY 3M Sell Put @ 155 (10M JPY) PREM Fwd",
-                "13: NY EURSEK 07Nov26 Buy Call @ 11.1 (10M EUR) PREM +Spot",
-                "14: TKY GBPUSD 3M Buy Call @ 1.32 (10M GBP) PREM +Fwd",
-                "15: NY EURCHF 6M Buy Put @ 0.93 (10M EUR) PREM +Fwd",
+                "1: NY EURUSD 1M Buy Call @ 1.16 (10M EUR) PREM [Prem:Spot, Hedge:Spot]",
+                "2: TKY USDJPY 10Dec26 Buy Put @ 155 (10M USD) PREM [Prem:Spot, Hedge:Spot]",
+                "3: TKY USDJPY 08Nov26 Sell Call @ 156.00 (10M USD) PREM [Prem:Spot, Hedge:Spot]",
+                "4: NY EURSEK 1M Sell Put @ 7.16 (10M SEK) PREM [Prem:Spot, Hedge:Spot]",
+                "5: NY USDNOK 08Nov26 Buy Call @ 11.9 (10M USD) PREM [Prem:Spot, Hedge:Spot]",
+                "6: NY EURNOK 6M Buy Put @ 7.807 (10M NOK) PREM [Prem:Spot, Hedge:Spot]",
+                "7: TKY AUDUSD 9M Sell Call @ 0.69 (10M AUD) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
+                "8: NY AUDUSD 1Y Sell Put @ 0.65 (10M USD) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
+                "9: TKY USDJPY 08Mar26 Buy Call @ 147 (10M USD) PREM [Prem:Spot, Hedge:Spot]",
+                "10: NY EURUSD 3M Buy Put @ 1.15 (10M USD) PREM [Prem:Spot, Hedge:Spot]",
+                "11: TKY EURUSD 08Nov26 Sell Call @ 1.16 (10M EUR) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
+                "12: NY USDJPY 3M Sell Put @ 155 (10M JPY) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
+                "13: NY EURSEK 07Nov26 Buy Call @ 11.1 (10M EUR) PREM +Spot [Prem:Spot, Hedge:Spot]",
+                "14: TKY GBPUSD 3M Buy Call @ 1.32 (10M GBP) PREM +Fwd [Prem:Spot, Hedge:Fwd]",
+                "15: NY EURCHF 6M Buy Put @ 0.93 (10M EUR) PREM +Fwd [Prem:Spot, Hedge:Fwd]",
 
                 // Structure tests (25-26 only, removed 16-24)
-                "25: TKY USDJPY VOL 1M Buy Call @ 155 (10M JPY) VOL",
-                "26: CNH USDCNH 4M Sell Put @ 7.10 (10M USD) PREM"
+                "25: TKY USDJPY VOL 1M Buy Call @ 155 (10M JPY) VOL [Volatility Mode]",
+                "26: CNH USDCNH 4M Sell Put @ 7.10 (10M USD) PREM [Prem:Spot, Hedge:Spot]"
             };
 
             int yPos = 5;
