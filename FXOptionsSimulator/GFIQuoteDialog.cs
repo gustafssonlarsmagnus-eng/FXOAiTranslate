@@ -165,6 +165,8 @@ namespace FXOAiTranslator
             dgvLegs.Columns.Add(chkCol);
             dgvLegs.Columns.Add("Leg", "Leg");
             dgvLegs.Columns["Leg"].Width = 35;
+            dgvLegs.Columns.Add("CurrencyPair", "Ccy Pair");
+            dgvLegs.Columns["CurrencyPair"].Width = 70;
             dgvLegs.Columns.Add("Direction", "Direction");
             dgvLegs.Columns["Direction"].Width = 35;
             dgvLegs.Columns.Add("Type", "Type");
@@ -809,6 +811,7 @@ Location = new Point(5, yPos),
                 dgvLegs.Rows.Add(
                     true,
                     $"Leg {i + 1}",
+                    _trade.Underlying,  // Currency Pair
                     leg.Direction,
                     leg.OptionType,
                     leg.Strike.ToString("F4"),
@@ -1593,6 +1596,35 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
 
             var row = dgvLegs.Rows[e.RowIndex];
             string columnName = dgvLegs.Columns[e.ColumnIndex].Name;
+
+            // Handle Currency Pair column changes - update notional column headers
+            if (columnName == "CurrencyPair")
+            {
+                string newCcyPair = row.Cells["CurrencyPair"].Value?.ToString()?.Trim()?.ToUpper() ?? "";
+
+                if (newCcyPair.Length == 6)
+                {
+                    string newCcy1 = newCcyPair.Substring(0, 3);
+                    string newCcy2 = newCcyPair.Substring(3, 3);
+
+                    // Update notional column headers
+                    dgvLegs.Columns["NotionalCcy1"].HeaderText = $"Notional ({newCcy1})";
+                    dgvLegs.Columns["NotionalCcy2"].HeaderText = $"Notional ({newCcy2})";
+
+                    // Update the underlying trade structure
+                    if (_trade != null)
+                    {
+                        _trade.Underlying = newCcyPair;
+                    }
+
+                    Console.WriteLine($"[CCY PAIR EDIT] Updated to {newCcyPair} - Notional headers: {newCcy1}, {newCcy2}");
+                }
+                else
+                {
+                    Console.WriteLine($"[CCY PAIR EDIT] Invalid currency pair format: '{newCcyPair}' (must be 6 characters like EURUSD)");
+                }
+                return;
+            }
 
             string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
             string ccy2 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(3, 3) : "USD";
