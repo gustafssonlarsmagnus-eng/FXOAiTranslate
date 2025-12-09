@@ -1,5 +1,6 @@
 using System;
 using System.Configuration;
+using QLNet;
 
 namespace FX.Infrastructure.Calendars.Legacy
 {
@@ -13,6 +14,14 @@ namespace FX.Infrastructure.Calendars.Legacy
         private readonly bool _isDatabaseAvailable;
         private static FxCalendarService _instance;
         private static readonly object _lock = new object();
+
+        // Fallback calendars when database is unavailable
+        private static readonly QLNet.Calendar _usdCalendar = new FXCalendars.UnitedStatesFX();
+        private static readonly QLNet.Calendar _eurCalendar = new QLNet.TARGET();
+        private static readonly QLNet.Calendar _sekCalendar = new QLNet.Sweden();
+        private static readonly QLNet.Calendar _nokCalendar = new QLNet.Norway();
+        private static readonly QLNet.Calendar _gbpCalendar = new QLNet.UnitedKingdom(QLNet.UnitedKingdom.Market.Exchange);
+        private static readonly QLNet.Calendar _jpyCalendar = new QLNet.Japan();
 
         /// <summary>
         /// Private constructor for singleton pattern.
@@ -120,23 +129,60 @@ namespace FX.Infrastructure.Calendars.Legacy
                 }
                 else
                 {
-                    // Fallback: simple calculation without holiday calendar
-                    return CalculateExpiryFallback(tradeDate, tenor);
+                    // Fallback: use QLNet FXCalendars
+                    return CalculateExpiryFallback(tradeDate, tenor, currencyPair);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[FX-CALENDAR] ERROR calculating expiry for {tenor}/{currencyPair}: {ex.Message}");
                 // Use fallback instead of throwing
-                return CalculateExpiryFallback(tradeDate, tenor);
+                return CalculateExpiryFallback(tradeDate, tenor, currencyPair);
             }
         }
 
         /// <summary>
-        /// Fallback expiry calculation when database is unavailable.
-        /// Simple calendar-based calculation with weekend adjustment only (no holidays).
+        /// Get QLNet calendar for a currency (fallback when database unavailable).
         /// </summary>
-        private DateTime CalculateExpiryFallback(DateTime tradeDate, string tenor)
+        private static QLNet.Calendar GetFallbackCalendar(string currency)
+        {
+            return currency?.ToUpper() switch
+            {
+                "USD" => _usdCalendar,
+                "EUR" => _eurCalendar,
+                "SEK" => _sekCalendar,
+                "NOK" => _nokCalendar,
+                "GBP" => _gbpCalendar,
+                "JPY" => _jpyCalendar,
+                _ => _usdCalendar  // Default to USD calendar
+            };
+        }
+
+        /// <summary>
+        /// Check if a date is a business day using fallback calendars.
+        /// </summary>
+        private static bool IsBusinessDayFallback(DateTime date, string currencyPair)
+        {
+            if (string.IsNullOrWhiteSpace(currencyPair) || currencyPair.Length < 6)
+                return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
+
+            string ccy1 = currencyPair.Substring(0, 3);
+            string ccy2 = currencyPair.Substring(3, 3);
+
+            var cal1 = GetFallbackCalendar(ccy1);
+            var cal2 = GetFallbackCalendar(ccy2);
+
+            var qlDate = new QLNet.Date(date.Day, (QLNet.Month)(date.Month), date.Year);
+
+            // FX options can only expire on a day that is a business day in BOTH currencies
+            return cal1.isBusinessDay(qlDate) && cal2.isBusinessDay(qlDate);
+        }
+
+        /// <summary>
+        /// Fallback expiry calculation when database is unavailable.
+        /// Uses QLNet FXCalendars for accurate business day calculations.
+        /// </summary>
+        private DateTime CalculateExpiryFallback(DateTime tradeDate, string tenor, string currencyPair = "EURUSD")
         {
             DateTime result = tradeDate;
 
@@ -165,23 +211,10 @@ namespace FX.Infrastructure.Calendars.Legacy
                     break;
             }
 
-            // Simple weekend adjustment
-            while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+            // Adjust to next business day using fallback calendars
+            while (!IsBusinessDayFallback(result, currencyPair))
             {
                 result = result.AddDays(1);
-            }
-
-            // FX Market Rule - January 1st can NEVER be an expiry or settlement date
-            // (New Year's Day - global holiday)
-            // If expiry falls on Jan 1st, move BACK to last business day of December
-            if (result.Month == 1 && result.Day == 1)
-            {
-                result = result.AddDays(-1);
-                // Adjust again for weekends
-                while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
-                {
-                    result = result.AddDays(-1);
-                }
             }
 
             return result;
@@ -200,14 +233,14 @@ namespace FX.Infrastructure.Calendars.Legacy
                 }
                 catch
                 {
-                    // Fallback to simple weekend check
-                    return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
+                    // Fallback to QLNet calendars
+                    return IsBusinessDayFallback(date, currencyPair);
                 }
             }
             else
             {
-                // Fallback: only check weekends (no holidays)
-                return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
+                // Use QLNet FXCalendars fallback
+                return IsBusinessDayFallback(date, currencyPair);
             }
         }
 
