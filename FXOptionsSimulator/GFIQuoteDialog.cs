@@ -459,16 +459,16 @@ namespace FXOAiTranslator
    "1: NY EURUSD 1M Buy Call @ 1.16 (10M EUR) PREM [Prem:Spot, Hedge:Live]",
         "2: TKY USDJPY 10Dec26 Buy Put @ 155 (10M USD) PREM [Prem:Spot, Hedge:Live]",
         "3: TKY USDJPY 08Nov26 Sell Call @ 156.00 (10M USD) PREM [Prem:Spot, Hedge:Live]",
-           "4: NY EURUSD 1M Sell Put @ 1.1650 (10M EUR) PREM [Prem:Spot, Hedge:Live]",
-      "5: NY EURUSD 08Nov26 Buy Call @ 1.1650 (10M EUR) PREM [Prem:Spot, Hedge:Live]",
-         "6: NY EURUSD 6M Buy Put @ 1.1650 (10M EUR) PREM [Prem:Spot, Hedge:Live]",
+           "4: NY EURSEK 1M Sell Put @ 7.16 (10M SEK) PREM [Prem:Spot, Hedge:Live]",
+      "5: NY USDNOK 08Nov26 Buy Call @ 11.9 (10M USD) PREM [Prem:Spot, Hedge:Live]",
+         "6: NY EURNOK 6M Buy Put @ 7.807 (10M NOK) PREM [Prem:Spot, Hedge:Live]",
       "7: TKY AUDUSD 9M Sell Call @ 0.69 (10M AUD) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
          "8: NY AUDUSD 1Y Sell Put @ 0.65 (10M USD) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
     "9: TKY USDJPY 08Mar26 Buy Call @ 147 (10M USD) PREM [Prem:Spot, Hedge:Live]",
 "10: NY EURUSD 3M Buy Put @ 1.15 (10M USD) PREM [Prem:Spot, Hedge:Live]",
        "11: TKY EURUSD 08Nov26 Sell Call @ 1.16 (10M EUR) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
          "12: NY USDJPY 3M Sell Put @ 155 (10M JPY) PREM Fwd [Prem:Fwd, Hedge:Fwd]",
-         "13: NY EURUSD 07Nov26 Buy Call @ 1.1650 (10M EUR) PREM +Spot [Prem:Spot, Hedge:Spot]",
+         "13: NY EURSEK 07Nov26 Buy Call @ 11.1 (10M EUR) PREM +Spot [Prem:Spot, Hedge:Spot]",
         "14: TKY GBPUSD 3M Buy Call @ 1.32 (10M GBP) PREM +Fwd [Prem:Spot, Hedge:Fwd]",
          "15: NY EURCHF 6M Buy Put @ 0.93 (10M EUR) PREM +Fwd [Prem:Spot, Hedge:Fwd]",
 
@@ -2800,16 +2800,16 @@ UpdateCurrencyButtons();
        1 => 1.16,      // EURUSD
     2 => 155.0,     // USDJPY
       3 => 156.0,     // USDJPY
-          4 => 1.1650,    // EURUSD (was EURSEK)
-   5 => 1.1650,    // EURUSD (was USDNOK)
- 6 => 1.1650,    // EURUSD (was EURNOK)
+          4 => 7.16,      // EURSEK
+   5 => 11.9,      // USDNOK
+ 6 => 7.8070,    // EURNOK
        7 => 0.69,      // AUDUSD
           8 => 0.65,      // AUDUSD
       9 => 147.0,     // USDJPY
       10 => 1.15,// EURUSD
         11 => 1.16,     // EURUSD
          12 => 155.0,    // USDJPY
-      13 => 1.1650,   // EURUSD (was EURSEK)
+      13 => 11.1,     // EURSEK
                 14 => 1.32,  // GBPUSD
         15 => 0.93,     // EURCHF
     25 => 155.0,    // USDJPY (VOL test)
