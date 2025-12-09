@@ -1654,39 +1654,109 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                 {
                     // Determine premium currency (base currency of pair)
                     string premiumCcy = ccy1;
+                    string underlying = _trade?.Underlying ?? "EURUSD";
 
-                    // Validate tenor format before calling ComputeDates
+                    DateTime expiryDate;
+                    DateTime deliveryDate;
+                    DateTime premiumDate;
+                    string displayTenor = "";
+
+                    // Check if input is a tenor (3M, 6M, etc.) or a date (08-Jan-26, etc.)
                     string tenorUpper = expiryInput.ToUpper();
-                    if (!System.Text.RegularExpressions.Regex.IsMatch(tenorUpper, @"^\d+[DWMY]$"))
+                    if (System.Text.RegularExpressions.Regex.IsMatch(tenorUpper, @"^\d+[DWMY]$"))
                     {
-                        throw new ArgumentException($"Invalid tenor format: '{expiryInput}'. Use format like: 3M, 6M, 1Y, 7D, 2W");
+                        // Input is a TENOR (3M, 6M, 1Y, etc.)
+                        Console.WriteLine($"[EXPIRY CALC] Tenor input: {tenorUpper}");
+
+                        // Use FxDateService to calculate all dates from tenor
+                        var rules = new FxDateRules();
+                        var (tradeDate, spotDate, calcExpiryDate, calcDeliveryDate, calcPremiumDate) =
+                            FxDateService.ComputeDates(
+                                DateTime.UtcNow,
+                                underlying,
+                                tenorUpper,
+                                premiumCcy,
+                                rules
+                            );
+
+                        expiryDate = calcExpiryDate;
+                        deliveryDate = calcDeliveryDate;
+                        premiumDate = calcPremiumDate;
+                        displayTenor = tenorUpper;
+                    }
+                    else
+                    {
+                        // Input is a DATE (08-Jan-26, 09-Jan-26, etc.)
+                        // Try to parse the date in various formats
+                        DateTime parsedExpiryDate;
+                        bool parsed = false;
+
+                        // Try dd-MMM-yy format (08-Jan-26)
+                        if (DateTime.TryParseExact(expiryInput, "dd-MMM-yy", System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.None, out parsedExpiryDate))
+                        {
+                            parsed = true;
+                        }
+                        // Try dd-MMM-yyyy format (08-Jan-2026)
+                        else if (DateTime.TryParseExact(expiryInput, "dd-MMM-yyyy", System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.None, out parsedExpiryDate))
+                        {
+                            parsed = true;
+                        }
+                        // Try general date parsing
+                        else if (DateTime.TryParse(expiryInput, out parsedExpiryDate))
+                        {
+                            parsed = true;
+                        }
+
+                        if (!parsed)
+                        {
+                            throw new ArgumentException($"Invalid format: '{expiryInput}'. Use tenor (3M, 6M, 1Y) or date (08-Jan-26, 09-Jan-26)");
+                        }
+
+                        Console.WriteLine($"[EXPIRY CALC] Date input: {expiryInput} → {parsedExpiryDate:dd-MMM-yy}");
+
+                        expiryDate = parsedExpiryDate;
+
+                        // Calculate delivery date (same as expiry for vanilla options)
+                        deliveryDate = expiryDate;
+
+                        // Calculate premium date based on premium type
+                        if (_premiumType == "Forward")
+                        {
+                            // Forward premium: paid at delivery
+                            premiumDate = deliveryDate;
+                        }
+                        else
+                        {
+                            // Spot premium: T+2 from today
+                            var calendarService = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance;
+                            DateTime today = DateTime.UtcNow.Date;
+                            premiumDate = calendarService.GetNextBusinessDay(today, underlying, includeStart: false);
+                            premiumDate = calendarService.GetNextBusinessDay(premiumDate, underlying, includeStart: false);
+                        }
+
+                        displayTenor = ""; // No tenor when entering date directly
                     }
 
-                    string underlying = _trade?.Underlying ?? "EURUSD";
-                    Console.WriteLine($"[EXPIRY CALC] Input values: Underlying={underlying}, Tenor={tenorUpper}, PremiumCcy={premiumCcy}");
-
-                    // Use FxDateService to calculate all dates
-                    var rules = new FxDateRules();
-                    var (tradeDate, spotDate, expiryDate, deliveryDate, premiumDate) =
-                        FxDateService.ComputeDates(
-                            DateTime.UtcNow,
-                            underlying,
-                            tenorUpper,
-                            premiumCcy,
-                            rules
-                        );
-
                     // Update grid cells
-                    row.Cells["Expiry"].Value = $"{tenorUpper} ({expiryDate:dd-MMM-yy})";
+                    if (!string.IsNullOrEmpty(displayTenor))
+                    {
+                        row.Cells["Expiry"].Value = $"{displayTenor} ({expiryDate:dd-MMM-yy})";
+                    }
+                    else
+                    {
+                        row.Cells["Expiry"].Value = expiryDate.ToString("dd-MMM-yy");
+                    }
                     row.Cells["SettlementDate"].Value = deliveryDate.ToString("dd-MMM-yy");
                     row.Cells["PremiumDate"].Value = premiumDate.ToString("dd-MMM-yy");
 
-                    Console.WriteLine($"[EXPIRY CALC] {tenorUpper} → Expiry: {expiryDate:dd-MMM-yy}, Settlement: {deliveryDate:dd-MMM-yy}, Premium: {premiumDate:dd-MMM-yy}");
+                    Console.WriteLine($"[EXPIRY CALC] Result → Expiry: {expiryDate:dd-MMM-yy}, Settlement: {deliveryDate:dd-MMM-yy}, Premium: {premiumDate:dd-MMM-yy}");
 
                     // Update trade structure
                     if (_trade != null && e.RowIndex < _trade.Legs.Count)
                     {
-                        _trade.Legs[e.RowIndex].Tenor = tenorUpper;
+                        _trade.Legs[e.RowIndex].Tenor = displayTenor;
                         _trade.Legs[e.RowIndex].ExpiryDate = expiryDate;
                         _trade.Legs[e.RowIndex].DeliveryDate = deliveryDate;
                     }
@@ -1695,7 +1765,11 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                 {
                     Console.WriteLine($"[EXPIRY EDIT] Error: {ex.Message}");
                     Console.WriteLine($"[EXPIRY EDIT] Stack trace: {ex.StackTrace}");
-                    MessageBox.Show($"Could not calculate dates for '{expiryInput}'.\n\nPlease use format like: 3M, 6M, 1Y, 7D, 2W\n\nError: {ex.Message}",
+                    MessageBox.Show($"Could not calculate dates for '{expiryInput}'.\n\n" +
+                                    $"Please use one of these formats:\n" +
+                                    $"  • Tenor: 3M, 6M, 1Y, 7D, 2W\n" +
+                                    $"  • Date: 08-Jan-26, 09-Jan-26\n\n" +
+                                    $"Error: {ex.Message}",
                                     "Invalid Expiry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
                 return;
