@@ -21,6 +21,9 @@ namespace FX.Infrastructure.Calendars.Legacy
         {
             try
             {
+                // Log current Windows user for debugging auth issues
+                var currentUser = System.Security.Principal.WindowsIdentity.GetCurrent();
+                Console.WriteLine($"[FX-CALENDAR] Running as: {currentUser.Name} (Auth: {currentUser.AuthenticationType})");
                 Console.WriteLine($"[FX-CALENDAR] Testing connection: {connectionString}");
 
                 _holidayCalendar = new HolidayCalendar(connectionString);
