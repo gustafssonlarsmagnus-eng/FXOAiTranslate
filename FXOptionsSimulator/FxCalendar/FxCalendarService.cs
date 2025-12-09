@@ -23,12 +23,14 @@ namespace FX.Infrastructure.Calendars.Legacy
             {
                 Console.WriteLine($"[FX-CALENDAR] Testing connection: {connectionString}");
 
-                // Parse connection string to check DNS
+                // Parse connection string
                 var builder = new System.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
                 Console.WriteLine($"[FX-CALENDAR] Data Source: {builder.DataSource}");
+                Console.WriteLine($"[FX-CALENDAR] Database: {builder.InitialCatalog}");
                 Console.WriteLine($"[FX-CALENDAR] Connect Timeout: {builder.ConnectTimeout}s");
+                Console.WriteLine($"[FX-CALENDAR] Integrated Security: {builder.IntegratedSecurity}");
 
-                // Try DNS resolution first
+                // Try DNS resolution (non-fatal - IP addresses work directly)
                 try
                 {
                     var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -38,30 +40,64 @@ namespace FX.Infrastructure.Calendars.Legacy
                 }
                 catch (Exception dnsEx)
                 {
-                    Console.WriteLine($"[FX-CALENDAR] DNS FAILED: {dnsEx.Message}");
-                    throw new Exception($"DNS resolution failed for {builder.DataSource}", dnsEx);
+                    // DNS failure is not fatal - IP addresses connect directly
+                    Console.WriteLine($"[FX-CALENDAR] DNS resolution failed (non-fatal): {dnsEx.Message}");
+                    Console.WriteLine($"[FX-CALENDAR] Continuing with direct connection attempt...");
                 }
 
-                _holidayCalendar = new HolidayCalendar(connectionString);
+                // Try connection with retry logic (for transient network issues)
+                int maxRetries = 3;
+                Exception lastException = null;
 
-                // Test connection by trying to get a small date range
-                var testDate = DateTime.UtcNow;
-                Console.WriteLine($"[FX-CALENDAR] Attempting SQL connection...");
-                var sw2 = System.Diagnostics.Stopwatch.StartNew();
-                _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 5);
-                sw2.Stop();
+                for (int attempt = 1; attempt <= maxRetries; attempt++)
+                {
+                    try
+                    {
+                        Console.WriteLine($"[FX-CALENDAR] Connection attempt {attempt}/{maxRetries}...");
 
-                _isDatabaseAvailable = true;
-                Console.WriteLine($"[FX-CALENDAR] Database connection successful ({sw2.ElapsedMilliseconds}ms)");
+                        _holidayCalendar = new HolidayCalendar(connectionString);
+
+                        // Test connection by trying to get a small date range
+                        var testDate = DateTime.UtcNow;
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 15);
+                        sw.Stop();
+
+                        _isDatabaseAvailable = true;
+                        Console.WriteLine($"[FX-CALENDAR] ✓ Database connection successful in {sw.ElapsedMilliseconds}ms (attempt {attempt})");
+                        return; // Success!
+                    }
+                    catch (Exception connEx)
+                    {
+                        lastException = connEx;
+                        Console.WriteLine($"[FX-CALENDAR] ✗ Attempt {attempt} failed: {connEx.Message}");
+
+                        if (attempt < maxRetries)
+                        {
+                            int delayMs = attempt * 1000; // 1s, 2s
+                            Console.WriteLine($"[FX-CALENDAR] Retrying in {delayMs}ms...");
+                            System.Threading.Thread.Sleep(delayMs);
+                        }
+                    }
+                }
+
+                // All retries failed
+                throw new Exception($"Connection failed after {maxRetries} attempts", lastException);
             }
             catch (Exception ex)
             {
                 _isDatabaseAvailable = false;
-                Console.WriteLine($"[FX-CALENDAR] WARNING: Database unavailable, using fallback calculations: {ex.Message}");
+                Console.WriteLine($"[FX-CALENDAR] ⚠ WARNING: Database unavailable, using fallback calculations");
+                Console.WriteLine($"[FX-CALENDAR] Error: {ex.Message}");
                 if (ex.InnerException != null)
                 {
-                    Console.WriteLine($"[FX-CALENDAR] Inner exception: {ex.InnerException.Message}");
+                    Console.WriteLine($"[FX-CALENDAR] Inner: {ex.InnerException.Message}");
+                    if (ex.InnerException.InnerException != null)
+                    {
+                        Console.WriteLine($"[FX-CALENDAR] Inner2: {ex.InnerException.InnerException.Message}");
+                    }
                 }
+                Console.WriteLine($"[FX-CALENDAR] Stack trace: {ex.StackTrace}");
             }
         }
 
