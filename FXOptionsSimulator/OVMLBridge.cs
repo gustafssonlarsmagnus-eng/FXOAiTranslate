@@ -54,6 +54,9 @@ namespace FXOptionsSimulator
                 spotRef = marketData.SpotRate;
             }
 
+            // Get forward reference from OVML (if specified)
+            double fwdRef = parsed.ForwardReference;
+
             // Determine structure type from leg count and option types
             string structureType = DetermineStructureType(parsed.Legs);
 
@@ -64,6 +67,7 @@ namespace FXOptionsSimulator
                 StructureType = structureType,
                 PremiumCurrency = GetTermCurrency(underlying),
                 SpotReference = spotRef,
+                ForwardReference = fwdRef,
                 Legs = new List<TradeStructure.OptionLeg>()
             };
 
@@ -172,6 +176,11 @@ namespace FXOptionsSimulator
                 else if (part.StartsWith("SP"))
                 {
                     result.SpotReference = double.Parse(part.Substring(2));
+                }
+                // Forward reference: FW1.0950 or FR1.0950
+                else if (part.StartsWith("FW") || part.StartsWith("FR"))
+                {
+                    result.ForwardReference = double.Parse(part.Substring(2));
                 }
             }
 
@@ -422,6 +431,7 @@ namespace FXOptionsSimulator
         {
             public List<ParsedLeg> Legs { get; set; }
             public double SpotReference { get; set; }
+            public double ForwardReference { get; set; }
         }
 
         private class ParsedLeg

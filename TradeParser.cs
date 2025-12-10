@@ -146,44 +146,57 @@ namespace FXOAiTranslator
 
                         // Spot reference - track if explicitly provided
                         string spot = "";
-                        bool spotExplicitlyProvided = false;
+    bool spotExplicitlyProvided = false;
 
-                        var spotMatch = RegexTradePatterns.SpotRegex.Match(input);
-                        if (spotMatch.Success)
-                        {
-                            spot = spotMatch.Groups["spot"].Value.Replace(",", ".");
-                            spotExplicitlyProvided = true;
-                            LogDebug($"DEBUG: Spot reference found in input: '{spot}'");
-                        }
-                        else
-                        {
-                            // If no explicit spot in input, fetch live Bloomberg spot FOR CALCULATIONS ONLY
-                            if (_bloombergService != null && _bloombergService.IsConnected)
-                            {
-                                try
-                                {
-                                    var liveSpotTask = _bloombergService.GetSpotRate(underlying);
-                                    double? liveSpot = await liveSpotTask;
+    var spotMatch = RegexTradePatterns.SpotRegex.Match(input);
+      if (spotMatch.Success)
+ {
+          spot = spotMatch.Groups["spot"].Value.Replace(",", ".");
+   spotExplicitlyProvided = true;
+        LogDebug($"DEBUG: Spot reference found in input: '{spot}'");
+     }
 
-                                    if (liveSpot.HasValue)
-                                    {
-                                        LogDebug($"DEBUG: Fetched Bloomberg spot for calculations (not for output): {liveSpot.Value}");
-                                        spot = liveSpot.Value.ToString("0.####", CultureInfo.InvariantCulture);
-                                    }
-                                    else
-                                    {
-                                        LogDebug("DEBUG: Live spot returned null, skipping spot ref.");
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    LogDebug($"DEBUG: Failed to fetch live spot: {ex.Message}");
-                                }
-                            }
-                        }
+   // Forward reference - track if explicitly provided
+           string forwardRef = "";
+   bool fwdRefExplicitlyProvided = false;
 
-                        try
-                        {
+    var fwdRefMatch = RegexTradePatterns.ForwardRefRegex.Match(input);
+     if (fwdRefMatch.Success)
+     {
+         forwardRef = fwdRefMatch.Groups["fwdref"].Value.Replace(",", ".");
+     fwdRefExplicitlyProvided = true;
+        LogDebug($"DEBUG: Forward reference found in input: '{forwardRef}'");
+ }
+
+    if (!spotExplicitlyProvided && !fwdRefExplicitlyProvided)
+{
+       // If no explicit spot/fwd in input, fetch live Bloomberg spot FOR CALCULATIONS ONLY
+               if (_bloombergService != null && _bloombergService.IsConnected)
+        {
+               try
+    {
+              var liveSpotTask = _bloombergService.GetSpotRate(underlying);
+         double? liveSpot = await liveSpotTask;
+
+    if (liveSpot.HasValue)
+        {
+        LogDebug($"DEBUG: Fetched Bloomberg spot for calculations (not for output): {liveSpot.Value}");
+         spot = liveSpot.Value.ToString("0.####", CultureInfo.InvariantCulture);
+      }
+          else
+          {
+  LogDebug("DEBUG: Live spot returned null, skipping spot ref.");
+         }
+             }
+        catch (Exception ex)
+       {
+        LogDebug($"DEBUG: Failed to fetch live spot: {ex.Message}");
+      }
+          }
+      }
+
+      try
+      {
                             switch (pattern.Name)
                             {
                                 case "CompactMultiLeg_DirectionCodes":
@@ -387,137 +400,32 @@ namespace FXOAiTranslator
                                     string side = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
                                     string vanillaType = match.Groups["type"].Value.Substring(0, 1).ToUpper();
 
-                                    // Convert expiry to OVML date format
-                                    string ovmlExpiryV = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+    // Convert expiry to OVML date format
+             string ovmlExpiryV = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
 
-                                    result.OVML = $"OVML {result.Underlying} 1L {side} " +
-                                                  $"{match.Groups["strike"].Value}{vanillaType} " +
-                                                  $"{ovmlExpiryV} N{match.Groups["notional"].Value}M" +
-                                                  (spotExplicitlyProvided ? " SP" + spot : "");
+    result.OVML = $"OVML {result.Underlying} 1L {side} " +
+            $"{match.Groups["strike"].Value}{vanillaType} " +
+   $"{ovmlExpiryV} N{match.Groups["notional"].Value}M" +
+    (fwdRefExplicitlyProvided ? " FW" + forwardRef : 
+          spotExplicitlyProvided ? " SP" + spot : "");
 
-                                    break;
+      break;
 
-                                case "Simple_Vanilla":
-                                    LogDebug($"DEBUG: Processing Simple_Vanilla pattern");
-                                    result.LegCount = 1;
-                                    string s = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
-                                    string t = match.Groups["type"].Value.Substring(0, 1).ToUpper();
+         case "Simple_Vanilla":
+         LogDebug($"DEBUG: Processing Simple_Vanilla pattern");
+               result.LegCount = 1;
+  string s = match.Groups["side"].Value.ToLower() == "buy" ? "B" : "S";
+               string t = match.Groups["type"].Value.Substring(0, 1).ToUpper();
 
-                                    // Convert expiry to OVML date format
-                                    string ovmlExpirySV = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+    // Convert expiry to OVML date format
+           string ovmlExpirySV = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
 
-                                    result.OVML = $"OVML {result.Underlying} 1L {s} " +
-                                                  $"{match.Groups["strike"].Value}{t} " +
-                                                  $"{ovmlExpirySV} N{match.Groups["notional"].Value}M" +
-                                                  (spotExplicitlyProvided ? " SP" + spot : "");
-                                    break;
-
-                                case "Straddle":
-                                    LogDebug("DEBUG: Processing Straddle pattern");
-                                    result.LegCount = 2;
-
-                                    {
-                                        var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
-                                        string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
-
-                                        string n1 = match.Groups["notional1"].Value;
-                                        string n2 = match.Groups["notional2"].Success ? match.Groups["notional2"].Value : n1;
-
-                                        // Convert expiry to OVML date format
-                                        string ovmlExpiryStraddle = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
-
-                                        result.OVML =
-                                            $"OVML {result.Underlying} 2L {sidePair} ATMS, ATMS C,P {ovmlExpiryStraddle} N{n1}M,{n2}M VA" +
-                                            (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
-                                    }
-                                    break;
-
-                                case "Strangle_Keyword":
-                                    LogDebug("DEBUG: Processing Strangle_Keyword pattern");
-                                    result.LegCount = 2;
-
-                                    {
-                                        var sideToken = match.Groups["side"]?.Value?.ToLower() ?? "";
-                                        string sidePair = (sideToken.StartsWith("sell") || sideToken.StartsWith("sälj")) ? "S,S" : "B,B";
-
-                                        string n = match.Groups["notional"].Value;
-                                        string kPut = match.Groups["strike1"].Value;
-                                        string kCall = match.Groups["strike2"].Value;
-
-                                        // Convert expiry to OVML date format
-                                        string ovmlExpiryStrangle = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
-
-                                        result.OVML =
-                                            $"OVML {result.Underlying} 2L {sidePair} {kPut}P,{kCall}C {ovmlExpiryStrangle} N{n}M,{n}M" +
-                                            (string.IsNullOrEmpty(spot) ? "" : $" SP{spot}");
-                                    }
-                                    break;
-
-                                case "CallSpread_Market":
-                                    LogDebug($"DEBUG: Processing CallSpread_Market pattern");
-                                    result.LegCount = 2;
-
-                                    string notional = match.Groups["notional"].Value;
-                                    string strike1 = match.Groups["strike1"].Value;
-                                    string strike2 = match.Groups["strike2"].Value;
-
-                                    double s1 = double.Parse(strike1);
-                                    double s2 = double.Parse(strike2);
-
-                                    // Convert expiry to OVML date format
-                                    string ovmlExpiryCSM = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
-
-                                    if (s1 < s2)
-                                    {
-                                        result.OVML = $"OVML {result.Underlying} {ovmlExpiryCSM} 2L B,S " +
-                                                      $"{strike1}C,{strike2}C N{notional}M,{notional}M VA" +
-                                                      (spotExplicitlyProvided ? " SP" + spot : "");
-                                    }
-                                    else
-                                    {
-                                        result.OVML = $"OVML {result.Underlying} {ovmlExpiryCSM} 2L B,S " +
-                                                      $"{strike2}C,{strike1}C N{notional}M,{notional}M VA" +
-                                                      (spotExplicitlyProvided ? " SP" + spot : "");
-                                    }
-                                    break;
-
-                                case "PutSpread_Short":
-                                    LogDebug("DEBUG: Processing PutSpread_Short pattern");
-                                    result.LegCount = 2;
-
-                                    double ps1 = double.Parse(match.Groups["strike1"].Value);
-                                    double ps2 = double.Parse(match.Groups["strike2"].Value);
-
-                                    string putLow = ps1 < ps2 ? match.Groups["strike1"].Value : match.Groups["strike2"].Value;
-                                    string putHigh = ps1 < ps2 ? match.Groups["strike2"].Value : match.Groups["strike1"].Value;
-
-                                    string notionalPS = match.Groups["notional"].Value;
-
-                                    // Convert expiry to OVML date format
-                                    string ovmlExpiryPSS = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
-
-                                    result.OVML = $"OVML {result.Underlying} {ovmlExpiryPSS} 2L B,S {putHigh}P,{putLow}P N{notionalPS}M,{notionalPS}M VA" +
-                                                  (spotExplicitlyProvided ? " SP" + spot : "");
-                                    break;
-
-                                case "CallSpread_Short":
-                                    LogDebug("DEBUG: Processing CallSpread_Short pattern");
-                                    result.LegCount = 2;
-
-                                    double cs1 = double.Parse(match.Groups["strike1"].Value);
-                                    double cs2 = double.Parse(match.Groups["strike2"].Value);
-
-                                    string callLow = cs1 < cs2 ? match.Groups["strike1"].Value : match.Groups["strike2"].Value;
-                                    string callHigh = cs1 < cs2 ? match.Groups["strike2"].Value : match.Groups["strike1"].Value;
-
-                                    string notionalCS = match.Groups["notional"].Value;
-
-                                    // Convert expiry to OVML date format
-                                    string ovmlExpiryCSS = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
-
-                                    result.OVML = $"OVML {result.Underlying} {ovmlExpiryCSS} 2L B,S {callLow}C,{callHigh}C N{notionalCS}M,{notionalCS}M VA" +
-                                                  (spotExplicitlyProvided ? " SP" + spot : "");
-                                    break;
+     result.OVML = $"OVML {result.Underlying} 1L {s} " +
+         $"{match.Groups["strike"].Value}{t} " +
+       $"{ovmlExpirySV} N{match.Groups["notional"].Value}M" +
+      (fwdRefExplicitlyProvided ? " FW" + forwardRef : 
+        spotExplicitlyProvided ? " SP" + spot : "");
+    break;
 
                                 default:
                                     LogDebug($"DEBUG: Unknown pattern name: {pattern.Name}");

@@ -43,7 +43,7 @@ namespace FXOAiTranslator
         private CheckBox chkDeut;  // Testing only
         private int _selectedLegCount;
         private bool _showVolatility = true;  // NEW: Toggle between Vol (true) and Premium (false)
-        private string _hedgeType = "Live";  // NEW: Hedge type: "Live", "Spot", or "Forward" (default: Live for vanilla)
+        private string _hedgeType = "Spot";  // Hedge type: "Live", "Spot", or "Forward" (default: Spot)
         private string _premiumType = "Spot";  // NEW: Premium delivery: "Spot" or "Forward"
         private string _cutoff = "NY";  // NEW: Cutoff toggle (default NY)
         private string _premiumCurrency = null;  // NEW: Premium currency toggle (EUR/USD, etc.)
@@ -61,6 +61,8 @@ namespace FXOAiTranslator
         private Button _btnToggleDisplay;  // Vol/Premium toggle button
         private Button _btnTogglePremType;  // Premium Type toggle (Spot/Forward)
         private ComboBox _cmbHedgeType;  // Delta Hedge dropdown (Live/Spot/Forward)
+        private TextBox _txtHedgeRate;    // NEW: Spot/Forward hedge rate input
+        private Label _lblHedgeRate; // NEW: Label for hedge rate
         private TextBox _txtNotionalAmount;  // Ccy1 amount (e.g., EUR)
         private TextBox _txtNotionalCcy2;     // Ccy2 amount (e.g., USD)
         private Label _lblNotionalCcy1;
@@ -97,6 +99,9 @@ namespace FXOAiTranslator
 
     lblTradeSummary.Text = $"{_trade.StructureType}: {_trade.Underlying} - {_trade.Legs.Count} legs";
     PopulateLegGrid();
+
+    // Initialize hedge rate from trade's SpotReference
+    InitializeHedgeRate();
 
     // Subscribe to quote events
     _fixSession.Application.OnQuoteReceived += OnQuoteReceivedFromFIX;
@@ -369,7 +374,7 @@ namespace FXOAiTranslator
                 BackColor = Color.White
             };
             _cmbHedgeType.Items.AddRange(new object[] { "Live", "Spot", "Forward" });
-            _cmbHedgeType.SelectedIndex = 0; // Default to "Live" (vanilla, no hedge)
+            _cmbHedgeType.SelectedIndex = 1; // Default to "Spot" hedge
             _cmbHedgeType.SelectedIndexChanged += (s, e) =>
             {
                 // Update hedge type when dropdown selection changes
@@ -379,12 +384,33 @@ namespace FXOAiTranslator
             };
             this.Controls.Add(_cmbHedgeType);
 
+            // TextBox for custom hedge rate - NEW
+            _txtHedgeRate = new TextBox
+            {
+                Location = new Point(410, 305),
+                Size = new Size(90, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                BackColor = Color.White,
+                PlaceholderText = "e.g. 1.0850"
+            };
+            this.Controls.Add(_txtHedgeRate);
+
+            // Label for hedge rate TextBox - NEW
+            _lblHedgeRate = new Label
+            {
+                Text = "Hedge Rate:",
+                Location = new Point(410, 285),
+                Size = new Size(80, 15),
+                Font = new Font("Segoe UI", 8, FontStyle.Regular)
+            };
+            this.Controls.Add(_lblHedgeRate);
+
             // Toggle button for Cutoff - stored as class field for dynamic updates
             _btnToggleCut = new Button
             {
                 Text = $"Cut: {_cutoff}",
-                Location = new Point(410, 305),
-                Size = new Size(100, 25),
+                Location = new Point(510, 305),
+                Size = new Size(85, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 BackColor = Color.LightSkyBlue,
                 FlatStyle = FlatStyle.Flat,
@@ -397,7 +423,7 @@ namespace FXOAiTranslator
             // Currency Toggle Buttons - created initially, updated dynamically via UpdateCurrencyButtons()
             _btnCcy1 = new Button
             {
-                Location = new Point(520, 305),
+                Location = new Point(605, 305),
                 Size = new Size(55, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
@@ -409,7 +435,7 @@ namespace FXOAiTranslator
 
             _btnCcy2 = new Button
             {
-                Location = new Point(580, 305),
+                Location = new Point(665, 305),
                 Size = new Size(55, 25),
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
@@ -423,7 +449,7 @@ namespace FXOAiTranslator
             _lblCcyToggle = new Label
             {
                 Text = "Premium Ccy:",
-                Location = new Point(390, 285),
+                Location = new Point(605, 285),
                 Size = new Size(115, 15),
                 Font = new Font("Segoe UI", 8, FontStyle.Regular)
             };
@@ -1991,11 +2017,88 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
             // Update dropdown selection based on hedge type
             string displayValue = _hedgeType;
             if (_cmbHedgeType.Items.Contains(displayValue))
-            {
-                _cmbHedgeType.SelectedItem = displayValue;
-            }
+    {
+       _cmbHedgeType.SelectedItem = displayValue;
+      }
 
             Console.WriteLine($"[HEDGE TYPE] Updated dropdown to: {_hedgeType}");
+        }
+
+        /// <summary>
+      /// Initializes the hedge rate field from the trade's SpotReference or ForwardReference.
+   /// Defaults to Spot hedge. If ForwardReference is specified, uses Forward hedge instead.
+   /// </summary>
+    private void InitializeHedgeRate()
+     {
+      if (_txtHedgeRate == null || _trade == null) return;
+
+  // Check if forward reference is specified - if so, use forward hedge
+ if (_trade.ForwardReference > 0)
+ {
+        // Forward reference specified - use forward hedge
+   _hedgeType = "Forward";
+      UpdateHedgeTypeDropdown();
+
+    string formatted = FormatRateForDisplay(_trade.ForwardReference, _trade.Underlying);
+         _txtHedgeRate.Text = formatted;
+  Console.WriteLine($"[HEDGE RATE] Initialized from trade ForwardReference: {formatted} (Hedge: Forward)");
+  }
+     else if (_trade.SpotReference > 0)
+     {
+    // Spot reference specified - use spot hedge (default)
+  _hedgeType = "Spot";
+   UpdateHedgeTypeDropdown();
+
+    string formatted = FormatRateForDisplay(_trade.SpotReference, _trade.Underlying);
+    _txtHedgeRate.Text = formatted;
+            Console.WriteLine($"[HEDGE RATE] Initialized from trade SpotReference: {formatted} (Hedge: Spot)");
+     }
+      else
+     {
+      // No reference specified - default to Spot hedge with empty rate
+  _hedgeType = "Spot";
+  UpdateHedgeTypeDropdown();
+     _txtHedgeRate.Text = "";
+         Console.WriteLine($"[HEDGE RATE] No reference in trade, defaulting to Spot hedge with empty rate");
+    }
+     }
+
+        /// <summary>
+    /// Formats a rate for display based on the currency pair convention.
+     /// JPY pairs typically show 2 decimal places, others show 4-5.
+        /// </summary>
+   private string FormatRateForDisplay(double rate, string currencyPair)
+        {
+   if (string.IsNullOrEmpty(currencyPair) || currencyPair.Length < 6)
+         return rate.ToString("F4");
+
+string quoteCcy = currencyPair.Substring(3, 3).ToUpper();
+
+     // JPY-based pairs use 2-3 decimal places
+          if (quoteCcy == "JPY")
+                return rate.ToString("F2");
+
+            // NOK, SEK, etc. use 4 decimal places
+         if (quoteCcy == "NOK" || quoteCcy == "SEK" || quoteCcy == "DKK" || quoteCcy == "CNH")
+      return rate.ToString("F4");
+
+          // Standard pairs (EUR/USD, GBP/USD, etc.) use 4-5 decimal places
+            return rate.ToString("F5");
+  }
+
+        /// <summary>
+        /// Gets the current hedge rate from the text field, parsed as a double.
+        /// Returns null if the field is empty or invalid.
+        /// </summary>
+ public double? GetHedgeRate()
+        {
+            if (_txtHedgeRate == null || string.IsNullOrWhiteSpace(_txtHedgeRate.Text))
+          return null;
+
+   if (double.TryParse(_txtHedgeRate.Text, out double rate))
+          return rate;
+
+            return null;
         }
 
         #endregion

@@ -280,6 +280,12 @@ new TradePattern(
             RegexOptions.IgnoreCase
         );
 
+        // Forward reference regex - NEW
+        public static readonly Regex ForwardRefRegex = new Regex(
+            @"(?:fwd\s*ref|forward\s*ref|fr\s*ref|f\.?\s*r\.?|fwdref|forwardref)\s*[:.]?\s*(?<fwdref>\d+[,.]?\d*)",
+            RegexOptions.IgnoreCase
+        );
+
         // === Helpers for OVML assembly ===
         public static string MapSide(string side)
         {

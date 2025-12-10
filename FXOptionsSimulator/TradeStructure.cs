@@ -17,6 +17,7 @@ namespace FXOptionsSimulator
         public string PremiumCurrency { get; set; }
         public string HedgeType { get; set; } = "SPOT"; // or "FORWARD"
         public double SpotReference { get; set; }
+        public double ForwardReference { get; set; }  // Forward rate for forward hedge
         public string QuoteType { get; set; } = "PREM"; // "PREM" or "VOL" - how quotes should be priced
 
         public class OptionLeg
