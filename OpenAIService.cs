@@ -838,6 +838,14 @@ Output ONLY the OVML line:";
                     return null;
                 }
 
+                // Strip spot and forward references from OVML before saving
+                // These are market data, not trade structure - should not be part of learned patterns
+                string cleanedOVML = result.OVML;
+                cleanedOVML = System.Text.RegularExpressions.Regex.Replace(cleanedOVML, @"\s*SP[\d.,]+", "");
+                cleanedOVML = System.Text.RegularExpressions.Regex.Replace(cleanedOVML, @"\s*FW[\d.,]+", "");
+                cleanedOVML = cleanedOVML.TrimEnd();
+                Console.WriteLine($"[AI] Cleaned OVML for pattern (stripped SP/FW): {cleanedOVML}");
+
                 var pattern = new LearnedPattern
                 {
                     Name = $"Learned-{DateTime.Now:yyyyMMdd-HHmmss}",
@@ -846,7 +854,7 @@ Output ONLY the OVML line:";
                     CreatedAt = DateTime.Now,
                     UsageCount = 1,
                     ExampleInput = input.Trim(),
-                    ExampleOVML = result.OVML  // Save the OVML output
+                    ExampleOVML = cleanedOVML  // Save cleaned OVML without SP/FW
                 };
                 _learnedPatterns.Add(pattern);
                 SaveLearnedPatterns();

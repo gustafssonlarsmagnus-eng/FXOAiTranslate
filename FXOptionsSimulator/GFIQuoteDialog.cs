@@ -1670,14 +1670,14 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
                 // Use regex to extract first word before parenthesis
                 var tenorMatch = System.Text.RegularExpressions.Regex.Match(expiryInput, @"^(\S+)");
                 if (tenorMatch.Success)
-                {
-                    expiryInput = tenorMatch.Groups[1].Value;
-                }
+      {
+             expiryInput = tenorMatch.Groups[1].Value;
+  }
 
-                Console.WriteLine($"[EXPIRY EDIT] Parsed tenor: '{expiryInput}'");
+       Console.WriteLine($"[EXPIRY EDIT] Parsed tenor: '{expiryInput}'");
 
-                try
-                {
+       try
+      {
                     // Determine premium currency (base currency of pair)
                     string premiumCcy = ccy1;
                     string underlying = _trade?.Underlying ?? "EURUSD";
@@ -2010,25 +2010,21 @@ UpdateQuoteDisplay(); // Refresh to show premiums in new currency
       Console.WriteLine($"[PREMIUM TYPE] Updated to: {_premiumType} (display: {displayLabel})");
         }
 
-        private void UpdateHedgeTypeDropdown()
-        {
-            if (_cmbHedgeType == null) return;
+     private void UpdateHedgeTypeDropdown()
+     {
+     if (_cmbHedgeType == null) return;
 
-            // Update dropdown selection based on hedge type
-            string displayValue = _hedgeType;
-            if (_cmbHedgeType.Items.Contains(displayValue))
-    {
+    // Update dropdown selection based on hedge type
+     string displayValue = _hedgeType;
+  if (_cmbHedgeType.Items.Contains(displayValue))
+  {
        _cmbHedgeType.SelectedItem = displayValue;
-      }
+   }
 
-            Console.WriteLine($"[HEDGE TYPE] Updated dropdown to: {_hedgeType}");
-        }
+     Console.WriteLine($"[HEDGE TYPE] Updated dropdown to: {_hedgeType}");
+ }
 
-        /// <summary>
-      /// Initializes the hedge rate field from the trade's SpotReference or ForwardReference.
-   /// Defaults to Spot hedge. If ForwardReference is specified, uses Forward hedge instead.
-   /// </summary>
-    private void InitializeHedgeRate()
+        private void InitializeHedgeRate()
      {
       if (_txtHedgeRate == null || _trade == null) return;
 
@@ -2528,9 +2524,9 @@ string quoteCcy = currencyPair.Substring(3, 3).ToUpper();
         // Update toggle buttons for new trade (ParseTestCase already set _cutoff, _hedgeType, _premiumType)
 UpdateCurrencyButtons();
   UpdateCutoffButton();
-                UpdateQuoteTypeButton();  // Update Vol/Premium button based on test case
-                UpdatePremiumTypeButton();  // Update Premium Type button (Spot/Forward)
-                UpdateHedgeTypeDropdown();  // Update Hedge Type dropdown (Live/Spot/Forward)
+     UpdateQuoteTypeButton();  // Update Vol/Premium button based on test case
+  UpdatePremiumTypeButton();  // Update Premium Type button (Spot/Forward)
+     InitializeHedgeRate();  // Initialize hedge rate from trade's SpotReference/ForwardReference (clears if none)
 
      // Generate group ID and store current test info
     string groupId = $"TEST-{testId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
@@ -2543,11 +2539,11 @@ UpdateCurrencyButtons();
                     try
                     {
                         string quoteReqID = _fixSession.SendQuoteRequest(trade, lp, groupId, _hedgeType, _premiumType);
-                        Console.WriteLine($"[TEST CASE {testId}] ✓ Quote sent to {lp} | QuoteReqID: {quoteReqID}");
+                        Console.WriteLine($"[TEST CASE {testId}] Quote sent to {lp} | QuoteReqID: {quoteReqID}");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[TEST CASE {testId}] ✗ Failed to send to {lp}: {ex.Message}");
+                        Console.WriteLine($"[TEST CASE {testId}] Failed to send to {lp}: {ex.Message}");
                     }
                 }
 

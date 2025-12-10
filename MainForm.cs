@@ -438,6 +438,14 @@ namespace FXOAiTranslator
 
             dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
             {
+                Name = "FwdRef",
+                HeaderText = "Fwd Ref",
+                ReadOnly = true,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+            });
+
+            dgvTradeBlotter.Columns.Add(new DataGridViewTextBoxColumn
+            {
                 Name = "Method",
                 HeaderText = "Method",
                 ReadOnly = true,
@@ -502,6 +510,7 @@ namespace FXOAiTranslator
                     case "Legs":
                     case "Expiry":
                     case "SpotRef":
+                    case "FwdRef":
                     case "Reject":
                     case "ReParseAI":
                     case "Method":
@@ -904,6 +913,7 @@ namespace FXOAiTranslator
                 LegCount = result.LegCount.ToString(),
                 Expiry = result.Expiry,
                 SpotRef = ExtractSpotFromOVML(result.OVML),
+                FwdRef = ExtractFwdRefFromOVML(result.OVML),
                 ParseMethod = result.ParseMethod,
                 ValidationWarning = result.ValidationWarning
             };
@@ -933,6 +943,7 @@ namespace FXOAiTranslator
                     trade.LegCount,
                     FormatExpiryForDisplay(trade.Expiry, trade.Underlying),
                     trade.SpotRef,
+                    trade.FwdRef,
                     trade.ParseMethod,
                     null,
                     null,
@@ -951,6 +962,7 @@ namespace FXOAiTranslator
                     trade.LegCount,
                     FormatExpiryForDisplay(trade.Expiry, trade.Underlying),
                     trade.SpotRef,
+                    trade.FwdRef,
                     trade.ParseMethod,
                     null,
                     null,
@@ -1008,6 +1020,13 @@ namespace FXOAiTranslator
             return match.Success ? match.Groups[1].Value : "";
         }
 
+        private string ExtractFwdRefFromOVML(string ovml)
+        {
+            if (string.IsNullOrEmpty(ovml)) return "";
+
+            var match = Regex.Match(ovml, @"FW(\d+(?:[.,]\d+)?)");
+            return match.Success ? match.Groups[1].Value : "";
+        }
         private void LogDebugMessage(string message)
         {
             if (txtDebugLog.InvokeRequired)
@@ -1329,6 +1348,7 @@ namespace FXOAiTranslator
         public string LegCount { get; set; }
         public string Expiry { get; set; }
         public string SpotRef { get; set; }
+        public string FwdRef { get; set; }
         public string ParseMethod { get; set; }
         public string ValidationWarning { get; set; }
     }

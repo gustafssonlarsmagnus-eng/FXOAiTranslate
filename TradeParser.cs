@@ -112,6 +112,26 @@ namespace FXOAiTranslator
                     if (learnedResult != null)
                     {
                         LogDebug($"[Parser] ✓ Used learned pattern");
+
+                        // Post-process: Handle forward reference
+                        var learnedFwdRefMatch = RegexTradePatterns.ForwardRefRegex.Match(input);
+                        if (learnedFwdRefMatch.Success)
+                        {
+                            string fwdRefValue = learnedFwdRefMatch.Groups["fwdref"].Value.Replace(",", ".");
+                          
+                            // Remove any existing SP (spot reference) from OVML when FW is specified
+                          // Spot should only be included if explicitly requested, not when fwd ref is provided
+                           learnedResult.OVML = Regex.Replace(learnedResult.OVML, @"\s*SP[\d.,]+", "");
+                          
+                            // Add FW if not already present
+                            if (!learnedResult.OVML.Contains("FW"))
+                             {
+                           learnedResult.OVML = learnedResult.OVML.TrimEnd() + " FW" + fwdRefValue;
+                         }
+                            LogDebug($"DEBUG: Forward reference applied to learned pattern OVML: FW{fwdRefValue}");
+                            learnedResult.GenerateUBS(); // Regenerate UBS with updated OVML
+                        }
+
                         _cache[input] = learnedResult;
                         return learnedResult;
                     }
@@ -527,8 +547,25 @@ namespace FXOAiTranslator
                     aiResult.OVML = string.Join(" ", parts);
                 }
 
-                // Normalize both expiry + OVML
-                aiResult.OVML = NormalizeOVMLDates(aiResult.OVML);
+                // Post-process: Add forward reference to OVML if found in input but not in OVML
+    var aiFwdRefMatch = RegexTradePatterns.ForwardRefRegex.Match(input);
+    if (aiFwdRefMatch.Success)
+        {
+    string fwdRefValue = aiFwdRefMatch.Groups["fwdref"].Value.Replace(",", ".");
+  
+    // Remove any existing SP (spot reference) from OVML when FW is specified
+         aiResult.OVML = Regex.Replace(aiResult.OVML, @"\s*SP[\d.,]+", "");
+   
+  // Add FW if not already present
+    if (!aiResult.OVML.Contains("FW"))
+          {
+     aiResult.OVML = aiResult.OVML.TrimEnd() + " FW" + fwdRefValue;
+}
+  LogDebug($"DEBUG: Forward reference applied to AI OVML: FW{fwdRefValue}");
+   }
+
+    // Normalize both expiry + OVML
+      aiResult.OVML = NormalizeOVMLDates(aiResult.OVML);
                 aiResult.OVML = aiResult.OVML.Trim('"', '\'');  // Remove stray quotes
                 aiResult.Expiry = NormalizeExpiry(aiResult.Expiry);
                 aiResult.GenerateUBS(); // Generate UBS format
@@ -965,7 +1002,7 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                 // PRIORITY 1: Explicit words (ALWAYS expiry, never notional)
                 var explicitTenorMatch = Regex.Match(
                     input,
-                    @"\b(?<num>\d+)[\s-]*(?<unit>year|years|yr|yrs|month|months|mth|mths|week|weeks|wk|wks|day|days)\b",
+                    @"\b(?<num>\d+)[\s-]*(?<unit>year|years|yr|yrs|month|months|mth|wks|wk|day|days)\b",
                     RegexOptions.IgnoreCase
                 );
 
