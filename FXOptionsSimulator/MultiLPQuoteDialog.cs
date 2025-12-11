@@ -604,7 +604,7 @@ namespace FXOptionsSimulator
                     leg.Direction == "BUY" ? "B" : "S",
                     leg.OptionType,
                     leg.Strike.ToString("F4"),
-                    _trade.Expiry.ToString("dd-MMM-yy"),
+                    leg.ExpiryDate.ToString("dd-MMM-yy"),
                     $"{leg.NotionalMM:F1}M {GetCcy1()}"
                 );
             }

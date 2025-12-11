@@ -11,7 +11,7 @@ namespace FXOptionsSimulator
     public class LPQuoteRow : Panel
     {
         // Fonts
-        private readonly Font _headerFont = new Font("Segoe UI", 12F, FontStyle.Semibold);
+        private readonly Font _headerFont = new Font("Segoe UI", 12F, FontStyle.Bold);
         private readonly Font _timestampFont = new Font("Segoe UI", 10F, FontStyle.Regular);
 
         // Colors
