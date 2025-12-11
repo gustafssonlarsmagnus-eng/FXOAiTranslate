@@ -18,6 +18,20 @@ namespace FXOptionsSimulator
         private string _displayMode = "Premium"; // "Vol", "Premium", or "Pips"
         private Dictionary<string, LPQuoteRow> _lpRows = new Dictionary<string, LPQuoteRow>();
         private List<string> _selectedLPs = new List<string>();
+        private Dictionary<string, QuoteData> _quotes = new Dictionary<string, QuoteData>();
+
+        // Quote data structure
+        private class QuoteData
+        {
+            public string LPName { get; set; }
+            public double BidVol { get; set; }
+            public double BidPremium { get; set; }
+            public double BidPips { get; set; }
+            public double AskVol { get; set; }
+            public double AskPremium { get; set; }
+            public double AskPips { get; set; }
+            public DateTime QuoteTime { get; set; }
+        }
 
         // UI Components - Left Panel (Trade Staging)
         private Panel _leftPanel;
@@ -41,6 +55,15 @@ namespace FXOptionsSimulator
         private CheckBox _chkGFI;
         private Panel _pnlDirectLPs;
         private Button _btnRequestQuotes;
+        private Panel _pnlBestPrices;  // NEW: Top section showing aggregated best bid/offer
+        private Panel _pnlBestBid;
+        private Panel _pnlBestOffer;
+        private Label _lblBestBidValue;
+        private Label _lblBestOfferValue;
+        private Label _lblBestBidDetails;
+        private Label _lblBestOfferDetails;
+        private Label _lblBestBidSource;
+        private Label _lblBestOfferSource;
         private Panel _pnlPricingTiles;
         private FlowLayoutPanel _flowPricingTiles;
 
@@ -394,6 +417,9 @@ namespace FXOptionsSimulator
             _rightPanel.Controls.Add(_btnRequestQuotes);
             yPos += 55;
 
+            // Best Prices section (Aggregated best bid and best offer)
+            InitializeBestPricesSection(ref yPos);
+
             // Pricing tiles panel (scrollable)
             _pnlPricingTiles = new Panel
             {
@@ -419,6 +445,138 @@ namespace FXOptionsSimulator
 
             // Initialize pricing tiles (empty initially)
             UpdatePricingTiles();
+        }
+
+        private void InitializeBestPricesSection(ref int yPos)
+        {
+            // Panel container for best prices
+            _pnlBestPrices = new Panel
+            {
+                Location = new Point(0, yPos),
+                Size = new Size(700, 160),
+                BackColor = ColorTranslator.FromHtml("#F8F9FA"),
+                BorderStyle = BorderStyle.None,
+                Padding = new Padding(8)
+            };
+
+            // Section title
+            var lblBestPricesTitle = new Label
+            {
+                Text = "BEST PRICES",
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#495057"),
+                Location = new Point(8, 8),
+                AutoSize = true
+            };
+            _pnlBestPrices.Controls.Add(lblBestPricesTitle);
+
+            // BEST BID tile (left)
+            _pnlBestBid = new Panel
+            {
+                Location = new Point(8, 35),
+                Size = new Size(338, 115),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var lblBestBidTitle = new Label
+            {
+                Text = "BEST BID - YOU RECEIVE",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#28A745"), // Green
+                Location = new Point(12, 8),
+                AutoSize = true
+            };
+
+            _lblBestBidValue = new Label
+            {
+                Text = "---",
+                Font = new Font("Segoe UI", 36F, FontStyle.Bold), // Very large!
+                ForeColor = ColorTranslator.FromHtml("#212529"),
+                Location = new Point(12, 35),
+                Size = new Size(310, 50),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            _lblBestBidDetails = new Label
+            {
+                Text = "Vol: -- | Pips: --",
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = ColorTranslator.FromHtml("#6C757D"),
+                Location = new Point(12, 87),
+                AutoSize = true
+            };
+
+            _lblBestBidSource = new Label
+            {
+                Text = "Source: --",
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
+                ForeColor = ColorTranslator.FromHtml("#6C757D"),
+                Location = new Point(12, 100),
+                AutoSize = true
+            };
+
+            _pnlBestBid.Controls.Add(lblBestBidTitle);
+            _pnlBestBid.Controls.Add(_lblBestBidValue);
+            _pnlBestBid.Controls.Add(_lblBestBidDetails);
+            _pnlBestBid.Controls.Add(_lblBestBidSource);
+
+            // BEST OFFER tile (right)
+            _pnlBestOffer = new Panel
+            {
+                Location = new Point(354, 35),
+                Size = new Size(338, 115),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var lblBestOfferTitle = new Label
+            {
+                Text = "BEST OFFER - YOU PAY",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#DC3545"), // Red
+                Location = new Point(12, 8),
+                AutoSize = true
+            };
+
+            _lblBestOfferValue = new Label
+            {
+                Text = "---",
+                Font = new Font("Segoe UI", 36F, FontStyle.Bold), // Very large!
+                ForeColor = ColorTranslator.FromHtml("#212529"),
+                Location = new Point(12, 35),
+                Size = new Size(310, 50),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            _lblBestOfferDetails = new Label
+            {
+                Text = "Vol: -- | Pips: --",
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = ColorTranslator.FromHtml("#6C757D"),
+                Location = new Point(12, 87),
+                AutoSize = true
+            };
+
+            _lblBestOfferSource = new Label
+            {
+                Text = "Source: --",
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
+                ForeColor = ColorTranslator.FromHtml("#6C757D"),
+                Location = new Point(12, 100),
+                AutoSize = true
+            };
+
+            _pnlBestOffer.Controls.Add(lblBestOfferTitle);
+            _pnlBestOffer.Controls.Add(_lblBestOfferValue);
+            _pnlBestOffer.Controls.Add(_lblBestOfferDetails);
+            _pnlBestOffer.Controls.Add(_lblBestOfferSource);
+
+            _pnlBestPrices.Controls.Add(_pnlBestBid);
+            _pnlBestPrices.Controls.Add(_pnlBestOffer);
+
+            _rightPanel.Controls.Add(_pnlBestPrices);
+            yPos += 170; // Space for best prices section
         }
 
         private Label CreateDataLabel(string label, string value, int yPos)
@@ -555,6 +713,20 @@ namespace FXOptionsSimulator
                     double bidPips = bidPremium / 1000;
                     double askPips = askPremium / 1000;
 
+                    // Store quote data
+                    _quotes[lpName] = new QuoteData
+                    {
+                        LPName = lpName,
+                        BidVol = bidVol,
+                        BidPremium = bidPremium,
+                        BidPips = bidPips,
+                        AskVol = askVol,
+                        AskPremium = askPremium,
+                        AskPips = askPips,
+                        QuoteTime = DateTime.Now
+                    };
+
+                    // Update LP row (will be marked as best/not best in DetermineBestPrices)
                     _lpRows[lpName].UpdateQuotes(
                         bidVol, bidPremium, GetCcy1(), bidPips, $"Buy {_txtNotional.Text}M", _trade.Underlying, double.Parse(_txtNotional.Text), false,
                         askVol, askPremium, GetCcy1(), askPips, $"Sell {_txtNotional.Text}M", false,
@@ -563,25 +735,108 @@ namespace FXOptionsSimulator
                 }
             }
 
-            // Determine best bid/ask
+            // Determine best bid/ask and update displays
             DetermineBestPrices();
         }
 
         private void DetermineBestPrices()
         {
-            // TODO: Implement best price determination logic
-            // For now, just mark first LP as best
-            if (_lpRows.Count > 0)
+            if (_quotes.Count == 0)
             {
-                var firstLP = _lpRows.First().Key;
-                // Update with isBest flags
+                // No quotes yet - clear best prices
+                _lblBestBidValue.Text = "---";
+                _lblBestOfferValue.Text = "---";
+                _lblBestBidDetails.Text = "Vol: -- | Pips: --";
+                _lblBestOfferDetails.Text = "Vol: -- | Pips: --";
+                _lblBestBidSource.Text = "Source: --";
+                _lblBestOfferSource.Text = "Source: --";
+                return;
+            }
+
+            // Find best bid (highest premium = you receive more)
+            var bestBid = _quotes.Values.OrderByDescending(q => q.BidPremium).First();
+
+            // Find best offer (lowest premium = you pay less)
+            var bestOffer = _quotes.Values.OrderBy(q => q.AskPremium).First();
+
+            // Update top best price tiles
+            UpdateBestPriceTiles(bestBid, bestOffer);
+
+            // Update individual LP rows with best indicators
+            foreach (var lpName in _quotes.Keys)
+            {
+                if (_lpRows.ContainsKey(lpName))
+                {
+                    var quote = _quotes[lpName];
+                    bool isBestBid = quote.LPName == bestBid.LPName;
+                    bool isBestOffer = quote.LPName == bestOffer.LPName;
+
+                    _lpRows[lpName].UpdateQuotes(
+                        quote.BidVol, quote.BidPremium, GetCcy1(), quote.BidPips,
+                        $"Buy {_txtNotional.Text}M", _trade.Underlying, double.Parse(_txtNotional.Text), isBestBid,
+                        quote.AskVol, quote.AskPremium, GetCcy1(), quote.AskPips,
+                        $"Sell {_txtNotional.Text}M", isBestOffer,
+                        _displayMode, quote.QuoteTime
+                    );
+                }
+            }
+        }
+
+        private void UpdateBestPriceTiles(QuoteData bestBid, QuoteData bestOffer)
+        {
+            string ccy = GetCcy1();
+
+            // Update BEST BID tile
+            switch (_displayMode)
+            {
+                case "Vol":
+                    _lblBestBidValue.Text = $"{bestBid.BidVol:F3}%";
+                    _lblBestBidDetails.Text = $"Premium: {bestBid.BidPremium:N0} {ccy} | Pips: {bestBid.BidPips:F3}";
+                    break;
+                case "Premium":
+                    _lblBestBidValue.Text = $"{bestBid.BidPremium:N0}";
+                    _lblBestBidDetails.Text = $"Vol: {bestBid.BidVol:F3}% | Pips: {bestBid.BidPips:F3}";
+                    break;
+                case "Pips":
+                    _lblBestBidValue.Text = $"{bestBid.BidPips:F3}";
+                    _lblBestBidDetails.Text = $"Vol: {bestBid.BidVol:F3}% | Premium: {bestBid.BidPremium:N0} {ccy}";
+                    break;
+            }
+            _lblBestBidSource.Text = $"Source: {bestBid.LPName}";
+
+            // Update BEST OFFER tile
+            switch (_displayMode)
+            {
+                case "Vol":
+                    _lblBestOfferValue.Text = $"{bestOffer.AskVol:F3}%";
+                    _lblBestOfferDetails.Text = $"Premium: {bestOffer.AskPremium:N0} {ccy} | Pips: {bestOffer.AskPips:F3}";
+                    break;
+                case "Premium":
+                    _lblBestOfferValue.Text = $"{bestOffer.AskPremium:N0}";
+                    _lblBestOfferDetails.Text = $"Vol: {bestOffer.AskVol:F3}% | Pips: {bestOffer.AskPips:F3}";
+                    break;
+                case "Pips":
+                    _lblBestOfferValue.Text = $"{bestOffer.AskPips:F3}";
+                    _lblBestOfferDetails.Text = $"Vol: {bestOffer.AskVol:F3}% | Premium: {bestOffer.AskPremium:N0} {ccy}";
+                    break;
+            }
+            _lblBestOfferSource.Text = $"Source: {bestOffer.LPName}";
+
+            // Add currency label for Premium display mode
+            if (_displayMode == "Premium")
+            {
+                _lblBestBidValue.Text += $" {ccy}";
+                _lblBestOfferValue.Text += $" {ccy}";
             }
         }
 
         private void RefreshPricingTiles()
         {
-            // Re-render tiles with current display mode
-            // TODO: Implement full refresh
+            // Re-render all tiles with new display mode
+            if (_quotes.Count > 0)
+            {
+                DetermineBestPrices(); // This will update both best tiles and individual rows
+            }
         }
 
         private void OnBidAction(string lpName)
