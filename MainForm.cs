@@ -642,8 +642,11 @@ namespace FXOAiTranslator
 
             try
             {
-                // Show GFI dialog
-                var dialog = new GFIQuoteDialog(ovmlResult);
+                // Convert OVML to TradeStructure for multi-LP dialog
+                var tradeStructure = FXOptionsSimulator.OVMLBridge.ConvertToTradeStructure(ovmlResult);
+
+                // Show Multi-LP Quote Dialog
+                var dialog = new FXOptionsSimulator.MultiLPQuoteDialog(tradeStructure);
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
                     MessageBox.Show("Trade executed successfully!", "Success",
@@ -652,7 +655,7 @@ namespace FXOAiTranslator
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error opening GFI dialog:\n\n{ex.Message}", "Error",
+                MessageBox.Show($"Error opening multi-LP dialog:\n\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
