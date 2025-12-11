@@ -339,8 +339,14 @@ namespace FXOAiTranslator
             copyUBSMenuItem.ShortcutKeys = Keys.Control | Keys.U;
             copyUBSMenuItem.Click += (s, e) => CopySelectedCell("UBS");
 
+            var testGFIMenuItem = new ToolStripMenuItem("Test GFI Quote Dialog");
+            testGFIMenuItem.ShortcutKeys = Keys.Control | Keys.G;
+            testGFIMenuItem.Click += BtnTestGFI_Click;
+
             toolsMenu.DropDownItems.Add(copyOVMLMenuItem);
             toolsMenu.DropDownItems.Add(copyUBSMenuItem);
+            toolsMenu.DropDownItems.Add(new ToolStripSeparator());
+            toolsMenu.DropDownItems.Add(testGFIMenuItem);
 
             menuStrip.Items.Add(viewMenu);
             menuStrip.Items.Add(toolsMenu);
@@ -650,6 +656,34 @@ namespace FXOAiTranslator
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        private void BtnTestGFI_Click(object sender, EventArgs e)
+        {
+            var testTrade = new FXOptionsSimulator.TradeStructure
+            {
+                Underlying = "EURSEK",
+                StructureType = "1",
+                PremiumCurrency = "EUR",
+                SpotReference = 11.75,
+                Legs = new List<FXOptionsSimulator.TradeStructure.OptionLeg>
+                {
+                    new FXOptionsSimulator.TradeStructure.OptionLeg
+                    {
+                        Direction = "BUY",
+                        OptionType = "CALL",
+                        Strike = 11.75,
+                        Tenor = "1M",
+                        ExpiryDate = DateTime.Now.AddMonths(1),
+                        DeliveryDate = DateTime.Now.AddMonths(1).AddDays(2),
+                        NotionalMM = 10.0,
+                        NotionalCurrency = "EUR"
+                    }
+                }
+            };
+
+            var dialog = new GFIQuoteDialog(testTrade);
+            dialog.Show();
+        }
+
         private void SetupEventHandlers()
         {
             dgvTradeBlotter.CellClick += DgvTradeBlotter_CellClick;

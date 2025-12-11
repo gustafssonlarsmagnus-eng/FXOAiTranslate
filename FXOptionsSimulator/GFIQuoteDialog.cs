@@ -76,8 +76,23 @@ namespace FXOAiTranslator
             // so that currency-dependent UI elements can use the underlying pair
           _trade = OVMLBridge.ConvertToTradeStructure(ovmlResult);
             
-         InitializeCustomComponents();
+        InitializeDialogWithTrade();
+ }
+
+        public GFIQuoteDialog(TradeStructure trade)
+        {
+            InitializeComponent();
+  
+   // Use trade directly without conversion
+        _trade = trade;
             
+   InitializeDialogWithTrade();
+        }
+
+        private void InitializeDialogWithTrade()
+        {
+         InitializeCustomComponents();
+    
   _fixSession = GlobalFIXSession.Instance;
 
     Console.WriteLine($"\n=== TRADE STRUCTURE DEBUG ===");
@@ -88,10 +103,10 @@ namespace FXOAiTranslator
     for (int i = 0; i < _trade.Legs.Count; i++)
     {
         var leg = _trade.Legs[i];
-        Console.WriteLine($"\nLeg {i}:");
+  Console.WriteLine($"\nLeg {i}:");
         Console.WriteLine($"  Direction: {leg.Direction}");
-        Console.WriteLine($"  OptionType: {leg.OptionType}");
-        Console.WriteLine($"  Strike: {leg.Strike}");
+      Console.WriteLine($"  OptionType: {leg.OptionType}");
+     Console.WriteLine($"  Strike: {leg.Strike}");
         Console.WriteLine($"  NotionalMM: {leg.NotionalMM}");
         Console.WriteLine($"  Tenor: {leg.Tenor}");
     }
