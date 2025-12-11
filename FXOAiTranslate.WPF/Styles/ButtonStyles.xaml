@@ -1,56 +1,60 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+          xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/Colors.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
 
     <!-- ============================================ -->
     <!-- EXECUTION BUTTON STYLE (Top Panels)         -->
     <!-- ============================================ -->
 
-    <Style x:Key="ExecutionButtonBorder" TargetType="Border">
-        <Setter Property="CornerRadius" Value="3"/>
+ <Style x:Key="ExecutionButtonBorder" TargetType="Border">
+  <Setter Property="CornerRadius" Value="3"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Effect">
-            <Setter.Value>
-                <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" Opacity="0.4" BlurRadius="10"/>
-            </Setter.Value>
-        </Setter>
-        <Style.Triggers>
+    <Setter.Value>
+       <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" Opacity="0.4" BlurRadius="10"/>
+       </Setter.Value>
+ </Setter>
+      <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Effect">
-                    <Setter.Value>
-                        <DropShadowEffect Color="#FF00876C" ShadowDepth="0" BlurRadius="15" Opacity="0.6"/>
-                    </Setter.Value>
-                </Setter>
-            </Trigger>
+       <Setter Property="Effect">
+       <Setter.Value>
+   <DropShadowEffect Color="#FF00876C" ShadowDepth="0" BlurRadius="15" Opacity="0.6"/>
+    </Setter.Value>
+     </Setter>
+ </Trigger>
         </Style.Triggers>
     </Style>
 
     <!-- Buy Button (Teal Gradient) -->
-    <Style x:Key="BuyButtonBorder" TargetType="Border" BasedOn="{StaticResource ExecutionButtonBorder}">
+  <Style x:Key="BuyButtonBorder" TargetType="Border" BasedOn="{StaticResource ExecutionButtonBorder}">
         <Setter Property="BorderBrush" Value="{StaticResource Brush.TealMain}"/>
         <Setter Property="Background" Value="{StaticResource Brush.TealGradient}"/>
     </Style>
 
     <!-- Sell Button (Red Gradient) -->
     <Style x:Key="SellButtonBorder" TargetType="Border" BasedOn="{StaticResource ExecutionButtonBorder}">
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.RedMain}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Brush.RedMain}"/>
         <Setter Property="Background" Value="{StaticResource Brush.RedGradient}"/>
     </Style>
 
     <!-- Bank Tag Style -->
     <Style x:Key="BankTag" TargetType="Border">
-        <Setter Property="Background" Value="#40000000"/>
-        <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="Background" Value="#40000000"/>
+ <Setter Property="CornerRadius" Value="2"/>
         <Setter Property="Padding" Value="4,1"/>
     </Style>
 
     <!-- ============================================ -->
-    <!-- TEXT STYLES FOR BUTTONS                     -->
+    <!-- TEXT STYLES FOR BUTTONS         -->
     <!-- ============================================ -->
 
     <Style x:Key="ButtonHeaderText" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="#AAFFFFFF"/>
-        <Setter Property="FontSize" Value="10"/>
+    <Setter Property="Foreground" Value="#AAFFFFFF"/>
+   <Setter Property="FontSize" Value="10"/>
         <Setter Property="FontWeight" Value="Bold"/>
     </Style>
 
@@ -58,20 +62,20 @@
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="FontSize" Value="36"/>
         <Setter Property="FontWeight" Value="ExtraBold"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
-        <Setter Property="HorizontalAlignment" Value="Center"/>
-        <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+   <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
     </Style>
 
     <Style x:Key="VolatilityText" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="#CCFFFFFF"/>
+     <Setter Property="Foreground" Value="#CCFFFFFF"/>
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="HorizontalAlignment" Value="Center"/>
     </Style>
 
     <Style x:Key="BankNameText" TargetType="TextBlock">
         <Setter Property="FontSize" Value="10"/>
-        <Setter Property="FontWeight" Value="Bold"/>
+<Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Foreground" Value="White"/>
     </Style>
 
