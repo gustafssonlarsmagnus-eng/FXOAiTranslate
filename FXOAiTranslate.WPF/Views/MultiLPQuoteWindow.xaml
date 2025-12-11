@@ -29,14 +29,35 @@
         </Grid.RowDefinitions>
 
         <!-- ============================================ -->
-        <!-- TITLE                                        -->
+        <!-- ENHANCED HEADER WITH TRADE DETAILS           -->
         <!-- ============================================ -->
-        <TextBlock Grid.Row="0"
-                   Text="{Binding TradeTitle}"
-                   FontSize="24"
-                   FontWeight="Bold"
-                   Foreground="{StaticResource Brush.TextMain}"
-                   Margin="0,0,0,15"/>
+        <StackPanel Grid.Row="0" Margin="0,0,0,15">
+            <!-- Main Title: EURUSD CALL -->
+            <TextBlock Text="{Binding TradeTitle}"
+                       FontSize="24"
+                       FontWeight="Bold"
+                       Foreground="{StaticResource Brush.TextMain}"
+                       Margin="0,0,0,5"/>
+
+            <!-- Trade Details Row -->
+            <TextBlock FontSize="12"
+                       Foreground="{StaticResource Brush.TextSub}"
+                       Margin="0,0,0,3">
+                <Run Text="10M EUR"/>
+                <Run Text=" • "/>
+                <Run Text="Strike 1.1720"/>
+                <Run Text=" • "/>
+                <Run Text="25 Days"/>
+            </TextBlock>
+
+            <!-- Market Data Row -->
+            <TextBlock FontSize="11"
+                       Foreground="{StaticResource Brush.TextDim}">
+                <Run Text="Spot Ref: 1.16769"/>
+                <Run Text=" | "/>
+                <Run Text="Trade Date: 11-Dec-2025"/>
+            </TextBlock>
+        </StackPanel>
 
         <!-- ============================================ -->
         <!-- TOP PANEL: BEST EXECUTION BUTTONS            -->
@@ -48,11 +69,11 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- BUY BUTTON (Teal Gradient) -->
+            <!-- BID TILE (Left - You Sell) -->
             <Border Grid.Column="0"
-                    Style="{StaticResource BuyButtonBorder}">
+                    Style="{StaticResource BidButtonBorder}">
                 <Border.InputBindings>
-                    <MouseBinding Gesture="LeftClick" Command="{Binding ExecuteBuyCommand}"/>
+                    <MouseBinding Gesture="LeftClick" Command="{Binding ExecuteBidCommand}"/>
                 </Border.InputBindings>
 
                 <Grid Margin="12">
@@ -64,33 +85,39 @@
 
                     <!-- Header -->
                     <Grid Grid.Row="0">
-                        <TextBlock Text="YOU BUY"
-                                   Style="{StaticResource ButtonHeaderText}"
-                                   VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Vertical">
+                            <TextBlock Text="BID"
+                                       FontSize="9"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.TextDim}"
+                                       Margin="0,0,0,2"/>
+                            <TextBlock Text="YOU SELL"
+                                       Style="{StaticResource ButtonHeaderText}"/>
+                        </StackPanel>
                         <Border Style="{StaticResource BankTag}"
                                 HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding BestBuyBank}"
+                            <TextBlock Text="{Binding BestBidBank}"
                                        Style="{StaticResource BankNameText}"/>
                         </Border>
                     </Grid>
 
                     <!-- Big Premium -->
                     <TextBlock Grid.Row="1"
-                               Text="{Binding BestBuyPremiumFormatted}"
+                               Text="{Binding BestBidPremiumFormatted}"
                                Style="{StaticResource BigPremiumText}"/>
 
                     <!-- Volatility -->
                     <TextBlock Grid.Row="2"
-                               Text="{Binding BestBuyVolatilityFormatted}"
+                               Text="{Binding BestBidVolatilityFormatted}"
                                Style="{StaticResource VolatilityText}"/>
                 </Grid>
             </Border>
 
-            <!-- SELL BUTTON (Red Gradient) -->
+            <!-- OFFER TILE (Right - You Buy) -->
             <Border Grid.Column="2"
-                    Style="{StaticResource SellButtonBorder}">
+                    Style="{StaticResource OfferButtonBorder}">
                 <Border.InputBindings>
-                    <MouseBinding Gesture="LeftClick" Command="{Binding ExecuteSellCommand}"/>
+                    <MouseBinding Gesture="LeftClick" Command="{Binding ExecuteOfferCommand}"/>
                 </Border.InputBindings>
 
                 <Grid Margin="12">
@@ -102,24 +129,30 @@
 
                     <!-- Header -->
                     <Grid Grid.Row="0">
-                        <TextBlock Text="YOU SELL"
-                                   Style="{StaticResource ButtonHeaderText}"
-                                   VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Vertical">
+                            <TextBlock Text="OFFER"
+                                       FontSize="9"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.TextDim}"
+                                       Margin="0,0,0,2"/>
+                            <TextBlock Text="YOU BUY"
+                                       Style="{StaticResource ButtonHeaderText}"/>
+                        </StackPanel>
                         <Border Style="{StaticResource BankTag}"
                                 HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding BestSellBank}"
+                            <TextBlock Text="{Binding BestOfferBank}"
                                        Style="{StaticResource BankNameText}"/>
                         </Border>
                     </Grid>
 
                     <!-- Big Premium -->
                     <TextBlock Grid.Row="1"
-                               Text="{Binding BestSellPremiumFormatted}"
+                               Text="{Binding BestOfferPremiumFormatted}"
                                Style="{StaticResource BigPremiumText}"/>
 
                     <!-- Volatility -->
                     <TextBlock Grid.Row="2"
-                               Text="{Binding BestSellVolatilityFormatted}"
+                               Text="{Binding BestOfferVolatilityFormatted}"
                                Style="{StaticResource VolatilityText}"/>
                 </Grid>
             </Border>
@@ -185,75 +218,67 @@
                           Margin="10">
 
                     <DataGrid.Columns>
-                        <!-- Bank Name -->
-                        <DataGridTextColumn Header="BANK"
+                        <!-- Venue / Bank Name -->
+                        <DataGridTextColumn Header="VENUE"
                                             Binding="{Binding BankName}"
-                                            Width="100">
+                                            Width="120">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource BankNameCellText}"/>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
 
-                        <!-- Bid Vol -->
-                        <DataGridTextColumn Header="BID VOL"
-                                            Binding="{Binding BidVolFormatted}"
-                                            Width="90">
+                        <!-- BID (Premium / Vol Combined) -->
+                        <DataGridTextColumn Header="BID"
+                                            Binding="{Binding BidCombined}"
+                                            Width="180">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridColumnHeader}">
+                                    <Setter Property="Background" Value="{StaticResource Brush.TealDark}"/>
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}"/>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource PremiumCellText}">
+                                    <Setter Property="TextWrapping" Value="NoWrap"/>
+                                    <Setter Property="LineHeight" Value="18"/>
+                                </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
 
-                        <!-- Bid Premium -->
-                        <DataGridTextColumn Header="BID PREMIUM"
-                                            Binding="{Binding BidPremiumFormatted}"
-                                            Width="130">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource PremiumCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-
-                        <!-- Mid Vol -->
+                        <!-- MID VOL (Keep as single value) -->
                         <DataGridTextColumn Header="MID VOL"
                                             Binding="{Binding MidVolFormatted}"
-                                            Width="90">
+                                            Width="100">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}"/>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
 
-                        <!-- Offer Vol -->
-                        <DataGridTextColumn Header="OFFER VOL"
-                                            Binding="{Binding OfferVolFormatted}"
-                                            Width="90">
+                        <!-- ASK (Premium / Vol Combined) -->
+                        <DataGridTextColumn Header="ASK"
+                                            Binding="{Binding AskCombined}"
+                                            Width="180">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridColumnHeader}">
+                                    <Setter Property="Background" Value="{StaticResource Brush.RedMain}"/>
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}"/>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource PremiumCellText}">
+                                    <Setter Property="TextWrapping" Value="NoWrap"/>
+                                    <Setter Property="LineHeight" Value="18"/>
+                                </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
 
-                        <!-- Offer Premium -->
-                        <DataGridTextColumn Header="OFFER PREMIUM"
-                                            Binding="{Binding OfferPremiumFormatted}"
-                                            Width="140">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource PremiumCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-
-                        <!-- Delta -->
-                        <DataGridTextColumn Header="DELTA"
-                                            Binding="{Binding DeltaFormatted}"
-                                            Width="80">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-
-                        <!-- Spot Reference -->
-                        <DataGridTextColumn Header="SPOT REF"
-                                            Binding="{Binding SpotReferenceFormatted}"
+                        <!-- DELTA / SPOT (Combined) -->
+                        <DataGridTextColumn Header="DELTA / SPOT"
+                                            Binding="{Binding DeltaSpotCombined}"
                                             Width="*">
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}"/>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}">
+                                    <Setter Property="TextWrapping" Value="NoWrap"/>
+                                    <Setter Property="LineHeight" Value="18"/>
+                                </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
                     </DataGrid.Columns>

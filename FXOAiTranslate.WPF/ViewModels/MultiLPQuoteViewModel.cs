@@ -70,9 +70,24 @@ namespace FXOAiTranslate.WPF.ViewModels
         public string BestSellPremiumFormatted => $"${BestSellPremium:N0}";
         public string BestSellVolatilityFormatted => $"{BestSellVolatility:F2} vol";
 
+        // Alias properties for BID/OFFER terminology (matches new UI design)
+        public string BestBidBank => BestBuyBank;
+        public double BestBidPremium => BestBuyPremium;
+        public double BestBidVolatility => BestBuyVolatility;
+        public string BestBidPremiumFormatted => BestBuyPremiumFormatted;
+        public string BestBidVolatilityFormatted => BestBuyVolatilityFormatted;
+
+        public string BestOfferBank => BestSellBank;
+        public double BestOfferPremium => BestSellPremium;
+        public double BestOfferVolatility => BestSellVolatility;
+        public string BestOfferPremiumFormatted => BestSellPremiumFormatted;
+        public string BestOfferVolatilityFormatted => BestSellVolatilityFormatted;
+
         // Commands
         public ICommand ExecuteBuyCommand { get; }
         public ICommand ExecuteSellCommand { get; }
+        public ICommand ExecuteBidCommand => ExecuteBuyCommand; // Alias
+        public ICommand ExecuteOfferCommand => ExecuteSellCommand; // Alias
         public ICommand RequestQuotesCommand { get; }
 
         public MultiLPQuoteViewModel(TradeStructure trade)

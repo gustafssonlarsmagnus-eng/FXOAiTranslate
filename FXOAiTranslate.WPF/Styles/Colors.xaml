@@ -2,36 +2,41 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- ============================================ -->
-    <!-- COLOR PALETTE - Bloomberg/Institutional Dark -->
+    <!-- COLOR PALETTE - Darker Bloomberg Style      -->
     <!-- ============================================ -->
 
-    <!-- Backgrounds -->
-    <SolidColorBrush x:Key="Brush.AppBackground" Color="#FF0E0E0E"/>
-    <SolidColorBrush x:Key="Brush.PanelBackground" Color="#FF1E1E1E"/>
-    <SolidColorBrush x:Key="Brush.HeaderBackground" Color="#FF111111"/>
-    <SolidColorBrush x:Key="Brush.Border" Color="#FF333333"/>
+    <!-- Backgrounds (Darker) -->
+    <SolidColorBrush x:Key="Brush.AppBackground" Color="#FF000000"/>
+    <SolidColorBrush x:Key="Brush.PanelBackground" Color="#FF0A0A0A"/>
+    <SolidColorBrush x:Key="Brush.HeaderBackground" Color="#FF050505"/>
+    <SolidColorBrush x:Key="Brush.Border" Color="#FF1A1A1A"/>
+    <SolidColorBrush x:Key="Brush.TileDark" Color="#FF121212"/>
 
-    <!-- Accents & Data -->
+    <!-- Accents (More Muted) -->
     <SolidColorBrush x:Key="Brush.TealMain" Color="#FF00876C"/>
     <SolidColorBrush x:Key="Brush.TealDark" Color="#FF004D3D"/>
+    <SolidColorBrush x:Key="Brush.TealMuted" Color="#FF1A3A33"/>
     <SolidColorBrush x:Key="Brush.RedMain" Color="#FF870020"/>
     <SolidColorBrush x:Key="Brush.Gold" Color="#FFFFCC00"/>
-    <SolidColorBrush x:Key="Brush.WinnerHighlight" Color="#1900876C"/>
+    <SolidColorBrush x:Key="Brush.GreenAccent" Color="#FF00AA88"/>
+
+    <!-- Winner highlight - just the accent bar -->
+    <SolidColorBrush x:Key="Brush.WinnerAccent" Color="#FF00AA88"/>
 
     <!-- Typography Colors -->
     <SolidColorBrush x:Key="Brush.TextMain" Color="#FFE0E0E0"/>
     <SolidColorBrush x:Key="Brush.TextSub" Color="#FF888888"/>
     <SolidColorBrush x:Key="Brush.TextDim" Color="#FF555555"/>
 
-    <!-- Gradient Brushes -->
-    <LinearGradientBrush x:Key="Brush.TealGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#FF004D3D" Offset="0.0"/>
-        <GradientStop Color="#FF00876C" Offset="1.0"/>
+    <!-- Subtle Gradients for Tiles (Much Darker) -->
+    <LinearGradientBrush x:Key="Brush.TileBidGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#FF0A0A0A" Offset="0.0"/>
+        <GradientStop Color="#FF151515" Offset="1.0"/>
     </LinearGradientBrush>
 
-    <LinearGradientBrush x:Key="Brush.RedGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#FF3D0010" Offset="0.0"/>
-        <GradientStop Color="#FF870020" Offset="1.0"/>
+    <LinearGradientBrush x:Key="Brush.TileOfferGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#FF0A0A0A" Offset="0.0"/>
+        <GradientStop Color="#FF151515" Offset="1.0"/>
     </LinearGradientBrush>
 
 </ResourceDictionary>

@@ -73,13 +73,18 @@ namespace FXOAiTranslate.WPF.ViewModels
         }
 
         // Formatted display properties
-        public string BidPremiumFormatted => $"{BidPremium:N0}";
-        public string OfferPremiumFormatted => $"{OfferPremium:N0}";
+        public string BidPremiumFormatted => $"${BidPremium:N0}";
+        public string OfferPremiumFormatted => $"${OfferPremium:N0}";
         public string BidVolFormatted => $"{BidVol:F2}%";
         public string MidVolFormatted => $"{MidVol:F2}%";
         public string OfferVolFormatted => $"{OfferVol:F2}%";
         public string DeltaFormatted => $"{Delta:F1}Δ";
         public string SpotReferenceFormatted => $"{SpotReference:F4}";
+
+        // Combined column formats (PREM / VOL)
+        public string BidCombined => $"{BidPremiumFormatted}\n{BidVol:F2}";
+        public string AskCombined => $"${OfferPremium:N0}\n{OfferVol:F2}";
+        public string DeltaSpotCombined => $"{Delta:F0}%\n{SpotReference:F4}";
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
