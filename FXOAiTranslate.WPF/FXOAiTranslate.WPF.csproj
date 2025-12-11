@@ -14,10 +14,4 @@
     <ProjectReference Include="..\FXOptionsSimulator\FXOptionsSimulator.csproj" />
   </ItemGroup>
 
-  <!-- Explicitly mark XAML files as embedded resources -->
-  <ItemGroup>
-    <Page Include="**\*.xaml" SubType="Designer" Generator="MSBuild:Compile" />
-    <Compile Update="**\*.xaml.cs" SubType="Code" DependentUpon="%(Filename)" />
-  </ItemGroup>
-
 </Project>

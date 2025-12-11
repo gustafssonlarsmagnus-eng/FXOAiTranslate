@@ -15,6 +15,17 @@
     <Compile Remove="GFI_STP_Monitor\**" />
     <EmbeddedResource Remove="GFI_STP_Monitor\**" />
     <None Remove="GFI_STP_Monitor\**" />
+    <!-- Exclude WPF project files from being processed by this project -->
+    <Compile Remove="FXOAiTranslate.WPF\**" />
+    <Page Remove="FXOAiTranslate.WPF\**" />
+    <ApplicationDefinition Remove="FXOAiTranslate.WPF\**" />
+    <None Remove="FXOAiTranslate.WPF\**" />
+    <EmbeddedResource Remove="FXOAiTranslate.WPF\**" />
+    <!-- Exclude FXOptionsSimulator project files from being processed by this project -->
+    <Compile Remove="FXOptionsSimulator\**" />
+    <Page Remove="FXOptionsSimulator\**" />
+    <None Remove="FXOptionsSimulator\**" />
+    <EmbeddedResource Remove="FXOptionsSimulator\**" />
   </ItemGroup>
 
   <ItemGroup>
