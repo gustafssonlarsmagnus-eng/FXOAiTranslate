@@ -87,17 +87,17 @@ namespace FXOptionsSimulator
         {
             // Form properties
             this.Text = "Multi-LP Quote Request";
-            this.Size = new Size(1400, 800);
+            this.Size = new Size(1600, 900);  // Increased from 1400x800
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = ColorTranslator.FromHtml("#FFFFFF");
             this.FormBorderStyle = FormBorderStyle.Sizable;
-            this.MinimumSize = new Size(1200, 700);
+            this.MinimumSize = new Size(1400, 800);  // Increased minimum
 
             // Main split container
             var splitMain = new SplitContainer
             {
                 Dock = DockStyle.Fill,
-                SplitterDistance = 600,
+                SplitterDistance = 620,  // Slightly more space for left panel
                 IsSplitterFixed = false,
                 BorderStyle = BorderStyle.None
             };
@@ -147,10 +147,10 @@ namespace FXOptionsSimulator
             _dgvLegs = new DataGridView
             {
                 Location = new Point(0, yPos),
-                Size = new Size(560, 180),
+                Size = new Size(580, 150),  // Increased width, reduced height for better fit
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
-                ReadOnly = false,
+                ReadOnly = true,  // Make read-only for cleaner interface
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 RowHeadersVisible = false,
@@ -184,15 +184,15 @@ namespace FXOptionsSimulator
             _dgvLegs.Columns.Add("Expiry", "Expiry");
             _dgvLegs.Columns.Add("Notional", "Notional");
 
-            _dgvLegs.Columns["Leg"].Width = 60;
-            _dgvLegs.Columns["Direction"].Width = 60;
+            _dgvLegs.Columns["Leg"].Width = 50;
+            _dgvLegs.Columns["Direction"].Width = 50;
             _dgvLegs.Columns["Style"].Width = 70;
             _dgvLegs.Columns["Strike"].Width = 90;
-            _dgvLegs.Columns["Expiry"].Width = 140;
-            _dgvLegs.Columns["Notional"].Width = 120;
+            _dgvLegs.Columns["Expiry"].Width = 110;
+            _dgvLegs.Columns["Notional"].Width = 130;
 
             _leftPanel.Controls.Add(_dgvLegs);
-            yPos += 190;
+            yPos += 160;  // Reduced spacing
 
             // Market data group
             _gbMarketData = new GroupBox
@@ -200,7 +200,7 @@ namespace FXOptionsSimulator
                 Text = "Market Data",
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Location = new Point(0, yPos),
-                Size = new Size(560, 120),
+                Size = new Size(580, 120),
                 ForeColor = ColorTranslator.FromHtml("#495057")
             };
 
@@ -223,7 +223,7 @@ namespace FXOptionsSimulator
                 Text = "Parameters",
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Location = new Point(0, yPos),
-                Size = new Size(560, 160),
+                Size = new Size(580, 160),
                 ForeColor = ColorTranslator.FromHtml("#495057")
             };
 
@@ -348,7 +348,7 @@ namespace FXOptionsSimulator
                 Text = "Select LPs",
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Location = new Point(0, yPos),
-                Size = new Size(700, 140),
+                Size = new Size(920, 140),  // Increased width for better layout
                 ForeColor = ColorTranslator.FromHtml("#495057")
             };
 
@@ -405,7 +405,7 @@ namespace FXOptionsSimulator
             {
                 Text = "REQUEST QUOTES",
                 Location = new Point(0, yPos),
-                Size = new Size(700, 45),
+                Size = new Size(920, 45),  // Match LP selection width
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = ColorTranslator.FromHtml("#28A745"),
@@ -424,9 +424,9 @@ namespace FXOptionsSimulator
             _pnlPricingTiles = new Panel
             {
                 Location = new Point(0, yPos),
-                Size = new Size(720, 400),
+                Size = new Size(940, 350),  // Increased width and height
                 AutoScroll = true,
-                BorderStyle = BorderStyle.None,
+                BorderStyle = BorderStyle.FixedSingle,  // Add border for clarity
                 BackColor = ColorTranslator.FromHtml("#F8F9FA")
             };
 
@@ -453,7 +453,7 @@ namespace FXOptionsSimulator
             _pnlBestPrices = new Panel
             {
                 Location = new Point(0, yPos),
-                Size = new Size(700, 160),
+                Size = new Size(920, 160),  // Match button width
                 BackColor = ColorTranslator.FromHtml("#F8F9FA"),
                 BorderStyle = BorderStyle.None,
                 Padding = new Padding(8)
@@ -474,7 +474,7 @@ namespace FXOptionsSimulator
             _pnlBestBid = new Panel
             {
                 Location = new Point(8, 35),
-                Size = new Size(338, 115),
+                Size = new Size(448, 115),  // Increased width
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -524,8 +524,8 @@ namespace FXOptionsSimulator
             // BEST OFFER tile (right)
             _pnlBestOffer = new Panel
             {
-                Location = new Point(354, 35),
-                Size = new Size(338, 115),
+                Location = new Point(464, 35),  // Adjusted X position
+                Size = new Size(448, 115),  // Increased width
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
