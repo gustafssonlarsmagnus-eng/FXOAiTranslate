@@ -13,9 +13,9 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/Styles/Colors.xaml"/>
-                <ResourceDictionary Source="/Styles/ButtonStyles.xaml"/>
-                <ResourceDictionary Source="/Styles/GridStyles.xaml"/>
+                <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/Colors.xaml"/>
+                <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/ButtonStyles.xaml"/>
+                <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/GridStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
