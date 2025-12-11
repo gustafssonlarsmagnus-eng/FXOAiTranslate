@@ -5,6 +5,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
@@ -23,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="FXOptionsSimulator\FXOptionsSimulator.csproj" />
+    <ProjectReference Include="FXOAiTranslate.WPF\FXOAiTranslate.WPF.csproj" />
   </ItemGroup>
 
   <ItemGroup>

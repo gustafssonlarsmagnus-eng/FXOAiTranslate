@@ -645,17 +645,16 @@ namespace FXOAiTranslator
                 // Convert OVML to TradeStructure for multi-LP dialog
                 var tradeStructure = FXOptionsSimulator.OVMLBridge.ConvertToTradeStructure(ovmlResult);
 
-                // Show Multi-LP Quote Dialog
-                var dialog = new FXOptionsSimulator.MultiLPQuoteDialog(tradeStructure);
-                if (dialog.ShowDialog(this) == DialogResult.OK)
-                {
-                    MessageBox.Show("Trade executed successfully!", "Success",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
+                // Show WPF Multi-LP Quote Window (Bloomberg-style dark mode)
+                var wpfWindow = new FXOAiTranslate.WPF.Views.MultiLPQuoteWindow(tradeStructure);
+                wpfWindow.ShowDialog();
+
+                // Note: WPF windows return bool?, not DialogResult
+                // Trade execution is handled within the WPF window via commands
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error opening multi-LP dialog:\n\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}", "Error",
+                MessageBox.Show($"Error opening multi-LP quote window:\n\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
