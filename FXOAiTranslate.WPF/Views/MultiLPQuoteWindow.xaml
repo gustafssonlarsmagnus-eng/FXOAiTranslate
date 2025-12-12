@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="FX Option Aggregator - Multi-LP Quote"
-        Height="800" Width="1600"
-        MinHeight="700" MinWidth="1400"
+        Height="800" Width="1100"
+        MinHeight="700" MinWidth="900"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Brush.AppBackground}">
 
@@ -25,9 +25,9 @@
     <!-- ============================================ -->
     <Grid Margin="15">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="650" MinWidth="550"/> <!-- Left: Pricing Panel (more compact) -->
+            <ColumnDefinition Width="430" MinWidth="380"/> <!-- Left: Pricing Panel (more compact) -->
             <ColumnDefinition Width="5"/>                  <!-- Spacer -->
-            <ColumnDefinition Width="*" MinWidth="400"/>   <!-- Right: Staging Panel -->
+            <ColumnDefinition Width="*" MaxWidth="550" MinWidth="400"/>   <!-- Right: Staging Panel (constrained) -->
         </Grid.ColumnDefinitions>
 
         <!-- ============================================ -->
