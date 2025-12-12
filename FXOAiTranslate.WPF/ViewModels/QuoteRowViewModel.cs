@@ -92,8 +92,8 @@ namespace FXOAiTranslate.WPF.ViewModels
         public double OfferPips => OfferPremium / 100;
 
         // Formatted display properties
-        public string BidPremiumFormatted => $"${BidPremium:N0}";
-        public string OfferPremiumFormatted => $"${OfferPremium:N0}";
+        public string BidPremiumFormatted => $"{BidPremium:N0}";
+        public string OfferPremiumFormatted => $"{OfferPremium:N0}";
         public string BidVolFormatted => $"{BidVol:F2}%";
         public string MidVolFormatted => $"{MidVol:F2}%";
         public string OfferVolFormatted => $"{OfferVol:F2}%";
@@ -102,7 +102,7 @@ namespace FXOAiTranslate.WPF.ViewModels
 
         // Combined column formats (PREM / VOL) - Legacy
         public string BidCombined => $"{BidPremiumFormatted}\n{BidVol:F2}";
-        public string AskCombined => $"${OfferPremium:N0}\n{OfferVol:F2}";
+        public string AskCombined => $"{OfferPremium:N0}\n{OfferVol:F2}";
         public string DeltaSpotCombined => $"{Delta:F0}%\n{SpotReference:F4}";
 
         // Option B Format: 2-line display with selected metric emphasized

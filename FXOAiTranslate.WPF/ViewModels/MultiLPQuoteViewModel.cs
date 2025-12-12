@@ -65,9 +65,9 @@ namespace FXOAiTranslate.WPF.ViewModels
         }
 
         // Formatted display properties
-        public string BestBuyPremiumFormatted => $"${BestBuyPremium:N0}";
+        public string BestBuyPremiumFormatted => $"{BestBuyPremium:N0}";
         public string BestBuyVolatilityFormatted => $"{BestBuyVolatility:F2} vol";
-        public string BestSellPremiumFormatted => $"${BestSellPremium:N0}";
+        public string BestSellPremiumFormatted => $"{BestSellPremium:N0}";
         public string BestSellVolatilityFormatted => $"{BestSellVolatility:F2} vol";
 
         // Alias properties for BID/OFFER terminology (matches new UI design)

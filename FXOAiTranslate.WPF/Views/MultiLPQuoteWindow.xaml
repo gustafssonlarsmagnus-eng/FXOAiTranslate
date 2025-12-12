@@ -106,7 +106,6 @@
                 <Grid Grid.Row="1" Margin="0,0,0,15">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="120"/> <!-- Center label -->
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
@@ -116,7 +115,8 @@
                             BorderBrush="{StaticResource Brush.Border}"
                             BorderThickness="1"
                             CornerRadius="3"
-                            Cursor="Hand">
+                            Cursor="Hand"
+                            Margin="0,0,2,0">
                         <Border.InputBindings>
                             <MouseBinding Gesture="LeftClick" Command="{Binding ExecuteBidCommand}"/>
                         </Border.InputBindings>
@@ -156,24 +156,14 @@
                         </Grid>
                     </Border>
 
-                    <!-- CENTER LABEL -->
-                    <TextBlock Grid.Column="1"
-                               Text="RFQ&#x0a;Multibank"
-                               FontSize="11"
-                               FontWeight="Bold"
-                               Foreground="{StaticResource Brush.TextDim}"
-                               TextAlignment="Center"
-                               VerticalAlignment="Center"
-                               HorizontalAlignment="Center"
-                               TextWrapping="Wrap"/>
-
                     <!-- OFFER TILE (Right - You Buy) -->
-                    <Border Grid.Column="2"
+                    <Border Grid.Column="1"
                             Background="{StaticResource Brush.TileOfferGradient}"
                             BorderBrush="{StaticResource Brush.Border}"
                             BorderThickness="1"
                             CornerRadius="3"
-                            Cursor="Hand">
+                            Cursor="Hand"
+                            Margin="2,0,0,0">
                         <Border.InputBindings>
                             <MouseBinding Gesture="LeftClick" Command="{Binding ExecuteOfferCommand}"/>
                         </Border.InputBindings>
@@ -212,6 +202,19 @@
                                        HorizontalAlignment="Center"/>
                         </Grid>
                     </Border>
+
+                    <!-- RFQ LABEL (Overlaid between tiles) -->
+                    <TextBlock Grid.Column="0" Grid.ColumnSpan="2"
+                               Text="RFQ&#x0a;Multibank"
+                               FontSize="9"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource Brush.TextDim}"
+                               TextAlignment="Center"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap"
+                               Background="{StaticResource Brush.AppBackground}"
+                               Padding="8,4"/>
                 </Grid>
 
                 <!-- ======================================== -->
@@ -230,7 +233,7 @@
 
                     <DataGrid.Columns>
                         <!-- BID (Left Column) -->
-                        <DataGridTextColumn Header="BID (RECEIVE)"
+                        <DataGridTextColumn Header="BID (USD)"
                                             Binding="{Binding BidDisplay}"
                                             Width="2*">
                             <DataGridTextColumn.HeaderStyle>
@@ -263,7 +266,7 @@
                         </DataGridTextColumn>
 
                         <!-- OFFER (Right Column) -->
-                        <DataGridTextColumn Header="OFFER (PAY)"
+                        <DataGridTextColumn Header="OFFER (USD)"
                                             Binding="{Binding OfferDisplay}"
                                             Width="2*">
                             <DataGridTextColumn.HeaderStyle>
