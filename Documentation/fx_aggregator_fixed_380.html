@@ -103,7 +103,7 @@
                 <div id="active-panel" class="hidden-force flex-col h-full fade-in">
 
                     <!-- EXECUTION TILES -->
-                    <div class="flex h-48 w-full mb-2 gap-0.5">
+                    <div class="flex h-48 w-full mb-2 gap-0.5 relative">
 
                         <!-- BID SIDE -->
                         <div class="flex-1 bg-tile-base hover-dark-mode rounded-l-lg p-4 flex flex-col relative overflow-hidden group cursor-pointer">
@@ -132,19 +132,17 @@
                                 <span class="text-[10px] bg-blue-900/10 text-blue-800 px-1.5 py-0.5 rounded group-hover:bg-blue-900/30 group-hover:text-blue-300 transition-all">DEUT</span>
                             </div>
                         </div>
+
+                        <!-- SPREAD INDICATOR - Bottom Center -->
+                        <div class="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-1/2 z-20 pointer-events-none">
+                            <div class="bg-[#0f1114] border border-slate-700 rounded px-2 py-0.5 flex items-center justify-center shadow-lg">
+                                <span class="text-xs font-bold text-white font-mono">0.6</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- LADDER -->
                     <div class="flex-1 bg-[#14161b] border border-[#1e293b] rounded-lg flex flex-col overflow-hidden">
-
-                        <!-- SPREAD INDICATOR BOX -->
-                        <div class="bg-[#1a1d23] border-b border-[#1e293b] py-2 flex items-center justify-center">
-                            <div class="bg-[#0f1114] border border-slate-700 rounded px-3 py-1.5 flex items-center gap-2">
-                                <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Spread</span>
-                                <span class="text-lg font-bold text-white font-mono">0.35</span>
-                            </div>
-                        </div>
-
                         <div class="grid grid-cols-[1fr_60px_1fr] bg-[#1a1d23] border-b border-[#1e293b] items-center py-1.5">
                             <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">Bid</div>
                             <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider border-l border-r border-[#1e293b] h-full flex items-center justify-center">Venue</div>
