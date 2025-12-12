@@ -25,7 +25,7 @@
     <!-- ============================================ -->
     <Grid Margin="15">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="900" MinWidth="700"/> <!-- Left: Pricing Panel -->
+            <ColumnDefinition Width="650" MinWidth="550"/> <!-- Left: Pricing Panel (more compact) -->
             <ColumnDefinition Width="5"/>                  <!-- Spacer -->
             <ColumnDefinition Width="*" MinWidth="400"/>   <!-- Right: Staging Panel -->
         </Grid.ColumnDefinitions>
@@ -319,9 +319,9 @@
                                    VerticalAlignment="Bottom"/>
                     </Grid>
 
-                    <!-- TRADE DETAILS SECTION (Green) -->
-                    <Border Background="#FF0D4035"
-                            BorderBrush="{StaticResource Brush.TealDark}"
+                    <!-- TRADE DETAILS SECTION (Muted Green) -->
+                    <Border Background="#FF0A2520"
+                            BorderBrush="#FF153530"
                             BorderThickness="1"
                             CornerRadius="2"
                             Padding="12"
@@ -345,46 +345,46 @@
                             </Grid.RowDefinitions>
 
                             <!-- Row 0: strategy -->
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="strategy" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="EUR Call" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="strategy" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="EUR Call" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
                             <!-- Row 1: dates -->
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="dates" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="1M NYK 14 Jan 26" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="dates" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="1M NYK 14 Jan 26" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
                             <!-- Row 2: maturity -->
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="maturity" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="1 Month" Foreground="#FF00DDFF" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="maturity" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="1 Month" Foreground="#FF88CCDD" FontSize="11" Margin="0,2"/>
 
                             <!-- Row 3: cutoff -->
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="cutoff" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" Text="NYK" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="cutoff" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="NYK" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
                             <!-- Row 4: expiry -->
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="expiry" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="4" Grid.Column="1" Text="14 Jan 26" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="expiry" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="14 Jan 26" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
                             <!-- Row 5: delivery -->
-                            <TextBlock Grid.Row="5" Grid.Column="0" Text="delivery" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="5" Grid.Column="1" Text="16 Jan 26" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="delivery" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" Text="16 Jan 26" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
                             <!-- Row 6: strike -->
-                            <TextBlock Grid.Row="6" Grid.Column="0" Text="strike" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="6" Grid.Column="1" Text="1.1850" Foreground="#FF00DDFF" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="strike" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="6" Grid.Column="1" Text="1.1850" Foreground="#FF88CCDD" FontSize="11" Margin="0,2"/>
 
                             <!-- Row 7: delta -->
-                            <TextBlock Grid.Row="7" Grid.Column="0" Text="delta" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="7" Grid.Column="1" Text="+32.8%" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="7" Grid.Column="0" Text="delta" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="7" Grid.Column="1" Text="+32.8%" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
                             <!-- Row 8: amounts -->
-                            <TextBlock Grid.Row="8" Grid.Column="0" Text="EUR amount" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="8" Grid.Column="1" Text="10 000 000" Foreground="#FF00DDFF" FontSize="11" FontWeight="Bold" Margin="0,2"/>
+                            <TextBlock Grid.Row="8" Grid.Column="0" Text="EUR amount" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="8" Grid.Column="1" Text="10 000 000" Foreground="#FF88CCDD" FontSize="11" FontWeight="Bold" Margin="0,2"/>
                         </Grid>
                     </Border>
 
-                    <!-- HEDGE SECTION (Blue) -->
-                    <Border Background="#FF1A3050"
-                            BorderBrush="#FF2A5090"
+                    <!-- HEDGE SECTION (Muted Blue) -->
+                    <Border Background="#FF0F1A28"
+                            BorderBrush="#FF1A2A40"
                             BorderThickness="1"
                             CornerRadius="2"
                             Padding="12"
@@ -401,20 +401,20 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="delta hedge" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="None" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="delta hedge" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="None" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="prem type" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="Spot" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="prem type" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="Spot" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="prem date" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="16 Dec 25" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="prem date" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="16 Dec 25" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
                         </Grid>
                     </Border>
 
-                    <!-- MARKET DATA SECTION (Yellow) -->
-                    <Border Background="#FF3A3000"
-                            BorderBrush="#FF6A5500"
+                    <!-- MARKET DATA SECTION (Muted Yellow) -->
+                    <Border Background="#FF252015"
+                            BorderBrush="#FF3A3020"
                             BorderThickness="1"
                             CornerRadius="2"
                             Padding="12"
@@ -432,23 +432,23 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="spot" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="1.1736/38" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="spot" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="1.1736/38" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="swap" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="+19.9/+20.0" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="swap" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="+19.9/+20.0" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="forward" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="1.1756/58" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="forward" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="1.1756/58" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="volatility" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" Text="5.51/5.76%" Foreground="White" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="volatility" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="5.51/5.76%" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
                         </Grid>
                     </Border>
 
-                    <!-- PRICING SECTION (Purple) -->
-                    <Border Background="#FF3A1A3A"
-                            BorderBrush="#FF6A3A6A"
+                    <!-- PRICING SECTION (Muted Purple) -->
+                    <Border Background="#FF201520"
+                            BorderBrush="#FF352535"
                             BorderThickness="1"
                             CornerRadius="2"
                             Padding="12">
@@ -460,9 +460,9 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <Button Grid.Column="0" Content="EUR" Background="#FF6A3A6A" Foreground="White"
+                                <Button Grid.Column="0" Content="EUR" Background="#FF352535" Foreground="#FFDDDDDD"
                                         Height="30" Margin="0,0,5,0" BorderThickness="0"/>
-                                <Button Grid.Column="1" Content="USD" Background="#FFAA5AAA" Foreground="White"
+                                <Button Grid.Column="1" Content="USD" Background="#FF503550" Foreground="#FFDDDDDD"
                                         Height="30" Margin="5,0,0,0" BorderThickness="0"/>
                             </Grid>
 
@@ -478,17 +478,17 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="pts price" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" Text="-43½ pips" Foreground="White" FontSize="11" Margin="0,2"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="pts price" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="-43½ pips" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="USD premium" Foreground="#FFFFAA00" FontSize="11" Margin="0,4,0,2"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Pay 43 442" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="USD premium" Foreground="#FFB08860" FontSize="11" Margin="0,4,0,2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Pay 43 442" Foreground="#FFDDDDDD" FontSize="16" FontWeight="Bold" Margin="0,4,0,2"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="EUR hedge" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="None" Foreground="White" FontSize="11" Margin="0,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="EUR hedge" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="None" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="USD vega amount" Foreground="#FFFFAA00" FontSize="11" Margin="0,2"/>
-                                <TextBlock Grid.Row="3" Grid.Column="1" Text="+12 700" Foreground="White" FontSize="11" Margin="0,2"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="USD vega amount" Foreground="#FFB08860" FontSize="11" Margin="0,2"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="+12 700" Foreground="#FFDDDDDD" FontSize="11" Margin="0,2"/>
                             </Grid>
                         </StackPanel>
                     </Border>
