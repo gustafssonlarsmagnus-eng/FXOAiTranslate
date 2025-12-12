@@ -277,7 +277,32 @@
                         </div>
 
                         <div class="overflow-y-auto flex-1">
-                            <!-- Row 1 - Best Prices -->
+                            <!-- Row 1 - DEUT: Best Spread (0.40) + Best Offer -->
+                            <div
+                                class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group">
+                                <div class="flex flex-col justify-center items-center opacity-60">
+                                    <div
+                                        class="text-red-900/80 font-medium mono text-sm group-hover:text-white transition-colors">
+                                        5.42</div>
+                                    <div
+                                        class="text-slate-700 font-medium mono text-[10px] mt-0.5 group-hover:text-slate-500">
+                                        69k | 39p</div>
+                                </div>
+                                <div
+                                    class="flex flex-col items-center justify-center font-bold text-blue-500/90 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
+                                    <span>DEUT</span>
+                                    <span class="text-[10px] text-slate-500 font-mono mt-0.5">0.40</span>
+                                </div>
+                                <div class="flex flex-col justify-center items-center best-offer-cell">
+                                    <div
+                                        class="text-blue-500/90 font-bold mono text-sm group-hover:text-white transition-colors">
+                                        5.82</div>
+                                    <div
+                                        class="text-slate-600 font-medium mono text-[10px] mt-0.5 group-hover:text-slate-400">
+                                        71k | 44p</div>
+                                </div>
+                            </div>
+                            <!-- Row 2 - JPM: Spread 0.43 + Best Bid -->
                             <div
                                 class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group">
                                 <div class="flex flex-col justify-center items-center best-bid-cell">
@@ -289,18 +314,20 @@
                                         68k | 43p</div>
                                 </div>
                                 <div
-                                    class="flex items-center justify-center font-bold text-yellow-600/90 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                    JPM</div>
-                                <div class="flex flex-col justify-center items-center best-offer-cell">
+                                    class="flex flex-col items-center justify-center font-bold text-red-500/90 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
+                                    <span>JPM</span>
+                                    <span class="text-[10px] text-slate-500 font-mono mt-0.5">0.43</span>
+                                </div>
+                                <div class="flex flex-col justify-center items-center opacity-60">
                                     <div
-                                        class="text-blue-500/90 font-bold mono text-sm group-hover:text-white transition-colors">
-                                        5.82</div>
+                                        class="text-blue-900/80 font-medium mono text-sm group-hover:text-white transition-colors">
+                                        5.90</div>
                                     <div
-                                        class="text-slate-600 font-medium mono text-[10px] mt-0.5 group-hover:text-slate-400">
-                                        71k | 44p</div>
+                                        class="text-slate-700 font-medium mono text-[10px] mt-0.5 group-hover:text-slate-500">
+                                        72k | 51p</div>
                                 </div>
                             </div>
-                            <!-- Row 2 -->
+                            <!-- Row 3 - CITI: Spread 0.44 -->
                             <div
                                 class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group">
                                 <div class="flex flex-col justify-center items-center opacity-60">
@@ -312,8 +339,10 @@
                                         68k | 40p</div>
                                 </div>
                                 <div
-                                    class="flex items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                    CITI</div>
+                                    class="flex flex-col items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
+                                    <span>CITI</span>
+                                    <span class="text-[10px] text-slate-500 font-mono mt-0.5">0.44</span>
+                                </div>
                                 <div class="flex flex-col justify-center items-center opacity-60">
                                     <div
                                         class="text-blue-900/80 font-medium mono text-sm group-hover:text-white transition-colors">
@@ -323,7 +352,7 @@
                                         75k | 49p</div>
                                 </div>
                             </div>
-                            <!-- Row 3 -->
+                            <!-- Row 4 - BARX: Spread 0.50 -->
                             <div
                                 class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group">
                                 <div class="flex flex-col justify-center items-center opacity-60">
@@ -335,8 +364,10 @@
                                         67k | 38p</div>
                                 </div>
                                 <div
-                                    class="flex items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                    BARX</div>
+                                    class="flex flex-col items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
+                                    <span>BARX</span>
+                                    <span class="text-[10px] text-slate-500 font-mono mt-0.5">0.50</span>
+                                </div>
                                 <div class="flex flex-col justify-center items-center opacity-60">
                                     <div
                                         class="text-blue-900/70 font-medium mono text-sm group-hover:text-white transition-colors">
