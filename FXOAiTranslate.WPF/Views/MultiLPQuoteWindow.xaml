@@ -53,24 +53,25 @@
                 <Grid Grid.Row="0" Margin="0,0,0,15">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="130"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Column="0"
-                               Text="Sell EUR Call 10.0M @ 1.1850"
-                               FontSize="11"
+                               Text="Sell EUR Call 10.0M"
+                               FontSize="9"
                                Foreground="{StaticResource Brush.TextSub}"
-                               VerticalAlignment="Center"/>
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
 
                     <Button Grid.Column="1"
                             Content="CANCEL ALL"
                             Background="#FFCC0000"
                             Foreground="White"
                             FontWeight="Bold"
-                            FontSize="11"
-                            Height="28"
-                            Width="120"
+                            FontSize="10"
+                            Height="26"
+                            Width="110"
                             Cursor="Hand"
                             BorderThickness="0">
                         <Button.Style>
@@ -91,11 +92,12 @@
                     </Button>
 
                     <TextBlock Grid.Column="2"
-                               Text="Buy EUR Call 10.0M @ 1.1850"
-                               FontSize="11"
+                               Text="Buy EUR Call 10.0M"
+                               FontSize="9"
                                Foreground="{StaticResource Brush.TextSub}"
                                VerticalAlignment="Center"
-                               HorizontalAlignment="Right"/>
+                               HorizontalAlignment="Right"
+                               TextTrimming="CharacterEllipsis"/>
                 </Grid>
 
                 <!-- ======================================== -->
@@ -139,7 +141,7 @@
                             <!-- Big Number -->
                             <TextBlock Grid.Row="1"
                                        Text="{Binding BestBidPremiumFormatted}"
-                                       FontSize="48"
+                                       FontSize="32"
                                        FontWeight="Bold"
                                        Foreground="White"
                                        VerticalAlignment="Center"
@@ -196,7 +198,7 @@
                             <!-- Big Number -->
                             <TextBlock Grid.Row="1"
                                        Text="{Binding BestOfferPremiumFormatted}"
-                                       FontSize="48"
+                                       FontSize="32"
                                        FontWeight="Bold"
                                        Foreground="White"
                                        VerticalAlignment="Center"
