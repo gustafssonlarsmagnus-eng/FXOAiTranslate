@@ -240,10 +240,10 @@
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="{StaticResource Brush.TextMain}"/>
-                                    <Setter Property="FontSize" Value="12"/>
+                                    <Setter Property="FontSize" Value="10"/>
                                     <Setter Property="HorizontalAlignment" Value="Right"/>
                                     <Setter Property="Margin" Value="0,4"/>
-                                    <Setter Property="LineHeight" Value="16"/>
+                                    <Setter Property="LineHeight" Value="14"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
@@ -273,10 +273,10 @@
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="{StaticResource Brush.TextMain}"/>
-                                    <Setter Property="FontSize" Value="12"/>
+                                    <Setter Property="FontSize" Value="10"/>
                                     <Setter Property="HorizontalAlignment" Value="Left"/>
                                     <Setter Property="Margin" Value="0,4"/>
-                                    <Setter Property="LineHeight" Value="16"/>
+                                    <Setter Property="LineHeight" Value="14"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
