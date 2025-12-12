@@ -86,8 +86,9 @@ namespace FXOAiTranslate.WPF.ViewModels
         // Commands
         public ICommand ExecuteBuyCommand { get; }
         public ICommand ExecuteSellCommand { get; }
-        public ICommand ExecuteBidCommand => ExecuteBuyCommand; // Alias
-        public ICommand ExecuteOfferCommand => ExecuteSellCommand; // Alias
+        // Correct aliases: BID tile = YOU SELL (client sells), OFFER tile = YOU BUY (client buys)
+        public ICommand ExecuteBidCommand => ExecuteSellCommand; // BID tile = Client SELLS
+        public ICommand ExecuteOfferCommand => ExecuteBuyCommand; // OFFER tile = Client BUYS
         public ICommand RequestQuotesCommand { get; }
 
         public MultiLPQuoteViewModel(TradeStructure trade)
