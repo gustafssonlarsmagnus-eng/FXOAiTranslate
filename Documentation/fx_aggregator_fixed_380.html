@@ -243,13 +243,114 @@
                     0% calc(100% - 36px),
                     0% 0%);
         }
+
+        /* Deal Cards Styling */
+        .deal-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+            opacity: 0;
+        }
+
+        .deal-details.expanded {
+            max-height: 300px;
+            opacity: 1;
+        }
+
+        .deal-arrow {
+            transition: transform 0.2s ease;
+        }
+
+        .deal-arrow.expanded {
+            transform: rotate(90deg);
+        }
+
+        .deal-card:hover {
+            background-color: #1e2536;
+        }
+
+        /* Slide-in animation for new deals */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .deal-new {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        /* Green confirmation flash */
+        @keyframes confirmFlash {
+
+            0%,
+            100% {
+                background-color: transparent;
+            }
+
+            50% {
+                background-color: rgba(34, 197, 94, 0.2);
+            }
+        }
+
+        .confirm-flash {
+            animation: confirmFlash 0.5s ease-out;
+        }
+
+        /* Sliding panel - Fixed to right edge */
+        .deals-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            z-index: 100;
+            background-color: #0b0d10;
+            border-left: 1px solid #1e293b;
+            padding: 8px;
+            transition: transform 0.3s ease-out;
+            transform: translateX(0);
+        }
+
+        .deals-panel.collapsed {
+            transform: translateX(100%);
+        }
+
+        /* Toggle button */
+        .deals-toggle {
+            transition: all 0.2s ease;
+        }
+
+        .deals-toggle:hover {
+            background-color: #1e293b;
+        }
+
+        .deals-toggle .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 18px;
+            height: 18px;
+            background: #3b82f6;
+            border-radius: 9px;
+            font-size: 10px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 
 <body>
 
-    <!-- MAIN CONTAINER - Fixed width 820px (400 + 20 gap + 400) -->
-    <div class="w-[820px] h-screen flex flex-col p-2">
+    <!-- MAIN CONTAINER - Fixed width 1220px (400 + 20 gap + 400 + 20 gap + 380 deal cards) -->
+    <div class="w-[1220px] h-screen flex flex-col p-2">
 
         <!-- Header -->
         <header class="flex justify-between items-center mb-2 px-1">
@@ -257,13 +358,18 @@
                 <h1 class="text-sm font-bold tracking-tight text-slate-500">EURUSD <span class="text-slate-700">|</span>
                     1M CALL</h1>
             </div>
-            <div class="flex gap-2 text-[10px] font-mono text-slate-600">
+            <div class="flex gap-2 text-[10px] font-mono text-slate-600 items-center">
                 <span>SPOT: 1.1736</span>
                 <span>VOL: 5.51</span>
+                <!-- Deals Toggle Button -->
+                <button id="deals-toggle-btn" onclick="toggleDealsPanel()"
+                    class="deals-toggle relative ml-4 px-2 py-1 text-slate-500 hover:text-white cursor-pointer text-xs">
+                    <span id="toggle-arrow">◀</span>
+                </button>
             </div>
         </header>
 
-        <!-- TWO PANELS - Both fixed at 400px -->
+        <!-- THREE PANELS - 400px + 400px + 380px -->
         <div class="flex gap-5 h-full">
 
             <!-- LEFT PANEL: Execution & Aggregation - FIXED 400px -->
@@ -281,8 +387,7 @@
                             <div class="success-indicator bg-green-500/20 text-green-400" id="bid-success">✓</div>
                             <div id="bid-label-container"
                                 class="flex justify-start items-start w-full absolute top-4 left-0 px-4 invisible">
-                                <span id="bid-label"
-                                    class="text-xs font-bold text-green-500 tracking-widest">BID
+                                <span id="bid-label" class="text-xs font-bold text-green-500 tracking-widest">BID
                                     (VOL)</span>
                             </div>
                             <div class="flex-1 flex flex-col justify-center items-center">
@@ -297,8 +402,8 @@
                                     ---</div>
                             </div>
                             <div id="bid-lp" class="absolute left-0 bottom-0 invisible flex items-center z-10">
-                                <div
-                                    class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px]" style="background: linear-gradient(to right, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
+                                <div class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px]"
+                                    style="background: linear-gradient(to right, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
                                     <span class="text-lg font-bold text-white min-w-[50px]">JPM</span>
                                     <span class="text-lg text-amber-400 font-bold">0:08</span>
                                 </div>
@@ -311,8 +416,7 @@
                             <div class="success-indicator bg-blue-500/20 text-blue-400" id="offer-success">✓</div>
                             <div id="offer-label-container"
                                 class="flex justify-end items-start w-full absolute top-4 left-0 px-4 invisible">
-                                <span id="offer-label"
-                                    class="text-xs font-bold text-red-500 tracking-widest">OFFER
+                                <span id="offer-label" class="text-xs font-bold text-red-500 tracking-widest">OFFER
                                     (VOL)</span>
                             </div>
                             <div class="flex-1 flex flex-col justify-center items-center">
@@ -327,8 +431,8 @@
                                     ---</div>
                             </div>
                             <div id="offer-lp" class="absolute right-0 bottom-0 invisible flex items-center z-10">
-                                <div
-                                    class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px] justify-end" style="background: linear-gradient(to left, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
+                                <div class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px] justify-end"
+                                    style="background: linear-gradient(to left, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
                                     <span class="text-lg text-slate-400">1:52</span>
                                     <span class="text-lg font-bold text-white min-w-[50px] text-right">DEUT</span>
                                 </div>
@@ -345,18 +449,25 @@
                         <div id="bid-tooltip" class="trade-tooltip" style="left: 25%; transform: translateX(-50%);">
                             <div class="tooltip-section">
                                 <div class="tooltip-label">Client Receives</div>
-                                <div class="tooltip-value">Vol <span class="tooltip-highlight">5.47%</span> based on notional of <span class="tooltip-highlight">EUR 10,000,000</span></div>
-                                <div class="tooltip-value mt-1">Premium: <span class="tooltip-highlight">EUR 68,778</span></div>
+                                <div class="tooltip-value">Vol <span class="tooltip-highlight">5.47%</span> based on
+                                    notional of <span class="tooltip-highlight">EUR 10,000,000</span></div>
+                                <div class="tooltip-value mt-1">Premium: <span class="tooltip-highlight">EUR
+                                        68,778</span></div>
                             </div>
                             <div class="tooltip-divider"></div>
                             <div class="tooltip-section">
                                 <div class="tooltip-label">Buy Vanilla Option</div>
-                                <div class="tooltip-value">1mth <span class="tooltip-highlight">EUR Call / USD Put</span>, K=<span class="tooltip-highlight">1.1751</span> (ATM), ExpCut=<span class="tooltip-highlight">NYC</span></div>
+                                <div class="tooltip-value">1mth <span class="tooltip-highlight">EUR Call / USD
+                                        Put</span>, K=<span class="tooltip-highlight">1.1751</span> (ATM), ExpCut=<span
+                                        class="tooltip-highlight">NYC</span></div>
                             </div>
                             <div class="tooltip-divider"></div>
                             <div class="tooltip-section">
                                 <div class="tooltip-label">Spot Hedge</div>
-                                <div class="tooltip-value">Delta <span class="tooltip-highlight">50.24%</span> | Sell <span class="tooltip-highlight">EUR 5,023,800</span> @ <span class="tooltip-highlight">1.1746</span></div>
+                                <div class="tooltip-value">Delta <span class="tooltip-highlight">50.24%</span> | Sell
+                                    <span class="tooltip-highlight">EUR 5,023,800</span> @ <span
+                                        class="tooltip-highlight">1.1746</span>
+                                </div>
                             </div>
                         </div>
 
@@ -364,18 +475,25 @@
                         <div id="offer-tooltip" class="trade-tooltip" style="left: 75%; transform: translateX(-50%);">
                             <div class="tooltip-section">
                                 <div class="tooltip-label">Client Pays</div>
-                                <div class="tooltip-value">Vol <span class="tooltip-highlight">5.82%</span> based on notional of <span class="tooltip-highlight">EUR 10,000,000</span></div>
-                                <div class="tooltip-value mt-1">Premium: <span class="tooltip-highlight">EUR 71,699</span></div>
+                                <div class="tooltip-value">Vol <span class="tooltip-highlight">5.82%</span> based on
+                                    notional of <span class="tooltip-highlight">EUR 10,000,000</span></div>
+                                <div class="tooltip-value mt-1">Premium: <span class="tooltip-highlight">EUR
+                                        71,699</span></div>
                             </div>
                             <div class="tooltip-divider"></div>
                             <div class="tooltip-section">
                                 <div class="tooltip-label">Buy Vanilla Option</div>
-                                <div class="tooltip-value">1mth <span class="tooltip-highlight">EUR Call / USD Put</span>, K=<span class="tooltip-highlight">1.1751</span> (ATM), ExpCut=<span class="tooltip-highlight">NYC</span></div>
+                                <div class="tooltip-value">1mth <span class="tooltip-highlight">EUR Call / USD
+                                        Put</span>, K=<span class="tooltip-highlight">1.1751</span> (ATM), ExpCut=<span
+                                        class="tooltip-highlight">NYC</span></div>
                             </div>
                             <div class="tooltip-divider"></div>
                             <div class="tooltip-section">
                                 <div class="tooltip-label">Spot Hedge</div>
-                                <div class="tooltip-value">Delta <span class="tooltip-highlight">50.24%</span> | Sell <span class="tooltip-highlight">EUR 5,023,800</span> @ <span class="tooltip-highlight">1.1746</span></div>
+                                <div class="tooltip-value">Delta <span class="tooltip-highlight">50.24%</span> | Sell
+                                    <span class="tooltip-highlight">EUR 5,023,800</span> @ <span
+                                        class="tooltip-highlight">1.1746</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -393,7 +511,8 @@
 
                         <!-- Right: Price Display dropdown -->
                         <div class="relative group">
-                            <div class="flex items-center gap-2 cursor-pointer px-3 py-2 -mx-2 -my-1 rounded hover:bg-[#1e293b] transition">
+                            <div
+                                class="flex items-center gap-2 cursor-pointer px-3 py-2 -mx-2 -my-1 rounded hover:bg-[#1e293b] transition">
                                 <span class="text-[10px] text-slate-500">Price Display</span>
                                 <span id="price-display-bar"
                                     class="text-[10px] text-blue-400 font-bold uppercase min-w-[55px] text-right">VOL</span>
@@ -422,12 +541,14 @@
                         class="bg-[#14161b] border border-[#1e293b] rounded flex flex-col overflow-hidden transition-all duration-300 mt-1">
                         <div
                             class="grid grid-cols-[1fr_60px_1fr] bg-[#1a1d23] border-b border-[#1e293b] items-center py-1.5">
-                            <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">You Rec
+                            <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">You
+                                Rec
                             </div>
                             <div
                                 class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider border-l border-r border-[#1e293b] h-full flex items-center justify-center">
                                 Venue</div>
-                            <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">You Pay
+                            <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">You
+                                Pay
                             </div>
                         </div>
 
@@ -449,8 +570,7 @@
                                     <span class="text-[10px] text-slate-500 mt-0.5">0.40</span>
                                 </div>
                                 <div class="flex flex-col justify-center items-center best-offer-cell">
-                                    <div
-                                        class="text-white font-bold text-sm group-hover:text-white transition-colors">
+                                    <div class="text-white font-bold text-sm group-hover:text-white transition-colors">
                                         5.82</div>
                                     <div
                                         class="text-slate-600 font-medium text-[10px] mt-0.5 group-hover:text-slate-400">
@@ -461,8 +581,7 @@
                             <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group"
                                 style="opacity: 0.85">
                                 <div class="flex flex-col justify-center items-center best-bid-cell">
-                                    <div
-                                        class="text-white font-bold text-sm group-hover:text-white transition-colors">
+                                    <div class="text-white font-bold text-sm group-hover:text-white transition-colors">
                                         5.47</div>
                                     <div
                                         class="text-slate-600 font-medium text-[10px] mt-0.5 group-hover:text-slate-400">
@@ -536,8 +655,7 @@
                     </div>
 
                     <!-- LEG1 DETAILS PANEL - Collapsible -->
-                    <div id="leg1-container"
-                        class="bg-[#152040] border border-[#1e293b] rounded mt-1 overflow-hidden">
+                    <div id="leg1-container" class="bg-[#152040] border border-[#1e293b] rounded mt-1 overflow-hidden">
                         <!-- Leg1 Header -->
                         <div onclick="toggleLeg1()"
                             class="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-[#1a2850] transition">
@@ -557,7 +675,8 @@
                             <!-- Type -->
                             <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
                                 <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Type</div>
-                                <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
+                                <div
+                                    class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
                                     <span class="font-medium">Vanilla Option</span>
                                     <span class="text-slate-500 text-[9px]">▼</span>
                                 </div>
@@ -565,7 +684,8 @@
 
                             <!-- Quantity -->
                             <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Quantity</div>
+                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Quantity
+                                </div>
                                 <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between">
                                     <span class="font-medium">EUR</span>
                                     <span class="font-bold">10,000,000</span>
@@ -574,7 +694,8 @@
 
                             <!-- Option Type -->
                             <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Option Type</div>
+                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Option Type
+                                </div>
                                 <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23]">
                                     <span>EUR Call / USD Put</span>
                                 </div>
@@ -582,7 +703,8 @@
 
                             <!-- Expiry Date -->
                             <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Expiry Date</div>
+                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Expiry Date
+                                </div>
                                 <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
                                     <span class="font-medium">14 Jan 26</span>
                                     <span class="text-blue-400 font-medium ml-2">1M</span>
@@ -599,23 +721,28 @@
 
                             <!-- Expiry Cut -->
                             <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Expiry Cut</div>
-                                <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
+                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Expiry Cut
+                                </div>
+                                <div
+                                    class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
                                     <span class="font-mono">NYC</span>
                                 </div>
                             </div>
 
                             <!-- Settlement -->
                             <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Settlement</div>
-                                <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
+                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Settlement
+                                </div>
+                                <div
+                                    class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
                                     <span class="font-mono">PHYSICAL</span>
                                 </div>
                             </div>
 
                             <!-- Delta Exchange -->
                             <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta Exchange</div>
+                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta
+                                    Exchange</div>
                                 <div class="bg-[#0f1114] px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
                                     <span class="font-medium text-blue-400">No Hedge (Live)</span>
                                 </div>
@@ -623,15 +750,19 @@
 
                             <!-- Premium Due -->
                             <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Premium Due</div>
-                                <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
+                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Premium Due
+                                </div>
+                                <div
+                                    class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
                                     <span class="font-mono">SPOT</span>
                                 </div>
                             </div>
 
                             <!-- Premium (EUR) -->
-                            <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
-                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Premium (EUR)</div>
+                            <div
+                                class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
+                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Premium
+                                    (EUR)</div>
                                 <div class="bg-[#14161b] px-2 flex items-center justify-end gap-2 font-mono">
                                     <span class="text-slate-500 text-[10px]">RCV 59.4k</span>
                                     <span class="text-slate-600">/</span>
@@ -640,68 +771,72 @@
                             </div>
 
                             <!-- Volatility -->
-                            <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
-                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Volatility</div>
-                                <div class="bg-[#14161b] px-2 flex items-center justify-end font-mono text-white font-medium">
+                            <div
+                                class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
+                                <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Volatility
+                                </div>
+                                <div
+                                    class="bg-[#14161b] px-2 flex items-center justify-end font-mono text-white font-medium">
                                     5.176 / 5.386
                                 </div>
                             </div>
 
                             <!-- Market Data Section -->
                             <div class="mt-0.5">
-                                <div onclick="toggleMarketData()" class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-medium flex items-center gap-2 cursor-pointer hover:bg-[#253048] transition">
+                                <div onclick="toggleMarketData()"
+                                    class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-medium flex items-center gap-2 cursor-pointer hover:bg-[#253048] transition">
                                     <span id="market-data-arrow" class="text-slate-400 text-[9px]">▶</span>
                                     <span>Market Data</span>
                                 </div>
                                 <div id="market-data-content" style="display: none;" class="bg-[#0f1114]">
                                     <!-- Spot Rate -->
                                     <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Spot Rate</div>
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Spot
+                                            Rate</div>
                                         <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
                                             <span class="font-medium">1.1746</span>
                                         </div>
                                     </div>
                                     <!-- Forward Points -->
                                     <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Forward Pts</div>
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
+                                            Forward Pts</div>
                                         <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
                                             <span class="font-medium">0.0005</span>
                                         </div>
                                     </div>
                                     <!-- Forward Rate -->
                                     <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Forward Rate</div>
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
+                                            Forward Rate</div>
                                         <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
                                             <span class="font-medium">1.1751</span>
                                         </div>
                                     </div>
                                     <!-- ATM Vol -->
                                     <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">ATM Vol</div>
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">ATM
+                                            Vol</div>
                                         <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
                                             <span class="font-medium">5.47%</span>
                                         </div>
                                     </div>
-                                    <!-- Bid/Ask Spread -->
-                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Bid/Ask Sprd</div>
-                                        <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
-                                            <span class="font-medium">0.35 vol</span>
-                                        </div>
-                                    </div>
+
                                 </div>
                             </div>
 
                             <!-- Risk Section -->
                             <div class="mt-0.5 mb-0.5">
-                                <div onclick="toggleRisk()" class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-medium flex items-center gap-2 cursor-pointer hover:bg-[#253048] transition">
+                                <div onclick="toggleRisk()"
+                                    class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-medium flex items-center gap-2 cursor-pointer hover:bg-[#253048] transition">
                                     <span id="risk-arrow" class="text-slate-400 text-[9px]">▶</span>
                                     <span>Risk</span>
                                 </div>
                                 <div id="risk-content" style="display: none;" class="bg-[#0f1114]">
                                     <!-- Delta -->
                                     <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta</div>
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
+                                            Delta</div>
                                         <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between">
                                             <span class="font-medium">EUR</span>
                                             <span class="font-bold">5,023,800</span>
@@ -709,22 +844,26 @@
                                     </div>
                                     <!-- Delta % -->
                                     <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta %</div>
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
+                                            Delta %</div>
                                         <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
                                             <span class="font-medium">50.24%</span>
                                         </div>
                                     </div>
                                     <!-- Vega -->
                                     <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Vega</div>
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Vega
+                                        </div>
                                         <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between">
                                             <span class="font-medium">EUR</span>
                                             <span class="font-bold">4,850 /1%</span>
                                         </div>
                                     </div>
                                     <!-- Notional -->
-                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
-                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Notional</div>
+                                    <div
+                                        class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
+                                            Notional</div>
                                         <div class="bg-[#14161b] text-white px-2 flex items-center justify-between">
                                             <span class="font-medium">EUR</span>
                                             <span class="font-bold">10,000,000</span>
@@ -734,6 +873,43 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- DEAL CARDS PANEL - Right side, 380px, starts collapsed -->
+            <div id="deals-panel" class="deals-panel w-[380px] flex flex-col flex-shrink-0 collapsed">
+
+                <!-- HEADER with Close Arrow -->
+                <div class="flex items-center mb-2 px-2">
+                    <div class="flex items-center gap-2">
+                        <span onclick="toggleDealsPanel()"
+                            class="text-slate-500 hover:text-white cursor-pointer text-xs">▶</span>
+                        <h2 class="text-sm font-bold text-slate-400 tracking-wider uppercase">Confirmed Deals</h2>
+                    </div>
+                </div>
+
+                <!-- SORTABLE COLUMN HEADERS -->
+                <div
+                    class="grid grid-cols-[55px_1fr_45px_40px_75px] gap-2 px-3 py-2 bg-[#1a1d23] rounded-t border-b border-[#1e293b] text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                    <div class="flex items-center gap-1 cursor-pointer hover:text-blue-400">Time</div>
+                    <div class="cursor-pointer hover:text-blue-400">Instrument</div>
+                    <div class="cursor-pointer hover:text-blue-400">LP</div>
+                    <div class="cursor-pointer hover:text-blue-400">Side</div>
+                    <div></div>
+                </div>
+
+                <!-- DEAL CARDS CONTAINER -->
+                <div id="deals-container"
+                    class="bg-[#14161b] rounded-b border border-t-0 border-[#1e293b] overflow-y-auto flex-1">
+
+                    <!-- Empty State -->
+                    <div id="no-deals" class="flex flex-col items-center justify-center py-12 text-slate-600">
+                        <span class="text-xs">No trades yet</span>
+                        <span class="text-[10px] text-slate-700 mt-1">Execute a trade to see it here</span>
+                    </div>
+
+                    <!-- Deal cards will be inserted here by JavaScript -->
+
                 </div>
             </div>
         </div>
@@ -786,7 +962,180 @@
             setTimeout(() => {
                 tile.classList.remove('trade-flash-' + side);
             }, 750);
+
+            // Create deal card
+            createDealCard(side);
         }
+
+        let dealCount = 0;
+
+        function createDealCard(side) {
+            const container = document.getElementById('deals-container');
+            const noDeals = document.getElementById('no-deals');
+
+            // Hide empty state
+            if (noDeals) noDeals.style.display = 'none';
+
+            dealCount++;
+
+            // Update badge if panel is closed
+            if (!dealsPanelOpen) {
+                // Auto-expand panel on trade
+                toggleDealsPanel();
+            }
+
+            const now = new Date();
+            const timeStr = now.toTimeString().slice(0, 8);
+            const isBuy = side === 'bid';
+            const lpName = isBuy ? 'JPM' : 'DEUT';
+            const borderColor = isBuy ? 'green' : 'red';
+            const sideText = isBuy ? 'BUY' : 'SELL';
+            const premiumSign = isBuy ? '-' : '+';
+            const premiumColor = isBuy ? 'red' : 'green';
+            const premiumAmt = Math.floor(Math.random() * 50000) + 10000;
+            const vol = (5 + Math.random() * 2).toFixed(2);
+            const delta = (0.4 + Math.random() * 0.2).toFixed(2);
+            const orderId = 'FENICS.' + Date.now().toString().slice(-8);
+
+            const cardHTML = `
+                <div class="deal-card deal-new border-t border-t-[#1e293b]/50 cursor-pointer transition-colors" onclick="toggleDeal(this)">
+                    <div class="grid grid-cols-[55px_1fr_45px_40px_75px] gap-2 px-3 py-2.5 items-center">
+                        <span class="text-[11px] text-slate-400 font-mono">${timeStr}</span>
+                        <span class="text-[11px] text-white font-medium">EURUSD 1M CALL</span>
+                        <span class="text-[10px] text-blue-400 font-bold">${lpName}</span>
+                        <span class="text-[10px] text-${borderColor}-400 font-bold">${sideText}</span>
+                        <div class="flex items-center justify-end gap-1">
+                            <span class="status-badge px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-400 animate-pulse">PENDING</span>
+                            <span class="deal-arrow text-slate-500 text-[10px]">▶</span>
+                        </div>
+                    </div>
+
+                    <div class="deal-details px-3 pb-3">
+                        <div class="bg-[#0f1114] rounded p-3 mt-1">
+                            <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Strike</span>
+                                    <span class="text-yellow-400 font-bold">1.1643</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Notional</span>
+                                    <span class="text-white font-medium">EUR 10MM</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Vol</span>
+                                    <span class="text-white">${vol}%</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Delta</span>
+                                    <span class="text-white">${delta}</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Premium</span>
+                                    <span class="text-${premiumColor}-400 font-bold">${premiumSign}€${premiumAmt.toLocaleString()}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Expiry</span>
+                                    <span class="text-blue-400">16 Dec 25</span>
+                                </div>
+                            </div>
+                            <div class="border-t border-[#1e293b] my-2"></div>
+                            <div class="flex justify-between text-[10px]">
+                                <span class="text-slate-600 font-mono">${orderId}...</span>
+                                <span class="text-amber-400 font-bold animate-pulse">PENDING</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Insert at the top
+            container.insertAdjacentHTML('afterbegin', cardHTML);
+
+            // Simulate confirmation after 2 seconds
+            setTimeout(() => {
+                const card = container.firstElementChild;
+                if (card) {
+                    // Update collapsed row badge
+                    const statusBadge = card.querySelector('.status-badge');
+                    if (statusBadge) {
+                        statusBadge.textContent = 'CONFIRMED';
+                        statusBadge.classList.remove('bg-amber-500/20', 'text-amber-400', 'animate-pulse');
+                        statusBadge.classList.add('bg-green-500/20', 'text-green-400');
+                    }
+                    // Update expanded details status
+                    const statusEl = card.querySelector('.text-amber-400.font-bold');
+                    if (statusEl) {
+                        statusEl.textContent = 'CONFIRMED';
+                        statusEl.classList.remove('text-amber-400', 'animate-pulse');
+                        statusEl.classList.add('text-green-400');
+                    }
+                    // Speak "Confirmed" with female voice
+                    speakConfirmation();
+                }
+            }, 2000);
+        }
+
+        // Speech synthesis for confirmation
+        function speakConfirmation() {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance('Confirmed');
+                utterance.rate = 1.0;
+                utterance.pitch = 1.1;
+                utterance.volume = 0.8;
+
+                // Try to find a female voice
+                const voices = speechSynthesis.getVoices();
+                const femaleVoice = voices.find(v =>
+                    v.name.includes('Female') ||
+                    v.name.includes('Zira') ||
+                    v.name.includes('Samantha') ||
+                    v.name.includes('Google UK English Female') ||
+                    v.name.includes('Microsoft Zira')
+                );
+                if (femaleVoice) {
+                    utterance.voice = femaleVoice;
+                }
+
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Pre-load voices
+        if ('speechSynthesis' in window) {
+            speechSynthesis.getVoices();
+        }
+
+        function toggleDeal(card) {
+            const details = card.querySelector('.deal-details');
+            const arrow = card.querySelector('.deal-arrow');
+
+            if (details.classList.contains('expanded')) {
+                details.classList.remove('expanded');
+                arrow.classList.remove('expanded');
+            } else {
+                details.classList.add('expanded');
+                arrow.classList.add('expanded');
+            }
+        }
+
+        let dealsPanelOpen = false;
+
+        function toggleDealsPanel() {
+            const panel = document.getElementById('deals-panel');
+            dealsPanelOpen = !dealsPanelOpen;
+
+            if (dealsPanelOpen) {
+                panel.classList.remove('collapsed');
+            } else {
+                panel.classList.add('collapsed');
+            }
+        }
+
+        // Badge functionality removed
 
         // Option C: Compact Summary - Toggle ladder visibility
         let ladderExpanded = false;
@@ -956,23 +1305,23 @@
         const offerTooltip = document.getElementById('offer-tooltip');
 
         // Show tooltip on mouseover (only when RFQ is active)
-        bidTile.addEventListener('mouseenter', function() {
+        bidTile.addEventListener('mouseenter', function () {
             if (rfqActive) {
                 bidTooltip.classList.add('visible');
             }
         });
 
-        bidTile.addEventListener('mouseleave', function() {
+        bidTile.addEventListener('mouseleave', function () {
             bidTooltip.classList.remove('visible');
         });
 
-        offerTile.addEventListener('mouseenter', function() {
+        offerTile.addEventListener('mouseenter', function () {
             if (rfqActive) {
                 offerTooltip.classList.add('visible');
             }
         });
 
-        offerTile.addEventListener('mouseleave', function() {
+        offerTile.addEventListener('mouseleave', function () {
             offerTooltip.classList.remove('visible');
         });
     </script>

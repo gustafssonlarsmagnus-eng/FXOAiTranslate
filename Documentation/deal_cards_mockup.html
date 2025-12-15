@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deal Cards - Accordion Mockup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0d10;
+            color: #94a3b8;
+        }
+
+        /* Smooth expand animation */
+        .deal-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+            opacity: 0;
+        }
+
+        .deal-details.expanded {
+            max-height: 300px;
+            opacity: 1;
+        }
+
+        /* Arrow rotation */
+        .deal-arrow {
+            transition: transform 0.2s ease;
+        }
+
+        .deal-arrow.expanded {
+            transform: rotate(90deg);
+        }
+
+        /* Hover effect on cards */
+        .deal-card:hover {
+            background-color: #1e2536;
+        }
+
+        /* Sortable header hover */
+        .sort-header:hover {
+            color: #60a5fa;
+            cursor: pointer;
+        }
+
+        .sort-header:hover .sort-icon {
+            opacity: 1;
+        }
+
+        .sort-icon {
+            opacity: 0.3;
+            transition: opacity 0.2s;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-6">
+
+    <div class="w-[380px]">
+
+        <!-- HEADER -->
+        <div class="flex items-center justify-between mb-2 px-2">
+            <h2 class="text-sm font-bold text-slate-400 tracking-wider uppercase">Confirmed Deals</h2>
+            <span class="text-xs text-slate-600">4 trades</span>
+        </div>
+
+        <!-- SORTABLE COLUMN HEADERS -->
+        <div
+            class="grid grid-cols-[60px_1fr_50px_45px_24px] gap-2 px-3 py-2 bg-[#1a1d23] rounded-t border-b border-[#1e293b] text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+            <div class="sort-header flex items-center gap-1" onclick="sortDeals('time')">
+                Time <span class="sort-icon">▼</span>
+            </div>
+            <div class="sort-header" onclick="sortDeals('instrument')">Instrument</div>
+            <div class="sort-header" onclick="sortDeals('lp')">LP</div>
+            <div class="sort-header" onclick="sortDeals('side')">Side</div>
+            <div></div>
+        </div>
+
+        <!-- DEAL CARDS CONTAINER -->
+        <div id="deals-container" class="bg-[#14161b] rounded-b border border-t-0 border-[#1e293b]">
+
+            <!-- DEAL 1: BUY (Green) - Collapsed -->
+            <div class="deal-card border-l-2 border-l-green-500 cursor-pointer transition-colors"
+                onclick="toggleDeal(this)">
+                <!-- Collapsed Row -->
+                <div class="grid grid-cols-[60px_1fr_50px_45px_24px] gap-2 px-3 py-2.5 items-center">
+                    <span class="text-[11px] text-slate-400 font-mono">12:18:55</span>
+                    <span class="text-[11px] text-white font-medium">EURUSD 1M CALL</span>
+                    <span class="text-[10px] text-blue-400 font-bold">JPM</span>
+                    <span class="text-[10px] text-green-400 font-bold">BUY</span>
+                    <div class="flex items-center justify-end gap-1">
+                        <span class="text-green-400 text-xs">✓</span>
+                        <span class="deal-arrow text-slate-500 text-[10px]">▶</span>
+                    </div>
+                </div>
+
+                <!-- Expanded Details -->
+                <div class="deal-details px-3 pb-3">
+                    <div class="bg-[#0f1114] rounded p-3 mt-1">
+                        <!-- Row 1: Strike & Notional -->
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Strike</span>
+                                <span class="text-yellow-400 font-bold">1.1643</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Notional</span>
+                                <span class="text-white font-medium">EUR 10MM</span>
+                            </div>
+                        </div>
+                        <!-- Row 2: Vol & Delta -->
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Vol</span>
+                                <span class="text-white">5.42%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Delta</span>
+                                <span class="text-white">0.52</span>
+                            </div>
+                        </div>
+                        <!-- Row 3: Premium -->
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Premium</span>
+                                <span class="text-red-400 font-bold">-€62,100</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Expiry</span>
+                                <span class="text-blue-400">16 Dec 25</span>
+                            </div>
+                        </div>
+                        <!-- Divider -->
+                        <div class="border-t border-[#1e293b] my-2"></div>
+                        <!-- Order ID & Status -->
+                        <div class="flex justify-between text-[10px]">
+                            <span class="text-slate-600 font-mono">FENICS.14899.OV1SJO...</span>
+                            <span class="text-green-400 font-bold">FILLED</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEAL 2: SELL (Red) - Collapsed -->
+            <div class="deal-card border-l-2 border-l-red-500 border-t border-t-[#1e293b]/50 cursor-pointer transition-colors"
+                onclick="toggleDeal(this)">
+                <div class="grid grid-cols-[60px_1fr_50px_45px_24px] gap-2 px-3 py-2.5 items-center">
+                    <span class="text-[11px] text-slate-400 font-mono">12:15:32</span>
+                    <span class="text-[11px] text-white font-medium">EURUSD 3M PUT</span>
+                    <span class="text-[10px] text-blue-400 font-bold">DEUT</span>
+                    <span class="text-[10px] text-red-400 font-bold">SELL</span>
+                    <div class="flex items-center justify-end gap-1">
+                        <span class="text-green-400 text-xs">✓</span>
+                        <span class="deal-arrow text-slate-500 text-[10px]">▶</span>
+                    </div>
+                </div>
+
+                <div class="deal-details px-3 pb-3">
+                    <div class="bg-[#0f1114] rounded p-3 mt-1">
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Strike</span>
+                                <span class="text-yellow-400 font-bold">1.1675</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Notional</span>
+                                <span class="text-white font-medium">EUR 5MM</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Vol</span>
+                                <span class="text-white">6.49%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Delta</span>
+                                <span class="text-white">-0.51</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Premium</span>
+                                <span class="text-green-400 font-bold">+€45,320</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Expiry</span>
+                                <span class="text-blue-400">16 Feb 26</span>
+                            </div>
+                        </div>
+                        <div class="border-t border-[#1e293b] my-2"></div>
+                        <div class="flex justify-between text-[10px]">
+                            <span class="text-slate-600 font-mono">FENICS.14899.VEFMY2...</span>
+                            <span class="text-green-400 font-bold">FILLED</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEAL 3: BUY (Green) -->
+            <div class="deal-card border-l-2 border-l-green-500 border-t border-t-[#1e293b]/50 cursor-pointer transition-colors"
+                onclick="toggleDeal(this)">
+                <div class="grid grid-cols-[60px_1fr_50px_45px_24px] gap-2 px-3 py-2.5 items-center">
+                    <span class="text-[11px] text-slate-400 font-mono">11:42:18</span>
+                    <span class="text-[11px] text-white font-medium">USDJPY 1W CALL</span>
+                    <span class="text-[10px] text-blue-400 font-bold">CITI</span>
+                    <span class="text-[10px] text-green-400 font-bold">BUY</span>
+                    <div class="flex items-center justify-end gap-1">
+                        <span class="text-green-400 text-xs">✓</span>
+                        <span class="deal-arrow text-slate-500 text-[10px]">▶</span>
+                    </div>
+                </div>
+
+                <div class="deal-details px-3 pb-3">
+                    <div class="bg-[#0f1114] rounded p-3 mt-1">
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Strike</span>
+                                <span class="text-yellow-400 font-bold">149.50</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Notional</span>
+                                <span class="text-white font-medium">USD 20MM</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Vol</span>
+                                <span class="text-white">8.12%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Delta</span>
+                                <span class="text-white">0.48</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Premium</span>
+                                <span class="text-red-400 font-bold">-$85,600</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Expiry</span>
+                                <span class="text-blue-400">22 Dec 25</span>
+                            </div>
+                        </div>
+                        <div class="border-t border-[#1e293b] my-2"></div>
+                        <div class="flex justify-between text-[10px]">
+                            <span class="text-slate-600 font-mono">FENICS.14899.0NDHUV...</span>
+                            <span class="text-green-400 font-bold">FILLED</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEAL 4: BUY (Green) - Pending -->
+            <div class="deal-card border-l-2 border-l-amber-500 border-t border-t-[#1e293b]/50 cursor-pointer transition-colors"
+                onclick="toggleDeal(this)">
+                <div class="grid grid-cols-[60px_1fr_50px_45px_24px] gap-2 px-3 py-2.5 items-center">
+                    <span class="text-[11px] text-slate-400 font-mono">11:38:05</span>
+                    <span class="text-[11px] text-white font-medium">GBPUSD 2M CALL</span>
+                    <span class="text-[10px] text-blue-400 font-bold">BARX</span>
+                    <span class="text-[10px] text-green-400 font-bold">BUY</span>
+                    <div class="flex items-center justify-end gap-1">
+                        <span class="text-amber-400 text-xs animate-pulse">⏱</span>
+                        <span class="deal-arrow text-slate-500 text-[10px]">▶</span>
+                    </div>
+                </div>
+
+                <div class="deal-details px-3 pb-3">
+                    <div class="bg-[#0f1114] rounded p-3 mt-1">
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Strike</span>
+                                <span class="text-yellow-400 font-bold">1.2750</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Notional</span>
+                                <span class="text-white font-medium">GBP 8MM</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Vol</span>
+                                <span class="text-white">7.25%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Delta</span>
+                                <span class="text-white">0.55</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Premium</span>
+                                <span class="text-red-400 font-bold">-£52,400</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Expiry</span>
+                                <span class="text-blue-400">14 Feb 26</span>
+                            </div>
+                        </div>
+                        <div class="border-t border-[#1e293b] my-2"></div>
+                        <div class="flex justify-between text-[10px]">
+                            <span class="text-slate-600 font-mono">FENICS.14899.XYZABC...</span>
+                            <span class="text-amber-400 font-bold animate-pulse">PENDING</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        function toggleDeal(card) {
+            const details = card.querySelector('.deal-details');
+            const arrow = card.querySelector('.deal-arrow');
+
+            if (details.classList.contains('expanded')) {
+                details.classList.remove('expanded');
+                arrow.classList.remove('expanded');
+            } else {
+                details.classList.add('expanded');
+                arrow.classList.add('expanded');
+            }
+        }
+
+        function sortDeals(column) {
+            // Placeholder for sorting logic
+            console.log('Sorting by:', column);
+            // In WPF, this would be handled by CollectionViewSource with SortDescriptions
+        }
+    </script>
+
+</body>
+
+</html>
