@@ -34,4 +34,64 @@
         <GradientStop Color="#FF870020" Offset="1.0"/>
     </LinearGradientBrush>
 
+    <!-- ============================================ -->
+    <!-- MIDNIGHT BLUE THEME (New Design)            -->
+    <!-- ============================================ -->
+
+    <!-- Backgrounds -->
+    <SolidColorBrush x:Key="Brush.MidnightBackground" Color="#FF0B0D10"/>
+    <SolidColorBrush x:Key="Brush.MidnightPanel" Color="#FF14161B"/>
+    <SolidColorBrush x:Key="Brush.MidnightTileDark" Color="#FF0F1114"/>
+    <SolidColorBrush x:Key="Brush.MidnightTileLight" Color="#FF16181D"/>
+    <SolidColorBrush x:Key="Brush.MidnightHeader" Color="#FF1E2229"/>
+    <SolidColorBrush x:Key="Brush.MidnightHover" Color="#FF1E2536"/>
+    <SolidColorBrush x:Key="Brush.MidnightRFQButton" Color="#FF172033"/>
+    <SolidColorBrush x:Key="Brush.MidnightSpread" Color="#FF050608"/>
+    <SolidColorBrush x:Key="Brush.MidnightPropertyLeft" Color="#FF16181D"/>
+    <SolidColorBrush x:Key="Brush.MidnightPropertyRight" Color="#FF0F1114"/>
+    <SolidColorBrush x:Key="Brush.MidnightPropertyHover" Color="#FF1A1D23"/>
+
+    <!-- Borders -->
+    <SolidColorBrush x:Key="Brush.MidnightBorder" Color="#FF1E293B"/>
+    <SolidColorBrush x:Key="Brush.MidnightBorderDark" Color="#FF252933"/>
+
+    <!-- Text Colors -->
+    <SolidColorBrush x:Key="Brush.MidnightText" Color="#FF94A3B8"/>
+    <SolidColorBrush x:Key="Brush.MidnightTextSub" Color="#FF64748B"/>
+    <SolidColorBrush x:Key="Brush.MidnightTextDim" Color="#FF475569"/>
+    <SolidColorBrush x:Key="Brush.MidnightTextWhite" Color="#FFE2E8F0"/>
+
+    <!-- BID/OFFER Colors -->
+    <SolidColorBrush x:Key="Brush.MidnightBidRed" Color="#FF7F1D1D"/>
+    <SolidColorBrush x:Key="Brush.MidnightBidRedLight" Color="#FFEF4444"/>
+    <SolidColorBrush x:Key="Brush.MidnightOfferBlue" Color="#FF1E3A8A"/>
+    <SolidColorBrush x:Key="Brush.MidnightOfferBlueLight" Color="#FF3B82F6"/>
+
+    <!-- Status Colors -->
+    <SolidColorBrush x:Key="Brush.MidnightYellow" Color="#FFFBBF24"/>
+    <SolidColorBrush x:Key="Brush.MidnightAmber" Color="#FFD97706"/>
+    <SolidColorBrush x:Key="Brush.MidnightBlue" Color="#FF60A5FA"/>
+
+    <!-- Gradient Brushes for Tiles -->
+    <LinearGradientBrush x:Key="Brush.MidnightTileBase" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FF16181D" Offset="0.0"/>
+        <GradientStop Color="#FF0F1114" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="Brush.MidnightTileHover" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FF1E2536" Offset="0.0"/>
+        <GradientStop Color="#FF11151F" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <!-- Best Price Highlights -->
+    <LinearGradientBrush x:Key="Brush.MidnightBestBid" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#267F1D1D" Offset="0.0"/>
+        <GradientStop Color="#007F1D1D" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="Brush.MidnightBestOffer" StartPoint="1,0" EndPoint="0,0">
+        <GradientStop Color="#331E3A8A" Offset="0.0"/>
+        <GradientStop Color="#001E3A8A" Offset="1.0"/>
+    </LinearGradientBrush>
+
 </ResourceDictionary>

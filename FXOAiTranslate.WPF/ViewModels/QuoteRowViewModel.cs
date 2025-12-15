@@ -72,7 +72,7 @@ namespace FXOAiTranslate.WPF.ViewModels
             set => SetProperty(ref _isBestPrice, value);
         }
 
-        // Formatted display properties
+        // Formatted display properties (original format)
         public string BidPremiumFormatted => $"{BidPremium:N0}";
         public string OfferPremiumFormatted => $"{OfferPremium:N0}";
         public string BidVolFormatted => $"{BidVol:F2}%";
@@ -80,6 +80,12 @@ namespace FXOAiTranslate.WPF.ViewModels
         public string OfferVolFormatted => $"{OfferVol:F2}%";
         public string DeltaFormatted => $"{Delta:F1}Δ";
         public string SpotReferenceFormatted => $"{SpotReference:F4}";
+
+        // Ladder display properties (compact format)
+        public double BidPremiumK => BidPremium / 1000.0;
+        public double OfferPremiumK => OfferPremium / 1000.0;
+        public double BidPips => (BidPremium / 10000000.0) * 10000; // Simplified pip calculation
+        public double OfferPips => (OfferPremium / 10000000.0) * 10000;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

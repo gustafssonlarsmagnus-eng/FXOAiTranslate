@@ -4,328 +4,1113 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="FX Option Aggregator"
-        Height="750" Width="1400"
-        MinHeight="650" MinWidth="1200"
+        Title="FX Aggregator - Midnight Blue"
+        Height="600" Width="860"
+        MinHeight="600" MinWidth="860"
+        MaxHeight="600" MaxWidth="860"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource Brush.AppBackground}">
+        Background="{StaticResource Brush.MidnightBackground}"
+        ResizeMode="NoResize">
 
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="/Styles/Colors.xaml"/>
-                <ResourceDictionary Source="/Styles/ButtonStyles.xaml"/>
-                <ResourceDictionary Source="/Styles/GridStyles.xaml"/>
+                <ResourceDictionary Source="/Styles/Typography.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converter for Visibility -->
+            <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Margin="20">
+    <!-- Main Container - 820px + 20px margins = 840px -->
+    <Grid Margin="10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- Title -->
-            <RowDefinition Height="140"/>  <!-- Top Execution Buttons -->
-            <RowDefinition Height="*"/>    <!-- Data Grid -->
-            <RowDefinition Height="Auto"/> <!-- Bottom Parameters -->
+            <RowDefinition Height="Auto"/> <!-- Header -->
+            <RowDefinition Height="*"/>    <!-- Main Content -->
         </Grid.RowDefinitions>
 
         <!-- ============================================ -->
-        <!-- TITLE                                        -->
+        <!-- HEADER: EURUSD | 1M CALL + SPOT/VOL         -->
         <!-- ============================================ -->
-        <TextBlock Grid.Row="0"
-                   Text="{Binding TradeTitle}"
-                   FontSize="24"
-                   FontWeight="Bold"
-                   Foreground="{StaticResource Brush.TextMain}"
-                   Margin="0,0,0,15"/>
-
-        <!-- ============================================ -->
-        <!-- TOP PANEL: BEST EXECUTION BUTTONS            -->
-        <!-- ============================================ -->
-        <Grid Grid.Row="1" Margin="0,0,0,20">
+        <Grid Grid.Row="0" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="10"/> <!-- Spacer -->
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- BUY BUTTON (Teal Gradient) -->
-            <Border Grid.Column="0"
-                    Style="{StaticResource BuyButtonBorder}">
-                <Border.InputBindings>
-                    <MouseBinding Gesture="LeftClick" Command="{Binding ExecuteBuyCommand}"/>
-                </Border.InputBindings>
+            <!-- Left: Trade Title -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <TextBlock Text="{Binding Underlying}"
+                           FontFamily="{StaticResource Font.UI}"
+                           FontSize="14"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                <TextBlock Text=" | "
+                           FontSize="14"
+                           Foreground="{StaticResource Brush.MidnightTextDim}"/>
+                <TextBlock Text="{Binding TradeTitle}"
+                           FontFamily="{StaticResource Font.UI}"
+                           FontSize="14"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource Brush.MidnightTextSub}"/>
+            </StackPanel>
 
-                <Grid Margin="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Header -->
-                    <Grid Grid.Row="0">
-                        <TextBlock Text="YOU BUY"
-                                   Style="{StaticResource ButtonHeaderText}"
-                                   VerticalAlignment="Center"/>
-                        <Border Style="{StaticResource BankTag}"
-                                HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding BestBuyBank}"
-                                       Style="{StaticResource BankNameText}"/>
-                        </Border>
-                    </Grid>
-
-                    <!-- Big Premium -->
-                    <TextBlock Grid.Row="1"
-                               Text="{Binding BestBuyPremiumFormatted}"
-                               Style="{StaticResource BigPremiumText}"/>
-
-                    <!-- Volatility -->
-                    <TextBlock Grid.Row="2"
-                               Text="{Binding BestBuyVolatilityFormatted}"
-                               Style="{StaticResource VolatilityText}"/>
-                </Grid>
-            </Border>
-
-            <!-- SELL BUTTON (Red Gradient) -->
-            <Border Grid.Column="2"
-                    Style="{StaticResource SellButtonBorder}">
-                <Border.InputBindings>
-                    <MouseBinding Gesture="LeftClick" Command="{Binding ExecuteSellCommand}"/>
-                </Border.InputBindings>
-
-                <Grid Margin="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Header -->
-                    <Grid Grid.Row="0">
-                        <TextBlock Text="YOU SELL"
-                                   Style="{StaticResource ButtonHeaderText}"
-                                   VerticalAlignment="Center"/>
-                        <Border Style="{StaticResource BankTag}"
-                                HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding BestSellBank}"
-                                       Style="{StaticResource BankNameText}"/>
-                        </Border>
-                    </Grid>
-
-                    <!-- Big Premium -->
-                    <TextBlock Grid.Row="1"
-                               Text="{Binding BestSellPremiumFormatted}"
-                               Style="{StaticResource BigPremiumText}"/>
-
-                    <!-- Volatility -->
-                    <TextBlock Grid.Row="2"
-                               Text="{Binding BestSellVolatilityFormatted}"
-                               Style="{StaticResource VolatilityText}"/>
-                </Grid>
-            </Border>
+            <!-- Right: Spot & Vol -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <TextBlock FontFamily="{StaticResource Font.Mono}"
+                           FontSize="10"
+                           Foreground="{StaticResource Brush.MidnightTextSub}">
+                    <Run Text="SPOT: "/>
+                    <Run Text="{Binding SpotReference, StringFormat='{}{0:F4}'}"/>
+                </TextBlock>
+                <TextBlock Text="    " FontSize="10"/>
+                <TextBlock FontFamily="{StaticResource Font.Mono}"
+                           FontSize="10"
+                           Foreground="{StaticResource Brush.MidnightTextSub}">
+                    <Run Text="VOL: "/>
+                    <Run Text="{Binding MidVol, StringFormat='{}{0:F2}'}"/>
+                </TextBlock>
+            </StackPanel>
         </Grid>
 
         <!-- ============================================ -->
-        <!-- MIDDLE PANEL: QUOTE GRID                     -->
+        <!-- MAIN CONTENT: TWO PANELS (400px each)       -->
         <!-- ============================================ -->
-        <Border Grid.Row="2"
-                Background="{StaticResource Brush.PanelBackground}"
-                BorderBrush="{StaticResource Brush.Border}"
-                BorderThickness="1"
-                CornerRadius="3"
-                Margin="0,0,0,15">
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="400"/>  <!-- Left Panel -->
+                <ColumnDefinition Width="20"/>   <!-- Gap -->
+                <ColumnDefinition Width="400"/>  <!-- Right Panel -->
+            </Grid.ColumnDefinitions>
 
-            <Grid>
+            <!-- ========================================== -->
+            <!-- LEFT PANEL: Execution & Ladder            -->
+            <!-- ========================================== -->
+            <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/> <!-- RFQ State or Execution Tiles -->
+                    <RowDefinition Height="8"/>    <!-- Gap -->
+                    <RowDefinition Height="*"/>    <!-- Ladder (when active) -->
                 </Grid.RowDefinitions>
 
-                <!-- Request Quotes Button -->
-                <Button Grid.Row="0"
-                        Content="REQUEST FRESH QUOTES"
-                        Command="{Binding RequestQuotesCommand}"
-                        Background="{StaticResource Brush.TealMain}"
-                        Foreground="White"
-                        FontWeight="Bold"
-                        FontSize="12"
-                        Height="35"
-                        Margin="10,10,10,5"
+                <!-- STATE 1: RFQ DORMANT WIDGET -->
+                <Border x:Name="RFQPanel"
+                        Grid.Row="0"
+                        Height="192"
+                        Background="{StaticResource Brush.MidnightPanel}"
+                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                        BorderThickness="1"
+                        CornerRadius="6"
                         Cursor="Hand"
-                        BorderThickness="0">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="{TemplateBinding Background}"
-                                                CornerRadius="2"
-                                                Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
+                        Visibility="{Binding ShowRFQPanel, Converter={StaticResource BoolToVisConverter}}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{StaticResource Brush.MidnightPanel}"/>
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#FF00A587"/>
+                                    <Setter Property="Background" Value="{StaticResource Brush.MidnightPropertyHover}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
-                    </Button.Style>
-                </Button>
+                    </Border.Style>
 
-                <!-- Data Grid -->
-                <DataGrid Grid.Row="1"
-                          ItemsSource="{Binding Quotes}"
-                          Style="{StaticResource QuoteDataGrid}"
-                          ColumnHeaderStyle="{StaticResource DataGridColumnHeader}"
-                          RowStyle="{StaticResource QuoteDataGridRow}"
-                          Margin="10">
+                    <Border.InputBindings>
+                        <MouseBinding Gesture="LeftClick" Command="{Binding StartRFQCommand}"/>
+                    </Border.InputBindings>
 
-                    <DataGrid.Columns>
-                        <!-- Bank Name -->
-                        <DataGridTextColumn Header="BANK"
-                                            Binding="{Binding BankName}"
-                                            Width="100">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource BankNameCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- Header -->
+                            <RowDefinition Height="*"/>    <!-- Body -->
+                            <RowDefinition Height="Auto"/> <!-- Footer -->
+                        </Grid.RowDefinitions>
 
-                        <!-- Bid Vol -->
-                        <DataGridTextColumn Header="BID VOL"
-                                            Binding="{Binding BidVolFormatted}"
-                                            Width="90">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                        <!-- Header -->
+                        <Border Grid.Row="0"
+                                Background="{StaticResource Brush.MidnightHeader}"
+                                BorderBrush="{StaticResource Brush.MidnightBorderDark}"
+                                BorderThickness="0,0,0,1"
+                                Padding="12,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="OPTION"
+                                           FontFamily="{StaticResource Font.UI}"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.MidnightTextSub}"
+                                           Margin="0,0,12,0"/>
+                                <TextBlock Text="{Binding Underlying}"
+                                           FontFamily="{StaticResource Font.UI}"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.MidnightTextWhite}"/>
+                            </StackPanel>
+                        </Border>
 
-                        <!-- Bid Premium -->
-                        <DataGridTextColumn Header="BID PREMIUM"
-                                            Binding="{Binding BidPremiumFormatted}"
-                                            Width="130">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource PremiumCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                        <!-- Body -->
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <!-- Mid Vol -->
-                        <DataGridTextColumn Header="MID VOL"
-                                            Binding="{Binding MidVolFormatted}"
-                                            Width="90">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                            <!-- Left: Info -->
+                            <Border Grid.Column="0"
+                                    Background="{StaticResource Brush.MidnightTileDark}"
+                                    BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                    BorderThickness="0,0,1,0"
+                                    Padding="20">
+                                <Grid>
+                                    <TextBlock Text="CLICK TO RFQ (F9)"
+                                               FontFamily="{StaticResource Font.UI}"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource Brush.MidnightTextDim}"
+                                               HorizontalAlignment="Left"
+                                               VerticalAlignment="Top"/>
+                                    <TextBlock Text="NO PRICE"
+                                               FontFamily="{StaticResource Font.Mono}"
+                                               FontSize="20"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource Brush.MidnightTextDim}"
+                                               HorizontalAlignment="Left"
+                                               VerticalAlignment="Bottom"/>
+                                </Grid>
+                            </Border>
 
-                        <!-- Offer Vol -->
-                        <DataGridTextColumn Header="OFFER VOL"
-                                            Binding="{Binding OfferVolFormatted}"
-                                            Width="90">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                            <!-- Right: RFQ Button -->
+                            <Border Grid.Column="1"
+                                    Background="{StaticResource Brush.MidnightRFQButton}"
+                                    Padding="16">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="{StaticResource Brush.MidnightRFQButton}"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="{StaticResource Brush.MidnightHover}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
 
-                        <!-- Offer Premium -->
-                        <DataGridTextColumn Header="OFFER PREMIUM"
-                                            Binding="{Binding OfferPremiumFormatted}"
-                                            Width="140">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource PremiumCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                                <Grid>
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Text="START"
+                                                   FontFamily="{StaticResource Font.UI}"
+                                                   FontSize="12"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource Brush.MidnightBlue}"
+                                                   Opacity="0.5"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,0,0,4"/>
+                                        <TextBlock Text="RFQ"
+                                                   FontFamily="{StaticResource Font.UI}"
+                                                   FontSize="48"
+                                                   FontWeight="Bold"
+                                                   Foreground="White"
+                                                   Opacity="0.8"
+                                                   HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
 
-                        <!-- Delta -->
-                        <DataGridTextColumn Header="DELTA"
-                                            Binding="{Binding DeltaFormatted}"
-                                            Width="80">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                        <!-- Footer -->
+                        <Border Grid.Row="2"
+                                Background="{StaticResource Brush.MidnightPanel}"
+                                BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                BorderThickness="0,1,0,0"
+                                Padding="0,4">
+                            <TextBlock Text="No Hedge - Live"
+                                       FontFamily="{StaticResource Font.UI}"
+                                       FontSize="11"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.MidnightAmber}"
+                                       HorizontalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Border>
 
-                        <!-- Spot Reference -->
-                        <DataGridTextColumn Header="SPOT REF"
-                                            Binding="{Binding SpotReferenceFormatted}"
-                                            Width="*">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource NumberCellText}"/>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <!-- STATE 2: ACTIVE PRICES (Execution Tiles) -->
+                <Grid x:Name="ActivePanel"
+                      Grid.Row="0"
+                      Height="192"
+                      Visibility="{Binding ShowActivePanel, Converter={StaticResource BoolToVisConverter}}">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="2"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- BID TILE (Left) -->
+                    <Border Grid.Column="0"
+                            Background="{StaticResource Brush.MidnightTileBase}"
+                            CornerRadius="6,0,0,6"
+                            Padding="16"
+                            Cursor="Hand">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{StaticResource Brush.MidnightTileBase}"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource Brush.MidnightTileHover}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+
+                        <Grid>
+                            <!-- Label (Top Left) -->
+                            <TextBlock Text="BID (PREM)"
+                                       FontFamily="{StaticResource Font.UI}"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.MidnightBidRed}"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Top"/>
+
+                            <!-- Main Content (Center) -->
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <!-- Large Number (Premium) -->
+                                <TextBlock Text="{Binding BestBidPremium, StringFormat='{}{0:N0}'}"
+                                           Style="{StaticResource Text.LargeNumber}"
+                                           Foreground="#FFEF5350"/>
+
+                                <!-- Small Metrics Line -->
+                                <TextBlock HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <Run Text="{Binding BidCurrency}"
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         FontWeight="SemiBold"
+                                         Foreground="{StaticResource Brush.MidnightTextDim}"/>
+                                    <Run Text=" | "
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         Foreground="{StaticResource Brush.MidnightTextDim}"
+                                         Opacity="0.5"/>
+                                    <Run Text="Vol "
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         FontWeight="SemiBold"
+                                         Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                    <Run Text="{Binding BestBidVol, StringFormat='{}{0:F2}'}"
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         FontWeight="SemiBold"
+                                         Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                    <Run Text=" | "
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         Foreground="{StaticResource Brush.MidnightTextDim}"
+                                         Opacity="0.5"/>
+                                    <Run Text="{Binding BestBidPips, StringFormat='{}{0:+0;-0}p'}"
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         FontWeight="SemiBold"
+                                         Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- Bank Tag (Bottom Left) -->
+                            <Border Background="#1A7F1D1D"
+                                    CornerRadius="2"
+                                    Padding="6,2"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Bottom">
+                                <TextBlock Text="{Binding BestBidBank}"
+                                           Style="{StaticResource Text.BankTag}"
+                                           Foreground="{StaticResource Brush.MidnightBidRed}"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- OFFER TILE (Right) -->
+                    <Border Grid.Column="2"
+                            Background="{StaticResource Brush.MidnightTileBase}"
+                            CornerRadius="0,6,6,0"
+                            Padding="16"
+                            Cursor="Hand">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{StaticResource Brush.MidnightTileBase}"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource Brush.MidnightTileHover}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+
+                        <Grid>
+                            <!-- Label (Top Right) -->
+                            <TextBlock Text="OFFER (PREM)"
+                                       FontFamily="{StaticResource Font.UI}"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.MidnightOfferBlue}"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Top"/>
+
+                            <!-- Main Content (Center) -->
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <!-- Large Number (Premium) -->
+                                <TextBlock Text="{Binding BestOfferPremium, StringFormat='{}{0:N0}'}"
+                                           Style="{StaticResource Text.LargeNumber}"
+                                           Foreground="#FF42A5F5"/>
+
+                                <!-- Small Metrics Line -->
+                                <TextBlock HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <Run Text="{Binding OfferCurrency}"
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         FontWeight="SemiBold"
+                                         Foreground="{StaticResource Brush.MidnightTextDim}"/>
+                                    <Run Text=" | "
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         Foreground="{StaticResource Brush.MidnightTextDim}"
+                                         Opacity="0.5"/>
+                                    <Run Text="Vol "
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         FontWeight="SemiBold"
+                                         Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                    <Run Text="{Binding BestOfferVol, StringFormat='{}{0:F2}'}"
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         FontWeight="SemiBold"
+                                         Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                    <Run Text=" | "
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         Foreground="{StaticResource Brush.MidnightTextDim}"
+                                         Opacity="0.5"/>
+                                    <Run Text="{Binding BestOfferPips, StringFormat='{}{0:+0;-0}p'}"
+                                         FontFamily="{StaticResource Font.Mono}"
+                                         FontSize="12"
+                                         FontWeight="SemiBold"
+                                         Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- Bank Tag (Bottom Right) -->
+                            <Border Background="#1A1E3A8A"
+                                    CornerRadius="2"
+                                    Padding="6,2"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Bottom">
+                                <TextBlock Text="{Binding BestOfferBank}"
+                                           Style="{StaticResource Text.BankTag}"
+                                           Foreground="{StaticResource Brush.MidnightOfferBlue}"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- SPREAD INDICATOR (Bottom Center) -->
+                    <Border Background="{StaticResource Brush.MidnightSpread}"
+                            CornerRadius="4"
+                            Padding="12,4"
+                            MinWidth="60"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,0,-12">
+                        <Border.Effect>
+                            <DropShadowEffect Color="Black"
+                                              Direction="270"
+                                              ShadowDepth="2"
+                                              Opacity="0.5"
+                                              BlurRadius="8"/>
+                        </Border.Effect>
+                        <TextBlock Text="{Binding Spread, StringFormat='{}{0:F2}'}"
+                                   Style="{StaticResource Text.Spread}"
+                                   Foreground="White"/>
+                    </Border>
+                </Grid>
+
+                <!-- LADDER GRID (When Active) -->
+                <Border Grid.Row="2"
+                        Background="{StaticResource Brush.MidnightPanel}"
+                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Visibility="{Binding ShowActivePanel, Converter={StaticResource BoolToVisConverter}}">
+
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- Header -->
+                            <RowDefinition Height="*"/>    <!-- Rows -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Header -->
+                        <Border Grid.Row="0"
+                                Background="{StaticResource Brush.MidnightPropertyHover}"
+                                BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                BorderThickness="0,0,0,1"
+                                Padding="0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Text="BID"
+                                           Style="{StaticResource Text.Header}"
+                                           Foreground="{StaticResource Brush.MidnightTextSub}"
+                                           HorizontalAlignment="Center"/>
+
+                                <Border Grid.Column="1"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="1,0">
+                                    <TextBlock Text="VENUE"
+                                               Style="{StaticResource Text.Header}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"
+                                               HorizontalAlignment="Center"/>
+                                </Border>
+
+                                <TextBlock Grid.Column="2"
+                                           Text="OFFER"
+                                           Style="{StaticResource Text.Header}"
+                                           Foreground="{StaticResource Brush.MidnightTextSub}"
+                                           HorizontalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Ladder Rows -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding LadderQuotes}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                                BorderThickness="0,0,0,0.5"
+                                                Height="48"
+                                                Cursor="Hand">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="{StaticResource Brush.MidnightHover}"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- BID Side -->
+                                                <Grid Grid.Column="0">
+                                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                        <TextBlock FontFamily="{StaticResource Font.Mono}"
+                                                                   FontSize="14"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="#FFEF5350">
+                                                            <Run Text="{Binding BidVol, StringFormat='{}{0:F2}'}"/>
+                                                        </TextBlock>
+                                                        <TextBlock FontFamily="{StaticResource Font.Mono}"
+                                                                   FontSize="10"
+                                                                   FontWeight="Medium"
+                                                                   Foreground="{StaticResource Brush.MidnightTextSub}"
+                                                                   Margin="0,2,0,0">
+                                                            <Run Text="{Binding BidPremiumK, StringFormat='{}{0}k'}"/>
+                                                            <Run Text=" | "/>
+                                                            <Run Text="{Binding BidPips, StringFormat='{}{0}p'}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <!-- Venue (Center) -->
+                                                <Border Grid.Column="1"
+                                                        Background="{StaticResource Brush.MidnightTileDark}"
+                                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                                        BorderThickness="1,0">
+                                                    <TextBlock Text="{Binding BankName}"
+                                                               Style="{StaticResource Text.Venue}"
+                                                               Foreground="{StaticResource Brush.MidnightYellow}"/>
+                                                </Border>
+
+                                                <!-- OFFER Side -->
+                                                <Grid Grid.Column="2">
+                                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                        <TextBlock FontFamily="{StaticResource Font.Mono}"
+                                                                   FontSize="14"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="#FF42A5F5">
+                                                            <Run Text="{Binding OfferVol, StringFormat='{}{0:F2}'}"/>
+                                                        </TextBlock>
+                                                        <TextBlock FontFamily="{StaticResource Font.Mono}"
+                                                                   FontSize="10"
+                                                                   FontWeight="Medium"
+                                                                   Foreground="{StaticResource Brush.MidnightTextSub}"
+                                                                   Margin="0,2,0,0">
+                                                            <Run Text="{Binding OfferPremiumK, StringFormat='{}{0}k'}"/>
+                                                            <Run Text=" | "/>
+                                                            <Run Text="{Binding OfferPips, StringFormat='{}{0}p'}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
             </Grid>
-        </Border>
 
-        <!-- ============================================ -->
-        <!-- BOTTOM PANEL: TRADE PARAMETERS               -->
-        <!-- ============================================ -->
-        <Border Grid.Row="3"
-                Background="{StaticResource Brush.HeaderBackground}"
-                BorderBrush="{StaticResource Brush.Border}"
-                BorderThickness="1"
-                CornerRadius="2"
-                Padding="12,8">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- ========================================== -->
+            <!-- RIGHT PANEL: Property Grid                -->
+            <!-- ========================================== -->
+            <Border Grid.Column="2"
+                    Background="{StaticResource Brush.MidnightPanel}"
+                    BorderBrush="{StaticResource Brush.MidnightBorder}"
+                    BorderThickness="1"
+                    CornerRadius="6">
 
-                <!-- Trade ID -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="TRADE ID:"
-                               Foreground="{StaticResource Brush.TextSub}"
-                               FontSize="10"
-                               Margin="0,0,5,0"/>
-                    <TextBlock Text="TRD-12345"
-                               Foreground="{StaticResource Brush.TextMain}"
-                               FontSize="10"
-                               FontWeight="Bold"/>
-                </StackPanel>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Header -->
+                        <RowDefinition Height="*"/>    <!-- Properties -->
+                    </Grid.RowDefinitions>
 
-                <!-- Structure Type -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <TextBlock Text="STRUCTURE:"
-                               Foreground="{StaticResource Brush.TextSub}"
-                               FontSize="10"
-                               Margin="0,0,5,0"/>
-                    <TextBlock Text="{Binding TradeTitle}"
-                               Foreground="{StaticResource Brush.TextMain}"
-                               FontSize="10"
-                               FontWeight="Bold"/>
-                </StackPanel>
+                    <!-- Header -->
+                    <Border Grid.Row="0"
+                            Background="{StaticResource Brush.MidnightBorder}"
+                            BorderBrush="Black"
+                            BorderThickness="0,0,0,1"
+                            Padding="12,6">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" Opacity="0.5">
+                                <TextBlock Text="≫ Global"
+                                           FontFamily="{StaticResource Font.UI}"
+                                           FontSize="10"
+                                           Foreground="{StaticResource Brush.MidnightText}"/>
+                            </StackPanel>
 
-                <!-- Expiry -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <TextBlock Text="EXPIRY:"
-                               Foreground="{StaticResource Brush.TextSub}"
-                               FontSize="10"
-                               Margin="0,0,5,0"/>
-                    <TextBlock Text="17-Dec-25"
-                               Foreground="{StaticResource Brush.TextMain}"
-                               FontSize="10"
-                               FontWeight="Bold"/>
-                </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock Text="Leg 1"
+                                           FontFamily="{StaticResource Font.UI}"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           Margin="0,0,12,0"/>
+                                <TextBlock Text="+"
+                                           FontFamily="{StaticResource Font.UI}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.MidnightTextSub}"
+                                           Cursor="Hand"
+                                           Margin="0,0,8,0"/>
+                                <TextBlock Text="✕"
+                                           FontFamily="{StaticResource Font.UI}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.MidnightTextSub}"
+                                           Cursor="Hand"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
 
-                <!-- Notional -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal">
-                    <TextBlock Text="NOTIONAL:"
-                               Foreground="{StaticResource Brush.TextSub}"
-                               FontSize="10"
-                               Margin="0,0,5,0"/>
-                    <TextBlock Text="10M EUR"
-                               Foreground="{StaticResource Brush.TextMain}"
-                               FontSize="10"
-                               FontWeight="Bold"/>
-                </StackPanel>
-            </Grid>
-        </Border>
+                    <!-- Property Grid -->
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  Background="{StaticResource Brush.MidnightTileDark}">
+                        <StackPanel>
+
+                            <!-- Type -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Type" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyRight}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <TextBlock Text="Vanilla Option"
+                                                   FontFamily="{StaticResource Font.UI}"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource Brush.MidnightTextWhite}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="▼"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource Brush.MidnightTextDim}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Quantity -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Quantity" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyRight}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding BidCurrency}"
+                                                       FontFamily="{StaticResource Font.UI}"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="White"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="⇄"
+                                                       FontSize="12"
+                                                       Foreground="{StaticResource Brush.MidnightTextDim}"
+                                                       Margin="8,0"
+                                                       VerticalAlignment="Center"
+                                                       Cursor="Hand"/>
+                                        </StackPanel>
+                                        <TextBox Text="{Binding Notional, StringFormat='{}{0:N0}'}"
+                                                 Background="Transparent"
+                                                 Foreground="White"
+                                                 BorderThickness="0"
+                                                 FontFamily="{StaticResource Font.Mono}"
+                                                 FontSize="11"
+                                                 FontWeight="Bold"
+                                                 HorizontalAlignment="Right"
+                                                 VerticalAlignment="Center"
+                                                 TextAlignment="Right"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Option Type -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Option Type" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyRight}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <TextBlock Text="{Binding OptionTypeDisplay}"
+                                                   FontFamily="{StaticResource Font.UI}"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource Brush.MidnightTextWhite}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="⇄"
+                                                   FontSize="12"
+                                                   Foreground="{StaticResource Brush.MidnightTextDim}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Expiry Date -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Expiry Date" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyRight}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <Grid>
+                                        <TextBlock Text="1M"
+                                                   FontFamily="{StaticResource Font.UI}"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource Brush.MidnightBlue}"
+                                                   VerticalAlignment="Center"
+                                                   Cursor="Hand"/>
+                                        <TextBox Text="{Binding ExpiryDate, StringFormat='{}{0:dd MMM yy}'}"
+                                                 Background="Transparent"
+                                                 Foreground="White"
+                                                 BorderThickness="0"
+                                                 FontFamily="{StaticResource Font.Mono}"
+                                                 FontSize="11"
+                                                 FontWeight="Bold"
+                                                 HorizontalAlignment="Right"
+                                                 VerticalAlignment="Center"
+                                                 TextAlignment="Right"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Strike -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Strike" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyRight}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBox Text="{Binding Strike, StringFormat='{}{0:F4}'}"
+                                             Background="Transparent"
+                                             Foreground="{StaticResource Brush.MidnightYellow}"
+                                             BorderThickness="0"
+                                             FontFamily="{StaticResource Font.Mono}"
+                                             FontSize="11"
+                                             FontWeight="Bold"
+                                             HorizontalAlignment="Right"
+                                             VerticalAlignment="Center"
+                                             TextAlignment="Right"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- Expiry Cut -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Expiry Cut" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyRight}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <TextBlock Text="NYC"
+                                                   FontFamily="{StaticResource Font.Mono}"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource Brush.MidnightTextWhite}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="▼"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource Brush.MidnightTextDim}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Settlement -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Settlement" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyRight}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <TextBlock Text="PHYSICAL"
+                                                   FontFamily="{StaticResource Font.Mono}"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource Brush.MidnightTextWhite}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="▼"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource Brush.MidnightTextDim}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Price Display -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Price Display" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyRight}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <TextBlock Text="PREMIUM"
+                                                   FontFamily="{StaticResource Font.UI}"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource Brush.MidnightBlue}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="▼"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource Brush.MidnightTextDim}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Delta Exchange -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Delta Exchange" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyRight}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <TextBlock Text="No Hedge (Live)"
+                                                   FontFamily="{StaticResource Font.UI}"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource Brush.MidnightBlue}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="▼"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource Brush.MidnightTextDim}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Premium Due -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Premium Due" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyRight}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <TextBlock Text="SPOT"
+                                                   FontFamily="{StaticResource Font.Mono}"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource Brush.MidnightTextWhite}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="▼"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource Brush.MidnightTextDim}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Premium (EUR) - Read Only -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}">
+                                        <Run Text="Premium ("/>
+                                        <Run Text="{Binding BidCurrency}"/>
+                                        <Run Text=")"/>
+                                    </TextBlock>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock FontFamily="{StaticResource Font.Mono}"
+                                               FontSize="11"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center">
+                                        <Run Text="RCV "
+                                             Foreground="{StaticResource Brush.MidnightTextDim}"
+                                             FontSize="10"/>
+                                        <Run Text="{Binding BestBidPremium, StringFormat='{}{0:F1}k'}"
+                                             Foreground="{StaticResource Brush.MidnightTextDim}"/>
+                                        <Run Text=" / "
+                                             Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                        <Run Text="PAY "
+                                             FontWeight="Bold"
+                                             Foreground="White"
+                                             FontSize="10"/>
+                                        <Run Text="{Binding BestOfferPremium, StringFormat='{}{0:F1}k'}"
+                                             FontWeight="Bold"
+                                             Foreground="White"/>
+                                    </TextBlock>
+                                </Border>
+                            </Grid>
+
+                            <!-- Volatility - Read Only -->
+                            <Grid Height="28">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock Text="Volatility" Style="{StaticResource Text.Label}"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"/>
+                                </Border>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.MidnightPropertyLeft}"
+                                        BorderBrush="{StaticResource Brush.MidnightBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="8,0">
+                                    <TextBlock FontFamily="{StaticResource Font.Mono}"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               Foreground="White"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center">
+                                        <Run Text="{Binding BestBidVol, StringFormat='{}{0:F3}'}"/>
+                                        <Run Text=" / "/>
+                                        <Run Text="{Binding BestOfferVol, StringFormat='{}{0:F3}'}"/>
+                                    </TextBlock>
+                                </Border>
+                            </Grid>
+
+                            <!-- Section: Market Data -->
+                            <Border Background="{StaticResource Brush.MidnightBorder}"
+                                    Padding="8,4"
+                                    Margin="0,4,0,0"
+                                    Cursor="Hand">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="▶"
+                                               FontSize="11"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"
+                                               Margin="0,0,8,0"/>
+                                    <TextBlock Text="Market Data"
+                                               FontFamily="{StaticResource Font.UI}"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource Brush.MidnightTextWhite}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Section: Risk -->
+                            <Border Background="{StaticResource Brush.MidnightBorder}"
+                                    Padding="8,4"
+                                    Margin="0,4,0,0"
+                                    Cursor="Hand">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="▶"
+                                               FontSize="11"
+                                               Foreground="{StaticResource Brush.MidnightTextSub}"
+                                               Margin="0,0,8,0"/>
+                                    <TextBlock Text="Risk"
+                                               FontFamily="{StaticResource Font.UI}"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource Brush.MidnightTextWhite}"/>
+                                </StackPanel>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
