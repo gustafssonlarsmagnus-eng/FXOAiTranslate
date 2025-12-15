@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 
 /// <summary>
+/// Custom FX market calendars that extend QLNet calendars with FX-specific holidays.
+/// These classes don't inherit from Calendar but wrap a base calendar and add FX-specific holidays.
 /// </summary>
 public static class FXCalendars
 {
@@ -10,12 +12,12 @@ public static class FXCalendars
     /// US calendar with FX market holidays (Thanksgiving Friday, etc.)
     /// Wraps UnitedStates calendar and adds additional FX holidays.
     /// </summary>
+    public class UnitedStatesFX : UnitedStates
     {
-        private readonly UnitedStates _baseCalendar;
         private readonly HashSet<Date> _additionalHolidays;
 
+        public UnitedStatesFX() : base(UnitedStates.Market.Settlement)
         {
-            _baseCalendar = new UnitedStates(UnitedStates.Market.Settlement);
             _additionalHolidays = new HashSet<Date>();
 
             // Add FX-specific holidays
@@ -177,6 +179,7 @@ public static class FXCalendars
         public new bool isBusinessDay(Date d)
         {
             // Check base calendar first
+            if (!base.isBusinessDay(d))
                 return false;
 
             // Check additional FX holidays
@@ -195,13 +198,12 @@ public static class FXCalendars
     /// <summary>
     /// EUR calendar with FX market holidays
     /// </summary>
+    public class TargetFX : TARGET
     {
-        private readonly TARGET _baseCalendar;
         private readonly HashSet<Date> _additionalHolidays;
 
         public TargetFX() : base()
         {
-            _baseCalendar = new TARGET();
             _additionalHolidays = new HashSet<Date>();
 
             // TARGET already has Dec 24-26, Dec 31 - Jan 1 as holidays
@@ -210,6 +212,7 @@ public static class FXCalendars
 
         public new bool isBusinessDay(Date d)
         {
+            return base.isBusinessDay(d);
         }
 
         public new string name()
@@ -222,13 +225,12 @@ public static class FXCalendars
     /// Swedish calendar with FX market holidays
     /// Source: https://www.riksbank.se/en-gb/press-and-published/calendar/
     /// </summary>
+    public class SwedenFX : Sweden
     {
-        private readonly Sweden _baseCalendar;
         private readonly HashSet<Date> _additionalHolidays;
 
         public SwedenFX() : base()
         {
-            _baseCalendar = new Sweden();
             _additionalHolidays = new HashSet<Date>();
 
             // Add Swedish FX-specific holidays
@@ -283,6 +285,7 @@ public static class FXCalendars
         public new bool isBusinessDay(Date d)
         {
             // Check base calendar first
+            if (!base.isBusinessDay(d))
                 return false;
 
             // Check additional FX holidays

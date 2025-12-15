@@ -1,6 +1,5 @@
 using System;
 using System.Configuration;
-using QLNet;
 
 namespace FX.Infrastructure.Calendars.Legacy
 {
@@ -15,14 +14,6 @@ namespace FX.Infrastructure.Calendars.Legacy
         private static FxCalendarService _instance;
         private static readonly object _lock = new object();
 
-        // Fallback calendars when database is unavailable
-        private static readonly QLNet.Calendar _usdCalendar = new FXCalendars.UnitedStatesFX();
-        private static readonly QLNet.Calendar _eurCalendar = new QLNet.TARGET();
-        private static readonly QLNet.Calendar _sekCalendar = new QLNet.Sweden();
-        private static readonly QLNet.Calendar _nokCalendar = new QLNet.Norway();
-        private static readonly QLNet.Calendar _gbpCalendar = new QLNet.UnitedKingdom(QLNet.UnitedKingdom.Market.Exchange);
-        private static readonly QLNet.Calendar _jpyCalendar = new QLNet.Japan();
-
         /// <summary>
         /// Private constructor for singleton pattern.
         /// </summary>
@@ -30,9 +21,6 @@ namespace FX.Infrastructure.Calendars.Legacy
         {
             try
             {
-                // Log current Windows user for debugging auth issues
-                var currentUser = System.Security.Principal.WindowsIdentity.GetCurrent();
-                Console.WriteLine($"[FX-CALENDAR] Running as: {currentUser.Name} (Auth: {currentUser.AuthenticationType})");
                 Console.WriteLine($"[FX-CALENDAR] Testing connection: {connectionString}");
 
                 // Parse connection string to check DNS
@@ -58,13 +46,21 @@ namespace FX.Infrastructure.Calendars.Legacy
 
                 // Test connection by trying to get a small date range
                 var testDate = DateTime.UtcNow;
+                Console.WriteLine($"[FX-CALENDAR] Attempting SQL connection...");
+                var sw2 = System.Diagnostics.Stopwatch.StartNew();
                 _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 5);
+                sw2.Stop();
 
                 _isDatabaseAvailable = true;
+                Console.WriteLine($"[FX-CALENDAR] Database connection successful ({sw2.ElapsedMilliseconds}ms)");
             }
             catch (Exception ex)
             {
                 _isDatabaseAvailable = false;
+                Console.WriteLine($"[FX-CALENDAR] WARNING: Database unavailable, using fallback calculations: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"[FX-CALENDAR] Inner exception: {ex.InnerException.Message}");
                 }
             }
         }
@@ -145,37 +141,23 @@ namespace FX.Infrastructure.Calendars.Legacy
                 }
                 else
                 {
+                    // Fallback: simple calculation without holiday calendar
+                    return CalculateExpiryFallback(tradeDate, tenor);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[FX-CALENDAR] ERROR calculating expiry for {tenor}/{currencyPair}: {ex.Message}");
                 // Use fallback instead of throwing
+                return CalculateExpiryFallback(tradeDate, tenor);
             }
-
-        /// <summary>
-        /// Check if a date is a business day using fallback calendars.
-        /// </summary>
-        private static bool IsBusinessDayFallback(DateTime date, string currencyPair)
-        {
-            if (string.IsNullOrWhiteSpace(currencyPair) || currencyPair.Length < 6)
-                return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
-
-            string ccy1 = currencyPair.Substring(0, 3);
-            string ccy2 = currencyPair.Substring(3, 3);
-
-            var cal1 = GetFallbackCalendar(ccy1);
-            var cal2 = GetFallbackCalendar(ccy2);
-
-            var qlDate = new QLNet.Date(date.Day, (QLNet.Month)(date.Month), date.Year);
-
-            // FX options can only expire on a day that is a business day in BOTH currencies
-            return cal1.isBusinessDay(qlDate) && cal2.isBusinessDay(qlDate);
         }
 
         /// <summary>
         /// Fallback expiry calculation when database is unavailable.
+        /// Simple calendar-based calculation with weekend adjustment only (no holidays).
         /// </summary>
+        private DateTime CalculateExpiryFallback(DateTime tradeDate, string tenor)
         {
             DateTime result = tradeDate;
 
@@ -204,6 +186,8 @@ namespace FX.Infrastructure.Calendars.Legacy
                     break;
             }
 
+            // Simple weekend adjustment
+            while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
             {
                 result = result.AddDays(1);
             }
@@ -237,10 +221,14 @@ namespace FX.Infrastructure.Calendars.Legacy
                 }
                 catch
                 {
+                    // Fallback to simple weekend check
+                    return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
                 }
             }
             else
             {
+                // Fallback: only check weekends (no holidays)
+                return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
             }
         }
 
