@@ -6,49 +6,39 @@
     </ResourceDictionary.MergedDictionaries>
 
     <!-- ============================================ -->
-    <!-- EXECUTION BUTTON STYLE (Darker, More Subtle) -->
     <!-- ============================================ -->
 
     <Style x:Key="ExecutionButtonBorder" TargetType="Border">
-        <Setter Property="CornerRadius" Value="2"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" Opacity="0.4" BlurRadius="10"/>
+            </Setter.Value>
+        </Setter>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="BorderBrush" Value="{StaticResource Brush.TealMain}"/>
             </Trigger>
         </Style.Triggers>
     </Style>
 
-    <!-- BID Button (Dark with subtle gradient) -->
-    <Style x:Key="BidButtonBorder" TargetType="Border" BasedOn="{StaticResource ExecutionButtonBorder}">
-        <Setter Property="Background" Value="{StaticResource Brush.TileBidGradient}"/>
     </Style>
 
-    <!-- OFFER Button (Dark with subtle gradient) -->
-    <Style x:Key="OfferButtonBorder" TargetType="Border" BasedOn="{StaticResource ExecutionButtonBorder}">
-        <Setter Property="Background" Value="{StaticResource Brush.TileOfferGradient}"/>
     </Style>
 
-    <!-- Label Styles -->
-    <Style x:Key="TileLabelText" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource Brush.TextSub}"/>
-        <Setter Property="FontSize" Value="9"/>
         <Setter Property="FontWeight" Value="Bold"/>
     </Style>
 
     <Style x:Key="BigPremiumText" TargetType="TextBlock">
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="FontSize" Value="36"/>
-        <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
     </Style>
 
     <Style x:Key="VolatilityText" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource Brush.TextSub}"/>
-        <Setter Property="FontSize" Value="13"/>
         <Setter Property="HorizontalAlignment" Value="Center"/>
     </Style>
 

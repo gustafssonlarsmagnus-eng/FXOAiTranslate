@@ -274,3 +274,111 @@ C#
         IsActive = true;
     }
 }
+
+5. Responsive & Layout Rules
+Since this is a desktop application (Blazor Hybrid), windows will be resized frequently to fit alongside charts or other aggregators.
+Global Constraints
+Minimum Window Dimensions: 820px (Width) x 600px (Height).
+Scroll Behavior:
+Vertical: Only the Ladder (Left Panel) and the Properties Grid (Right Panel) should scroll internally. The Header and Execution Tiles must remain fixed/visible at all times.
+Horizontal: Never scroll. If the window gets too narrow, the Right Panel (Ticket) should collapse or stack (see below).
+Layout Logic (CSS Grid)
+Use a flexible grid that prioritizes the Execution Panel.
+code
+CSS
+.main-layout {
+    display: grid;
+    /* Left Panel takes remaining space, Right Panel fixed width */
+    grid-template-columns: 1fr 380px; 
+    gap: 8px;
+    height: 100vh;
+}
+
+/* BREAKPOINT: Narrow Mode (< 900px) */
+@media (max-width: 900px) {
+    .main-layout {
+        /* Stack vertically or hide ticket via toggle */
+        grid-template-columns: 1fr; 
+    }
+    .right-panel {
+        display: none; /* Or create a toggle button in header to slide it in */
+    }
+}
+6. Error & State Handling
+Markets disconnect, prices go stale, and banks reject orders. The UI must communicate this without breaking the layout.
+A. Stale Pricing (No Data > 3s)
+If a venue stops streaming, do not hide it. "Greying it out" implies it is disabled. Instead, use a Warning State.
+Visual: Dim opacity to 50% and change the border to Amber.
+Label: Append a [STALE] tag to the venue name.
+code
+Html
+<!-- Stale Venue Row -->
+<div class="ladder-row ... opacity-60 border-l-2 border-amber-600">
+    <div class="text-amber-500/50 ...">5.47</div> <!-- Dimmed values -->
+    <div class="text-amber-500 font-bold ...">JPM (STALE)</div>
+    <div class="text-amber-500/50 ...">5.82</div>
+</div>
+B. Connection Loss (Global)
+If the application loses connection to the pricing engine.
+Visual: A thin, non-dismissible banner immediately below the Header.
+Color: Red background (bg-red-900/80), White text.
+Action: Disable the "Execute" click events on the main tiles.
+code
+Html
+<div class="w-full bg-red-900/90 text-white text-[10px] font-bold text-center py-1 tracking-widest uppercase animate-pulse">
+    Connection Lost - Attempting Reconnect...
+</div>
+C. Order Rejection
+If a trade is rejected after clicking.
+Visual: The specific tile flashes Red, and the inner text changes temporarily.
+Duration: 3 seconds, then reverts to live price.
+code
+Html
+<!-- Rejected Tile State -->
+<div class="bg-red-950 border border-red-600 ...">
+    <div class="text-red-500 font-bold text-xl">REJECTED</div>
+    <div class="text-red-400 text-xs">Credit Limit Exceeded</div>
+</div>
+7. Loading States
+What happens between clicking "Start RFQ" and seeing numbers?
+The "Shimmer" Effect
+Do not use a spinning circle (it looks like a web page). Use a Skeleton Shimmer to imply data is populating.
+Logic: When IsActive = true but Price == null.
+Animation: A gradient moving left-to-right.
+code
+Html
+<!-- Skeleton Tile -->
+<div class="flex-1 bg-[#16181d] rounded-lg p-4 relative overflow-hidden">
+    <!-- Shimmer Overlay -->
+    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 animate-shimmer"></div>
+    
+    <!-- Fake Data Blocks -->
+    <div class="h-3 w-12 bg-slate-800 rounded mb-4"></div> <!-- Header -->
+    <div class="h-12 w-32 bg-slate-800 rounded mx-auto"></div> <!-- Price -->
+</div>
+
+<style>
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+.animate-shimmer {
+    animation: shimmer 1.5s infinite linear;
+}
+</style>
+8. Real-Time Update Patterns (C# Logic)
+Since this is Blazor Hybrid, we need to manage how often the UI repaints to prevent freezing.
+A. Throttling (UI Rate Limit)
+Markets can tick 100 times a second. The human eye cannot see that.
+Rule: Limit UI updates to 30fps (approx. every 33ms).
+Implementation: Use a System.Threading.Timer or a Throttle method in your ViewModel to batch incoming tick updates before pushing them to the LiquidityVenues list.
+B. Debouncing Inputs
+For the Quantity and Strike inputs in the Right Panel:
+Problem: If the user types "10,000,000", you don't want to re-calculate Greeks on every keystroke (1, 10, 100...).
+Rule: Wait 300ms after the user stops typing before triggering the Re-Calc event.
+C. Flash Updates
+When a new price arrives that is different from the old price:
+Price Up: Flash text Green (text-emerald-400) for 200ms.
+Price Down: Flash text Red (text-rose-400) for 200ms.
+Return: Revert to standard White (text-white).
+This creates the "living" feel of a professional terminal.
