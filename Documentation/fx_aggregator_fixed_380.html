@@ -91,6 +91,61 @@
             }
         }
 
+        /* --- TOOLTIP STYLING --- */
+        .trade-tooltip {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(to bottom, #0f1318, #0a0d11);
+            border: 1px solid #1e3a5f;
+            border-radius: 4px;
+            padding: 12px 16px;
+            z-index: 1000;
+            min-width: 320px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        .trade-tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip-section {
+            margin-bottom: 8px;
+        }
+
+        .tooltip-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .tooltip-label {
+            font-size: 9px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+        }
+
+        .tooltip-value {
+            font-size: 11px;
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+
+        .tooltip-highlight {
+            color: #60a5fa;
+            font-weight: 600;
+        }
+
+        .tooltip-divider {
+            height: 1px;
+            background: #1e293b;
+            margin: 8px 0;
+        }
+
         /* --- TRADE CLICK EFFECTS --- */
         /* Flash Effect - Entire tile flashes with inner glow */
         .trade-tile {
@@ -247,6 +302,25 @@
                                     <span class="text-lg text-amber-400 font-bold">0:08</span>
                                 </div>
                             </div>
+
+                            <!-- Tooltip -->
+                            <div id="bid-tooltip" class="trade-tooltip">
+                                <div class="tooltip-section">
+                                    <div class="tooltip-label">Client Receives</div>
+                                    <div class="tooltip-value"><span class="tooltip-highlight">0.6140%</span> EUR based on notional of <span class="tooltip-highlight">EUR 10,000,000</span></div>
+                                    <div class="tooltip-value mt-1">Premium: <span class="tooltip-highlight">EUR 59,400</span></div>
+                                </div>
+                                <div class="tooltip-divider"></div>
+                                <div class="tooltip-section">
+                                    <div class="tooltip-label">Buy Vanilla Option</div>
+                                    <div class="tooltip-value">1mth <span class="tooltip-highlight">EUR Call / USD Put</span>, K=<span class="tooltip-highlight">1.1751</span> (ATM), ExpCut=<span class="tooltip-highlight">NYC</span></div>
+                                </div>
+                                <div class="tooltip-divider"></div>
+                                <div class="tooltip-section">
+                                    <div class="tooltip-label">Spot Hedge</div>
+                                    <div class="tooltip-value">Sell <span class="tooltip-highlight">EUR 5,023,800</span> @ <span class="tooltip-highlight">1.1746</span></div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- OFFER SIDE -->
@@ -275,6 +349,25 @@
                                     class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px] justify-end" style="background: linear-gradient(to left, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
                                     <span class="text-lg text-slate-400">1:52</span>
                                     <span class="text-lg font-bold text-white min-w-[50px] text-right">DEUT</span>
+                                </div>
+                            </div>
+
+                            <!-- Tooltip -->
+                            <div id="offer-tooltip" class="trade-tooltip">
+                                <div class="tooltip-section">
+                                    <div class="tooltip-label">Client Pays</div>
+                                    <div class="tooltip-value"><span class="tooltip-highlight">0.6370%</span> EUR based on notional of <span class="tooltip-highlight">EUR 10,000,000</span></div>
+                                    <div class="tooltip-value mt-1">Premium: <span class="tooltip-highlight">EUR 62,100</span></div>
+                                </div>
+                                <div class="tooltip-divider"></div>
+                                <div class="tooltip-section">
+                                    <div class="tooltip-label">Buy Vanilla Option</div>
+                                    <div class="tooltip-value">1mth <span class="tooltip-highlight">EUR Call / USD Put</span>, K=<span class="tooltip-highlight">1.1751</span> (ATM), ExpCut=<span class="tooltip-highlight">NYC</span></div>
+                                </div>
+                                <div class="tooltip-divider"></div>
+                                <div class="tooltip-section">
+                                    <div class="tooltip-label">Spot Hedge</div>
+                                    <div class="tooltip-value">Sell <span class="tooltip-highlight">EUR 5,023,800</span> @ <span class="tooltip-highlight">1.1746</span></div>
                                 </div>
                             </div>
                         </div>
@@ -865,6 +958,33 @@
                 }
             });
         }
+
+        // Tooltip functionality
+        const bidTile = document.getElementById('bid-tile');
+        const offerTile = document.getElementById('offer-tile');
+        const bidTooltip = document.getElementById('bid-tooltip');
+        const offerTooltip = document.getElementById('offer-tooltip');
+
+        // Show tooltip on mouseover (only when RFQ is active)
+        bidTile.addEventListener('mouseenter', function() {
+            if (rfqActive) {
+                bidTooltip.classList.add('visible');
+            }
+        });
+
+        bidTile.addEventListener('mouseleave', function() {
+            bidTooltip.classList.remove('visible');
+        });
+
+        offerTile.addEventListener('mouseenter', function() {
+            if (rfqActive) {
+                offerTooltip.classList.add('visible');
+            }
+        });
+
+        offerTile.addEventListener('mouseleave', function() {
+            offerTooltip.classList.remove('visible');
+        });
     </script>
 </body>
 
