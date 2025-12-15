@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <!--
+    FxCalendarService Configuration Example
+
+    Add this to your App.config to enable database-backed holiday calendars.
+    The service will look for connection string named "AHSKvant".
+  -->
+
+  <connectionStrings>
+    <!--
+      Option 1: Connection string in connectionStrings section (preferred)
+    -->
+    <add name="AHSKvant"
+         connectionString="Server=AHSKvant-prod-db;Database=YourDatabaseName;Integrated Security=true;Connection Timeout=30;"
+         providerName="System.Data.SqlClient" />
+
+    <!--
+      Alternative: If using SQL Server authentication instead of Windows authentication:
+      connectionString="Server=AHSKvant-prod-db;Database=YourDatabaseName;User Id=YourUsername;Password=YourPassword;Connection Timeout=30;"
+    -->
+  </connectionStrings>
+
+  <appSettings>
+    <!--
+      Option 2: Connection string in appSettings (fallback)
+      FxCalendarService will use this if connectionStrings section doesn't have "AHSKvant"
+    -->
+    <add key="AHSKvantConnectionString"
+         value="Server=AHSKvant-prod-db;Database=YourDatabaseName;Integrated Security=true;" />
+  </appSettings>
+</configuration>

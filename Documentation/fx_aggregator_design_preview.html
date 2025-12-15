@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Aggregator - Clean Spread</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0d10;
+            color: #94a3b8;
+            overflow: hidden;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0f1115; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+        /* --- TILE STYLING --- */
+        .bg-tile-base { background: linear-gradient(to bottom, #16181d, #0f1114); transition: background 0.2s ease; }
+        .hover-dark-mode:hover { background: linear-gradient(to bottom, #1e2536, #11151f) !important; }
+
+        /* --- LADDER STYLING --- */
+        .ladder-row:hover { background-color: #1e2536; cursor: pointer; }
+        .ladder-col-mid { background-color: #0f1114; }
+
+        /* --- GRID TICKET STYLING --- */
+        .ticket-row {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            border-bottom: 1px solid #1e293b;
+            font-size: 11px;
+            height: 28px;
+            position: relative;
+        }
+        .ticket-label {
+            background-color: #16181d;
+            color: #64748b;
+            padding: 0 8px;
+            text-align: right;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            font-weight: 500;
+        }
+        .ticket-value {
+            background-color: #0f1114;
+            color: #e2e8f0;
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+        .ticket-value:hover { background-color: #1a1d23; }
+
+        .dropdown-value { cursor: pointer; color: #e2e8f0; transition: color 0.1s; }
+        .dropdown-value:hover { color: #fff; }
+
+        .section-header {
+            background-color: #1e293b;
+            color: #cbd5e1;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            margin-top: 2px;
+        }
+
+        .arrow-down {
+            width: 0; height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid #cbd5e1;
+        }
+
+        /* --- BEST PRICE HIGHLIGHTS --- */
+        .best-bid-cell { background: linear-gradient(to right, rgba(127, 29, 29, 0.15), transparent); border-left: 2px solid #ef4444; }
+        .best-offer-cell { background: linear-gradient(to left, rgba(30, 58, 138, 0.2), transparent); border-right: 2px solid #3b82f6; }
+
+    </style>
+</head>
+<body class="h-screen flex flex-col p-2">
+
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-2 px-1 relative z-50">
+        <div class="flex items-center gap-4">
+            <h1 class="text-sm font-bold tracking-tight text-slate-500">EURUSD <span class="text-slate-700">|</span> 1M CALL</h1>
+            <div class="flex gap-2 text-[10px] font-mono text-slate-600 border-l border-slate-800 pl-4">
+                <span>SPOT: 1.1736</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex gap-2 h-full z-0">
+
+        <!-- LEFT PANEL: Execution & Aggregation -->
+        <div class="flex-1 flex flex-col relative">
+            <div class="flex flex-col h-full">
+
+                <!-- TILES CONTAINER -->
+                <div class="flex h-48 w-full mb-2 gap-0.5 relative">
+
+                    <!-- SPREAD INDICATOR (Clean & Larger) -->
+                    <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
+                        <div class="bg-[#0f1114] border border-slate-700 shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded px-2.5 py-1.5 text-center min-w-[44px] flex items-center justify-center">
+                            <!-- Larger Font, No Label -->
+                            <span class="block text-sm font-bold text-white font-mono leading-none">0.35</span>
+                        </div>
+                    </div>
+
+                    <!-- BID SIDE -->
+                    <div class="flex-1 bg-tile-base hover-dark-mode rounded-l-lg p-4 flex flex-col relative overflow-hidden group cursor-pointer">
+                        <div class="flex justify-start items-start w-full absolute top-4 left-0 px-4">
+                            <span class="text-xs font-bold text-red-900 transition-colors group-hover:text-red-300/80 tracking-widest">BID (VOL)</span>
+                        </div>
+                        <div class="flex-1 flex flex-col justify-center items-center mt-2">
+                            <div class="text-red-500/90 group-hover:text-white transition-colors duration-200 text-7xl font-bold tracking-tighter mono">5.47</div>
+                            <div class="text-sm font-bold text-slate-600 mt-2 font-mono tracking-wide group-hover:text-slate-400 transition-colors">68,778 USD <span class="opacity-50 mx-1">|</span> -43p</div>
+                        </div>
+                        <div class="absolute bottom-4 left-4"><span class="text-[10px] bg-red-900/10 text-red-800 px-1.5 py-0.5 rounded group-hover:bg-blue-900/30 group-hover:text-blue-300 transition-all">JPM</span></div>
+                    </div>
+
+                    <!-- OFFER SIDE -->
+                    <div class="flex-1 bg-tile-base hover-dark-mode rounded-r-lg p-4 flex flex-col relative overflow-hidden group cursor-pointer">
+                        <div class="flex justify-end items-start w-full absolute top-4 left-0 px-4">
+                            <span class="text-xs font-bold text-blue-900 transition-colors group-hover:text-blue-300/80 tracking-widest">OFFER (VOL)</span>
+                        </div>
+                        <div class="flex-1 flex flex-col justify-center items-center mt-2">
+                            <div class="text-blue-500/90 group-hover:text-white transition-colors duration-200 text-7xl font-bold tracking-tighter mono">5.82</div>
+                            <div class="text-sm font-bold text-slate-600 mt-2 font-mono tracking-wide group-hover:text-slate-400 transition-colors">71,699 USD <span class="opacity-50 mx-1">|</span> +44p</div>
+                        </div>
+                        <div class="absolute bottom-4 right-4"><span class="text-[10px] bg-blue-900/10 text-blue-800 px-1.5 py-0.5 rounded group-hover:bg-blue-900/30 group-hover:text-blue-300 transition-all">DEUT</span></div>
+                    </div>
+                </div>
+
+                <!-- LADDER -->
+                <div class="flex-1 bg-[#14161b] border border-[#1e293b] rounded-lg flex flex-col overflow-hidden">
+                    <div class="grid grid-cols-[1fr_80px_1fr] bg-[#1a1d23] border-b border-[#1e293b] items-center py-1.5">
+                        <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">Bid Vol</div>
+                        <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider border-l border-r border-[#1e293b] h-full flex items-center justify-center">Venue</div>
+                        <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">Offer Vol</div>
+                    </div>
+                    <div class="overflow-y-auto flex-1">
+                        <!-- Row 1 -->
+                        <div class="ladder-row grid grid-cols-[1fr_80px_1fr] border-b border-[#1e293b]/50 items-stretch h-14 group">
+                            <div class="flex flex-col justify-center items-center best-bid-cell">
+                                <div class="text-white font-bold mono text-lg group-hover:text-white transition-colors">5.47</div>
+                                <div class="text-slate-500 font-medium mono text-[10px] mt-0.5">68k | -43p</div>
+                            </div>
+                            <div class="flex items-center justify-center font-bold text-yellow-600/90 text-xs border-l border-r border-[#1e293b] ladder-col-mid">JPM</div>
+                            <div class="flex flex-col justify-center items-center opacity-50">
+                                <div class="text-blue-900/70 font-bold mono text-lg">5.85</div>
+                                <div class="text-slate-700 font-medium mono text-[10px] mt-0.5">71k | -46p</div>
+                            </div>
+                        </div>
+                         <!-- Row 2 -->
+                         <div class="ladder-row grid grid-cols-[1fr_80px_1fr] border-b border-[#1e293b]/50 items-stretch h-14 group">
+                            <div class="flex flex-col justify-center items-center opacity-50">
+                                <div class="text-red-900/70 font-medium mono text-lg">5.44</div>
+                                <div class="text-slate-700 font-medium mono text-[10px] mt-0.5">68k | -40p</div>
+                            </div>
+                            <div class="flex items-center justify-center font-semibold text-slate-500 text-xs border-l border-r border-[#1e293b] ladder-col-mid">DEUT</div>
+                            <div class="flex flex-col justify-center items-center best-offer-cell">
+                                <div class="text-white font-bold mono text-lg group-hover:text-white transition-colors">5.82</div>
+                                <div class="text-slate-500 font-medium mono text-[10px] mt-0.5">71k | +44p</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: GRID ENTRY TICKET -->
+        <div class="w-[380px] bg-[#14161b] border border-[#1e293b] rounded-lg flex flex-col h-full shadow-2xl overflow-hidden text-sm">
+
+            <div class="flex justify-between items-center bg-[#1e293b] px-3 py-1.5 border-b border-black">
+                <div class="flex items-center gap-1 opacity-50">
+                    <span class="text-[10px]">≫ Global</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-white">Leg 1</span>
+                    <span class="text-slate-400 hover:text-white cursor-pointer">+</span>
+                    <span class="text-slate-400 hover:text-white cursor-pointer">✕</span>
+                </div>
+            </div>
+
+            <div class="overflow-y-auto flex-1 bg-[#0f1114]">
+
+                <div class="ticket-row">
+                    <div class="ticket-label">Type</div>
+                    <div class="ticket-value justify-between dropdown-value">
+                        <span class="font-bold">Vanilla Option</span>
+                        <span class="text-slate-500 text-[10px]">▼</span>
+                    </div>
+                </div>
+
+                <div class="ticket-row">
+                    <div class="ticket-label">Quantity</div>
+                    <div class="ticket-value flex-nowrap w-full">
+                        <div class="flex items-center gap-2 cursor-pointer mr-2 flex-shrink-0">
+                            <span class="font-bold text-white">EUR</span>
+                            <span class="text-slate-500 text-xs">⇄</span>
+                        </div>
+                        <input type="text" class="flex-1 bg-transparent text-right outline-none font-bold mono text-white min-w-0" value="10,000,000">
+                    </div>
+                </div>
+
+                <div class="ticket-row">
+                    <div class="ticket-label">Option Type</div>
+                    <div class="ticket-value justify-between dropdown-value">
+                        <span>EUR Call / USD Put</span>
+                        <span class="text-slate-500 text-[10px]">⇄</span>
+                    </div>
+                </div>
+
+                <div class="ticket-row">
+                    <div class="ticket-label">Expiry Date</div>
+                    <div class="ticket-value flex-nowrap">
+                        <span class="text-blue-400 font-bold cursor-pointer mr-2">1M</span>
+                        <input type="text" class="flex-1 bg-transparent text-right outline-none font-bold mono text-white" value="14 Jan 26">
+                    </div>
+                </div>
+
+                <div class="ticket-row">
+                    <div class="ticket-label">Strike <span class="ml-1 text-[9px] border border-slate-600 rounded-full w-3 h-3 flex items-center justify-center">i</span></div>
+                    <div class="ticket-value">
+                        <input type="text" class="bg-transparent text-right w-full outline-none font-bold mono text-yellow-400 text-sm" value="1.1751">
+                    </div>
+                </div>
+
+                <div class="ticket-row">
+                    <div class="ticket-label">Expiry Cut</div>
+                    <div class="ticket-value justify-between dropdown-value">
+                        <span class="font-mono">NYC</span>
+                        <span class="text-slate-500 text-[10px]">▼</span>
+                    </div>
+                </div>
+
+                <div class="ticket-row">
+                    <div class="ticket-label">Settlement Type</div>
+                    <div class="ticket-value justify-between dropdown-value">
+                        <span class="font-mono">PHYSICAL</span>
+                        <span class="text-slate-500 text-[10px]">▼</span>
+                    </div>
+                </div>
+
+                <!-- PRICE DISPLAY SELECTOR -->
+                <div class="ticket-row z-50">
+                    <div class="ticket-label">Price Display</div>
+                    <div class="ticket-value justify-between dropdown-value group relative">
+                        <span class="font-bold text-blue-400 group-hover:text-blue-300">VOL</span>
+                        <span class="text-slate-500 text-[10px]">▼</span>
+                        <div class="hidden group-hover:block absolute top-full left-0 w-full bg-[#16181d] border border-[#1e293b] shadow-xl z-50">
+                            <div class="px-2 py-1.5 hover:bg-[#1e293b] text-white flex justify-between bg-blue-500/10 border-l-2 border-blue-500">
+                                <span>VOL</span>
+                                <span>✓</span>
+                            </div>
+                            <div class="px-2 py-1.5 hover:bg-[#1e293b] text-slate-400 border-l-2 border-transparent">EUR Pips</div>
+                            <div class="px-2 py-1.5 hover:bg-[#1e293b] text-slate-400 border-l-2 border-transparent">USD Pips</div>
+                            <div class="px-2 py-1.5 hover:bg-[#1e293b] text-slate-400 border-l-2 border-transparent">Premium</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ticket-row z-0">
+                    <div class="ticket-label">Delta Exchange</div>
+                    <div class="ticket-value justify-between dropdown-value group">
+                        <span class="font-bold text-blue-400 group-hover:text-blue-300">No Hedge (Live)</span>
+                        <span class="text-slate-500 text-[10px]">▼</span>
+                    </div>
+                </div>
+
+                <div class="ticket-row z-0">
+                    <div class="ticket-label">Value Date</div>
+                    <div class="ticket-value justify-end font-mono text-slate-400">16 Jan 26</div>
+                </div>
+
+                <div class="ticket-row z-0">
+                    <div class="ticket-label">Premium Due</div>
+                    <div class="ticket-value justify-between dropdown-value">
+                        <span class="font-mono">SPOT</span>
+                        <span class="text-slate-500 text-[10px]">▼</span>
+                    </div>
+                </div>
+
+                <div class="ticket-row z-0">
+                    <div class="ticket-label">Premium Date</div>
+                    <div class="ticket-value justify-end font-mono text-slate-400">16 Dec 25</div>
+                </div>
+
+                <div class="ticket-row bg-[#16181d]">
+                    <div class="ticket-label">Premium (EUR)</div>
+                    <div class="ticket-value justify-end gap-2 font-mono">
+                        <span class="text-slate-500 text-[10px]">RCV 59.4k</span>
+                        <span class="text-slate-600">/</span>
+                        <span class="text-white font-bold">PAY 62.1k</span>
+                    </div>
+                </div>
+
+                 <div class="ticket-row bg-[#16181d]">
+                    <div class="ticket-label">Price (%EUR)</div>
+                    <div class="ticket-value justify-end gap-2 font-mono">
+                        <span class="text-slate-500 text-[10px]">RCV 0.594</span>
+                        <span class="text-slate-600">/</span>
+                        <span class="text-white font-bold">PAY 0.621</span>
+                    </div>
+                </div>
+
+                 <div class="ticket-row bg-[#16181d]">
+                    <div class="ticket-label">Volatility</div>
+                    <div class="ticket-value justify-end font-mono text-white font-bold">
+                        5.176 / 5.386
+                    </div>
+                </div>
+
+                <!-- SECTION: Market Data -->
+                <div class="section-header">
+                    <div class="arrow-down transform -rotate-90"></div>
+                    Market Data
+                </div>
+                <div class="ticket-row">
+                    <div class="ticket-label">Spot</div>
+                    <div class="ticket-value justify-end font-mono text-slate-300">1.17257 / 1.17261</div>
+                </div>
+                <div class="ticket-row">
+                    <div class="ticket-label">Forward Points</div>
+                    <div class="ticket-value justify-end font-mono text-slate-300">19.11 / 19.17</div>
+                </div>
+
+                <!-- SECTION: Risk -->
+                <div class="section-header">
+                    <div class="arrow-down transform -rotate-90"></div>
+                    Risk
+                </div>
+                <div class="ticket-row">
+                    <div class="ticket-label">BS SP Delta</div>
+                    <div class="ticket-value justify-end font-mono text-slate-300">48.35% / 4,835,380</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

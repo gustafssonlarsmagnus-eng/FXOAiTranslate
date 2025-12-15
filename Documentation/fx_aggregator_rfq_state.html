@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Aggregator - RFQ Midnight Blue</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0d10;
+            color: #94a3b8;
+            overflow: hidden;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0f1115; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+        /* --- ACTIVE PRICE TILES STYLING --- */
+        .bg-tile-base {
+            background: linear-gradient(to bottom, #16181d, #0f1114);
+            transition: background 0.15s ease;
+        }
+
+        /* HOVER: Deep Muted Navy (Midnight Blue) */
+        .hover-dark-mode:hover {
+            background: linear-gradient(to bottom, #1e2536, #11151f) !important;
+        }
+
+        /* --- LADDER STYLING --- */
+        .ladder-row:hover { background-color: #1e2536; cursor: pointer; }
+        .ladder-col-mid { background-color: #0f1114; }
+
+        /* --- UTILS --- */
+        .hidden-force { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    </style>
+</head>
+<body class="h-screen flex flex-col p-2">
+
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-2 px-1">
+        <div class="flex items-center gap-3">
+            <h1 class="text-sm font-bold tracking-tight text-slate-500">EURUSD <span class="text-slate-700">|</span> 1M CALL</h1>
+        </div>
+        <div class="flex gap-2 text-[10px] font-mono text-slate-600">
+            <span>SPOT: 1.1736</span>
+            <span>VOL: 5.51</span>
+        </div>
+    </header>
+
+    <div class="flex gap-2 h-full">
+
+        <!-- LEFT PANEL: Execution & Aggregation -->
+        <div class="flex-1 flex flex-col relative">
+
+            <!-- STATE 1: PRE-RFQ WIDGET (Initially Visible) -->
+            <!-- Now using the dark midnight blue palette -->
+            <div id="rfq-panel" onclick="startRFQ()" class="h-48 w-full mb-2 bg-[#14161b] rounded-lg overflow-hidden flex flex-col cursor-pointer hover:bg-[#1a1d23] transition shadow-lg select-none group border border-[#1e293b]">
+                <!-- Header -->
+                <div class="bg-[#1e2229] px-3 py-1.5 flex gap-3 items-center border-b border-[#252933]">
+                    <span class="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Option</span>
+                    <span class="text-sm font-bold text-slate-200 tracking-tight">EURUSD</span>
+                </div>
+                <!-- Body -->
+                <div class="flex-1 flex">
+                    <!-- Left: Info -->
+                    <div class="flex-1 bg-[#0f1114] p-5 flex flex-col justify-between border-r border-[#1e293b] group-hover:bg-[#14161b] transition">
+                        <span class="text-[10px] text-slate-500 font-bold tracking-wider">CLICK TO RFQ (F9)</span>
+                        <span class="text-xl text-slate-700 font-bold font-mono tracking-tighter">NO PRICE</span>
+                    </div>
+                    <!-- Right: START RFQ BUTTON (Midnight Blue) -->
+                    <!-- Changed from bright blue to the deep active state color (#172033) -->
+                    <div class="w-1/2 bg-[#172033] flex flex-col justify-center items-center p-4 hover:bg-[#1e2536] transition shadow-inner">
+                         <span class="text-xs text-blue-400/50 font-bold mb-0.5 tracking-wider">START</span>
+                         <span class="text-6xl font-bold text-white tracking-tighter opacity-80 group-hover:opacity-100 transition-opacity">RFQ</span>
+                    </div>
+                </div>
+                <!-- Footer -->
+                <div class="bg-[#14161b] py-1 text-center border-t border-[#1e293b]">
+                    <span class="text-[11px] font-bold text-amber-700 tracking-wide">No Hedge - Live</span>
+                </div>
+            </div>
+
+            <!-- STATE 2: ACTIVE PRICES (Initially Hidden) -->
+            <div id="active-panel" class="hidden-force flex-col h-full fade-in">
+
+                <!-- EXECUTION TILES -->
+                <div class="flex h-48 w-full mb-2 gap-0.5">
+                    <!-- BID SIDE -->
+                    <div class="flex-1 bg-tile-base hover-dark-mode rounded-l-lg p-4 flex flex-col relative overflow-hidden group cursor-pointer">
+                        <div class="flex justify-between items-start w-full absolute top-4 left-0 px-4">
+                            <span class="text-xs font-bold text-red-900 transition-colors group-hover:text-red-300/80 tracking-widest">BID (USD)</span>
+                            <span class="text-xs font-bold text-slate-600 font-mono bg-black/40 px-1.5 rounded group-hover:bg-black/60 transition-colors">5.47v</span>
+                        </div>
+                        <div class="flex-1 flex flex-col justify-center items-center mt-2">
+                            <div class="text-red-500/90 group-hover:text-white transition-colors duration-200 text-6xl font-bold mono tracking-tighter">68,778</div>
+                            <div class="text-sm font-bold text-slate-600 mt-1 font-mono tracking-wide group-hover:text-slate-400 transition-colors">-43 pips</div>
+                        </div>
+                        <div class="absolute bottom-4 left-4">
+                            <span class="text-[10px] bg-red-900/10 text-red-800 px-1.5 py-0.5 rounded group-hover:bg-blue-900/30 group-hover:text-blue-300 transition-all">JPM</span>
+                        </div>
+                    </div>
+
+                    <!-- OFFER SIDE -->
+                    <div class="flex-1 bg-tile-base hover-dark-mode rounded-r-lg p-4 flex flex-col relative overflow-hidden group cursor-pointer">
+                        <div class="flex justify-between items-start w-full absolute top-4 left-0 px-4">
+                            <span class="text-xs font-bold text-slate-600 font-mono bg-black/40 px-1.5 rounded group-hover:bg-black/60 transition-colors">5.82v</span>
+                            <span class="text-xs font-bold text-blue-900 transition-colors group-hover:text-blue-300/80 tracking-widest">OFFER (USD)</span>
+                        </div>
+                        <div class="flex-1 flex flex-col justify-center items-center mt-2">
+                            <div class="text-blue-500/90 group-hover:text-white transition-colors duration-200 text-6xl font-bold mono tracking-tighter">71,699</div>
+                            <div class="text-sm font-bold text-slate-600 mt-1 font-mono tracking-wide group-hover:text-slate-400 transition-colors">+44 pips</div>
+                        </div>
+                        <div class="absolute bottom-4 right-4">
+                            <span class="text-[10px] bg-blue-900/10 text-blue-800 px-1.5 py-0.5 rounded group-hover:bg-blue-900/30 group-hover:text-blue-300 transition-all">DEUT</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LADDER -->
+                <div class="flex-1 bg-[#14161b] border border-[#1e293b] rounded-lg flex flex-col overflow-hidden">
+                    <div class="grid grid-cols-[1fr_80px_1fr] bg-[#1a1d23] border-b border-[#1e293b] items-center py-1.5">
+                        <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">Bid</div>
+                        <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider border-l border-r border-[#1e293b] h-full flex items-center justify-center">Venue</div>
+                        <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">Offer</div>
+                    </div>
+
+                    <div class="overflow-y-auto flex-1">
+                        <!-- Row 1 -->
+                        <div class="ladder-row grid grid-cols-[1fr_80px_1fr] border-b border-[#1e293b]/50 items-stretch h-14 group">
+                            <div class="flex flex-col justify-center items-center">
+                                <div class="text-red-500/80 font-bold mono text-sm group-hover:text-white transition-colors"><span class="text-slate-700 font-normal mr-1">R</span>68,778</div>
+                                <div class="text-slate-600 font-medium mono text-[11px] mt-0.5 group-hover:text-slate-400">5.47v | 43p</div>
+                            </div>
+                            <div class="flex items-center justify-center font-bold text-yellow-600/80 text-xs border-l border-r border-[#1e293b] ladder-col-mid">JPM</div>
+                            <div class="flex flex-col justify-center items-center">
+                                <div class="text-blue-500/80 font-bold mono text-sm group-hover:text-white transition-colors"><span class="text-slate-700 font-normal mr-1">P</span>71,699</div>
+                                <div class="text-slate-600 font-medium mono text-[11px] mt-0.5 group-hover:text-slate-400">5.82v | 44p</div>
+                            </div>
+                        </div>
+                         <!-- Row 2 -->
+                         <div class="ladder-row grid grid-cols-[1fr_80px_1fr] border-b border-[#1e293b]/50 items-stretch h-14 group">
+                            <div class="flex flex-col justify-center items-center">
+                                <div class="text-red-900 font-medium mono text-sm group-hover:text-white transition-colors"><span class="text-slate-800 font-normal mr-1">R</span>70,887</div>
+                                <div class="text-slate-700 font-medium mono text-[11px] mt-0.5 group-hover:text-slate-500">5.38v | 42p</div>
+                            </div>
+                            <div class="flex items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">CITI</div>
+                            <div class="flex flex-col justify-center items-center">
+                                <div class="text-blue-900 font-medium mono text-sm group-hover:text-white transition-colors"><span class="text-slate-800 font-normal mr-1">P</span>75,510</div>
+                                <div class="text-slate-700 font-medium mono text-[11px] mt-0.5 group-hover:text-slate-500">5.60v | 49p</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL (Unchanged) -->
+        <div class="w-[340px] bg-[#14161b] border border-[#1e293b] rounded-lg flex flex-col">
+             <div class="px-4 py-3 border-b border-[#1e293b] bg-[#1a1d23] flex justify-between items-center">
+                <h2 class="text-lg font-bold text-slate-200">EUR Call <span class="text-slate-600 font-normal">/ 1.1850</span></h2>
+                <span class="mono text-xs text-yellow-600/80 border border-yellow-900/30 bg-yellow-900/10 px-2 py-0.5 rounded">14 Jan 26</span>
+            </div>
+            <div class="p-4 space-y-4 text-sm">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><span class="block text-[10px] text-slate-600 uppercase">Notional</span><span class="mono text-slate-300">10,000,000 EUR</span></div>
+                    <div class="text-right"><span class="block text-[10px] text-slate-600 uppercase">Cut</span><span class="mono text-slate-300">NYK (10:00)</span></div>
+                </div>
+                <div class="bg-[#0f1114] rounded border border-[#1e293b] p-2 grid grid-cols-3 gap-2 text-xs">
+                    <div class="text-center"><span class="text-slate-600 block text-[9px]">DELTA</span><span class="text-blue-400/80 mono">+32.8%</span></div>
+                    <div class="text-center border-l border-[#1e293b]"><span class="text-slate-600 block text-[9px]">VEGA</span><span class="text-slate-400 mono">12.7k</span></div>
+                    <div class="text-center border-l border-[#1e293b]"><span class="text-slate-600 block text-[9px]">GAMMA</span><span class="text-slate-400 mono">0.92</span></div>
+                </div>
+                <div class="space-y-1 pt-2">
+                    <div class="flex justify-between text-xs border-b border-[#1e293b] pb-1"><span class="text-slate-600">Spot Ref</span><span class="mono text-slate-400">1.1736 / 38</span></div>
+                    <div class="flex justify-between text-xs border-b border-[#1e293b] pb-1 pt-1"><span class="text-slate-600">Vol (ATM)</span><span class="mono text-slate-400">5.51 / 5.76</span></div>
+                </div>
+            </div>
+            <div class="mt-auto p-4 bg-[#1a1d23] border-t border-[#1e293b]">
+                <div class="flex justify-between items-end">
+                    <span class="text-xs text-slate-500">Total Premium (USD)</span>
+                    <span class="text-2xl font-bold text-slate-200 mono">43,442</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function startRFQ() {
+            document.getElementById('rfq-panel').classList.add('hidden-force');
+            const activePanel = document.getElementById('active-panel');
+            activePanel.classList.remove('hidden-force');
+            activePanel.classList.add('flex');
+        }
+    </script>
+</body>
+</html>
