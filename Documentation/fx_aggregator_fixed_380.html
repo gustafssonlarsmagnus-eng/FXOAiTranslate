@@ -303,25 +303,6 @@
                                     <span class="text-lg text-amber-400 font-bold">0:08</span>
                                 </div>
                             </div>
-
-                            <!-- Tooltip -->
-                            <div id="bid-tooltip" class="trade-tooltip">
-                                <div class="tooltip-section">
-                                    <div class="tooltip-label">Client Receives</div>
-                                    <div class="tooltip-value"><span class="tooltip-highlight">0.6140%</span> EUR based on notional of <span class="tooltip-highlight">EUR 10,000,000</span></div>
-                                    <div class="tooltip-value mt-1">Premium: <span class="tooltip-highlight">EUR 59,400</span></div>
-                                </div>
-                                <div class="tooltip-divider"></div>
-                                <div class="tooltip-section">
-                                    <div class="tooltip-label">Buy Vanilla Option</div>
-                                    <div class="tooltip-value">1mth <span class="tooltip-highlight">EUR Call / USD Put</span>, K=<span class="tooltip-highlight">1.1751</span> (ATM), ExpCut=<span class="tooltip-highlight">NYC</span></div>
-                                </div>
-                                <div class="tooltip-divider"></div>
-                                <div class="tooltip-section">
-                                    <div class="tooltip-label">Spot Hedge</div>
-                                    <div class="tooltip-value">Sell <span class="tooltip-highlight">EUR 5,023,800</span> @ <span class="tooltip-highlight">1.1746</span></div>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- OFFER SIDE -->
@@ -352,31 +333,50 @@
                                     <span class="text-lg font-bold text-white min-w-[50px] text-right">DEUT</span>
                                 </div>
                             </div>
-
-                            <!-- Tooltip -->
-                            <div id="offer-tooltip" class="trade-tooltip">
-                                <div class="tooltip-section">
-                                    <div class="tooltip-label">Client Pays</div>
-                                    <div class="tooltip-value"><span class="tooltip-highlight">0.6370%</span> EUR based on notional of <span class="tooltip-highlight">EUR 10,000,000</span></div>
-                                    <div class="tooltip-value mt-1">Premium: <span class="tooltip-highlight">EUR 62,100</span></div>
-                                </div>
-                                <div class="tooltip-divider"></div>
-                                <div class="tooltip-section">
-                                    <div class="tooltip-label">Buy Vanilla Option</div>
-                                    <div class="tooltip-value">1mth <span class="tooltip-highlight">EUR Call / USD Put</span>, K=<span class="tooltip-highlight">1.1751</span> (ATM), ExpCut=<span class="tooltip-highlight">NYC</span></div>
-                                </div>
-                                <div class="tooltip-divider"></div>
-                                <div class="tooltip-section">
-                                    <div class="tooltip-label">Spot Hedge</div>
-                                    <div class="tooltip-value">Sell <span class="tooltip-highlight">EUR 5,023,800</span> @ <span class="tooltip-highlight">1.1746</span></div>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- SPREAD INDICATOR - Bottom Edge (initially hidden) -->
                         <div id="spread-indicator"
                             class="absolute left-1/2 bottom-1 transform -translate-x-1/2 z-20 pointer-events-none invisible">
                             <span class="text-lg font-bold text-white">0.6</span>
+                        </div>
+
+                        <!-- BID Tooltip (positioned relative to left tile) -->
+                        <div id="bid-tooltip" class="trade-tooltip" style="left: 25%; transform: translateX(-50%);">
+                            <div class="tooltip-section">
+                                <div class="tooltip-label">Client Receives</div>
+                                <div class="tooltip-value"><span class="tooltip-highlight">0.6140%</span> EUR based on notional of <span class="tooltip-highlight">EUR 10,000,000</span></div>
+                                <div class="tooltip-value mt-1">Premium: <span class="tooltip-highlight">EUR 59,400</span></div>
+                            </div>
+                            <div class="tooltip-divider"></div>
+                            <div class="tooltip-section">
+                                <div class="tooltip-label">Buy Vanilla Option</div>
+                                <div class="tooltip-value">1mth <span class="tooltip-highlight">EUR Call / USD Put</span>, K=<span class="tooltip-highlight">1.1751</span> (ATM), ExpCut=<span class="tooltip-highlight">NYC</span></div>
+                            </div>
+                            <div class="tooltip-divider"></div>
+                            <div class="tooltip-section">
+                                <div class="tooltip-label">Spot Hedge</div>
+                                <div class="tooltip-value">Sell <span class="tooltip-highlight">EUR 5,023,800</span> @ <span class="tooltip-highlight">1.1746</span></div>
+                            </div>
+                        </div>
+
+                        <!-- OFFER Tooltip (positioned relative to right tile) -->
+                        <div id="offer-tooltip" class="trade-tooltip" style="left: 75%; transform: translateX(-50%);">
+                            <div class="tooltip-section">
+                                <div class="tooltip-label">Client Pays</div>
+                                <div class="tooltip-value"><span class="tooltip-highlight">0.6370%</span> EUR based on notional of <span class="tooltip-highlight">EUR 10,000,000</span></div>
+                                <div class="tooltip-value mt-1">Premium: <span class="tooltip-highlight">EUR 62,100</span></div>
+                            </div>
+                            <div class="tooltip-divider"></div>
+                            <div class="tooltip-section">
+                                <div class="tooltip-label">Buy Vanilla Option</div>
+                                <div class="tooltip-value">1mth <span class="tooltip-highlight">EUR Call / USD Put</span>, K=<span class="tooltip-highlight">1.1751</span> (ATM), ExpCut=<span class="tooltip-highlight">NYC</span></div>
+                            </div>
+                            <div class="tooltip-divider"></div>
+                            <div class="tooltip-section">
+                                <div class="tooltip-label">Spot Hedge</div>
+                                <div class="tooltip-value">Sell <span class="tooltip-highlight">EUR 5,023,800</span> @ <span class="tooltip-highlight">1.1746</span></div>
+                            </div>
                         </div>
                     </div>
 
