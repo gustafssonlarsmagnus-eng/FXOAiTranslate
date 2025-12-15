@@ -41,20 +41,16 @@
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
     </Style>
 
-    <!-- Data Grid Row Style with Left Border Winner Highlighting -->
     <Style x:Key="QuoteDataGridRow" TargetType="DataGridRow">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource Brush.TextMain}"/>
         <Setter Property="BorderThickness" Value="3,0,0,0"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Style.Triggers>
-            <!-- Winner Highlight - Green Left Border -->
             <DataTrigger Binding="{Binding IsBestPrice}" Value="True">
-                <Setter Property="BorderBrush" Value="{StaticResource Brush.WinnerAccent}"/>
             </DataTrigger>
             <!-- Hover State -->
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="#FF1A1A1A"/>
             </Trigger>
         </Style.Triggers>
     </Style>

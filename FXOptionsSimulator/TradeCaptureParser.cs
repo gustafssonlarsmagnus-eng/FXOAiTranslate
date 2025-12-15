@@ -99,7 +99,6 @@ namespace FXOptionsSimulator
             { "894500A9DTYKF33B7Z76", "Optiver FX Limited" },
             { "O2RNE8IBXP4R0TD8PU41", "Societe Generale" },
             { "RILFO74KP1CM8P6PCT96", "Standard Chartered Bank London" },
-            { "BFM8T61CT2L1QCEMIK50", "UBS AG Zurich" }
         };
 
         /// <summary>

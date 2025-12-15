@@ -19,15 +19,13 @@
             align-items: center;
             min-height: 100vh;
         }
+        .mono { font-family: 'JetBrains Mono', monospace; }
 
         .mono {
             font-family: 'Inter', sans-serif;
         }
 
         /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
 
         ::-webkit-scrollbar-track {
             background: #0f1115;
@@ -50,20 +48,12 @@
         }
 
         /* --- LADDER STYLING --- */
-        .ladder-row:hover {
-            background-color: #1e2536;
-            cursor: pointer;
-        }
 
         .ladder-col-mid {
             background-color: #0f1114;
         }
 
         /* --- BEST PRICE HIGHLIGHTS --- */
-        .best-bid-cell {
-            background: linear-gradient(to right, rgba(127, 29, 29, 0.15), transparent);
-            border-left: 2px solid #ef4444;
-        }
 
         .best-offer-cell {
             background: linear-gradient(to left, rgba(30, 58, 138, 0.2), transparent);
@@ -71,9 +61,6 @@
         }
 
         /* --- UTILS --- */
-        .hidden-force {
-            display: none !important;
-        }
 
         .fade-in {
             animation: fadeIn 0.3s ease-in-out;
@@ -198,8 +185,6 @@
         <!-- Header -->
         <header class="flex justify-between items-center mb-2 px-1">
             <div class="flex items-center gap-3">
-                <h1 class="text-sm font-bold tracking-tight text-slate-500">EURUSD <span class="text-slate-700">|</span>
-                    1M CALL</h1>
             </div>
             <div class="flex gap-2 text-[10px] font-mono text-slate-600">
                 <span>SPOT: 1.1736</span>
@@ -213,78 +198,43 @@
             <!-- LEFT PANEL: Execution & Aggregation - FIXED 400px -->
             <div class="w-[400px] flex flex-col relative flex-shrink-0">
 
-                <!-- UNIFIED PRICING PANEL - Starts in RFQ state, transitions to prices on click -->
-                <div id="active-panel" class="flex-col h-full fade-in">
+
+                <!-- STATE 2: ACTIVE PRICES (Initially Hidden) -->
+                <div id="active-panel" class="hidden-force flex-col h-full fade-in">
 
                     <!-- EXECUTION TILES -->
                     <div class="flex h-48 w-full mb-2 gap-0.5 relative">
 
                         <!-- BID SIDE -->
-                        <div id="bid-tile" onclick="startRFQ()"
-                            class="trade-tile flex-1 bg-tile-base hover-dark-mode bid-tile-notch p-4 flex flex-col relative overflow-hidden group cursor-pointer">
-                            <div class="success-indicator bg-red-500/20 text-red-400" id="bid-success">✓</div>
-                            <div id="bid-label-container"
-                                class="flex justify-start items-start w-full absolute top-4 left-0 px-4 invisible">
-                                <span id="bid-label"
-                                    class="text-xs font-bold text-red-900 transition-colors group-hover:text-red-300/80 tracking-widest">BID
-                                    (VOL)</span>
                             </div>
-                            <div class="flex-1 flex flex-col justify-center items-center">
-                                <span id="bid-rfq-label"
-                                    class="text-[10px] text-slate-500 font-bold tracking-wider mb-1">CLICK TO RFQ
-                                    (F9)</span>
-                                <div id="bid-value"
-                                    class="text-slate-600 group-hover:text-white transition-colors duration-200 text-7xl font-bold tracking-tighter h-20 flex items-center">
-                                    RFQ</div>
-                                <div id="bid-secondary"
-                                    class="text-sm font-bold text-slate-700 mt-2 font-mono tracking-wide group-hover:text-slate-400 transition-colors invisible">
-                                    ---</div>
-                            </div>
+                                </div>
                             <div id="bid-lp" class="absolute left-0 bottom-0 invisible flex items-center z-10">
                                 <div
                                     class="bg-red-900/30 rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px]">
                                     <span class="text-lg font-bold text-red-400 min-w-[50px]">JPM</span>
                                     <span class="text-lg text-amber-400 font-bold">0:08</span>
-                                </div>
+                            </div>
+                            <div class="absolute bottom-4 left-4">
+                                <span class="text-[10px] bg-red-900/10 text-red-800 px-1.5 py-0.5 rounded group-hover:bg-blue-900/30 group-hover:text-blue-300 transition-all">JPM</span>
                             </div>
                         </div>
 
                         <!-- OFFER SIDE -->
-                        <div id="offer-tile" onclick="startRFQ()"
-                            class="trade-tile flex-1 bg-tile-base hover-dark-mode offer-tile-notch p-4 flex flex-col relative overflow-hidden group cursor-pointer">
-                            <div class="success-indicator bg-blue-500/20 text-blue-400" id="offer-success">✓</div>
-                            <div id="offer-label-container"
-                                class="flex justify-end items-start w-full absolute top-4 left-0 px-4 invisible">
-                                <span id="offer-label"
-                                    class="text-xs font-bold text-blue-900 transition-colors group-hover:text-blue-300/80 tracking-widest">OFFER
-                                    (VOL)</span>
                             </div>
-                            <div class="flex-1 flex flex-col justify-center items-center">
-                                <span id="offer-rfq-label"
-                                    class="text-[10px] text-slate-500 font-bold tracking-wider mb-1">CLICK TO RFQ
-                                    (F9)</span>
-                                <div id="offer-value"
-                                    class="text-slate-600 group-hover:text-white transition-colors duration-200 text-7xl font-bold tracking-tighter h-20 flex items-center">
-                                    RFQ</div>
-                                <div id="offer-secondary"
-                                    class="text-sm font-bold text-slate-700 mt-2 font-mono tracking-wide group-hover:text-slate-400 transition-colors invisible">
-                                    ---</div>
-                            </div>
+                                </div>
                             <div id="offer-lp" class="absolute right-0 bottom-0 invisible flex items-center z-10">
                                 <div
                                     class="bg-blue-900/30 rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px] justify-end">
                                     <span class="text-lg text-slate-400">1:52</span>
                                     <span class="text-lg font-bold text-blue-400 min-w-[50px] text-right">DEUT</span>
-                                </div>
+                            </div>
+                            <div class="absolute bottom-4 right-4">
+                                <span class="text-[10px] bg-blue-900/10 text-blue-800 px-1.5 py-0.5 rounded group-hover:bg-blue-900/30 group-hover:text-blue-300 transition-all">DEUT</span>
                             </div>
                         </div>
 
-                        <!-- SPREAD INDICATOR - Bottom Edge (initially hidden) -->
-                        <div id="spread-indicator"
-                            class="absolute left-1/2 bottom-1 transform -translate-x-1/2 z-20 pointer-events-none invisible">
-                            <span class="text-lg font-bold text-white">0.6</span>
+                            </div>
                         </div>
-                    </div>
 
                     <!-- COMBINED CONTROL BAR: Ladder toggle + Price Display -->
                     <div
@@ -295,15 +245,9 @@
                             <span id="ladder-arrow"
                                 class="text-slate-500 text-[10px] transition-transform duration-200">▼</span>
                             <span class="text-[10px] text-slate-500 font-bold uppercase">4 LPs</span>
-                        </div>
+                    </div>
 
-                        <!-- Right: Price Display dropdown -->
-                        <div class="relative group">
-                            <div class="flex items-center gap-2 cursor-pointer">
-                                <span class="text-[10px] text-slate-500">Price Display</span>
-                                <span id="price-display-bar"
-                                    class="text-[10px] text-blue-400 font-bold uppercase min-w-[55px] text-right">VOL</span>
-                            </div>
+                        </div>
                             <div
                                 class="hidden group-hover:block absolute top-full right-0 mt-1 bg-[#16181d] border border-[#1e293b] shadow-xl z-50 min-w-[100px]">
                                 <div id="bar-opt-vol" onclick="setPriceDisplay('vol')"
@@ -322,119 +266,20 @@
                         </div>
                     </div>
 
-                    <!-- LADDER - Collapsible (hidden by default) -->
-                    <div id="ladder-container" style="display: none; max-height: 0; opacity: 0;"
-                        class="bg-[#14161b] border border-[#1e293b] rounded flex flex-col overflow-hidden transition-all duration-300 mt-1">
-                        <div
-                            class="grid grid-cols-[1fr_60px_1fr] bg-[#1a1d23] border-b border-[#1e293b] items-center py-1.5">
-                            <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">Bid
-                            </div>
-                            <div
-                                class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider border-l border-r border-[#1e293b] h-full flex items-center justify-center">
-                                Venue</div>
-                            <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">Offer
-                            </div>
-                        </div>
-
-                        <div id="ladder-content" class="overflow-y-auto flex-1 transition-all duration-300">
-                            <!-- Row 1 - DEUT: Fresh quote (full opacity) -->
-                            <div
-                                class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group">
-                                <div class="flex flex-col justify-center items-center opacity-60">
-                                    <div
-                                        class="text-red-900/80 font-medium text-sm group-hover:text-white transition-colors">
-                                        5.42</div>
-                                    <div
-                                        class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                        69k | 39p</div>
-                                </div>
-                                <div
-                                    class="flex flex-col items-center justify-center font-bold text-blue-500/90 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                    <span>DEUT</span>
-                                    <span class="text-[10px] text-slate-500 mt-0.5">0.40</span>
-                                </div>
-                                <div class="flex flex-col justify-center items-center best-offer-cell">
-                                    <div
-                                        class="text-blue-500/90 font-bold text-sm group-hover:text-white transition-colors">
-                                        5.82</div>
-                                    <div
-                                        class="text-slate-600 font-medium text-[10px] mt-0.5 group-hover:text-slate-400">
-                                        71k | 44p</div>
-                                </div>
-                            </div>
-                            <!-- Row 2 - JPM: Slightly stale (80% opacity) -->
-                            <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group"
-                                style="opacity: 0.85">
                                 <div class="flex flex-col justify-center items-center best-bid-cell">
-                                    <div
-                                        class="text-red-500/90 font-bold text-sm group-hover:text-white transition-colors">
-                                        5.47</div>
-                                    <div
-                                        class="text-slate-600 font-medium text-[10px] mt-0.5 group-hover:text-slate-400">
-                                        68k | 43p</div>
                                 </div>
-                                <div
-                                    class="flex flex-col items-center justify-center font-bold text-red-500/90 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                    <span>JPM</span>
-                                    <span class="text-[10px] text-slate-500 mt-0.5">0.43</span>
-                                </div>
-                                <div class="flex flex-col justify-center items-center opacity-60">
-                                    <div
-                                        class="text-blue-900/80 font-medium text-sm group-hover:text-white transition-colors">
-                                        5.90</div>
-                                    <div
-                                        class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                        72k | 51p</div>
                                 </div>
                             </div>
-                            <!-- Row 3 - CITI: Stale (60% opacity) -->
-                            <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group"
-                                style="opacity: 0.6">
                                 <div class="flex flex-col justify-center items-center opacity-60">
-                                    <div
-                                        class="text-red-900/80 font-medium text-sm group-hover:text-white transition-colors">
-                                        5.44</div>
-                                    <div
-                                        class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                        68k | 40p</div>
                                 </div>
-                                <div
-                                    class="flex flex-col items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                    <span>CITI</span>
-                                    <span class="text-[10px] text-slate-500 mt-0.5">0.44</span>
-                                </div>
+                                <div class="flex items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">CITI</div>
                                 <div class="flex flex-col justify-center items-center opacity-60">
-                                    <div
-                                        class="text-blue-900/80 font-medium text-sm group-hover:text-white transition-colors">
-                                        5.88</div>
-                                    <div
-                                        class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                        75k | 49p</div>
                                 </div>
                             </div>
-                            <!-- Row 4 - BARX: Nearly expired (30% opacity) -->
-                            <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group"
-                                style="opacity: 0.35">
                                 <div class="flex flex-col justify-center items-center opacity-60">
-                                    <div
-                                        class="text-red-900/70 font-medium text-sm group-hover:text-white transition-colors">
-                                        5.41</div>
-                                    <div
-                                        class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                        67k | 38p</div>
                                 </div>
-                                <div
-                                    class="flex flex-col items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                    <span>BARX</span>
-                                    <span class="text-[10px] text-slate-500 mt-0.5">0.50</span>
-                                </div>
+                                <div class="flex items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">BARX</div>
                                 <div class="flex flex-col justify-center items-center opacity-60">
-                                    <div
-                                        class="text-blue-900/70 font-medium text-sm group-hover:text-white transition-colors">
-                                        5.91</div>
-                                    <div
-                                        class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                        76k | 52p</div>
                                 </div>
                             </div>
                         </div>
@@ -443,8 +288,6 @@
             </div>
 
             <!-- RIGHT PANEL: Property Grid - FIXED 400px -->
-            <div
-                class="w-[400px] bg-[#14161b] border border-[#1e293b] rounded flex flex-col h-full shadow-2xl overflow-hidden text-sm flex-shrink-0">
 
                 <div class="flex justify-between items-center bg-[#1e293b] px-3 py-1.5 border-b border-black">
                     <div class="flex items-center gap-1 opacity-50">
@@ -460,101 +303,80 @@
                 <div class="overflow-y-auto flex-1 bg-[#0f1114]">
 
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">Type
-                        </div>
-                        <div
-                            class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
                             <span class="font-bold">Vanilla Option</span>
                             <span class="text-slate-500 text-[10px]">▼</span>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">Quantity
-                        </div>
                         <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between hover:bg-[#1a1d23]">
                             <div class="flex items-center gap-2">
                                 <span class="font-bold">EUR</span>
                                 <span class="text-slate-500 text-xs">⇄</span>
                             </div>
-                            <input type="text" class="bg-transparent text-right outline-none font-bold mono flex-1"
-                                value="10,000,000">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">Option
-                            Type</div>
-                        <div
-                            class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
                             <span>EUR Call / USD Put</span>
                             <span class="text-slate-500 text-[10px]">⇄</span>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">Expiry
-                            Date</div>
                         <div class="bg-[#0f1114] text-white px-2 flex items-center hover:bg-[#1a1d23]">
                             <span class="text-blue-400 font-bold cursor-pointer mr-2">1M</span>
-                            <input type="text" class="bg-transparent text-right outline-none font-bold mono flex-1"
-                                value="14 Jan 26">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">Strike
-                        </div>
                         <div class="bg-[#0f1114] px-2 flex items-center hover:bg-[#1a1d23]">
-                            <input type="text"
-                                class="bg-transparent text-right w-full outline-none font-bold mono text-yellow-400"
-                                value="1.1751">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">Expiry
-                            Cut</div>
-                        <div
-                            class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
                             <span class="font-mono">NYC</span>
                             <span class="text-slate-500 text-[10px]">▼</span>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">
-                            Settlement</div>
-                        <div
-                            class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
                             <span class="font-mono">PHYSICAL</span>
                             <span class="text-slate-500 text-[10px]">▼</span>
                         </div>
                     </div>
 
+                    <!-- PRICE DISPLAY SELECTOR -->
+                    <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7 relative z-50">
+                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">Price Display</div>
+                        <div class="bg-[#0f1114] px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer group">
+                            <span class="font-bold text-blue-400 group-hover:text-blue-300">VOL</span>
+                            <span class="text-slate-500 text-[10px]">▼</span>
+                            <div class="hidden group-hover:block absolute top-full left-[110px] right-0 bg-[#16181d] border border-[#1e293b] shadow-xl z-50">
+                                <div class="px-2 py-1.5 hover:bg-[#1e293b] text-white flex justify-between bg-blue-500/10 border-l-2 border-blue-500">
+                                    <span>VOL</span>
+                                    <span>✓</span>
+                                </div>
+                                <div class="px-2 py-1.5 hover:bg-[#1e293b] text-slate-400 border-l-2 border-transparent">Premium</div>
+                                <div class="px-2 py-1.5 hover:bg-[#1e293b] text-slate-400 border-l-2 border-transparent">EUR Pips</div>
+                                <div class="px-2 py-1.5 hover:bg-[#1e293b] text-slate-400 border-l-2 border-transparent">USD Pips</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">Delta
-                            Exchange</div>
-                        <div
-                            class="bg-[#0f1114] px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
                             <span class="font-bold text-blue-400">No Hedge (Live)</span>
                             <span class="text-slate-500 text-[10px]">▼</span>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">Premium
-                            Due</div>
-                        <div
-                            class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
                             <span class="font-mono">SPOT</span>
                             <span class="text-slate-500 text-[10px]">▼</span>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7 bg-[#16181d]">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">Premium
-                            (EUR)</div>
                         <div class="bg-[#16181d] px-2 flex items-center justify-end gap-2 font-mono">
                             <span class="text-slate-500 text-[10px]">RCV 59.4k</span>
                             <span class="text-slate-600">/</span>
@@ -563,23 +385,17 @@
                     </div>
 
                     <div class="grid grid-cols-[110px_1fr] border-b border-[#1e293b] text-[11px] h-7 bg-[#16181d]">
-                        <div class="bg-[#16181d] text-slate-600 px-2 flex items-center justify-end font-medium">
-                            Volatility</div>
                         <div class="bg-[#16181d] px-2 flex items-center justify-end font-mono text-white font-bold">
                             5.176 / 5.386
                         </div>
                     </div>
 
                     <!-- SECTION: Market Data -->
-                    <div
-                        class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-bold flex items-center gap-2 cursor-pointer mt-1">
                         <span class="text-slate-400">▶</span>
                         Market Data
                     </div>
 
                     <!-- SECTION: Risk -->
-                    <div
-                        class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-bold flex items-center gap-2 cursor-pointer mt-1">
                         <span class="text-slate-400">▶</span>
                         Risk
                     </div>
@@ -593,160 +409,6 @@
         let rfqActive = false;
 
         function startRFQ() {
-            if (rfqActive) return; // Already active, use executeTrade instead
-            rfqActive = true;
-
-            // Get current price display mode
-            const data = priceDisplayData[currentPriceDisplay];
-
-            // Update BID tile
-            document.getElementById('bid-rfq-label').classList.add('hidden');
-            document.getElementById('bid-label-container').classList.remove('invisible');
-            document.getElementById('bid-label').textContent = data.bidLabel;
-            document.getElementById('bid-value').textContent = data.bidValue;
-            document.getElementById('bid-value').className = `text-red-500/90 group-hover:text-white transition-colors duration-200 ${data.bidValueClass} font-bold tracking-tighter h-20 flex items-center`;
-            document.getElementById('bid-secondary').innerHTML = data.bidSecondary;
-            document.getElementById('bid-secondary').classList.remove('invisible');
-            document.getElementById('bid-lp').classList.remove('invisible');
-            document.getElementById('bid-tile').onclick = function (e) { executeTrade(e, 'bid'); };
-
-            // Update OFFER tile
-            document.getElementById('offer-rfq-label').classList.add('hidden');
-            document.getElementById('offer-label-container').classList.remove('invisible');
-            document.getElementById('offer-label').textContent = data.offerLabel;
-            document.getElementById('offer-value').textContent = data.offerValue;
-            document.getElementById('offer-value').className = `text-blue-500/90 group-hover:text-white transition-colors duration-200 ${data.offerValueClass} font-bold tracking-tighter h-20 flex items-center`;
-            document.getElementById('offer-secondary').innerHTML = data.offerSecondary;
-            document.getElementById('offer-secondary').classList.remove('invisible');
-            document.getElementById('offer-lp').classList.remove('invisible');
-            document.getElementById('offer-tile').onclick = function (e) { executeTrade(e, 'offer'); };
-
-            // Show spread indicator
-            document.getElementById('spread-indicator').classList.remove('invisible');
-        }
-
-        function executeTrade(event, side) {
-            const tile = document.getElementById(side + '-tile');
-
-            // Flash Effect - deep inner glow
-            tile.classList.remove('trade-flash-' + side); // Reset if clicked rapidly
-            void tile.offsetWidth; // Force reflow to restart animation
-            tile.classList.add('trade-flash-' + side);
-
-            setTimeout(() => {
-                tile.classList.remove('trade-flash-' + side);
-            }, 750);
-        }
-
-        // Option C: Compact Summary - Toggle ladder visibility
-        let ladderExpanded = false;
-        function toggleLadder() {
-            const container = document.getElementById('ladder-container');
-            const summary = document.getElementById('ladder-summary');
-            const arrow = document.getElementById('ladder-arrow');
-            ladderExpanded = !ladderExpanded;
-
-            if (ladderExpanded) {
-                container.style.display = 'flex';
-                setTimeout(() => {
-                    container.style.maxHeight = '500px';
-                    container.style.opacity = '1';
-                }, 10);
-                arrow.style.transform = 'rotate(180deg)';
-                summary.classList.add('bg-[#1a1d23]');
-            } else {
-                container.style.maxHeight = '0px';
-                container.style.opacity = '0';
-                setTimeout(() => {
-                    container.style.display = 'none';
-                }, 300);
-                arrow.style.transform = 'rotate(0deg)';
-                summary.classList.remove('bg-[#1a1d23]');
-            }
-        }
-
-        // Price Display data for different modes
-        // Hero value size adapts, secondary text content swaps but keeps same position/size
-        const priceDisplayData = {
-            'vol': {
-                label: 'VOL',
-                bidLabel: 'BID (VOL)',
-                bidValue: '5.47',
-                bidValueClass: 'text-7xl',
-                bidSecondary: '68,778 USD <span class="opacity-50 mx-1">|</span> -43p',
-                offerLabel: 'OFFER (VOL)',
-                offerValue: '5.82',
-                offerValueClass: 'text-7xl',
-                offerSecondary: '71,699 USD <span class="opacity-50 mx-1">|</span> +44p'
-            },
-            'premium': {
-                label: 'Premium',
-                bidLabel: 'BID (PREM)',
-                bidValue: '59 400',
-                bidValueClass: 'text-5xl',
-                bidSecondary: 'EUR <span class="opacity-50 mx-1">|</span> Vol 5.47',
-                offerLabel: 'OFFER (PREM)',
-                offerValue: '62 100',
-                offerValueClass: 'text-5xl',
-                offerSecondary: 'EUR <span class="opacity-50 mx-1">|</span> Vol 5.82'
-            },
-            'eur-pips': {
-                label: 'EUR Pips',
-                bidLabel: 'BID (EUR)',
-                bidValue: '-43p',
-                bidValueClass: 'text-6xl',
-                bidSecondary: '68,778 USD <span class="opacity-50 mx-1">|</span> Vol 5.47',
-                offerLabel: 'OFFER (EUR)',
-                offerValue: '+44p',
-                offerValueClass: 'text-6xl',
-                offerSecondary: '71,699 USD <span class="opacity-50 mx-1">|</span> Vol 5.82'
-            },
-            'usd-pips': {
-                label: 'USD Pips',
-                bidLabel: 'BID (USD)',
-                bidValue: '-51p',
-                bidValueClass: 'text-6xl',
-                bidSecondary: '68,778 USD <span class="opacity-50 mx-1">|</span> Vol 5.47',
-                offerLabel: 'OFFER (USD)',
-                offerValue: '+52p',
-                offerValueClass: 'text-6xl',
-                offerSecondary: '71,699 USD <span class="opacity-50 mx-1">|</span> Vol 5.82'
-            }
-        };
-
-        let currentPriceDisplay = 'vol';
-
-        function setPriceDisplay(mode) {
-            const data = priceDisplayData[mode];
-            if (!data) return;
-
-            currentPriceDisplay = mode;
-
-            // Update tile values - hero value changes size, secondary content swaps
-            document.getElementById('bid-label').textContent = data.bidLabel;
-            document.getElementById('bid-value').textContent = data.bidValue;
-            document.getElementById('bid-value').className = `text-red-500/90 group-hover:text-white transition-colors duration-200 ${data.bidValueClass} font-bold tracking-tighter h-20 flex items-center`;
-            document.getElementById('bid-secondary').innerHTML = data.bidSecondary;
-
-            document.getElementById('offer-label').textContent = data.offerLabel;
-            document.getElementById('offer-value').textContent = data.offerValue;
-            document.getElementById('offer-value').className = `text-blue-500/90 group-hover:text-white transition-colors duration-200 ${data.offerValueClass} font-bold tracking-tighter h-20 flex items-center`;
-            document.getElementById('offer-secondary').innerHTML = data.offerSecondary;
-
-            // Update bar dropdown display
-            document.getElementById('price-display-bar').textContent = data.label;
-
-            // Update bar dropdown option styles
-            const options = ['vol', 'premium', 'eur-pips', 'usd-pips'];
-            options.forEach(opt => {
-                const el = document.getElementById('bar-opt-' + opt);
-                if (!el) return;
-                if (opt === mode) {
-                    el.className = 'px-3 py-1.5 hover:bg-[#1e293b] text-white text-xs bg-blue-500/10 border-l-2 border-blue-500 cursor-pointer';
-                } else {
-                    el.className = 'px-3 py-1.5 hover:bg-[#1e293b] text-slate-400 text-xs border-l-2 border-transparent cursor-pointer';
-                }
-            });
         }
     </script>
 </body>

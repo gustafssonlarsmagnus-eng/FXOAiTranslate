@@ -35,21 +35,37 @@ namespace FX.Infrastructure.Calendars.Legacy
                 Console.WriteLine($"[FX-CALENDAR] Running as: {currentUser.Name} (Auth: {currentUser.AuthenticationType})");
                 Console.WriteLine($"[FX-CALENDAR] Testing connection: {connectionString}");
 
+                // Parse connection string to check DNS
+                var builder = new System.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
+                Console.WriteLine($"[FX-CALENDAR] Data Source: {builder.DataSource}");
+                Console.WriteLine($"[FX-CALENDAR] Connect Timeout: {builder.ConnectTimeout}s");
+
+                // Try DNS resolution first
+                try
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var addresses = System.Net.Dns.GetHostAddresses(builder.DataSource);
+                    sw.Stop();
+                    Console.WriteLine($"[FX-CALENDAR] DNS resolved in {sw.ElapsedMilliseconds}ms: {string.Join(", ", addresses.Select(a => a.ToString()))}");
+                }
+                catch (Exception dnsEx)
+                {
+                    Console.WriteLine($"[FX-CALENDAR] DNS FAILED: {dnsEx.Message}");
+                    throw new Exception($"DNS resolution failed for {builder.DataSource}", dnsEx);
+                }
+
                 _holidayCalendar = new HolidayCalendar(connectionString);
 
                 // Test connection by trying to get a small date range
                 var testDate = DateTime.UtcNow;
-                var sw = System.Diagnostics.Stopwatch.StartNew();
                 _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 5);
-                sw.Stop();
 
                 _isDatabaseAvailable = true;
-                Console.WriteLine($"[FX-CALENDAR] ✓ Database connected in {sw.ElapsedMilliseconds}ms");
             }
             catch (Exception ex)
             {
                 _isDatabaseAvailable = false;
-                Console.WriteLine($"[FX-CALENDAR] Database unavailable: {ex.Message}");
+                }
             }
         }
 
@@ -129,34 +145,13 @@ namespace FX.Infrastructure.Calendars.Legacy
                 }
                 else
                 {
-                    // Fallback: use QLNet FXCalendars
-                    return CalculateExpiryFallback(tradeDate, tenor, currencyPair);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[FX-CALENDAR] ERROR calculating expiry for {tenor}/{currencyPair}: {ex.Message}");
                 // Use fallback instead of throwing
-                return CalculateExpiryFallback(tradeDate, tenor, currencyPair);
             }
-        }
-
-        /// <summary>
-        /// Get QLNet calendar for a currency (fallback when database unavailable).
-        /// </summary>
-        private static QLNet.Calendar GetFallbackCalendar(string currency)
-        {
-            return currency?.ToUpper() switch
-            {
-                "USD" => _usdCalendar,
-                "EUR" => _eurCalendar,
-                "SEK" => _sekCalendar,
-                "NOK" => _nokCalendar,
-                "GBP" => _gbpCalendar,
-                "JPY" => _jpyCalendar,
-                _ => _usdCalendar  // Default to USD calendar
-            };
-        }
 
         /// <summary>
         /// Check if a date is a business day using fallback calendars.
@@ -180,9 +175,7 @@ namespace FX.Infrastructure.Calendars.Legacy
 
         /// <summary>
         /// Fallback expiry calculation when database is unavailable.
-        /// Uses QLNet FXCalendars for accurate business day calculations.
         /// </summary>
-        private DateTime CalculateExpiryFallback(DateTime tradeDate, string tenor, string currencyPair = "EURUSD")
         {
             DateTime result = tradeDate;
 
@@ -211,10 +204,21 @@ namespace FX.Infrastructure.Calendars.Legacy
                     break;
             }
 
-            // Adjust to next business day using fallback calendars
-            while (!IsBusinessDayFallback(result, currencyPair))
             {
                 result = result.AddDays(1);
+            }
+
+            // FX Market Rule - January 1st can NEVER be an expiry or settlement date
+            // (New Year's Day - global holiday)
+            // If expiry falls on Jan 1st, move BACK to last business day of December
+            if (result.Month == 1 && result.Day == 1)
+            {
+                result = result.AddDays(-1);
+                // Adjust again for weekends
+                while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    result = result.AddDays(-1);
+                }
             }
 
             return result;
@@ -233,14 +237,10 @@ namespace FX.Infrastructure.Calendars.Legacy
                 }
                 catch
                 {
-                    // Fallback to QLNet calendars
-                    return IsBusinessDayFallback(date, currencyPair);
                 }
             }
             else
             {
-                // Use QLNet FXCalendars fallback
-                return IsBusinessDayFallback(date, currencyPair);
             }
         }
 

@@ -1,0 +1,108 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ============================================ -->
+    <!-- TYPOGRAPHY - Font Families                  -->
+    <!-- ============================================ -->
+
+    <!-- Main UI Font: Inter (fallback: Segoe UI) -->
+    <FontFamily x:Key="Font.UI">Inter, Segoe UI, Arial</FontFamily>
+
+    <!-- Monospace Font: JetBrains Mono (fallback: Consolas) -->
+    <!-- Note: For best results, install JetBrains Mono from https://www.jetbrains.com/lp/mono/ -->
+    <FontFamily x:Key="Font.Mono">JetBrains Mono, Consolas, Courier New</FontFamily>
+
+    <!-- ============================================ -->
+    <!-- TEXT STYLES - Midnight Blue Theme           -->
+    <!-- ============================================ -->
+
+    <!-- Large Numbers (Execution Tiles) -->
+    <Style x:Key="Text.LargeNumber" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Mono}"/>
+        <Setter Property="FontSize" Value="48"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Medium Numbers (Ladder) -->
+    <Style x:Key="Text.MediumNumber" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Mono}"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+
+    <!-- Small Numbers (Secondary metrics) -->
+    <Style x:Key="Text.SmallNumber" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Mono}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <!-- Tiny Numbers (Ladder sub-text) -->
+    <Style x:Key="Text.TinyNumber" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Mono}"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+    </Style>
+
+    <!-- Headers (Section titles) -->
+    <Style x:Key="Text.Header" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.UI}"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="TextTransform" Value="Uppercase"/>
+    </Style>
+
+    <!-- Labels (Property grid left column) -->
+    <Style x:Key="Text.Label" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.UI}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="HorizontalAlignment" Value="Right"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Values (Property grid right column) -->
+    <Style x:Key="Text.Value" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Mono}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- RFQ Button Text -->
+    <Style x:Key="Text.RFQButton" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.UI}"/>
+        <Setter Property="FontSize" Value="48"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Spread Indicator -->
+    <Style x:Key="Text.Spread" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Mono}"/>
+        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Bank Name Tag -->
+    <Style x:Key="Text.BankTag" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.UI}"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+
+    <!-- Venue Name (Ladder center column) -->
+    <Style x:Key="Text.Venue" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Font.UI}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+</ResourceDictionary>
