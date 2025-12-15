@@ -555,15 +555,128 @@
                             </div>
 
                             <!-- Market Data Section -->
-                            <div class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-medium flex items-center gap-2 cursor-pointer hover:bg-[#253048] transition mt-0.5">
-                                <span class="text-slate-400 text-[9px]">▶</span>
-                                <span>Market Data</span>
+                            <div class="mt-0.5">
+                                <div onclick="toggleMarketData()" class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-medium flex items-center gap-2 cursor-pointer hover:bg-[#253048] transition">
+                                    <span id="market-data-arrow" class="text-slate-400 text-[9px]">▶</span>
+                                    <span>Market Data</span>
+                                </div>
+                                <div id="market-data-content" style="display: none;" class="bg-[#0f1114]">
+                                    <!-- Spot Rate -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Spot Rate</div>
+                                        <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                            <span class="font-medium">1.1746</span>
+                                        </div>
+                                    </div>
+                                    <!-- Forward Points -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Forward Pts</div>
+                                        <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                            <span class="font-medium">0.0005</span>
+                                        </div>
+                                    </div>
+                                    <!-- Forward Rate -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Forward Rate</div>
+                                        <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                            <span class="font-medium">1.1751</span>
+                                        </div>
+                                    </div>
+                                    <!-- ATM Vol -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">ATM Vol</div>
+                                        <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                            <span class="font-medium">5.47%</span>
+                                        </div>
+                                    </div>
+                                    <!-- 25D RR -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">25D RR</div>
+                                        <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                            <span class="font-medium">-0.35%</span>
+                                        </div>
+                                    </div>
+                                    <!-- 25D Fly -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">25D Fly</div>
+                                        <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                            <span class="font-medium">0.15%</span>
+                                        </div>
+                                    </div>
+                                    <!-- Bid/Ask Spread -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Bid/Ask Sprd</div>
+                                        <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                            <span class="font-medium">0.35 vol</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Risk Section -->
-                            <div class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-medium flex items-center gap-2 cursor-pointer hover:bg-[#253048] transition mt-0.5 mb-0.5">
-                                <span class="text-slate-400 text-[9px]">▶</span>
-                                <span>Risk</span>
+                            <div class="mt-0.5 mb-0.5">
+                                <div onclick="toggleRisk()" class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-medium flex items-center gap-2 cursor-pointer hover:bg-[#253048] transition">
+                                    <span id="risk-arrow" class="text-slate-400 text-[9px]">▶</span>
+                                    <span>Risk</span>
+                                </div>
+                                <div id="risk-content" style="display: none;" class="bg-[#0f1114]">
+                                    <!-- Delta -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta</div>
+                                        <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                            <span class="font-medium">EUR 5,023,800</span>
+                                        </div>
+                                    </div>
+                                    <!-- Delta % -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta %</div>
+                                        <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                            <span class="font-medium">50.24%</span>
+                                        </div>
+                                    </div>
+                                    <!-- Gamma -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Gamma</div>
+                                        <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                            <span class="font-medium">EUR 2,394,529</span>
+                                        </div>
+                                    </div>
+                                    <!-- Gamma % -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Gamma %</div>
+                                        <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                            <span class="font-medium">23.95%</span>
+                                        </div>
+                                    </div>
+                                    <!-- Vega -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Vega</div>
+                                        <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                            <span class="font-medium">EUR 4,850 / 1%</span>
+                                        </div>
+                                    </div>
+                                    <!-- Theta -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Theta</div>
+                                        <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                            <span class="font-medium">EUR -285 / day</span>
+                                        </div>
+                                    </div>
+                                    <!-- Rho -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Rho</div>
+                                        <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                            <span class="font-medium">EUR 820 / 1%</span>
+                                        </div>
+                                    </div>
+                                    <!-- Notional -->
+                                    <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
+                                        <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Notional</div>
+                                        <div class="bg-[#14161b] text-white px-2 flex items-center justify-end">
+                                            <span class="font-medium">EUR 10,000,000</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -662,6 +775,38 @@
             } else {
                 content.style.display = 'none';
                 arrow.style.transform = 'rotate(-90deg)';
+                arrow.textContent = '▶';
+            }
+        }
+
+        // Toggle Market Data section
+        let marketDataExpanded = false; // Start collapsed
+        function toggleMarketData() {
+            const content = document.getElementById('market-data-content');
+            const arrow = document.getElementById('market-data-arrow');
+            marketDataExpanded = !marketDataExpanded;
+
+            if (marketDataExpanded) {
+                content.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                content.style.display = 'none';
+                arrow.textContent = '▶';
+            }
+        }
+
+        // Toggle Risk section
+        let riskExpanded = false; // Start collapsed
+        function toggleRisk() {
+            const content = document.getElementById('risk-content');
+            const arrow = document.getElementById('risk-arrow');
+            riskExpanded = !riskExpanded;
+
+            if (riskExpanded) {
+                content.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                content.style.display = 'none';
                 arrow.textContent = '▶';
             }
         }
