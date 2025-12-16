@@ -1101,11 +1101,11 @@
 
             const now = new Date();
             const timeStr = now.toTimeString().slice(0, 8);
-            const isBuy = side === 'bid';
-            const lpName = isBuy ? 'JPM' : 'DEUT';
+            const isBuy = side === 'offer';  // OFFER = client buys, BID = client sells
+            const lpName = side === 'bid' ? 'JPM' : 'DEUT';
             const borderColor = isBuy ? 'green' : 'red';
             const sideText = isBuy ? 'BUY' : 'SELL';
-            const premiumSign = isBuy ? '-' : '+';
+            const premiumSign = isBuy ? '+' : '-';  // Buy pays (+), Sell receives (-)
             const premiumColor = isBuy ? 'red' : 'green';
             const premiumAmt = Math.floor(Math.random() * 50000) + 10000;
             const vol = (5 + Math.random() * 2).toFixed(2);
