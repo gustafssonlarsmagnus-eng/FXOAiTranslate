@@ -1520,6 +1520,7 @@
                                 </div>
                             </div>
                             <div id="leg${legNum}-content" class="bg-[#0f1114]">
+                                <!-- Type -->
                                 <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
                                     <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Type</div>
                                     <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
@@ -1527,30 +1528,80 @@
                                         <span class="text-slate-500 text-[9px]">▼</span>
                                     </div>
                                 </div>
+
+                                <!-- Quantity -->
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Quantity</div>
+                                    <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between">
+                                        <span class="font-medium">EUR</span>
+                                        <span class="font-bold">10,000,000</span>
+                                    </div>
+                                </div>
+
+                                <!-- Option Type -->
                                 <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
                                     <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Option Type</div>
-                                    <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
-                                        <span class="font-medium">${data.optionType}</span>
-                                        <span class="text-slate-500 text-[9px]">▼</span>
+                                    <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23]">
+                                        <span>${data.optionType}</span>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Strike</div>
-                                    <div class="bg-[#0f1114] text-yellow-400 px-2 flex items-center justify-end hover:bg-[#1a1d23] cursor-pointer">
-                                        <span class="font-bold">${data.strike}</span>
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Notional</div>
-                                    <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end hover:bg-[#1a1d23] cursor-pointer">
-                                        <span class="font-medium">${data.notional}</span>
-                                    </div>
-                                </div>
+
+                                <!-- Expiry Date -->
                                 <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
                                     <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Expiry Date</div>
                                     <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
                                         <span class="font-medium">${data.expiry}</span>
                                         <span class="text-blue-400 font-medium ml-2">${data.tenor}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Strike -->
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Strike</div>
+                                    <div class="bg-[#0f1114] px-2 flex items-center justify-end">
+                                        <span class="font-bold text-yellow-400">${data.strike}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Expiry Cut -->
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Expiry Cut</div>
+                                    <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
+                                        <span class="font-mono">NYC</span>
+                                    </div>
+                                </div>
+
+                                <!-- Settlement -->
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Settlement</div>
+                                    <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
+                                        <span class="font-mono">PHYSICAL</span>
+                                    </div>
+                                </div>
+
+                                <!-- Delta Exchange -->
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta Exchange</div>
+                                    <div class="bg-[#0f1114] px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
+                                        <span class="font-medium text-blue-400">No Hedge (Live)</span>
+                                    </div>
+                                </div>
+
+                                <!-- Premium Due -->
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Premium Due</div>
+                                    <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center hover:bg-[#1a1d23] cursor-pointer">
+                                        <span class="font-mono">SPOT</span>
+                                    </div>
+                                </div>
+
+                                <!-- Premium (EUR) -->
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Premium (EUR)</div>
+                                    <div class="bg-[#14161b] px-2 flex items-center justify-end gap-2 font-mono">
+                                        <span class="text-slate-500 text-[10px]">RCV 59.4k</span>
+                                        <span class="text-slate-600">/</span>
+                                        <span class="text-white font-medium">PAY 62.1k</span>
                                     </div>
                                 </div>
                             </div>
