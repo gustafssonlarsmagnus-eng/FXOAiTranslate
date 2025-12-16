@@ -355,10 +355,52 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* Persistent Tab Handle */
+        .deals-tab-handle {
+            position: fixed;
+            right: 0;
+            top: 120px;
+            /* Aligned with top area */
+            background: #1e293b;
+            color: #94a3b8;
+            padding: 8px 4px;
+            border-top-left-radius: 6px;
+            border-bottom-left-radius: 6px;
+            border: 1px solid #334155;
+            border-right: none;
+            cursor: pointer;
+            z-index: 90;
+            /* Below panel (z-100) */
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .deals-tab-handle:hover {
+            background: #3b82f6;
+            color: white;
+            padding-right: 8px;
+            /* Slide out slightly */
+        }
     </style>
 </head>
 
 <body>
+
+    <!-- PERSISTENT DEALS HANDLE -->
+    <div class="deals-tab-handle" onclick="toggleDealsPanel()" title="Open Deals Panel">
+        <span>◀</span>
+        <span>DEALS</span>
+    </div>
 
     <!-- MAIN CONTAINER - Flexible width for horizontal scrolling -->
     <div class="h-screen flex flex-col p-2 max-w-full overflow-x-auto">
