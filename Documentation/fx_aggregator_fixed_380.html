@@ -643,17 +643,17 @@
 
                     <!-- LEG1 DETAILS PANEL - Collapsible -->
                     <div id="leg1-container" class="bg-[#152040] border border-[#1e293b] rounded mt-1 overflow-hidden">
-                        <!-- Leg1 Header -->
+                        <!-- Option 1 Header -->
                         <div class="flex items-center justify-between px-3 py-2 hover:bg-[#1a2850] transition">
                             <div class="flex items-center gap-2 cursor-pointer flex-1" onclick="toggleLeg1()">
                                 <span id="leg1-arrow"
                                     class="text-slate-400 text-[10px] transition-transform duration-200">▼</span>
-                                <span class="text-xs text-slate-300 font-bold">Leg1</span>
+                                <span class="text-xs text-slate-300 font-bold">Option 1</span>
                                 <span class="text-[10px] text-slate-500">≫ Global</span>
                             </div>
                             <div class="flex items-center gap-1">
-                                <span onclick="addLeg(event)" class="text-slate-500 hover:text-white text-sm cursor-pointer" title="Add new leg">+</span>
-                                <span onclick="duplicateLeg(1, event)" class="text-slate-500 hover:text-blue-400 text-sm cursor-pointer" title="Duplicate leg">⧉</span>
+                                <span onclick="addLeg(event)" class="text-slate-500 hover:text-white text-sm cursor-pointer" title="Add new option">+</span>
+                                <span onclick="duplicateLeg(1, event)" class="text-slate-500 hover:text-blue-400 text-sm cursor-pointer" title="Duplicate option">⧉</span>
                             </div>
                         </div>
 
@@ -1358,11 +1358,11 @@
 
         function createLegPanel(legNum, data) {
             return `
-                <!-- LEG ${legNum} PANEL - 400px -->
+                <!-- OPTION ${legNum} PANEL - 400px -->
                 <div id="leg${legNum}-panel" class="w-[400px] flex flex-col relative flex-shrink-0">
                     <div id="leg${legNum}-active-panel" class="flex-col h-full fade-in">
 
-                        <!-- EXECUTION TILES FOR LEG ${legNum} -->
+                        <!-- EXECUTION TILES FOR OPTION ${legNum} -->
                         <div class="flex h-48 w-full mb-1 gap-0.5 relative">
 
                             <!-- BID SIDE -->
@@ -1443,7 +1443,7 @@
                             </div>
                         </div>
 
-                        <!-- LADDER FOR LEG ${legNum} -->
+                        <!-- LADDER FOR OPTION ${legNum} -->
                         <div id="leg${legNum}-ladder-container" style="display: none; max-height: 0; opacity: 0;"
                             class="bg-[#14161b] border border-[#1e293b] rounded flex flex-col overflow-hidden transition-all duration-300 mt-1">
                             <div class="grid grid-cols-[1fr_60px_1fr] bg-[#1a1d23] border-b border-[#1e293b] items-center py-1.5">
@@ -1486,17 +1486,17 @@
                             </div>
                         </div>
 
-                        <!-- LEG ${legNum} DETAILS PANEL -->
+                        <!-- OPTION ${legNum} DETAILS PANEL -->
                         <div id="leg${legNum}-container" class="bg-[#152040] border border-[#1e293b] rounded mt-1 overflow-hidden">
                             <div class="flex items-center justify-between px-3 py-2 hover:bg-[#1a2850] transition">
                                 <div class="flex items-center gap-2 cursor-pointer flex-1" onclick="toggleLeg(${legNum})">
                                     <span id="leg${legNum}-arrow" class="text-slate-400 text-[10px]">▼</span>
-                                    <span class="text-xs text-slate-300 font-bold">Leg${legNum}</span>
+                                    <span class="text-xs text-slate-300 font-bold">Option ${legNum}</span>
                                     <span class="text-[10px] text-slate-500">≫ Global</span>
                                 </div>
                                 <div class="flex items-center gap-1">
-                                    <span onclick="duplicateLeg(${legNum}, event)" class="text-slate-500 hover:text-blue-400 text-sm cursor-pointer" title="Duplicate leg">⧉</span>
-                                    <span onclick="removeLeg(${legNum}, event)" class="text-slate-500 hover:text-red-400 text-sm cursor-pointer" title="Remove leg">×</span>
+                                    <span onclick="duplicateLeg(${legNum}, event)" class="text-slate-500 hover:text-blue-400 text-sm cursor-pointer" title="Duplicate option">⧉</span>
+                                    <span onclick="removeLeg(${legNum}, event)" class="text-slate-500 hover:text-red-400 text-sm cursor-pointer" title="Remove option">×</span>
                                 </div>
                             </div>
                             <div id="leg${legNum}-content" class="bg-[#0f1114]">
