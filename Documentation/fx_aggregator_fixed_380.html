@@ -648,20 +648,7 @@
                                 <span class="text-xs text-slate-300 font-bold">Leg1</span>
                                 <span class="text-[10px] text-slate-500">≫ Global</span>
                             </div>
-                            <div class="relative">
-                                <span onclick="toggleLegMenu(event)" class="text-slate-500 hover:text-white text-[10px] cursor-pointer">
-                                    ▼
-                                </span>
-                                <!-- Dropdown Menu -->
-                                <div id="leg-menu" class="hidden absolute right-0 top-full mt-1 bg-[#1e293b] border border-[#2e3a4b] rounded shadow-lg z-50 min-w-[140px]">
-                                    <div onclick="addLeg()" class="px-3 py-2 text-xs text-slate-300 hover:bg-[#2a3650] cursor-pointer">
-                                        Add Leg
-                                    </div>
-                                    <div onclick="duplicateLeg()" class="px-3 py-2 text-xs text-slate-300 hover:bg-[#2a3650] cursor-pointer border-t border-[#2e3a4b]">
-                                        Duplicate Leg
-                                    </div>
-                                </div>
-                            </div>
+                            <span onclick="addLeg(event)" class="text-slate-500 hover:text-white text-sm cursor-pointer">+</span>
                         </div>
 
                         <!-- Leg1 Content -->
@@ -1319,30 +1306,9 @@
 
         // Leg management
         let legCount = 1;
-        let legMenuOpen = false;
 
-        function toggleLegMenu(event) {
+        function addLeg(event) {
             event.stopPropagation();
-            const menu = document.getElementById('leg-menu');
-            legMenuOpen = !legMenuOpen;
-
-            if (legMenuOpen) {
-                menu.classList.remove('hidden');
-            } else {
-                menu.classList.add('hidden');
-            }
-        }
-
-        // Close menu when clicking outside
-        document.addEventListener('click', function(event) {
-            const menu = document.getElementById('leg-menu');
-            if (menu && legMenuOpen && !event.target.closest('#leg-menu') && !event.target.closest('button')) {
-                menu.classList.add('hidden');
-                legMenuOpen = false;
-            }
-        });
-
-        function addLeg() {
             legCount++;
             const legContainer = createLegPanel(legCount, {
                 type: 'Vanilla Option',
@@ -1354,25 +1320,6 @@
             });
 
             document.getElementById('leg1-container').insertAdjacentHTML('afterend', legContainer);
-            document.getElementById('leg-menu').classList.add('hidden');
-            legMenuOpen = false;
-        }
-
-        function duplicateLeg() {
-            legCount++;
-            // Get values from Leg1 (in a real implementation, you'd read the actual values)
-            const legContainer = createLegPanel(legCount, {
-                type: 'Vanilla Option',
-                optionType: 'CALL',
-                strike: '1.1751',
-                notional: 'EUR 10M',
-                expiry: '14 Jan 26',
-                tenor: '1M'
-            });
-
-            document.getElementById('leg1-container').insertAdjacentHTML('afterend', legContainer);
-            document.getElementById('leg-menu').classList.add('hidden');
-            legMenuOpen = false;
         }
 
         function createLegPanel(legNum, data) {
