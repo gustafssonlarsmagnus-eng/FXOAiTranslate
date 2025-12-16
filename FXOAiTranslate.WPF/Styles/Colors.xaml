@@ -19,8 +19,6 @@
     <SolidColorBrush x:Key="Brush.TextSub" Color="#FF888888"/>
     <SolidColorBrush x:Key="Brush.TextDim" Color="#FF555555"/>
 
-    </LinearGradientBrush>
 
-    </LinearGradientBrush>
 
 </ResourceDictionary>

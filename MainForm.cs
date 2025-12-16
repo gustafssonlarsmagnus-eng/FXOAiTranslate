@@ -646,7 +646,8 @@ namespace FXOAiTranslator
                 var tradeStructure = FXOptionsSimulator.OVMLBridge.ConvertToTradeStructure(ovmlResult);
 
                 // Show WPF Multi-LP Quote Window (Bloomberg-style dark mode)
-                var wpfWindow = new FXOAiTranslate.WPF.Views.MultiLPQuoteWindow(tradeStructure);
+                // var wpfWindow = new FXOAiTranslate.WPF.Views.MultiLPQuoteWindow(tradeStructure);
+                var wpfWindow = new FXOAiTranslate.WPF.Views.WebQuoteWindow();
                 wpfWindow.ShowDialog();
 
                 // Note: WPF windows return bool?, not DialogResult

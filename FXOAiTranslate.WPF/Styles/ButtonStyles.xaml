@@ -23,12 +23,7 @@
         </Style.Triggers>
     </Style>
 
-    </Style>
 
-    </Style>
-
-        <Setter Property="FontWeight" Value="Bold"/>
-    </Style>
 
     <Style x:Key="BigPremiumText" TargetType="TextBlock">
         <Setter Property="Foreground" Value="White"/>
