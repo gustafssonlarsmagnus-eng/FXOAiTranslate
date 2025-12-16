@@ -328,14 +328,17 @@
 
 <body>
 
-    <!-- MAIN CONTAINER - Fixed width 1220px (400 + 20 gap + 400 + 20 gap + 380 deal cards) -->
-    <div class="w-[1220px] h-screen flex flex-col p-2">
+    <!-- MAIN CONTAINER - Flexible width for horizontal scrolling -->
+    <div class="h-screen flex flex-col p-2 max-w-full overflow-x-auto">
 
-        <!-- THREE PANELS - 400px + 400px + 380px -->
+        <!-- PANELS CONTAINER - Multiple 400px leg panels + 380px deal cards -->
         <div class="flex gap-5 h-full">
 
-            <!-- LEFT PANEL: Execution & Aggregation - FIXED 400px -->
-            <div class="w-[400px] flex flex-col relative flex-shrink-0">
+            <!-- LEG PANELS CONTAINER - Can contain multiple 400px panels -->
+            <div id="leg-panels-container" class="flex gap-5 flex-shrink-0">
+
+                <!-- LEG 1 PANEL - 400px -->
+                <div id="leg1-panel" class="w-[400px] flex flex-col relative flex-shrink-0">
 
                 <!-- UNIFIED PRICING PANEL - Starts in RFQ state, transitions to prices on click -->
                 <div id="active-panel" class="flex-col h-full fade-in">
@@ -855,7 +858,9 @@
                         </div>
                     </div>
                 </div>
-            </div>
+                </div><!-- End leg1-panel -->
+
+            </div><!-- End leg-panels-container -->
 
             <!-- DEAL CARDS PANEL - Right side, 380px, starts collapsed -->
             <div id="deals-panel" class="deals-panel w-[380px] flex flex-col flex-shrink-0 collapsed">
@@ -1319,57 +1324,215 @@
                 tenor: '1M'
             });
 
-            document.getElementById('leg1-container').insertAdjacentHTML('afterend', legContainer);
+            // Insert new panel into leg-panels-container (before deal cards)
+            document.getElementById('leg-panels-container').insertAdjacentHTML('beforeend', legContainer);
+
+            // Create dynamic ladder toggle function for this leg
+            window[`toggleLadder${legCount}`] = function() {
+                toggleLadderForLeg(legCount);
+            };
+        }
+
+        function toggleLadderForLeg(legNum) {
+            const container = document.getElementById(`leg${legNum}-ladder-container`);
+            const arrow = document.getElementById(`leg${legNum}-ladder-arrow`);
+            const summary = document.getElementById(`leg${legNum}-ladder-summary`);
+
+            if (container.style.display === 'none' || container.style.display === '') {
+                container.style.display = 'flex';
+                container.style.maxHeight = '300px';
+                container.style.opacity = '1';
+                arrow.style.transform = 'rotate(-90deg)';
+                summary.classList.add('bg-[#1a1d23]');
+            } else {
+                container.style.display = 'none';
+                container.style.maxHeight = '0';
+                container.style.opacity = '0';
+                arrow.style.transform = 'rotate(0deg)';
+                summary.classList.remove('bg-[#1a1d23]');
+            }
         }
 
         function createLegPanel(legNum, data) {
             return `
-                <div id="leg${legNum}-container" class="bg-[#152040] border border-[#1e293b] rounded mt-1 overflow-hidden">
-                    <div class="flex items-center justify-between px-3 py-2 hover:bg-[#1a2850] transition">
-                        <div class="flex items-center gap-2 cursor-pointer flex-1" onclick="toggleLeg(${legNum})">
-                            <span id="leg${legNum}-arrow" class="text-slate-400 text-[10px]">▼</span>
-                            <span class="text-xs text-slate-300 font-bold">Leg${legNum}</span>
-                            <span class="text-[10px] text-slate-500">≫ Global</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <span onclick="duplicateLeg(${legNum}, event)" class="text-slate-500 hover:text-blue-400 text-sm cursor-pointer" title="Duplicate leg">⧉</span>
-                            <span onclick="removeLeg(${legNum}, event)" class="text-slate-500 hover:text-red-400 text-sm cursor-pointer" title="Remove leg">×</span>
-                        </div>
-                    </div>
-                    <div id="leg${legNum}-content" class="bg-[#0f1114]">
-                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Type</div>
-                            <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
-                                <span class="font-medium">${data.type}</span>
-                                <span class="text-slate-500 text-[9px]">▼</span>
+                <!-- LEG ${legNum} PANEL - 400px -->
+                <div id="leg${legNum}-panel" class="w-[400px] flex flex-col relative flex-shrink-0">
+                    <div id="leg${legNum}-active-panel" class="flex-col h-full fade-in">
+
+                        <!-- EXECUTION TILES FOR LEG ${legNum} -->
+                        <div class="flex h-48 w-full mb-1 gap-0.5 relative">
+
+                            <!-- BID SIDE -->
+                            <div id="leg${legNum}-bid-tile" onclick="startRFQ()"
+                                class="trade-tile flex-1 bg-tile-base hover-dark-mode rounded-l p-4 flex flex-col relative overflow-hidden group cursor-pointer border border-[#1e293b]">
+                                <div class="success-indicator bg-green-500/20 text-green-400" id="leg${legNum}-bid-success">✓</div>
+                                <div id="leg${legNum}-bid-label-container"
+                                    class="flex justify-start items-start w-full absolute top-4 left-0 px-4 invisible">
+                                    <span id="leg${legNum}-bid-label" class="text-xs font-bold text-green-500 tracking-widest">BID (VOL)</span>
+                                </div>
+                                <div class="flex-1 flex flex-col justify-center items-center">
+                                    <span id="leg${legNum}-bid-rfq-label"
+                                        class="text-[10px] text-slate-500 font-bold tracking-wider mb-1">CLICK TO RFQ (F9)</span>
+                                    <div id="leg${legNum}-bid-value"
+                                        class="text-slate-600 group-hover:text-white transition-colors duration-200 text-7xl font-bold tracking-tighter h-20 flex items-center">
+                                        RFQ</div>
+                                    <div id="leg${legNum}-bid-secondary"
+                                        class="text-sm font-bold text-slate-700 mt-2 font-mono tracking-wide group-hover:text-slate-400 transition-colors invisible">
+                                        ---</div>
+                                </div>
+                                <div id="leg${legNum}-bid-lp" class="absolute left-0 bottom-0 invisible flex items-center z-10">
+                                    <div class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px]"
+                                        style="background: linear-gradient(to right, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
+                                        <span class="text-lg font-bold text-white min-w-[50px]">JPM</span>
+                                        <span class="text-lg text-amber-400 font-bold">0:08</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- OFFER SIDE -->
+                            <div id="leg${legNum}-offer-tile" onclick="startRFQ()"
+                                class="trade-tile flex-1 bg-tile-base hover-dark-mode rounded-r p-4 flex flex-col relative overflow-hidden group cursor-pointer border border-[#1e293b]">
+                                <div class="success-indicator bg-blue-500/20 text-blue-400" id="leg${legNum}-offer-success">✓</div>
+                                <div id="leg${legNum}-offer-label-container"
+                                    class="flex justify-end items-start w-full absolute top-4 left-0 px-4 invisible">
+                                    <span id="leg${legNum}-offer-label" class="text-xs font-bold text-red-500 tracking-widest">OFFER (VOL)</span>
+                                </div>
+                                <div class="flex-1 flex flex-col justify-center items-center">
+                                    <span id="leg${legNum}-offer-rfq-label"
+                                        class="text-[10px] text-slate-500 font-bold tracking-wider mb-1">CLICK TO RFQ (F9)</span>
+                                    <div id="leg${legNum}-offer-value"
+                                        class="text-slate-600 group-hover:text-white transition-colors duration-200 text-7xl font-bold tracking-tighter h-20 flex items-center">
+                                        RFQ</div>
+                                    <div id="leg${legNum}-offer-secondary"
+                                        class="text-sm font-bold text-slate-700 mt-2 font-mono tracking-wide group-hover:text-slate-400 transition-colors invisible">
+                                        ---</div>
+                                </div>
+                                <div id="leg${legNum}-offer-lp" class="absolute right-0 bottom-0 invisible flex items-center z-10">
+                                    <div class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px] justify-end"
+                                        style="background: linear-gradient(to left, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
+                                        <span class="text-lg text-slate-400">1:52</span>
+                                        <span class="text-lg font-bold text-white min-w-[50px] text-right">DEUT</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SPREAD INDICATOR -->
+                            <div id="leg${legNum}-spread-indicator"
+                                class="absolute left-1/2 bottom-1 transform -translate-x-1/2 z-20 pointer-events-none invisible bg-[#0b0d10] px-3 py-1 rounded border border-[#1e293b]">
+                                <span class="text-lg font-bold text-white">0.6</span>
                             </div>
                         </div>
-                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Option Type</div>
-                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
-                                <span class="font-medium">${data.optionType}</span>
-                                <span class="text-slate-500 text-[9px]">▼</span>
+
+                        <!-- COMBINED CONTROL BAR -->
+                        <div class="bg-[#14161b] border border-[#1e293b] rounded px-3 py-1.5 flex items-center justify-between select-none">
+                            <div id="leg${legNum}-ladder-summary" onclick="toggleLadder${legNum}()"
+                                class="flex items-center gap-1 cursor-pointer hover:text-slate-300 transition">
+                                <span id="leg${legNum}-ladder-arrow"
+                                    class="text-slate-500 text-[10px] transition-transform duration-200">▼</span>
+                                <span class="text-[10px] text-slate-500 font-bold uppercase">4 LPs</span>
+                            </div>
+                            <div class="relative group">
+                                <div class="flex items-center gap-2 cursor-pointer px-3 py-2 -mx-2 -my-1 rounded hover:bg-[#1e293b] transition">
+                                    <span class="text-[10px] text-slate-500">Price Display</span>
+                                    <span id="leg${legNum}-price-display-bar" class="text-[10px] text-blue-400 font-bold uppercase min-w-[55px] text-right">VOL</span>
+                                    <span class="text-slate-500 text-[8px]">▼</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Strike</div>
-                            <div class="bg-[#0f1114] text-yellow-400 px-2 flex items-center justify-end hover:bg-[#1a1d23] cursor-pointer">
-                                <span class="font-bold">${data.strike}</span>
+
+                        <!-- LADDER FOR LEG ${legNum} -->
+                        <div id="leg${legNum}-ladder-container" style="display: none; max-height: 0; opacity: 0;"
+                            class="bg-[#14161b] border border-[#1e293b] rounded flex flex-col overflow-hidden transition-all duration-300 mt-1">
+                            <div class="grid grid-cols-[1fr_60px_1fr] bg-[#1a1d23] border-b border-[#1e293b] items-center py-1.5">
+                                <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">You Rec</div>
+                                <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider border-l border-r border-[#1e293b] h-full flex items-center justify-center">Venue</div>
+                                <div class="text-center text-[10px] text-slate-600 font-bold uppercase tracking-wider">You Pay</div>
+                            </div>
+
+                            <div id="leg${legNum}-ladder-content" class="overflow-y-auto flex-1 transition-all duration-300">
+                                <!-- Row 1 - DEUT -->
+                                <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group">
+                                    <div class="flex flex-col justify-center items-center opacity-60">
+                                        <div class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">5.42</div>
+                                        <div class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">69k | 39p</div>
+                                    </div>
+                                    <div class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
+                                        <span>DEUT</span>
+                                        <span class="text-[10px] text-slate-500 mt-0.5">0.40</span>
+                                    </div>
+                                    <div class="flex flex-col justify-center items-center best-offer-cell">
+                                        <div class="text-white font-bold text-sm group-hover:text-white transition-colors">5.82</div>
+                                        <div class="text-slate-600 font-medium text-[10px] mt-0.5 group-hover:text-slate-400">71k | 44p</div>
+                                    </div>
+                                </div>
+                                <!-- Row 2 - JPM -->
+                                <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group" style="opacity: 0.85">
+                                    <div class="flex flex-col justify-center items-center best-bid-cell">
+                                        <div class="text-white font-bold text-sm group-hover:text-white transition-colors">5.47</div>
+                                        <div class="text-slate-600 font-medium text-[10px] mt-0.5 group-hover:text-slate-400">68k | 43p</div>
+                                    </div>
+                                    <div class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
+                                        <span>JPM</span>
+                                        <span class="text-[10px] text-slate-500 mt-0.5">0.43</span>
+                                    </div>
+                                    <div class="flex flex-col justify-center items-center opacity-60">
+                                        <div class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">5.90</div>
+                                        <div class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">72k | 51p</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Notional</div>
-                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end hover:bg-[#1a1d23] cursor-pointer">
-                                <span class="font-medium">${data.notional}</span>
+
+                        <!-- LEG ${legNum} DETAILS PANEL -->
+                        <div id="leg${legNum}-container" class="bg-[#152040] border border-[#1e293b] rounded mt-1 overflow-hidden">
+                            <div class="flex items-center justify-between px-3 py-2 hover:bg-[#1a2850] transition">
+                                <div class="flex items-center gap-2 cursor-pointer flex-1" onclick="toggleLeg(${legNum})">
+                                    <span id="leg${legNum}-arrow" class="text-slate-400 text-[10px]">▼</span>
+                                    <span class="text-xs text-slate-300 font-bold">Leg${legNum}</span>
+                                    <span class="text-[10px] text-slate-500">≫ Global</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span onclick="duplicateLeg(${legNum}, event)" class="text-slate-500 hover:text-blue-400 text-sm cursor-pointer" title="Duplicate leg">⧉</span>
+                                    <span onclick="removeLeg(${legNum}, event)" class="text-slate-500 hover:text-red-400 text-sm cursor-pointer" title="Remove leg">×</span>
+                                </div>
+                            </div>
+                            <div id="leg${legNum}-content" class="bg-[#0f1114]">
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Type</div>
+                                    <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
+                                        <span class="font-medium">${data.type}</span>
+                                        <span class="text-slate-500 text-[9px]">▼</span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Option Type</div>
+                                    <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between hover:bg-[#1a1d23] cursor-pointer">
+                                        <span class="font-medium">${data.optionType}</span>
+                                        <span class="text-slate-500 text-[9px]">▼</span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Strike</div>
+                                    <div class="bg-[#0f1114] text-yellow-400 px-2 flex items-center justify-end hover:bg-[#1a1d23] cursor-pointer">
+                                        <span class="font-bold">${data.strike}</span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Notional</div>
+                                    <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end hover:bg-[#1a1d23] cursor-pointer">
+                                        <span class="font-medium">${data.notional}</span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Expiry Date</div>
+                                    <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                        <span class="font-medium">${data.expiry}</span>
+                                        <span class="text-blue-400 font-medium ml-2">${data.tenor}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Expiry Date</div>
-                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
-                                <span class="font-medium">${data.expiry}</span>
-                                <span class="text-blue-400 font-medium ml-2">${data.tenor}</span>
-                            </div>
-                        </div>
+
                     </div>
                 </div>
             `;
@@ -1390,9 +1553,11 @@
 
         function removeLeg(legNum, event) {
             event.stopPropagation();
-            const container = document.getElementById(`leg${legNum}-container`);
-            if (container) {
-                container.remove();
+            const panel = document.getElementById(`leg${legNum}-panel`);
+            if (panel) {
+                panel.remove();
+                // Clean up the dynamic toggle function
+                delete window[`toggleLadder${legNum}`];
             }
         }
 
@@ -1412,7 +1577,12 @@
             });
 
             // Insert after the leg being duplicated
-            document.getElementById(`leg${legNum}-container`).insertAdjacentHTML('afterend', legContainer);
+            document.getElementById(`leg${legNum}-panel`).insertAdjacentHTML('afterend', legContainer);
+
+            // Create dynamic ladder toggle function for this leg
+            window[`toggleLadder${legCount}`] = function() {
+                toggleLadderForLeg(legCount);
+            };
         }
 
         // Toggle Market Data section
