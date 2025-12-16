@@ -1331,7 +1331,10 @@
                             <span class="text-xs text-slate-300 font-bold">Leg${legNum}</span>
                             <span class="text-[10px] text-slate-500">≫ Global</span>
                         </div>
-                        <button onclick="removeLeg(${legNum})" class="text-slate-500 hover:text-red-400 text-sm cursor-pointer px-2 py-1">×</button>
+                        <div class="flex items-center gap-1">
+                            <span onclick="duplicateLeg(${legNum}, event)" class="text-slate-500 hover:text-blue-400 text-sm cursor-pointer" title="Duplicate leg">⧉</span>
+                            <span onclick="removeLeg(${legNum}, event)" class="text-slate-500 hover:text-red-400 text-sm cursor-pointer" title="Remove leg">×</span>
+                        </div>
                     </div>
                     <div id="leg${legNum}-content" class="bg-[#0f1114]">
                         <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
@@ -1385,11 +1388,31 @@
             }
         }
 
-        function removeLeg(legNum) {
+        function removeLeg(legNum, event) {
+            event.stopPropagation();
             const container = document.getElementById(`leg${legNum}-container`);
             if (container) {
                 container.remove();
             }
+        }
+
+        function duplicateLeg(legNum, event) {
+            event.stopPropagation();
+            legCount++;
+
+            // In a real implementation, you would read the actual values from leg${legNum}
+            // For now, we'll use the same default values
+            const legContainer = createLegPanel(legCount, {
+                type: 'Vanilla Option',
+                optionType: 'CALL',
+                strike: '1.1751',
+                notional: 'EUR 10M',
+                expiry: '14 Jan 26',
+                tenor: '1M'
+            });
+
+            // Insert after the leg being duplicated
+            document.getElementById(`leg${legNum}-container`).insertAdjacentHTML('afterend', legContainer);
         }
 
         // Toggle Market Data section
