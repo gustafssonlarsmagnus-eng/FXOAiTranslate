@@ -1330,10 +1330,29 @@
             // Insert new panel into leg-panels-container (before deal cards)
             document.getElementById('leg-panels-container').insertAdjacentHTML('beforeend', legContainer);
 
-            // Create dynamic ladder toggle function for this leg
+            // Create dynamic toggle functions for this leg
             window[`toggleLadder${legCount}`] = function() {
                 toggleLadderForLeg(legCount);
             };
+            window[`toggleMarketData${legCount}`] = function() {
+                toggleSection(`market-data-content-${legCount}`, `market-data-arrow-${legCount}`);
+            };
+            window[`toggleRisk${legCount}`] = function() {
+                toggleSection(`risk-content-${legCount}`, `risk-arrow-${legCount}`);
+            };
+        }
+
+        function toggleSection(contentId, arrowId) {
+            const content = document.getElementById(contentId);
+            const arrow = document.getElementById(arrowId);
+
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                content.style.display = 'none';
+                arrow.textContent = '▶';
+            }
         }
 
         function toggleLadderForLeg(legNum) {
@@ -1604,6 +1623,95 @@
                                         <span class="text-white font-medium">PAY 62.1k</span>
                                     </div>
                                 </div>
+
+                                <!-- Volatility -->
+                                <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
+                                    <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Volatility</div>
+                                    <div class="bg-[#14161b] px-2 flex items-center justify-end font-mono text-white font-medium">
+                                        5.176 / 5.386
+                                    </div>
+                                </div>
+
+                                <!-- Market Data Section -->
+                                <div class="mt-0.5">
+                                    <div onclick="toggleMarketData${legNum}()"
+                                        class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-medium flex items-center gap-2 cursor-pointer hover:bg-[#253048] transition">
+                                        <span id="market-data-arrow-${legNum}" class="text-slate-400 text-[9px]">▶</span>
+                                        <span>Market Data</span>
+                                    </div>
+                                    <div id="market-data-content-${legNum}" style="display: none;" class="bg-[#0f1114]">
+                                        <!-- Spot Rate -->
+                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Spot Rate</div>
+                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                                <span class="font-medium">1.1746</span>
+                                            </div>
+                                        </div>
+                                        <!-- Forward Points -->
+                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Forward Pts</div>
+                                            <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                                <span class="font-medium">0.0005</span>
+                                            </div>
+                                        </div>
+                                        <!-- Forward Rate -->
+                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Forward Rate</div>
+                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                                <span class="font-medium">1.1751</span>
+                                            </div>
+                                        </div>
+                                        <!-- ATM Vol -->
+                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">ATM Vol</div>
+                                            <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                                <span class="font-medium">5.47%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Risk Section -->
+                                <div class="mt-0.5 mb-0.5">
+                                    <div onclick="toggleRisk${legNum}()"
+                                        class="bg-[#1e293b] text-slate-300 px-2 py-1 text-[11px] font-medium flex items-center gap-2 cursor-pointer hover:bg-[#253048] transition">
+                                        <span id="risk-arrow-${legNum}" class="text-slate-400 text-[9px]">▶</span>
+                                        <span>Risk</span>
+                                    </div>
+                                    <div id="risk-content-${legNum}" style="display: none;" class="bg-[#0f1114]">
+                                        <!-- Delta -->
+                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta</div>
+                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between">
+                                                <span class="font-medium">EUR</span>
+                                                <span class="font-bold">5,023,800</span>
+                                            </div>
+                                        </div>
+                                        <!-- Delta % -->
+                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta %</div>
+                                            <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
+                                                <span class="font-medium">50.24%</span>
+                                            </div>
+                                        </div>
+                                        <!-- Vega -->
+                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
+                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Vega</div>
+                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between">
+                                                <span class="font-medium">EUR</span>
+                                                <span class="font-bold">4,850 /1%</span>
+                                            </div>
+                                        </div>
+                                        <!-- Notional -->
+                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
+                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Notional</div>
+                                            <div class="bg-[#14161b] text-white px-2 flex items-center justify-between">
+                                                <span class="font-medium">EUR</span>
+                                                <span class="font-bold">10,000,000</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1630,8 +1738,10 @@
             const panel = document.getElementById(`leg${legNum}-panel`);
             if (panel) {
                 panel.remove();
-                // Clean up the dynamic toggle function
+                // Clean up the dynamic toggle functions
                 delete window[`toggleLadder${legNum}`];
+                delete window[`toggleMarketData${legNum}`];
+                delete window[`toggleRisk${legNum}`];
             }
         }
 
@@ -1653,9 +1763,15 @@
             // Insert after the leg being duplicated
             document.getElementById(`leg${legNum}-panel`).insertAdjacentHTML('afterend', legContainer);
 
-            // Create dynamic ladder toggle function for this leg
+            // Create dynamic toggle functions for this leg
             window[`toggleLadder${legCount}`] = function() {
                 toggleLadderForLeg(legCount);
+            };
+            window[`toggleMarketData${legCount}`] = function() {
+                toggleSection(`market-data-content-${legCount}`, `market-data-arrow-${legCount}`);
+            };
+            window[`toggleRisk${legCount}`] = function() {
+                toggleSection(`risk-content-${legCount}`, `risk-arrow-${legCount}`);
             };
         }
 
