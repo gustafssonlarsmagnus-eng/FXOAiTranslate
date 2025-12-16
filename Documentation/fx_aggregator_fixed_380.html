@@ -1072,7 +1072,7 @@
             const lpName = side === 'bid' ? 'JPM' : 'DEUT';
             const borderColor = isBuy ? 'green' : 'red';
             const sideText = isBuy ? 'BUY' : 'SELL';
-            const premiumSign = isBuy ? '+' : '-';  // Buy pays (+), Sell receives (-)
+            const premiumLabel = isBuy ? 'Pay' : 'Receive';  // Buy = Pay, Sell = Receive
             const premiumColor = isBuy ? 'red' : 'green';
             const premiumAmt = Math.floor(Math.random() * 50000) + 10000;
             const vol = (5 + Math.random() * 2).toFixed(2);
@@ -1103,7 +1103,7 @@
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-slate-500">Premium</span>
-                                    <span class="text-${premiumColor}-400 font-bold">${premiumSign}€${premiumAmt.toLocaleString()}</span>
+                                    <span class="text-${premiumColor}-400 font-bold">${premiumLabel} €${premiumAmt.toLocaleString()}</span>
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 gap-4 text-[11px] mb-3">
