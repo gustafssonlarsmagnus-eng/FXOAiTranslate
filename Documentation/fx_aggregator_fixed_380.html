@@ -378,6 +378,26 @@
                 <!-- UNIFIED PRICING PANEL - Starts in RFQ state, transitions to prices on click -->
                 <div id="active-panel" class="flex-col h-full fade-in">
 
+                    <!-- NATURAL LANGUAGE INPUT -->
+                    <div class="mb-2">
+                        <div class="relative">
+                            <input
+                                type="text"
+                                id="trade-input"
+                                placeholder="E.g., buy 10M EURUSD 1M call 1.18"
+                                class="w-full bg-[#0f1114] border border-[#1e293b] rounded px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all"
+                                onkeypress="if(event.key === 'Enter') parseTradeInput()"
+                            />
+                            <button
+                                onclick="parseTradeInput()"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-medium rounded transition-colors"
+                            >
+                                Parse
+                            </button>
+                        </div>
+                        <div id="parse-feedback" class="mt-1 text-xs h-4"></div>
+                    </div>
+
                     <!-- EXECUTION TILES -->
                     <div class="flex h-48 w-full mb-2 gap-0.5 relative">
 
@@ -919,6 +939,99 @@
 
     <script>
         let rfqActive = false;
+
+        // Trade Parser - Natural Language Processing
+        function parseTradeInput() {
+            const input = document.getElementById('trade-input').value.trim();
+            const feedback = document.getElementById('parse-feedback');
+
+            if (!input) {
+                feedback.className = 'mt-1 text-xs h-4 text-slate-600';
+                feedback.textContent = '';
+                return;
+            }
+
+            try {
+                const parsed = parseTradeString(input);
+
+                if (parsed) {
+                    // Update header with parsed trade
+                    const headerText = `${parsed.currencyPair} | ${parsed.tenor} ${parsed.optionType}`;
+                    document.querySelector('h1').innerHTML = `<span class="text-sm font-bold tracking-tight text-slate-500">${parsed.currencyPair} <span class="text-slate-700">|</span> ${parsed.tenor} ${parsed.optionType}</span>`;
+
+                    // Show success feedback
+                    feedback.className = 'mt-1 text-xs h-4 text-green-400';
+                    feedback.textContent = `✓ Parsed: ${parsed.direction} ${parsed.notional}M ${parsed.currencyPair} ${parsed.tenor} ${parsed.optionType} @ ${parsed.strike}`;
+
+                    // Auto-trigger RFQ
+                    setTimeout(() => {
+                        startRFQ();
+                    }, 500);
+
+                    // Clear input after short delay
+                    setTimeout(() => {
+                        document.getElementById('trade-input').value = '';
+                        feedback.textContent = '';
+                    }, 3000);
+                } else {
+                    feedback.className = 'mt-1 text-xs h-4 text-amber-400';
+                    feedback.textContent = '⚠ Could not parse trade. Try: "buy 10M EURUSD 1M call 1.18"';
+                }
+            } catch (error) {
+                feedback.className = 'mt-1 text-xs h-4 text-red-400';
+                feedback.textContent = `✗ Error: ${error.message}`;
+            }
+        }
+
+        function parseTradeString(input) {
+            const inputLower = input.toLowerCase();
+
+            // Extract currency pair (6 chars, e.g., EURUSD, EURNOK)
+            const currencyPairs = ['eurusd', 'usdjpy', 'gbpusd', 'audusd', 'usdcad', 'usdchf',
+                                   'nzdusd', 'eurgbp', 'eurjpy', 'gbpjpy', 'eurchf', 'audjpy',
+                                   'euraud', 'eurnok', 'eursek', 'usdnok', 'usdsek', 'usdtry',
+                                   'usdmxn', 'usdzar', 'eurcad', 'audnzd', 'noksek', 'eurtry'];
+
+            let currencyPair = null;
+            for (const pair of currencyPairs) {
+                if (inputLower.includes(pair)) {
+                    currencyPair = pair.toUpperCase();
+                    break;
+                }
+            }
+
+            if (!currencyPair) return null;
+
+            // Extract direction (buy/sell)
+            const direction = inputLower.includes('buy') ? 'BUY' : inputLower.includes('sell') ? 'SELL' : 'BUY';
+
+            // Extract option type (call/put)
+            const optionType = inputLower.includes('call') ? 'CALL' : inputLower.includes('put') ? 'PUT' : 'CALL';
+
+            // Extract notional (e.g., 10M, 25M)
+            const notionalMatch = input.match(/(\d+(?:\.\d+)?)\s*M(?:M)?/i);
+            const notional = notionalMatch ? notionalMatch[1] : '10';
+
+            // Extract tenor (e.g., 1M, 3M, 6M, 1Y) or expiry date
+            let tenor = '1M';
+            const tenorMatch = input.match(/(\d+)\s*([MDWY])/i);
+            if (tenorMatch) {
+                tenor = tenorMatch[1] + tenorMatch[2].toUpperCase();
+            }
+
+            // Extract strike (decimal number, typically 4-5 digits with decimals)
+            const strikeMatch = input.match(/\b(\d+\.\d{2,4})\b/);
+            const strike = strikeMatch ? strikeMatch[1] : '1.1750';
+
+            return {
+                currencyPair,
+                direction,
+                optionType,
+                notional,
+                tenor,
+                strike
+            };
+        }
 
         function startRFQ() {
             if (rfqActive) return; // Already active, use executeTrade instead
