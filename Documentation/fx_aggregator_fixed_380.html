@@ -1014,39 +1014,87 @@
 
                     <div class="deal-details px-3 pb-3">
                         <div class="bg-[#0f1114] rounded p-3 mt-1">
-                            <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">Strike</span>
-                                    <span class="text-yellow-400 font-bold">1.1643</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">Notional</span>
-                                    <span class="text-white font-medium">EUR 10MM</span>
-                                </div>
-                            </div>
+                            <!-- Section: Pricing -->
+                            <div class="text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Pricing</div>
                             <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
                                 <div class="flex justify-between">
                                     <span class="text-slate-500">Vol</span>
-                                    <span class="text-white">${vol}%</span>
+                                    <span class="text-white font-medium">${vol}%</span>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">Delta</span>
-                                    <span class="text-white">${delta}</span>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
                                 <div class="flex justify-between">
                                     <span class="text-slate-500">Premium</span>
                                     <span class="text-${premiumColor}-400 font-bold">${premiumSign}€${premiumAmt.toLocaleString()}</span>
                                 </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 text-[11px] mb-3">
                                 <div class="flex justify-between">
-                                    <span class="text-slate-500">Expiry</span>
-                                    <span class="text-blue-400">16 Dec 25</span>
+                                    <span class="text-slate-500">EUR Pips</span>
+                                    <span class="text-white font-medium">${(premiumAmt / 1000).toFixed(0)}p</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Spot Rate</span>
+                                    <span class="text-white font-medium">1.1746</span>
                                 </div>
                             </div>
-                            <div class="border-t border-[#1e293b] my-2"></div>
+
+                            <!-- Section: Trade Details -->
+                            <div class="border-t border-[#1e293b]/50 pt-2 mb-2"></div>
+                            <div class="text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Trade Details</div>
+                            <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Strike</span>
+                                    <span class="text-yellow-400 font-bold">1.1751 <span class="text-slate-500 text-[9px]">(ATM)</span></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Notional</span>
+                                    <span class="text-white font-medium">EUR 10M</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 text-[11px] mb-3">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Expiry</span>
+                                    <span class="text-blue-400 font-medium">14 Jan 26 <span class="text-slate-500 text-[9px]">(1M)</span></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">ExpCut</span>
+                                    <span class="text-white font-medium">NYC</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 text-[11px] mb-3">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Settlement</span>
+                                    <span class="text-white font-medium">PHYSICAL</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Style</span>
+                                    <span class="text-white font-medium">EUROPEAN</span>
+                                </div>
+                            </div>
+
+                            <!-- Section: Risk & Hedge -->
+                            <div class="border-t border-[#1e293b]/50 pt-2 mb-2"></div>
+                            <div class="text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Risk & Hedge</div>
+                            <div class="grid grid-cols-2 gap-4 text-[11px] mb-2">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Delta</span>
+                                    <span class="text-white font-medium">${delta} <span class="text-slate-500 text-[9px]">(50.24%)</span></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Vega</span>
+                                    <span class="text-white font-medium">€4,850 / 1%</span>
+                                </div>
+                            </div>
+                            <div class="text-[11px] mb-3">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Spot Hedge</span>
+                                    <span class="text-white font-medium">${isBuy ? 'Sell' : 'Buy'} EUR 5,023,800 @ 1.1746</span>
+                                </div>
+                            </div>
+
+                            <!-- Footer: Order ID and Status -->
+                            <div class="border-t border-[#1e293b] pt-2"></div>
                             <div class="flex justify-between text-[10px]">
-                                <span class="text-slate-600 font-mono">${orderId}...</span>
+                                <span class="text-slate-600 font-mono">${orderId}</span>
                                 <span class="text-amber-400 font-bold animate-pulse">PENDING</span>
                             </div>
                         </div>
