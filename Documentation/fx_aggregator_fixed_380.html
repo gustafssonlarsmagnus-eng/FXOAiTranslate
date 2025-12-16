@@ -222,27 +222,6 @@
             display: none;
         }
 
-        /* Rectangular notch cutout for spread indicator */
-        .bid-tile-notch {
-            border-radius: 0.25rem 0 0 0.25rem;
-            clip-path: polygon(0% 0%,
-                    100% 0%,
-                    100% calc(100% - 36px),
-                    calc(100% - 35px) calc(100% - 36px),
-                    calc(100% - 35px) 100%,
-                    0% 100%);
-        }
-
-        .offer-tile-notch {
-            border-radius: 0 0.25rem 0.25rem 0;
-            clip-path: polygon(0% 0%,
-                    100% 0%,
-                    100% 100%,
-                    35px 100%,
-                    35px calc(100% - 36px),
-                    0% calc(100% - 36px),
-                    0% 0%);
-        }
 
         /* Deal Cards Styling */
         .deal-details {
@@ -386,7 +365,7 @@
 
                         <!-- BID SIDE -->
                         <div id="bid-tile" onclick="startRFQ()"
-                            class="trade-tile flex-1 bg-tile-base hover-dark-mode bid-tile-notch p-4 flex flex-col relative overflow-hidden group cursor-pointer border border-[#1e293b]">
+                            class="trade-tile flex-1 bg-tile-base hover-dark-mode rounded-l p-4 flex flex-col relative overflow-hidden group cursor-pointer border border-[#1e293b]">
                             <div class="success-indicator bg-green-500/20 text-green-400" id="bid-success">✓</div>
                             <div id="bid-label-container"
                                 class="flex justify-start items-start w-full absolute top-4 left-0 px-4 invisible">
@@ -415,7 +394,7 @@
 
                         <!-- OFFER SIDE -->
                         <div id="offer-tile" onclick="startRFQ()"
-                            class="trade-tile flex-1 bg-tile-base hover-dark-mode offer-tile-notch p-4 flex flex-col relative overflow-hidden group cursor-pointer border border-[#1e293b]">
+                            class="trade-tile flex-1 bg-tile-base hover-dark-mode rounded-r p-4 flex flex-col relative overflow-hidden group cursor-pointer border border-[#1e293b]">
                             <div class="success-indicator bg-blue-500/20 text-blue-400" id="offer-success">✓</div>
                             <div id="offer-label-container"
                                 class="flex justify-end items-start w-full absolute top-4 left-0 px-4 invisible">
@@ -442,9 +421,9 @@
                             </div>
                         </div>
 
-                        <!-- SPREAD INDICATOR - Bottom Edge (initially hidden) -->
+                        <!-- SPREAD INDICATOR - Centered Badge Overlay (initially hidden) -->
                         <div id="spread-indicator"
-                            class="absolute left-1/2 bottom-1 transform -translate-x-1/2 z-20 pointer-events-none invisible">
+                            class="absolute left-1/2 bottom-1 transform -translate-x-1/2 z-20 pointer-events-none invisible bg-[#0b0d10] px-3 py-1 rounded-full border border-[#1e293b]">
                             <span class="text-lg font-bold text-white">0.6</span>
                         </div>
 
