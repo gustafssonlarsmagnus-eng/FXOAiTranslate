@@ -651,7 +651,10 @@
                                 <span class="text-xs text-slate-300 font-bold">Leg1</span>
                                 <span class="text-[10px] text-slate-500">≫ Global</span>
                             </div>
-                            <span onclick="addLeg(event)" class="text-slate-500 hover:text-white text-sm cursor-pointer">+</span>
+                            <div class="flex items-center gap-1">
+                                <span onclick="addLeg(event)" class="text-slate-500 hover:text-white text-sm cursor-pointer" title="Add new leg">+</span>
+                                <span onclick="duplicateLeg(1, event)" class="text-slate-500 hover:text-blue-400 text-sm cursor-pointer" title="Duplicate leg">⧉</span>
+                            </div>
                         </div>
 
                         <!-- Leg1 Content -->
