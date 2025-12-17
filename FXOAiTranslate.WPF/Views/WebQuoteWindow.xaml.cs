@@ -20,13 +20,20 @@ namespace FXOAiTranslate.WPF.Views
         private readonly string _groupId;
         private bool _isWebViewReady = false;
         private readonly Dictionary<string, FIXMessage> _quotesByQuoteId = new Dictionary<string, FIXMessage>();
-        private readonly string[] _lps = { "DEUT", "JPM", "CITI", "BARX" };
+        private readonly List<string> _lps;
 
         public WebQuoteWindow(TradeStructure trade)
         {
             InitializeComponent();
             _trade = trade;
             _groupId = $"WebAgg_{Guid.NewGuid():N}";
+
+            // Load LP list from FenicsConfig
+            var fenicsConfig = new FenicsConfig();
+            _lps = fenicsConfig.LiquidityProviders.Keys.ToList();
+
+            Console.WriteLine($"[WebQuoteWindow] Loaded {_lps.Count} LPs from FenicsConfig: {string.Join(", ", _lps)}");
+
             InitializeWebView();
         }
 
@@ -100,7 +107,7 @@ namespace FXOAiTranslate.WPF.Views
         }
 
         /// <summary>
-        /// Send trade details to JavaScript UI on initialization
+        /// Send trade details and LP configuration to JavaScript UI on initialization
         /// </summary>
         private void SendTradeDetailsToUI()
         {
@@ -114,6 +121,7 @@ namespace FXOAiTranslate.WPF.Views
                     expiryISO = _trade.Expiry.ToString("yyyy-MM-dd"),
                     spot = _trade.SpotReference,
                     structureType = _trade.StructureType,
+                    lps = _lps, // Send dynamic LP list from FenicsConfig
                     legs = _trade.Legs.Select(leg => new
                     {
                         direction = leg.Direction,
@@ -126,7 +134,7 @@ namespace FXOAiTranslate.WPF.Views
                 var json = JsonSerializer.Serialize(message);
                 webView.CoreWebView2.PostWebMessageAsJson(json);
 
-                Console.WriteLine($"[WebQuoteWindow] Sent trade details to UI: {_trade.Underlying} {_trade.Legs.Count} leg(s)");
+                Console.WriteLine($"[WebQuoteWindow] Sent trade details to UI: {_trade.Underlying} {_trade.Legs.Count} leg(s), {_lps.Count} LPs");
             }
             catch (Exception ex)
             {

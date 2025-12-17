@@ -2001,6 +2001,11 @@
                 spotRateElement.textContent = trade.spot.toFixed(4);
             }
 
+            // Build dynamic LP ladder from configuration
+            if (trade.lps && trade.lps.length > 0) {
+                buildDynamicLPLadder(trade.lps);
+            }
+
             // Determine structure type name
             const structureTypes = {
                 '1': 'Vanilla Option',
@@ -2028,6 +2033,48 @@
 
             // Store trade data globally for execution
             window.tradeData = trade;
+        }
+
+        // Dynamically build LP ladder rows from LP configuration
+        function buildDynamicLPLadder(lps) {
+            console.log(`[FX Aggregator] Building ladder for ${lps.length} LPs: ${lps.join(', ')}`);
+
+            // Update LP count in UI
+            const ladderSummary = document.querySelector('#ladder-summary span:nth-child(2)');
+            if (ladderSummary) {
+                ladderSummary.textContent = `${lps.length} LPs`;
+            }
+
+            // Clear existing hardcoded rows
+            const ladderContent = document.getElementById('ladder-content');
+            if (!ladderContent) return;
+
+            ladderContent.innerHTML = '';
+
+            // Create a row for each LP
+            lps.forEach(lp => {
+                const row = document.createElement('div');
+                row.className = 'ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group';
+
+                row.innerHTML = `
+                    <div class="flex flex-col justify-center items-center opacity-60">
+                        <div class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">—</div>
+                        <div class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">—</div>
+                    </div>
+                    <div class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
+                        <span>${lp}</span>
+                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="${lp}" onchange="toggleLP(this)">
+                    </div>
+                    <div class="flex flex-col justify-center items-center opacity-60">
+                        <div class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">—</div>
+                        <div class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">—</div>
+                    </div>
+                `;
+
+                ladderContent.appendChild(row);
+            });
+
+            console.log(`[FX Aggregator] Created ${lps.length} LP rows dynamically`);
         }
 
         // Update LP ladder with live quote from GFI
