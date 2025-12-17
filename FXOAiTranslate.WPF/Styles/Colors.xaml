@@ -39,8 +39,8 @@
     <SolidColorBrush x:Key="BrushTextSecondary" Color="{StaticResource ColorTextSecondary}"/>
     <SolidColorBrush x:Key="BrushTextMuted" Color="{StaticResource ColorTextMuted}"/>
     
-    <SolidColorBrush x:Key="BrushBuy" Color="{StaticResource ColorTextBuy}"/>
-    <SolidColorBrush x:Key="BrushSell" Color="{StaticResource ColorTextSell}"/>
+    <SolidColorBrush x:Key="BrushTextBuy" Color="{StaticResource ColorTextBuy}"/>
+    <SolidColorBrush x:Key="BrushTextSell" Color="{StaticResource ColorTextSell}"/>
     <SolidColorBrush x:Key="BrushCall" Color="{StaticResource ColorTextCall}"/>
     <SolidColorBrush x:Key="BrushPut" Color="{StaticResource ColorTextPut}"/>
     

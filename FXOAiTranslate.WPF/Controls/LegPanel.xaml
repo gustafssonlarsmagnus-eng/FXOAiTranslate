@@ -42,7 +42,7 @@
                             Content="PARSE"
                             Margin="5,0,0,0"
                             Width="50"
-                            Style="{StaticResource ExecutionButtonBorder}"
+                            Style="{StaticResource ExecutionButtonStyle}"
                             Background="{StaticResource BrushBackgroundHeader}"
                             Foreground="{StaticResource BrushTextPrimary}"
                             FontSize="10"
@@ -58,7 +58,8 @@
                           BorderBrush="{StaticResource BrushBorder}"
                           BorderThickness="1"
                           Margin="0,0,0,10">
-                    <StackPanel Background="{StaticResource BrushBackgroundPanel}" Padding="5">
+                    <Border Background="{StaticResource BrushBackgroundPanel}" Padding="5">
+                        <StackPanel>
                         
                         <!-- Manual Entry Fields (using LegDetailRow lookalikes but editable) -->
                         <Grid Margin="0,2">
@@ -124,7 +125,8 @@
                             <TextBox Grid.Column="1" Text="{Binding SpotRefInput}" Height="24" Tag="SP..."/>
                         </Grid>
                         
-                    </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </Expander>
 
                 <!-- PRICE DISPLAY TOGGLE -->

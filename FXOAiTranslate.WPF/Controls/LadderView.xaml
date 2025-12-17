@@ -41,7 +41,7 @@
                                            Text="{Binding BidVol}" 
                                            FontSize="13" 
                                            FontWeight="Bold" 
-                                           Foreground="{StaticResource BrushSell}" 
+                                           Foreground="{StaticResource BrushTextSell}" 
                                            HorizontalAlignment="Right" 
                                            VerticalAlignment="Center"
                                            Margin="0,0,10,0"/>
@@ -100,7 +100,7 @@
                                            Text="{Binding OfferVol}" 
                                            FontSize="13" 
                                            FontWeight="Bold" 
-                                           Foreground="{StaticResource BrushBuy}" 
+                                           Foreground="{StaticResource BrushTextBuy}" 
                                            HorizontalAlignment="Left" 
                                            VerticalAlignment="Center"
                                            Margin="10,0,0,0"/>
