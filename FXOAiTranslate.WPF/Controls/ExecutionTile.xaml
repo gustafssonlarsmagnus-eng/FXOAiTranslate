@@ -1,0 +1,99 @@
+<UserControl x:Class="FXOAiTranslate.WPF.Controls.ExecutionTile"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="100" d:DesignWidth="150">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/Styles.xaml"/>
+                <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/ButtonStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource ExecutionButtonBorder}" 
+            x:Name="MainBorder"
+            Background="{StaticResource BrushBackgroundPanel}"
+            MouseLeftButtonUp="Border_MouseLeftButtonUp">
+        
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header: YOU SELL / YOU BUY -->
+            <TextBlock x:Name="HeaderLabel"
+                       Grid.Row="0"
+                       Text="{Binding SideLabel, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                       HorizontalAlignment="Left"
+                       Margin="8,5,0,0"
+                       FontSize="11"
+                       FontWeight="Bold"
+                       Foreground="{StaticResource BrushTextMuted}"/>
+
+            <!-- Price Display -->
+            <StackPanel Grid.Row="1" 
+                        Orientation="Horizontal" 
+                        HorizontalAlignment="Center" 
+                        VerticalAlignment="Center">
+                
+                <!-- RFQ State: Show "RFQ" text if not executable/no price -->
+                <TextBlock Text="RFQ"
+                           FontSize="24"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource BrushTextPrimary}"
+                           Visibility="{Binding IsRfqState, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                <!-- Live Price State -->
+                <StackPanel Orientation="Horizontal"
+                            Visibility="{Binding IsRfqState, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                    
+                    <!-- Big Figure -->
+                    <TextBlock x:Name="BigFigText"
+                               Text="{Binding BigFigure, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                               FontSize="16"
+                               Foreground="{StaticResource BrushTextSecondary}"
+                               VerticalAlignment="Bottom"
+                               Margin="0,0,2,4"/>
+
+                    <!-- Pips (Large) -->
+                    <TextBlock x:Name="PipsText"
+                               Text="{Binding Pips, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                               FontSize="36"
+                               FontWeight="Bold"
+                               Foreground="{Binding PriceBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                               VerticalAlignment="Bottom"
+                               LineHeight="36"/>
+
+                    <!-- Tenths (Small superscript) -->
+                    <TextBlock x:Name="TenthsText"
+                               Text="{Binding Tenths, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                               FontSize="14"
+                               Foreground="{StaticResource BrushTextSecondary}"
+                               VerticalAlignment="Top"
+                               Margin="2,8,0,0"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Footer: Liquidity / Info -->
+            <TextBlock Grid.Row="2"
+                       Text="{Binding FooterText, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                       HorizontalAlignment="Center"
+                       FontSize="10"
+                       Foreground="{StaticResource BrushTextMuted}"
+                       Margin="0,0,0,5"/>
+            
+            <!-- Liquidity Pulse Animation (placeholder) -->
+            <Rectangle Grid.RowSpan="3" 
+                       Fill="Transparent" 
+                       IsHitTestVisible="False"
+                       x:Name="FlashOverlay"/>
+        </Grid>
+    </Border>
+</UserControl>

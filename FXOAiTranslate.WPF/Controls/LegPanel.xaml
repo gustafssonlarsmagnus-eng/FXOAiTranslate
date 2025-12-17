@@ -1,0 +1,207 @@
+<UserControl x:Class="FXOAiTranslate.WPF.Controls.LegPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:FXOAiTranslate.WPF.Controls"
+             mc:Ignorable="d" 
+             d:DesignHeight="800" d:DesignWidth="400">
+
+    <UserControl.Resources>
+        <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/Styles.xaml"/>
+    </UserControl.Resources>
+
+    <Border Background="{StaticResource BrushBackgroundMain}" 
+            BorderBrush="{StaticResource BrushBorder}"
+            BorderThickness="0,0,1,0">
+        
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="10">
+                
+                <!-- HEADER / NLP INPUT -->
+                <TextBlock Text="Initial Request (AI Parsed)" 
+                           Foreground="{StaticResource BrushTextMuted}" 
+                           FontSize="10" 
+                           Margin="0,0,0,2"/>
+                
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBox x:Name="TxtInput"
+                             Grid.Column="0"
+                             Text="{Binding RawInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Height="30"
+                             VerticalContentAlignment="Center"
+                             FontSize="12"
+                             Tag="Type trade (e.g. 'buy 10m eurusd 1m call 1.12')"/>
+                    
+                    <Button Grid.Column="1"
+                            Content="PARSE"
+                            Margin="5,0,0,0"
+                            Width="50"
+                            Style="{StaticResource ExecutionButtonBorder}"
+                            Background="{StaticResource BrushBackgroundHeader}"
+                            Foreground="{StaticResource BrushTextPrimary}"
+                            FontSize="10"
+                            FontWeight="Bold"
+                            Command="{Binding ParseCommand}"/> 
+                </Grid>
+
+                <!-- OPTION DETAILS EXPANDER -->
+                <Expander IsExpanded="True" 
+                          Header="Option Details"
+                          Background="{StaticResource BrushBackgroundHeader}"
+                          Foreground="{StaticResource BrushTextPrimary}"
+                          BorderBrush="{StaticResource BrushBorder}"
+                          BorderThickness="1"
+                          Margin="0,0,0,10">
+                    <StackPanel Background="{StaticResource BrushBackgroundPanel}" Padding="5">
+                        
+                        <!-- Manual Entry Fields (using LegDetailRow lookalikes but editable) -->
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Strike" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding Strike}" Height="24"/>
+                        </Grid>
+
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Term" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding Tenor}" Height="24"/>
+                        </Grid>
+
+                         <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Expiry" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding ExpiryDateString}" Height="24" IsReadOnly="True" Background="{StaticResource BrushBackgroundMain}" Foreground="{StaticResource BrushTextMuted}"/>
+                        </Grid>
+
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Type" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                            <ComboBox Grid.Column="1" SelectedItem="{Binding OptionType}" Height="24">
+                                <ComboBoxItem Content="CALL"/>
+                                <ComboBoxItem Content="PUT"/>
+                            </ComboBox>
+                        </Grid>
+                        
+                         <!-- Hedge / Spot Ref Section -->
+                        <Grid Margin="0,8,0,2"> <!-- Extra margin for separate section -->
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Hedge" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                            <ComboBox Grid.Column="1" SelectedItem="{Binding HedgeType}" Height="24">
+                                <ComboBoxItem Content="None"/>
+                                <ComboBoxItem Content="Spot"/>
+                                <ComboBoxItem Content="Forward"/>
+                            </ComboBox>
+                        </Grid>
+
+                         <!-- Spot Ref Input (Visible only if Hedge != None) -->
+                        <Grid Margin="0,2" Visibility="{Binding IsHedgeEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Spot Ref" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding SpotRefInput}" Height="24" Tag="SP..."/>
+                        </Grid>
+                        
+                    </StackPanel>
+                </Expander>
+
+                <!-- PRICE DISPLAY TOGGLE -->
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Display:" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" Margin="10,0,0,0" Height="22" SelectedIndex="0"
+                              SelectedValuePath="Tag"
+                              SelectedValue="{Binding PriceDisplayMode}"> <!-- 1=Vol, 2=Prem, 3=Pips -->
+                        <ComboBoxItem Content="Volatility (Purple)" Tag="1"/>
+                        <ComboBoxItem Content="Premium (Green)" Tag="2"/>
+                        <ComboBoxItem Content="Pips (Green)" Tag="3"/>
+                    </ComboBox>
+                </Grid>
+
+                <!-- EXECUTION TILES -->
+                <Grid Height="110" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- BID TILE -->
+                    <local:ExecutionTile Grid.Column="0"
+                                         SideLabel="YOU SELL"
+                                         Price="{Binding BestBidPrice}"
+                                         IsRfqState="{Binding IsRfqState}"
+                                         FooterText="{Binding BestBidLP}"
+                                         Command="{Binding ExecuteBidCommand}"/>
+
+                    <!-- ASK TILE -->
+                    <local:ExecutionTile Grid.Column="2" 
+                                         SideLabel="YOU BUY"
+                                         Price="{Binding BestAskPrice}"
+                                         IsRfqState="{Binding IsRfqState}"
+                                         FooterText="{Binding BestAskLP}"
+                                         PriceBrush="{StaticResource BrushTextBuy}" 
+                                         Command="{Binding ExecuteAskCommand}"/>
+                </Grid>
+                
+                <!-- MARKET DATA & RISK (Compact) -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Spot / Delta -->
+                    <local:LegDetailRow Label="Spot" Value="{Binding MarketSpot}" Grid.Row="0" Grid.Column="0" Margin="0,0,2,2"/>
+                    <local:LegDetailRow Label="Delta" Value="{Binding RiskDelta}" Grid.Row="0" Grid.Column="1" Margin="2,0,0,2"/>
+                    
+                    <!-- Fwd / Vol -->
+                    <local:LegDetailRow Label="Fwd Pts" Value="{Binding MarketFwdPts}" Grid.Row="1" Grid.Column="0" Margin="0,2,2,0"/>
+                    <local:LegDetailRow Label="Vol" Value="{Binding RiskVol}" Grid.Row="1" Grid.Column="1" Margin="2,2,0,0"/>
+
+                </Grid>
+
+                <!-- LADDER VIEW -->
+                <Expander x:Name="ExpanderLadder" 
+                          Header="Liquidity Ladder" 
+                          IsExpanded="True"
+                          Background="{StaticResource BrushBackgroundHeader}"
+                          Foreground="{StaticResource BrushTextPrimary}"
+                          BorderBrush="{StaticResource BrushBorder}"
+                          BorderThickness="1">
+                    <local:LadderView Height="250"/>
+                </Expander>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>

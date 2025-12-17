@@ -683,8 +683,23 @@ namespace FXOAiTranslator
                 }
             };
 
-            var dialog = new GFIQuoteDialog(testTrade);
-            dialog.Show();
+                }
+            };
+
+            // OLD:
+            // var dialog = new GFIQuoteDialog(testTrade);
+            // dialog.Show();
+
+            // NEW: Open WPF FX Aggregator
+            try 
+            {
+                var wpfWindow = new FXOAiTranslate.WPF.Views.FXAggregatorWindow();
+                wpfWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error opening WPF Window: {ex.Message}");
+            }
         }
 
         private void SetupEventHandlers()

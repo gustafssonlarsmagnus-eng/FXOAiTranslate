@@ -1,0 +1,120 @@
+<UserControl x:Class="FXOAiTranslate.WPF.Controls.LadderView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="400">
+
+    <UserControl.Resources>
+        <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/Styles.xaml"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <DataGrid x:Name="LadderGrid"
+                  ItemsSource="{Binding LPRows}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserResizeRows="False"
+                  CanUserSortColumns="True"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal">
+            
+            <DataGrid.Columns>
+                <!-- YOU REC (BID) -->
+                <DataGridTemplateColumn Header="YOU REC" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid Opacity="{Binding StalenessOpacity}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Sub Values (Prem/Pips) -->
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="5,0">
+                                    <TextBlock Text="{Binding BidPremium}" FontSize="10" Foreground="{StaticResource BrushTextSecondary}"/>
+                                    <TextBlock Text="{Binding BidPips}" FontSize="10" Foreground="{StaticResource BrushTextMuted}"/>
+                                </StackPanel>
+                                <!-- Main Vol/Price -->
+                                <TextBlock Grid.Column="1" 
+                                           Text="{Binding BidVol}" 
+                                           FontSize="13" 
+                                           FontWeight="Bold" 
+                                           Foreground="{StaticResource BrushSell}" 
+                                           HorizontalAlignment="Right" 
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,10,0"/>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- VENUE (Center) -->
+                <DataGridTemplateColumn Header="VENUE" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <!-- Checkbox -->
+                                <CheckBox Grid.Column="0" 
+                                          IsChecked="{Binding IsEnabled, UpdateSourceTrigger=PropertyChanged}"
+                                          VerticalAlignment="Center"
+                                          Margin="5,0"/>
+                                
+                                <!-- LP Name -->
+                                <TextBlock Grid.Column="1" 
+                                           Text="{Binding LPName}" 
+                                           FontWeight="Bold" 
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center"/>
+                                
+                                <!-- Response Time -->
+                                <TextBlock Grid.Column="2" 
+                                           Text="{Binding ResponseTime}" 
+                                           FontSize="9" 
+                                           Foreground="{StaticResource BrushTextMuted}" 
+                                           VerticalAlignment="Center"
+                                           Margin="5,0"/>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- YOU PAY (OFFER) -->
+                <DataGridTemplateColumn Header="YOU PAY" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid Opacity="{Binding StalenessOpacity}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Main Vol/Price -->
+                                <TextBlock Grid.Column="0" 
+                                           Text="{Binding OfferVol}" 
+                                           FontSize="13" 
+                                           FontWeight="Bold" 
+                                           Foreground="{StaticResource BrushBuy}" 
+                                           HorizontalAlignment="Left" 
+                                           VerticalAlignment="Center"
+                                           Margin="10,0,0,0"/>
+                                
+                                <!-- Sub Values (Prem/Pips) -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="5,0">
+                                    <TextBlock Text="{Binding OfferPremium}" FontSize="10" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="{Binding OfferPips}" FontSize="10" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Right"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

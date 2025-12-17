@@ -1,0 +1,84 @@
+<UserControl x:Class="FXOAiTranslate.WPF.Controls.DealsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="800" d:DesignWidth="300">
+
+    <UserControl.Resources>
+        <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/Styles.xaml"/>
+    </UserControl.Resources>
+
+    <Border Background="{StaticResource BrushBackgroundPanel}" 
+            BorderBrush="{StaticResource BrushBorder}"
+            BorderThickness="1,0,0,0">
+        
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
+            <!-- HEADER -->
+            <Border Grid.Row="0" Background="{StaticResource BrushBackgroundHeader}" Padding="10,5">
+                <TextBlock Text="Trade Blotter" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+            </Border>
+            
+            <!-- BLOTTER GRID -->
+            <DataGrid Grid.Row="1"
+                      x:Name="BlotterGrid"
+                      ItemsSource="{Binding Trades}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      CanUserResizeRows="True"
+                      IsReadOnly="True"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal">
+                
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat=HH:mm:ss}" Width="60" Foreground="{StaticResource BrushTextMuted}"/>
+                    <DataGridTextColumn Header="ID" Binding="{Binding DisplayID}" Width="70"/>
+                    <DataGridTextColumn Header="Symbol" Binding="{Binding Symbol}" Width="60"/>
+                    <DataGridTextColumn Header="Side" Binding="{Binding Side}" Width="40">
+                         <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Side}" Value="BUY">
+                                        <Setter Property="Foreground" Value="{StaticResource BrushTextBuy}"/>
+                                    </DataTrigger>
+                                     <DataTrigger Binding="{Binding Side}" Value="SELL">
+                                        <Setter Property="Foreground" Value="{StaticResource BrushTextSell}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Amt" Binding="{Binding Amount, StringFormat={}{0}M}" Width="45"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}" Value="FILLED">
+                                        <Setter Property="Foreground" Value="{StaticResource BrushStatusFilled}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Status}" Value="CONFIRMED">
+                                        <Setter Property="Foreground" Value="{StaticResource BrushStatusFilled}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Status}" Value="REJECTED">
+                                        <Setter Property="Foreground" Value="{StaticResource BrushStatusRejected}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Status}" Value="PENDING">
+                                        <Setter Property="Foreground" Value="{StaticResource BrushStatusNew}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </Border>
+</UserControl>

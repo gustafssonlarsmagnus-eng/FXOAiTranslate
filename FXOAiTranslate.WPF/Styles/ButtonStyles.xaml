@@ -10,7 +10,7 @@
 
     <Style x:Key="ExecutionButtonBorder" TargetType="Border">
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Effect">
             <Setter.Value>
@@ -47,13 +47,13 @@
     <Style x:Key="ButtonHeaderText" TargetType="TextBlock">
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="FontWeight" Value="Bold"/>
-        <Setter Property="Foreground" Value="{StaticResource Brush.TextSub}"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
     </Style>
 
     <!-- Bank Tag Style (small bank name badge) -->
     <Style x:Key="BankTag" TargetType="Border">
         <Setter Property="Background" Value="#FF1A1A1A"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="2"/>
         <Setter Property="Padding" Value="6,2"/>
