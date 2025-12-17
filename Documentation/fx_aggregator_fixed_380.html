@@ -438,8 +438,8 @@
                                 <div id="bid-lp" class="absolute left-0 bottom-0 invisible flex items-center z-10">
                                     <div class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px]"
                                         style="background: linear-gradient(to right, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
-                                        <span class="text-lg font-bold text-white min-w-[50px]">JPM</span>
-                                        <span class="text-lg text-amber-400 font-bold">0:08</span>
+                                        <span class="text-lg font-bold text-white min-w-[50px]" id="bid-lp-name">—</span>
+                                        <span class="text-lg text-amber-400 font-bold" id="bid-lp-timer">—</span>
                                     </div>
                                 </div>
                             </div>
@@ -467,8 +467,8 @@
                                 <div id="offer-lp" class="absolute right-0 bottom-0 invisible flex items-center z-10">
                                     <div class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px] justify-end"
                                         style="background: linear-gradient(to left, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
-                                        <span class="text-lg text-slate-400">1:52</span>
-                                        <span class="text-lg font-bold text-white min-w-[50px] text-right">DEUT</span>
+                                        <span class="text-lg text-slate-400" id="offer-lp-timer">—</span>
+                                        <span class="text-lg font-bold text-white min-w-[50px] text-right" id="offer-lp-name">—</span>
                                     </div>
                                 </div>
                             </div>
@@ -510,8 +510,8 @@
                                 <div class="tooltip-divider"></div>
                                 <div class="tooltip-section">
                                     <div class="tooltip-label">Liquidity Provider</div>
-                                    <div class="tooltip-value"><span class="tooltip-highlight">JPM</span> | Quote valid
-                                        for <span class="tooltip-highlight">0:08</span></div>
+                                    <div class="tooltip-value"><span class="tooltip-highlight">—</span> | Quote valid
+                                        for <span class="tooltip-highlight">—</span></div>
                                 </div>
                             </div>
 
@@ -547,8 +547,8 @@
                                 <div class="tooltip-divider"></div>
                                 <div class="tooltip-section">
                                     <div class="tooltip-label">Liquidity Provider</div>
-                                    <div class="tooltip-value"><span class="tooltip-highlight">DEUT</span> | Quote valid
-                                        for <span class="tooltip-highlight">1:52</span></div>
+                                    <div class="tooltip-value"><span class="tooltip-highlight">—</span> | Quote valid
+                                        for <span class="tooltip-highlight">—</span></div>
                                 </div>
                             </div>
                         </div>
@@ -610,106 +610,7 @@
                             </div>
 
                             <div id="ladder-content" class="overflow-y-auto flex-1 transition-all duration-300">
-                                <!-- Row 1 - DEUT: Fresh quote (full opacity) -->
-                                <div
-                                    class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group">
-                                    <div class="flex flex-col justify-center items-center opacity-60">
-                                        <div
-                                            class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">
-                                            5.42</div>
-                                        <div
-                                            class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                            69k | 39p</div>
-                                    </div>
-                                    <div
-                                        class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                        <span>DEUT</span>
-                                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="DEUT" onchange="toggleLP(this)">
-                                    </div>
-                                    <div class="flex flex-col justify-center items-center best-offer-cell">
-                                        <div
-                                            class="text-white font-bold text-sm group-hover:text-white transition-colors">
-                                            5.82</div>
-                                        <div
-                                            class="text-slate-600 font-medium text-[10px] mt-0.5 group-hover:text-slate-400">
-                                            71k | 44p</div>
-                                    </div>
-                                </div>
-                                <!-- Row 2 - JPM: Slightly stale (80% opacity) -->
-                                <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group"
-                                    style="opacity: 0.85">
-                                    <div class="flex flex-col justify-center items-center best-bid-cell">
-                                        <div
-                                            class="text-white font-bold text-sm group-hover:text-white transition-colors">
-                                            5.47</div>
-                                        <div
-                                            class="text-slate-600 font-medium text-[10px] mt-0.5 group-hover:text-slate-400">
-                                            68k | 43p</div>
-                                    </div>
-                                    <div
-                                        class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                        <span>JPM</span>
-                                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="JPM" onchange="toggleLP(this)">
-                                    </div>
-                                    <div class="flex flex-col justify-center items-center opacity-60">
-                                        <div
-                                            class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">
-                                            5.90</div>
-                                        <div
-                                            class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                            72k | 51p</div>
-                                    </div>
-                                </div>
-                                <!-- Row 3 - CITI: Stale (60% opacity) -->
-                                <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group"
-                                    style="opacity: 0.6">
-                                    <div class="flex flex-col justify-center items-center opacity-60">
-                                        <div
-                                            class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">
-                                            5.44</div>
-                                        <div
-                                            class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                            68k | 40p</div>
-                                    </div>
-                                    <div
-                                        class="flex flex-col items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                        <span>CITI</span>
-                                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="CITI" onchange="toggleLP(this)">
-                                    </div>
-                                    <div class="flex flex-col justify-center items-center opacity-60">
-                                        <div
-                                            class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">
-                                            5.88</div>
-                                        <div
-                                            class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                            75k | 49p</div>
-                                    </div>
-                                </div>
-                                <!-- Row 4 - BARX: Nearly expired (30% opacity) -->
-                                <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group"
-                                    style="opacity: 0.35">
-                                    <div class="flex flex-col justify-center items-center opacity-60">
-                                        <div
-                                            class="text-white/70 font-medium text-sm group-hover:text-white transition-colors">
-                                            5.41</div>
-                                        <div
-                                            class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                            67k | 38p</div>
-                                    </div>
-                                    <div
-                                        class="flex flex-col items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                        <span>BARX</span>
-                                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="BARX" onchange="toggleLP(this)">
-                                    </div>
-                                    <div class="flex flex-col justify-center items-center opacity-60">
-                                        <div
-                                            class="text-white/70 font-medium text-sm group-hover:text-white transition-colors">
-                                            5.91</div>
-                                        <div
-                                            class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">
-                                            76k | 52p</div>
-                                    </div>
-                                </div>
+                                <!-- LP rows will be populated dynamically by buildDynamicLPLadder() -->
                             </div>
                         </div>
 
@@ -1110,23 +1011,9 @@
             }
         }
 
-        function executeTrade(event, side) {
-            const tile = document.getElementById(side + '-tile');
-
-            // Flash Effect - deep inner glow
-            tile.classList.remove('trade-flash-' + side); // Reset if clicked rapidly
-            void tile.offsetWidth; // Force reflow to restart animation
-            tile.classList.add('trade-flash-' + side);
-
-            setTimeout(() => {
-                tile.classList.remove('trade-flash-' + side);
-            }, 750);
-
-            // Create deal card
-            createDealCard(side);
-        }
-
         let dealCount = 0;
+        let currentBestBidLP = null;
+        let currentBestOfferLP = null;
 
         function createDealCard(side) {
             const container = document.getElementById('deals-container');
@@ -1146,7 +1033,7 @@
             const now = new Date();
             const timeStr = now.toTimeString().slice(0, 8);
             const isBuy = side === 'offer';  // OFFER = client buys, BID = client sells
-            const lpName = side === 'bid' ? 'JPM' : 'DEUT';
+            const lpName = side === 'bid' ? (currentBestBidLP || '—') : (currentBestOfferLP || '—');
             const borderColor = isBuy ? 'green' : 'red';
             const sideText = isBuy ? 'BUY' : 'SELL';
             const premiumLabel = isBuy ? 'Pay' : 'Receive';  // Buy = Pay, Sell = Receive
@@ -1502,8 +1389,8 @@
                                 <div id="leg${legNum}-bid-lp" class="absolute left-0 bottom-0 invisible flex items-center z-10">
                                     <div class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px]"
                                         style="background: linear-gradient(to right, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
-                                        <span class="text-lg font-bold text-white min-w-[50px]">JPM</span>
-                                        <span class="text-lg text-amber-400 font-bold">0:08</span>
+                                        <span class="text-lg font-bold text-white min-w-[50px]">—</span>
+                                        <span class="text-lg text-amber-400 font-bold">—</span>
                                     </div>
                                 </div>
                             </div>
@@ -1529,8 +1416,8 @@
                                 <div id="leg${legNum}-offer-lp" class="absolute right-0 bottom-0 invisible flex items-center z-10">
                                     <div class="rounded px-3 py-1 flex items-center gap-2 shadow-lg min-w-[100px] justify-end"
                                         style="background: linear-gradient(to left, rgba(30, 58, 138, 0.3), rgba(30, 58, 138, 0.05));">
-                                        <span class="text-lg text-slate-400">1:52</span>
-                                        <span class="text-lg font-bold text-white min-w-[50px] text-right">DEUT</span>
+                                        <span class="text-lg text-slate-400">—</span>
+                                        <span class="text-lg font-bold text-white min-w-[50px] text-right">—</span>
                                     </div>
                                 </div>
                             </div>
@@ -2311,6 +2198,10 @@
             let bestBidVol = null;
             let bestOfferVol = null;
 
+            // Reset global best LP tracking
+            currentBestBidLP = null;
+            currentBestOfferLP = null;
+
             // Iterate through checked (enabled) LPs only, excluding expired quotes
             document.querySelectorAll('.lp-checkbox:checked').forEach(checkbox => {
                 const row = checkbox.closest('.ladder-row');
@@ -2342,6 +2233,7 @@
                         bestBid = bid;
                         bestBidLP = lp;
                         bestBidVol = bidVol;
+                        currentBestBidLP = lp;  // Update global tracking
                     }
 
                     // Best OFFER = lowest (you pay less)
@@ -2349,6 +2241,7 @@
                         bestOffer = offer;
                         bestOfferLP = lp;
                         bestOfferVol = offerVol;
+                        currentBestOfferLP = lp;  // Update global tracking
                     }
                 }
             });
@@ -2369,6 +2262,12 @@
                 const bidLPElement = bidTile.querySelector('.text-xs.text-slate-500');
                 if (bidLPElement) {
                     bidLPElement.textContent = bestBidLP || '—';
+                }
+
+                // Update bid-lp overlay LP name
+                const bidLPNameElement = document.getElementById('bid-lp-name');
+                if (bidLPNameElement) {
+                    bidLPNameElement.textContent = bestBidLP || '—';
                 }
 
                 // Update volatility in secondary display
@@ -2397,6 +2296,12 @@
                 const offerLPElement = offerTile.querySelector('.text-xs.text-slate-500');
                 if (offerLPElement) {
                     offerLPElement.textContent = bestOfferLP || '—';
+                }
+
+                // Update offer-lp overlay LP name
+                const offerLPNameElement = document.getElementById('offer-lp-name');
+                if (offerLPNameElement) {
+                    offerLPNameElement.textContent = bestOfferLP || '—';
                 }
 
                 // Update volatility in secondary display
