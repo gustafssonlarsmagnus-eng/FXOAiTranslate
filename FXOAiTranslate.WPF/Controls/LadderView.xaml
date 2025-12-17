@@ -26,26 +26,34 @@
                 <DataGridTemplateColumn Header="YOU REC" Width="*">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Grid Opacity="{Binding StalenessOpacity}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <!-- Sub Values (Prem/Pips) -->
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="5,0">
-                                    <TextBlock Text="{Binding BidPremium}" FontSize="10" Foreground="{StaticResource BrushTextSecondary}"/>
-                                    <TextBlock Text="{Binding BidPips}" FontSize="10" Foreground="{StaticResource BrushTextMuted}"/>
-                                </StackPanel>
-                                <!-- Main Vol/Price -->
-                                <TextBlock Grid.Column="1" 
-                                           Text="{Binding BidVol}" 
-                                           FontSize="13" 
-                                           FontWeight="Bold" 
-                                           Foreground="{StaticResource BrushTextSell}" 
-                                           HorizontalAlignment="Right" 
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,10,0"/>
-                            </Grid>
+                            <Border x:Name="BidBorder" BorderThickness="3,0,0,0" BorderBrush="Transparent" Padding="5,0">
+                                <Grid Opacity="{Binding StalenessOpacity}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- Sub Values (Prem/Pips) -->
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="5,0">
+                                        <TextBlock Text="{Binding BidPremium}" FontSize="10" Foreground="{StaticResource BrushTextSecondary}"/>
+                                        <TextBlock Text="{Binding BidPips}" FontSize="10" Foreground="{StaticResource BrushTextMuted}"/>
+                                    </StackPanel>
+                                    <!-- Main Vol/Price -->
+                                    <TextBlock Grid.Column="1" 
+                                               Text="{Binding BidVol}" 
+                                               FontSize="13" 
+                                               FontWeight="Bold" 
+                                               Foreground="{StaticResource BrushTextSell}" 
+                                               HorizontalAlignment="Right" 
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,10,0"/>
+                                </Grid>
+                            </Border>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsBestBid}" Value="True">
+                                    <Setter TargetName="BidBorder" Property="Background" Value="{StaticResource BrushBestBidGradient}"/>
+                                    <Setter TargetName="BidBorder" Property="BorderBrush" Value="{StaticResource BrushBestPriceBorder}"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -90,27 +98,35 @@
                 <DataGridTemplateColumn Header="YOU PAY" Width="*">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Grid Opacity="{Binding StalenessOpacity}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <!-- Main Vol/Price -->
-                                <TextBlock Grid.Column="0" 
-                                           Text="{Binding OfferVol}" 
-                                           FontSize="13" 
-                                           FontWeight="Bold" 
-                                           Foreground="{StaticResource BrushTextBuy}" 
-                                           HorizontalAlignment="Left" 
-                                           VerticalAlignment="Center"
-                                           Margin="10,0,0,0"/>
-                                
-                                <!-- Sub Values (Prem/Pips) -->
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="5,0">
-                                    <TextBlock Text="{Binding OfferPremium}" FontSize="10" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Right"/>
-                                    <TextBlock Text="{Binding OfferPips}" FontSize="10" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Right"/>
-                                </StackPanel>
-                            </Grid>
+                            <Border x:Name="OfferBorder" BorderThickness="0,0,3,0" BorderBrush="Transparent" Padding="5,0">
+                                <Grid Opacity="{Binding StalenessOpacity}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- Main Vol/Price -->
+                                    <TextBlock Grid.Column="0" 
+                                               Text="{Binding OfferVol}" 
+                                               FontSize="13" 
+                                               FontWeight="Bold" 
+                                               Foreground="{StaticResource BrushTextBuy}" 
+                                               HorizontalAlignment="Left" 
+                                               VerticalAlignment="Center"
+                                               Margin="10,0,0,0"/>
+                                    
+                                    <!-- Sub Values (Prem/Pips) -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="5,0">
+                                        <TextBlock Text="{Binding OfferPremium}" FontSize="10" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Right"/>
+                                        <TextBlock Text="{Binding OfferPips}" FontSize="10" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Right"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsBestOffer}" Value="True">
+                                    <Setter TargetName="OfferBorder" Property="Background" Value="{StaticResource BrushBestOfferGradient}"/>
+                                    <Setter TargetName="OfferBorder" Property="BorderBrush" Value="{StaticResource BrushBestPriceBorder}"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

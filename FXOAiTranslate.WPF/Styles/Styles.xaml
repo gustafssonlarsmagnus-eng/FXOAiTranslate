@@ -10,6 +10,21 @@
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
 
+    <!-- Best Price Gradients -->
+    <LinearGradientBrush x:Key="BrushBestBidGradient" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="{StaticResource ColorAccentBlue}" Offset="0.0"/>
+        <GradientStop Color="#001a4d" Offset="0.4"/> <!-- Dark fade -->
+        <GradientStop Color="Transparent" Offset="1.0"/>
+    </LinearGradientBrush>
+    
+    <LinearGradientBrush x:Key="BrushBestOfferGradient" StartPoint="1,0" EndPoint="0,0">
+        <GradientStop Color="{StaticResource ColorAccentBlue}" Offset="0.0"/>
+        <GradientStop Color="#001a4d" Offset="0.4"/>
+        <GradientStop Color="Transparent" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <SolidColorBrush x:Key="BrushBestPriceBorder" Color="{StaticResource ColorAccentBlue}"/>
+
     <!-- Base TextBlock Style -->
     <Style TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>

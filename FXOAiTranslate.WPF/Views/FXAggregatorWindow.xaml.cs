@@ -1,4 +1,6 @@
 using System.Windows;
+using FXOAiTranslate.WPF.ViewModels;
+using FXOptionsSimulator;
 
 namespace FXOAiTranslate.WPF.Views
 {
@@ -10,6 +12,8 @@ namespace FXOAiTranslate.WPF.Views
         public FXAggregatorWindow()
         {
             InitializeComponent();
+            // Initialize with sample data for design verification
+            this.DataContext = new MultiLPQuoteViewModel(new TradeStructure());
         }
     }
 }
