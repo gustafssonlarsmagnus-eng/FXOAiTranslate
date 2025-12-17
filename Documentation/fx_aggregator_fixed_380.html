@@ -223,37 +223,18 @@
             display: none;
         }
 
-        /* Discreet LP Toggle Button */
-        .lp-toggle {
-            display: inline-block;
-            padding: 2px 6px;
-            font-size: 8px;
-            font-weight: bold;
-            text-transform: uppercase;
-            border-radius: 3px;
-            cursor: pointer;
-            user-select: none;
-            background: #374151;
-            color: #9ca3af;
-            border: none;
-            transition: all 0.2s ease;
+        /* LP Checkbox Styling */
+        .lp-checkbox {
+            width: 14px;
+            height: 14px;
             margin-top: 4px;
+            accent-color: #3b82f6;
         }
 
-        .lp-toggle.on {
-            background: #3b82f6;
-            color: white;
-        }
-
-        .lp-toggle:hover {
-            opacity: 0.8;
-        }
-
-        /* Ensure toggle column stays visible when LP is disabled */
-        .lp-disabled .lp-toggle {
+        /* Ensure checkbox stays visible when LP is disabled */
+        .lp-disabled .lp-checkbox {
             opacity: 1 !important;
         }
-
 
         /* Deal Cards Styling */
         .deal-details {
@@ -643,7 +624,7 @@
                                     <div
                                         class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
                                         <span>DEUT</span>
-                                        <span class="lp-toggle on" data-lp="DEUT" onclick="toggleLP(this)">ON</span>
+                                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="DEUT" onchange="toggleLP(this)">
                                     </div>
                                     <div class="flex flex-col justify-center items-center best-offer-cell">
                                         <div
@@ -668,7 +649,7 @@
                                     <div
                                         class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
                                         <span>JPM</span>
-                                        <span class="lp-toggle on" data-lp="JPM" onclick="toggleLP(this)">ON</span>
+                                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="JPM" onchange="toggleLP(this)">
                                     </div>
                                     <div class="flex flex-col justify-center items-center opacity-60">
                                         <div
@@ -693,7 +674,7 @@
                                     <div
                                         class="flex flex-col items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
                                         <span>CITI</span>
-                                        <span class="lp-toggle on" data-lp="CITI" onclick="toggleLP(this)">ON</span>
+                                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="CITI" onchange="toggleLP(this)">
                                     </div>
                                     <div class="flex flex-col justify-center items-center opacity-60">
                                         <div
@@ -718,7 +699,7 @@
                                     <div
                                         class="flex flex-col items-center justify-center font-semibold text-slate-600 text-xs border-l border-r border-[#1e293b] ladder-col-mid">
                                         <span>BARX</span>
-                                        <span class="lp-toggle on" data-lp="BARX" onclick="toggleLP(this)">ON</span>
+                                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="BARX" onchange="toggleLP(this)">
                                     </div>
                                     <div class="flex flex-col justify-center items-center opacity-60">
                                         <div
@@ -1148,30 +1129,36 @@
         }
 
         // Toggle LP on/off in ladder
-        function toggleLP(toggle) {
-            const lp = toggle.dataset.lp;
-            const row = toggle.closest('.ladder-row');
+        function toggleLP(checkbox) {
+            const lp = checkbox.dataset.lp;
+            const row = checkbox.closest('.ladder-row');
             const priceColumns = row.querySelectorAll(':scope > div:not(:nth-child(2))'); // All except middle column
-
-            // Toggle the on class
-            toggle.classList.toggle('on');
-            const isOn = toggle.classList.contains('on');
-
-            // Update button text
-            toggle.textContent = isOn ? 'ON' : 'OFF';
+            const isOn = checkbox.checked;
 
             if (isOn) {
                 // Re-enable LP - restore price columns
                 priceColumns.forEach(col => col.style.opacity = '');
                 row.classList.remove('lp-disabled');
             } else {
-                // Disable LP - dim only the price columns, keep toggle visible
+                // Disable LP - dim only the price columns, keep checkbox visible
                 priceColumns.forEach(col => col.style.opacity = '0.2');
                 row.classList.add('lp-disabled');
             }
 
+            // Update LP count
+            updateLPCount();
+
             // In real implementation: update aggregation logic here
             console.log(`LP ${lp} is now ${isOn ? 'enabled' : 'disabled'}`);
+        }
+
+        function updateLPCount() {
+            const checkedCount = document.querySelectorAll('.lp-checkbox:checked').length;
+            const summary = document.getElementById('ladder-summary');
+            const countLabel = summary?.querySelector('.text-xs.text-slate-500');
+            if (countLabel) {
+                countLabel.textContent = `${checkedCount} LPs`;
+            }
         }
 
         function executeTrade(event, side) {
