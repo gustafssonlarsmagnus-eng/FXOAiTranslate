@@ -113,12 +113,15 @@ namespace FXOAiTranslate.WPF.Views
         {
             try
             {
+                // Get expiry from first leg (all legs should have same expiry for single structure)
+                var expiryDate = _trade.Legs.Count > 0 ? _trade.Legs[0].ExpiryDate : DateTime.Now;
+
                 var message = new
                 {
                     type = "tradeDetails",
                     underlying = _trade.Underlying,
-                    expiry = _trade.Expiry.ToString("dd-MMM-yy"),
-                    expiryISO = _trade.Expiry.ToString("yyyy-MM-dd"),
+                    expiry = expiryDate.ToString("dd-MMM-yy"),
+                    expiryISO = expiryDate.ToString("yyyy-MM-dd"),
                     spot = _trade.SpotReference,
                     structureType = _trade.StructureType,
                     lps = _lps, // Send dynamic LP list from FenicsConfig
