@@ -223,6 +223,18 @@ if (quote.IsSetField(5678)) // Volatility tag
                 // Fire new QuoteData event for WebView2 integration
                 try
                 {
+                    // Helper to safely parse double from FIX field
+                    double ParseFieldDouble(int tag)
+                    {
+                        if (quote.IsSetField(tag))
+                        {
+                            string value = quote.GetString(tag);
+                            if (double.TryParse(value, out double result))
+                                return result;
+                        }
+                        return 0;
+                    }
+
                     var quoteData = new QuoteData
                     {
                         LP = lpName,
@@ -230,10 +242,10 @@ if (quote.IsSetField(5678)) // Volatility tag
                         QuoteID = quoteID,
                         Timestamp = DateTime.Now,
                         Underlying = quote.IsSetField(Tags.Symbol) ? quote.GetString(Tags.Symbol) : "",
-                        BidPremium = side == "BID" && quote.IsSetField(6436) ? quote.GetDouble(6436) : 0,
-                        OfferPremium = side == "OFFER" && quote.IsSetField(6436) ? quote.GetDouble(6436) : 0,
-                        BidVol = side == "BID" && quote.IsSetField(5678) ? quote.GetDouble(5678) : 0,
-                        OfferVol = side == "OFFER" && quote.IsSetField(5678) ? quote.GetDouble(5678) : 0
+                        BidPremium = side == "BID" ? ParseFieldDouble(6436) : 0,
+                        OfferPremium = side == "OFFER" ? ParseFieldDouble(6436) : 0,
+                        BidVol = side == "BID" ? ParseFieldDouble(5678) : 0,
+                        OfferVol = side == "OFFER" ? ParseFieldDouble(5678) : 0
                     };
 
                     OnQuoteDataReceived?.Invoke(quoteData);
