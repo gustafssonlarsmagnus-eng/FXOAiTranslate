@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
 using FXOptionsSimulator;
+using FXOptionsSimulator.FIX;
 
 namespace FXOAiTranslate.WPF.Views
 {
@@ -14,12 +16,16 @@ namespace FXOAiTranslate.WPF.Views
     public partial class WebQuoteWindow : Window
     {
         private readonly TradeStructure _trade;
+        private readonly string _groupId;
         private bool _isWebViewReady = false;
+        private readonly Dictionary<string, FIXMessage> _quotesByQuoteId = new Dictionary<string, FIXMessage>();
+        private readonly string[] _lps = { "DEUT", "JPM", "CITI", "BARX" };
 
         public WebQuoteWindow(TradeStructure trade)
         {
             InitializeComponent();
             _trade = trade;
+            _groupId = $"WebAgg_{Guid.NewGuid():N}";
             InitializeWebView();
         }
 
@@ -31,12 +37,9 @@ namespace FXOAiTranslate.WPF.Views
                 await webView.EnsureCoreWebView2Async();
 
                 // Map a virtual host to the Documentation directory
-                // This allows accessing files via https://app.local/ instead of file:///
-                // which is more secure and avoids CORS issues.
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string documentationFolder = Path.Combine(baseDir, "Documentation");
 
-                // Create Documentation folder if it doesn't exist
                 if (!Directory.Exists(documentationFolder))
                 {
                     Directory.CreateDirectory(documentationFolder);
@@ -48,15 +51,14 @@ namespace FXOAiTranslate.WPF.Views
                     CoreWebView2HostResourceAccessKind.Allow
                 );
 
-                // Disable default context menus for a "native" feel
-                webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                 // Keep dev tools enabled for debugging
                 webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+                webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
 
                 // Set up message handler for JavaScript -> C# communication
                 webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
-                // Navigate to the FX aggregator page via the virtual host
+                // Navigate to the FX aggregator page
                 webView.CoreWebView2.Navigate("https://app.local/fx_aggregator_fixed_380.html");
 
                 // Subscribe to quotes after page loads
@@ -77,18 +79,14 @@ namespace FXOAiTranslate.WPF.Views
                 // Subscribe to GFI FIX quote updates
                 if (GlobalFIXSession.Instance != null)
                 {
-                    GlobalFIXSession.Instance.OnQuoteReceived += HandleQuoteReceived;
+                    // Subscribe to quote received event (with FIXMessage)
+                    GlobalFIXSession.Instance.Application.OnQuoteReceived += HandleQuoteReceivedWithFIXMessage;
 
-                    // Send initial quote request to GFI
-                    try
-                    {
-                        GlobalFIXSession.Instance.SendQuoteRequest(_trade);
-                        Console.WriteLine($"[WebQuoteWindow] Sent quote request for {_trade.Underlying}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[WebQuoteWindow] Failed to send quote request: {ex.Message}");
-                    }
+                    // Also subscribe to QuoteData events for convenience
+                    GlobalFIXSession.Instance.OnQuoteReceived += HandleQuoteDataReceived;
+
+                    // Send quote requests to all LPs
+                    SendQuoteRequestsToAllLPs();
                 }
                 else
                 {
@@ -98,9 +96,54 @@ namespace FXOAiTranslate.WPF.Views
         }
 
         /// <summary>
-        /// Handle quote received from GFI FIX session
+        /// Send quote requests to all configured LPs
         /// </summary>
-        private void HandleQuoteReceived(QuoteData quote)
+        private void SendQuoteRequestsToAllLPs()
+        {
+            try
+            {
+                foreach (var lp in _lps)
+                {
+                    string quoteReqID = GlobalFIXSession.Instance.SendQuoteRequest(
+                        _trade,
+                        lp,
+                        _groupId,
+                        "Spot",  // hedgeType
+                        "Spot"   // premiumType
+                    );
+                    Console.WriteLine($"[WebQuoteWindow] Sent quote request to {lp}: {quoteReqID}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WebQuoteWindow] Failed to send quote requests: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle quote received with FIXMessage (needed for execution)
+        /// </summary>
+        private void HandleQuoteReceivedWithFIXMessage(string quoteReqID, FIXMessage fixMsg)
+        {
+            try
+            {
+                string quoteID = fixMsg.Get(QuickFix.Fields.Tags.QuoteID.ToString());
+
+                // Store FIXMessage by QuoteID for later execution
+                _quotesByQuoteId[quoteID] = fixMsg;
+
+                Console.WriteLine($"[WebQuoteWindow] Stored quote: {quoteID}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WebQuoteWindow] Error storing FIXMessage: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle quote received as QuoteData (for UI updates)
+        /// </summary>
+        private void HandleQuoteDataReceived(QuoteData quote)
         {
             if (!_isWebViewReady) return;
 
@@ -155,10 +198,6 @@ namespace FXOAiTranslate.WPF.Views
                             HandleExecutionRequest(message);
                             break;
 
-                        case "cancel":
-                            HandleCancelRequest(message);
-                            break;
-
                         case "ready":
                             Console.WriteLine("[WebQuoteWindow] JavaScript UI is ready");
                             break;
@@ -187,10 +226,20 @@ namespace FXOAiTranslate.WPF.Views
 
                 Console.WriteLine($"[WebQuoteWindow] Execution requested: {side} on QuoteID {quoteId}");
 
-                // Send order to GFI
+                // Get the stored FIXMessage for this QuoteID
+                if (!_quotesByQuoteId.TryGetValue(quoteId, out var fixMsg))
+                {
+                    Console.WriteLine($"[WebQuoteWindow] ERROR: Quote {quoteId} not found in cache");
+                    MessageBox.Show($"Quote not found: {quoteId}", "Execution Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // Send execution to GFI
                 if (GlobalFIXSession.Instance != null)
                 {
-                    GlobalFIXSession.Instance.SendNewOrderMultileg(_trade, quoteId, side);
+                    string clOrdID = GlobalFIXSession.Instance.SendExecution(fixMsg, side, _trade);
+                    Console.WriteLine($"[WebQuoteWindow] Execution sent: ClOrdID={clOrdID}");
+                    MessageBox.Show($"Execution sent!\nClOrdID: {clOrdID}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
@@ -200,34 +249,13 @@ namespace FXOAiTranslate.WPF.Views
             }
         }
 
-        /// <summary>
-        /// Handle quote cancel request from JavaScript UI
-        /// </summary>
-        private void HandleCancelRequest(JsonElement message)
-        {
-            try
-            {
-                var quoteId = message.GetProperty("quoteId").GetString();
-
-                Console.WriteLine($"[WebQuoteWindow] Cancel requested for QuoteID {quoteId}");
-
-                if (GlobalFIXSession.Instance != null)
-                {
-                    GlobalFIXSession.Instance.CancelQuote(quoteId);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WebQuoteWindow] Failed to cancel quote: {ex.Message}");
-            }
-        }
-
         protected override void OnClosed(EventArgs e)
         {
             // Unsubscribe from quote events when window closes
             if (GlobalFIXSession.Instance != null)
             {
-                GlobalFIXSession.Instance.OnQuoteReceived -= HandleQuoteReceived;
+                GlobalFIXSession.Instance.OnQuoteReceived -= HandleQuoteDataReceived;
+                GlobalFIXSession.Instance.Application.OnQuoteReceived -= HandleQuoteReceivedWithFIXMessage;
             }
 
             base.OnClosed(e);
