@@ -108,6 +108,15 @@ namespace FXOAiTranslate.WPF.Controls
             set { SetValue(PriceBrushProperty, value); }
         }
 
+        public static readonly DependencyProperty SideLabelBrushProperty =
+            DependencyProperty.Register("SideLabelBrush", typeof(Brush), typeof(ExecutionTile), new PropertyMetadata(Brushes.Gray));
+
+        public Brush SideLabelBrush
+        {
+            get { return (Brush)GetValue(SideLabelBrushProperty); }
+            set { SetValue(SideLabelBrushProperty, value); }
+        }
+
         #endregion
 
         private static void OnPriceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)

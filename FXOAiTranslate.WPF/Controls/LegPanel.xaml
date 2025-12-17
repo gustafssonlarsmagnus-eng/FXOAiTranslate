@@ -60,7 +60,8 @@
 
                     <!-- BID TILE -->
                     <local:ExecutionTile Grid.Column="0"
-                                         SideLabel="YOU SELL"
+                                         SideLabel="YOU REC"
+                                         SideLabelBrush="{StaticResource BrushAccentGreen}"
                                          Price="{Binding BestBidPrice}"
                                          IsRfqState="{Binding IsRfqState}"
                                          FooterText="{Binding BestBidLP}"
@@ -68,7 +69,8 @@
 
                     <!-- ASK TILE -->
                     <local:ExecutionTile Grid.Column="2" 
-                                         SideLabel="YOU BUY"
+                                         SideLabel="YOU PAY"
+                                         SideLabelBrush="{StaticResource BrushAccentRed}"
                                          Price="{Binding BestAskPrice}"
                                          IsRfqState="{Binding IsRfqState}"
                                          FooterText="{Binding BestAskLP}"
@@ -93,8 +95,17 @@
                     </ComboBox>
                 </Grid>
 
-                <!-- 4. OPTION DETAILS EXPANDER -->
-                <Expander IsExpanded="True" 
+                <!-- 4. LADDER VIEW (Prominent, High Visibility) -->
+                <Expander x:Name="ExpanderLadder" 
+                          Header="Liquidity Ladder" 
+                          IsExpanded="True"
+                          Style="{StaticResource BarExpanderStyle}"
+                          Margin="0,0,0,5">
+                    <local:LadderView Height="200"/>
+                </Expander>
+
+                <!-- 5. OPTION DETAILS EXPANDER (Collapsed by default) -->
+                <Expander IsExpanded="False" 
                           Header="Option 1"
                           Margin="0,0,0,5"
                           Style="{StaticResource BarExpanderStyle}">
@@ -169,8 +180,8 @@
                     </Border>
                 </Expander>
 
-                <!-- 5. MARKET DATA EXPANDER -->
-                <Expander Header="Market Data" IsExpanded="True" Margin="0,0,0,5" Style="{StaticResource BarExpanderStyle}">
+                <!-- 6. MARKET DATA EXPANDER (Collapsed) -->
+                <Expander Header="Market Data" IsExpanded="False" Margin="0,0,0,5" Style="{StaticResource BarExpanderStyle}">
                     <Border Background="{StaticResource BrushBackgroundPanel}" Padding="5">
                          <Grid>
                              <Grid.RowDefinitions>
@@ -183,8 +194,8 @@
                     </Border>
                 </Expander>
                 
-                <!-- 6. RISK EXPANDER -->
-                 <Expander Header="Risk" IsExpanded="True" Margin="0,0,0,5" Style="{StaticResource BarExpanderStyle}">
+                <!-- 7. RISK EXPANDER (Collapsed) -->
+                 <Expander Header="Risk" IsExpanded="False" Margin="0,0,0,5" Style="{StaticResource BarExpanderStyle}">
                     <Border Background="{StaticResource BrushBackgroundPanel}" Padding="5">
                          <Grid>
                              <Grid.RowDefinitions>
@@ -196,15 +207,6 @@
                          </Grid>
                     </Border>
                 </Expander>
-
-                <!-- 7. LADDER VIEW -->
-                <Expander x:Name="ExpanderLadder" 
-                          Header="Liquidity Ladder" 
-                          IsExpanded="True"
-                          Style="{StaticResource BarExpanderStyle}">
-                    <local:LadderView Height="250"/>
-                </Expander>
-
             </StackPanel>
         </ScrollViewer>
     </Border>

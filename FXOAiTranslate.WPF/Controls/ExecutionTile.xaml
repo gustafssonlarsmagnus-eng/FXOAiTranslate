@@ -35,7 +35,7 @@
                        Margin="8,5,0,0"
                        FontSize="11"
                        FontWeight="Bold"
-                       Foreground="{StaticResource BrushTextMuted}"/>
+                       Foreground="{Binding SideLabelBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
 
             <!-- Price Display -->
             <StackPanel Grid.Row="1" 
