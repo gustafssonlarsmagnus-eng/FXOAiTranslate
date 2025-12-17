@@ -23,6 +23,9 @@
     <None Update="Assets\Web\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\Documentation\fx_aggregator_fixed_380.html" Link="Documentation\fx_aggregator_fixed_380.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
