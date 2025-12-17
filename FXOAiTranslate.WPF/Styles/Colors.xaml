@@ -47,6 +47,9 @@
     <SolidColorBrush x:Key="BrushStatusFilled" Color="{StaticResource ColorStatusFilled}"/>
     <SolidColorBrush x:Key="BrushStatusRejected" Color="{StaticResource ColorStatusRejected}"/>
     <SolidColorBrush x:Key="BrushStatusNew" Color="{StaticResource ColorStatusNew}"/>
+
+    <SolidColorBrush x:Key="BrushAccentBlue" Color="{StaticResource ColorAccentBlue}"/>
+    <SolidColorBrush x:Key="BrushAccentPurple" Color="{StaticResource ColorAccentPurple}"/>
     
     <!-- Legacy/Brand Specific -->
     <Color x:Key="ColorBloombergOrange">#ff8800</Color>
