@@ -28,9 +28,11 @@
     </None>
   </ItemGroup>
 
-  <!-- Embedded Inter Font -->
+  <!-- Embedded Inter Font (static versions for consistent glyph rendering) -->
   <ItemGroup>
-    <Resource Include="Fonts\InterVariable.ttf" />
+    <Resource Include="Fonts\extras\ttf\Inter-Regular.ttf" />
+    <Resource Include="Fonts\extras\ttf\Inter-Bold.ttf" />
+    <Resource Include="Fonts\extras\ttf\Inter-SemiBold.ttf" />
   </ItemGroup>
 
 </Project>

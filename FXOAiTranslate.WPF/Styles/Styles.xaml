@@ -38,7 +38,9 @@
     </LinearGradientBrush>
 
     <!-- ===== INTER FONT FAMILY ===== -->
-    <FontFamily x:Key="InterFont">pack://application:,,,/FXOAiTranslate.WPF;component/Fonts/#Inter Variable</FontFamily>
+    <!-- Using static Inter-Bold for consistent glyph rendering (no curved 4) -->
+    <FontFamily x:Key="InterFont">pack://application:,,,/FXOAiTranslate.WPF;component/Fonts/extras/ttf/#Inter</FontFamily>
+    <FontFamily x:Key="InterBold">pack://application:,,,/FXOAiTranslate.WPF;component/Fonts/extras/ttf/#Inter</FontFamily>
     
     <!-- ===== EXACT FONT SIZES FROM HTML (Tailwind) ===== -->
     <!-- text-7xl = 4.5rem = 72px (main prices) -->
