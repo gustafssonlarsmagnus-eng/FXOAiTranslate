@@ -40,9 +40,9 @@
                                     <!-- Main Vol/Price -->
                                     <TextBlock Grid.Column="1" 
                                                Text="{Binding BidVol}" 
-                                               FontSize="13" 
-                                               FontWeight="Bold" 
-                                               Foreground="{StaticResource BrushTextSell}" 
+                                               FontSize="14" 
+                                               FontWeight="SemiBold" 
+                                               Foreground="{StaticResource BrushTextPrimary}" 
                                                HorizontalAlignment="Right" 
                                                VerticalAlignment="Center"
                                                Margin="0,0,10,0"/>
@@ -107,9 +107,9 @@
                                     <!-- Main Vol/Price -->
                                     <TextBlock Grid.Column="0" 
                                                Text="{Binding OfferVol}" 
-                                               FontSize="13" 
-                                               FontWeight="Bold" 
-                                               Foreground="{StaticResource BrushTextBuy}" 
+                                               FontSize="14" 
+                                               FontWeight="SemiBold" 
+                                               Foreground="{StaticResource BrushTextPrimary}" 
                                                HorizontalAlignment="Left" 
                                                VerticalAlignment="Center"
                                                Margin="10,0,0,0"/>

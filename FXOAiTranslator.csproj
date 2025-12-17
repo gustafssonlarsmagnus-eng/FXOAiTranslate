@@ -26,6 +26,11 @@
     <Page Remove="FXOptionsSimulator\**" />
     <None Remove="FXOptionsSimulator\**" />
     <EmbeddedResource Remove="FXOptionsSimulator\**" />
+    <!-- Exclude Tests project files from being processed by this project -->
+    <Compile Remove="FXOAiTranslate.Tests\**" />
+    <Page Remove="FXOAiTranslate.Tests\**" />
+    <None Remove="FXOAiTranslate.Tests\**" />
+    <EmbeddedResource Remove="FXOAiTranslate.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

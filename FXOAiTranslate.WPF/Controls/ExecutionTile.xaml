@@ -17,7 +17,7 @@
 
     <Border Style="{StaticResource ExecutionButtonBorder}" 
             x:Name="MainBorder"
-            Background="{StaticResource BrushBackgroundPanel}"
+            Background="{StaticResource BrushTileBackground}"
             MouseLeftButtonUp="Border_MouseLeftButtonUp">
         
         <Grid>

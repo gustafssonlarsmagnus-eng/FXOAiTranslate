@@ -10,54 +10,66 @@
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
 
-    <!-- Best Price Gradients -->
-    <LinearGradientBrush x:Key="BrushBestBidGradient" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="{StaticResource ColorAccentBlue}" Offset="0.0"/>
-        <GradientStop Color="#001a4d" Offset="0.4"/> <!-- Dark fade -->
+    <!-- ===== BEST PRICE GRADIENTS (HTML: linear-gradient with rgba(30, 58, 138, 0.2)) ===== -->
+    <!-- The HTML uses: background: linear-gradient(to right, rgba(30, 58, 138, 0.2), transparent) -->
+    <!-- In WPF, #331e3a8a = rgba(30, 58, 138, 0.2) where 33 is ~20% opacity in hex -->
+    
+    <LinearGradientBrush x:Key="BrushBestBidGradient" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#331e3a8a" Offset="0.0"/>  <!-- 20% opacity navy -->
         <GradientStop Color="Transparent" Offset="1.0"/>
     </LinearGradientBrush>
     
-    <LinearGradientBrush x:Key="BrushBestOfferGradient" StartPoint="1,0" EndPoint="0,0">
-        <GradientStop Color="{StaticResource ColorAccentBlue}" Offset="0.0"/>
-        <GradientStop Color="#001a4d" Offset="0.4"/>
+    <LinearGradientBrush x:Key="BrushBestOfferGradient" StartPoint="1,0.5" EndPoint="0,0.5">
+        <GradientStop Color="#331e3a8a" Offset="0.0"/>  <!-- 20% opacity navy -->
         <GradientStop Color="Transparent" Offset="1.0"/>
     </LinearGradientBrush>
 
-    <SolidColorBrush x:Key="BrushBestPriceBorder" Color="{StaticResource ColorAccentBlue}"/>
+    <SolidColorBrush x:Key="BrushBestPriceBorder" Color="#3b82f6"/>  <!-- blue-500 vertical bar -->
 
-    <!-- Base TextBlock Style -->
+    <!-- ===== TILE BACKGROUND GRADIENT (HTML: bg-tile-base) ===== -->
+    <LinearGradientBrush x:Key="BrushTileBackground" StartPoint="0.5,0" EndPoint="0.5,1">
+        <GradientStop Color="#16181d" Offset="0.0"/>
+        <GradientStop Color="#0f1114" Offset="1.0"/>
+    </LinearGradientBrush>
+    
+    <LinearGradientBrush x:Key="BrushTileBackgroundHover" StartPoint="0.5,0" EndPoint="0.5,1">
+        <GradientStop Color="#1e2536" Offset="0.0"/>
+        <GradientStop Color="#11151f" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <!-- ===== BASE STYLES ===== -->
     <Style TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
-        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+        <Setter Property="FontFamily" Value="Inter, Segoe UI, sans-serif"/>
         <Setter Property="FontSize" Value="12"/>
     </Style>
 
     <!-- Slim TextBox Style -->
     <Style x:Key="SlimTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-        <Setter Property="Height" Value="22"/>
+        <Setter Property="Height" Value="24"/>
         <Setter Property="FontSize" Value="11"/>
-        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="Padding" Value="6,4"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="Background" Value="#17191d"/> <!-- Darker than standard input -->
-        <Setter Property="BorderBrush" Value="#3a3f47"/>
+        <Setter Property="Background" Value="{StaticResource BrushBackgroundInput}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
     </Style>
 
-    <!-- Custom Expander Toggle Button -->
+    <!-- ===== CUSTOM EXPANDER ===== -->
     <Style x:Key="ExpanderToggleButton" TargetType="{x:Type ToggleButton}">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ToggleButton}">
-                    <Border Background="Transparent" Padding="5">
+                    <Border Background="Transparent" Padding="8,6">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Path x:Name="MsgArrow" 
+                            <Path x:Name="Arrow" 
                                   Data="M 0 0 L 4 4 L 8 0 Z" 
-                                  Fill="{TemplateBinding Foreground}"
+                                  Fill="{StaticResource BrushTextMuted}"
                                   VerticalAlignment="Center" 
-                                  Margin="0,0,5,0"
+                                  Margin="0,0,8,0"
                                   RenderTransformOrigin="0.5,0.5">
                                 <Path.RenderTransform>
                                     <RotateTransform Angle="-90"/>
@@ -68,11 +80,14 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="MsgArrow" Property="RenderTransform">
+                            <Setter TargetName="Arrow" Property="RenderTransform">
                                 <Setter.Value>
                                     <RotateTransform Angle="0"/>
                                 </Setter.Value>
                             </Setter>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Arrow" Property="Fill" Value="{StaticResource BrushTextSecondary}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -80,10 +95,9 @@
         </Setter>
     </Style>
 
-    <!-- Bar Expander Style -->
     <Style x:Key="BarExpanderStyle" TargetType="Expander">
-        <Setter Property="Background" Value="{StaticResource BrushBackgroundHeader}"/>
-        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+        <Setter Property="Background" Value="{StaticResource BrushBackgroundPanel}"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Template">
@@ -92,10 +106,10 @@
                     <Border BorderBrush="{TemplateBinding BorderBrush}" 
                             BorderThickness="{TemplateBinding BorderThickness}" 
                             Background="{TemplateBinding Background}" 
-                            CornerRadius="2">
+                            CornerRadius="4">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="28"/>
+                                <RowDefinition Height="32"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             
@@ -110,9 +124,9 @@
                             <Border Grid.Row="1" 
                                     BorderThickness="0,1,0,0" 
                                     BorderBrush="{TemplateBinding BorderBrush}" 
-                                    Background="{StaticResource BrushBackgroundPanel}"
+                                    Background="{StaticResource BrushBackgroundRow}"
                                     Visibility="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <ContentPresenter />
+                                <ContentPresenter Margin="0"/>
                             </Border>
                         </Grid>
                     </Border>
@@ -121,25 +135,27 @@
         </Setter>
     </Style>
 
-    <!-- TextBox Style -->
+    <!-- ===== TEXTBOX STYLE ===== -->
     <Style TargetType="TextBox">
         <Setter Property="Background" Value="{StaticResource BrushBackgroundInput}"/>
         <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="5,3"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="CaretBrush" Value="{StaticResource BrushTextPrimary}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="2">
-                        <ScrollViewer x:Name="PART_ContentHost"/>
+                            CornerRadius="4">
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="BorderBrush" Value="{StaticResource BrushTextSecondary}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource BrushTextMuted}"/>
                         </Trigger>
                         <Trigger Property="IsFocused" Value="True">
                             <Setter Property="BorderBrush" Value="{StaticResource BrushAccentBlue}"/>
@@ -150,46 +166,112 @@
         </Setter>
     </Style>
 
-    <!-- DataGrid Style -->
+    <!-- ===== DATAGRID STYLE (Ladder-like, minimal) ===== -->
     <Style TargetType="DataGrid">
-        <Setter Property="Background" Value="{StaticResource BrushBackgroundMain}"/>
-        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+        <Setter Property="Background" Value="{StaticResource BrushBackgroundPanel}"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
         <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="RowBackground" Value="{StaticResource BrushBackgroundMain}"/>
-        <Setter Property="AlternatingRowBackground" Value="{StaticResource BrushBackgroundPanel}"/>
-        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BrushBorder}"/>
-        <Setter Property="VerticalGridLinesBrush" Value="{StaticResource BrushBorder}"/>
+        <Setter Property="RowBackground" Value="{StaticResource BrushBackgroundRow}"/>
+        <Setter Property="AlternatingRowBackground" Value="{StaticResource BrushBackgroundRow}"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="#1e293b"/>
+        <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         <Setter Property="HeadersVisibility" Value="Column"/>
+        <Setter Property="RowHeight" Value="48"/>
+        <Setter Property="SelectionMode" Value="Single"/>
+        <Setter Property="SelectionUnit" Value="FullRow"/>
+        <Setter Property="CanUserAddRows" Value="False"/>
+        <Setter Property="CanUserDeleteRows" Value="False"/>
+        <Setter Property="CanUserResizeRows" Value="False"/>
+        <Setter Property="AutoGenerateColumns" Value="False"/>
     </Style>
 
     <Style TargetType="DataGridColumnHeader">
         <Setter Property="Background" Value="{StaticResource BrushBackgroundHeader}"/>
-        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
-        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Padding" Value="8,6"/>
         <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
-        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+
+    <Style TargetType="DataGridRow">
+        <Setter Property="Background" Value="{StaticResource BrushBackgroundRow}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource BrushBackgroundRowHover}"/>
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{StaticResource BrushBackgroundRowHover}"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style TargetType="DataGridCell">
-        <Setter Property="Padding" Value="5,2"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridCell">
                     <Border Padding="{TemplateBinding Padding}" 
-                            BorderBrush="Transparent" 
-                            BorderThickness="0" 
+                            BorderBrush="{TemplateBinding BorderBrush}" 
+                            BorderThickness="{TemplateBinding BorderThickness}" 
                             Background="{TemplateBinding Background}" 
                             SnapsToDevicePixels="True">
-                        <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        <ContentPresenter VerticalAlignment="Center" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
         <Style.Triggers>
             <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Background" Value="{StaticResource BrushAccentBlue}"/>
-                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ===== SCROLLBAR STYLE (Thin, dark) ===== -->
+    <Style x:Key="ScrollBarThumb" TargetType="Thumb">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border Background="#334155" CornerRadius="2"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="#0f1115"/>
+        <Setter Property="Width" Value="6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}" CornerRadius="3"/>
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource ScrollBarThumb}"/>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="Height" Value="6"/>
             </Trigger>
         </Style.Triggers>
     </Style>
