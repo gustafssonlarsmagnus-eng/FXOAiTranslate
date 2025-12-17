@@ -22,6 +22,13 @@ namespace FXOptionsSimulator.FIX
         public GFIFIXApplication Application => _application;
         public bool IsLoggedOn => _application.IsLoggedOn;
 
+        // Relay quote events from application for WebView2 integration
+        public event Action<QuoteData> OnQuoteReceived
+        {
+            add { _application.OnQuoteDataReceived += value; }
+            remove { _application.OnQuoteDataReceived -= value; }
+        }
+
         public GFIFIXSessionManager(string configFile = "quickfix.cfg")
         {
             Console.WriteLine($"[FIX Manager] Initializing with config: {configFile}");

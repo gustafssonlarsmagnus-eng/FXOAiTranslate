@@ -868,38 +868,9 @@
                                                 Spot
                                                 Rate</div>
                                             <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
-                                                <span class="font-medium">1.1746</span>
+                                                <span id="spot-rate-value" class="font-medium">—</span>
                                             </div>
                                         </div>
-                                        <!-- Forward Points -->
-                                        <div
-                                            class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
-                                                Forward Pts</div>
-                                            <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
-                                                <span class="font-medium">0.0005</span>
-                                            </div>
-                                        </div>
-                                        <!-- Forward Rate -->
-                                        <div
-                                            class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
-                                                Forward Rate</div>
-                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
-                                                <span class="font-medium">1.1751</span>
-                                            </div>
-                                        </div>
-                                        <!-- ATM Vol -->
-                                        <div
-                                            class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
-                                                ATM
-                                                Vol</div>
-                                            <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
-                                                <span class="font-medium">5.47%</span>
-                                            </div>
-                                        </div>
-
                                     </div>
                                 </div>
 
@@ -916,39 +887,17 @@
                                             class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
                                             <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
                                                 Delta</div>
-                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between">
-                                                <span class="font-medium">EUR</span>
-                                                <span class="font-bold">5,023,800</span>
-                                            </div>
-                                        </div>
-                                        <!-- Delta % -->
-                                        <div
-                                            class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
-                                                Delta %</div>
-                                            <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
-                                                <span class="font-medium">50.24%</span>
-                                            </div>
-                                        </div>
-                                        <!-- Vega -->
-                                        <div
-                                            class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
-                                                Vega
-                                            </div>
-                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between">
-                                                <span class="font-medium">EUR</span>
-                                                <span class="font-bold">4,850 /1%</span>
+                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                                <span id="delta-value" class="font-medium">—</span>
                                             </div>
                                         </div>
                                         <!-- Notional -->
                                         <div
-                                            class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
+                                            class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
                                             <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">
                                                 Notional</div>
-                                            <div class="bg-[#14161b] text-white px-2 flex items-center justify-between">
-                                                <span class="font-medium">EUR</span>
-                                                <span class="font-bold">10,000,000</span>
+                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                                <span id="notional-value" class="font-medium">—</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1599,7 +1548,7 @@
                                 class="flex items-center gap-1 cursor-pointer hover:text-slate-300 transition">
                                 <span id="leg${legNum}-ladder-arrow"
                                     class="text-slate-500 text-[10px] transition-transform duration-200">▼</span>
-                                <span class="text-[10px] text-slate-500 font-bold uppercase">4 LPs</span>
+                                <span class="text-[10px] text-slate-500 font-bold uppercase">— LPs</span>
                             </div>
                             <div class="relative group">
                                 <div class="flex items-center gap-2 cursor-pointer px-3 py-2 -mx-2 -my-1 rounded hover:bg-[#1e293b] transition">
@@ -1620,36 +1569,7 @@
                             </div>
 
                             <div id="leg${legNum}-ladder-content" class="overflow-y-auto flex-1 transition-all duration-300">
-                                <!-- Row 1 - DEUT -->
-                                <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group">
-                                    <div class="flex flex-col justify-center items-center opacity-60">
-                                        <div class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">5.42</div>
-                                        <div class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">69k | 39p</div>
-                                    </div>
-                                    <div class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                        <span>DEUT</span>
-                                        <span class="text-[10px] text-slate-500 mt-0.5">0.40</span>
-                                    </div>
-                                    <div class="flex flex-col justify-center items-center best-offer-cell">
-                                        <div class="text-white font-bold text-sm group-hover:text-white transition-colors">5.82</div>
-                                        <div class="text-slate-600 font-medium text-[10px] mt-0.5 group-hover:text-slate-400">71k | 44p</div>
-                                    </div>
-                                </div>
-                                <!-- Row 2 - JPM -->
-                                <div class="ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group" style="opacity: 0.85">
-                                    <div class="flex flex-col justify-center items-center best-bid-cell">
-                                        <div class="text-white font-bold text-sm group-hover:text-white transition-colors">5.47</div>
-                                        <div class="text-slate-600 font-medium text-[10px] mt-0.5 group-hover:text-slate-400">68k | 43p</div>
-                                    </div>
-                                    <div class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
-                                        <span>JPM</span>
-                                        <span class="text-[10px] text-slate-500 mt-0.5">0.43</span>
-                                    </div>
-                                    <div class="flex flex-col justify-center items-center opacity-60">
-                                        <div class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">5.90</div>
-                                        <div class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">72k | 51p</div>
-                                    </div>
-                                </div>
+                                <!-- LP rows will be populated dynamically -->
                             </div>
                         </div>
 
@@ -1772,28 +1692,7 @@
                                         <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
                                             <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Spot Rate</div>
                                             <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
-                                                <span class="font-medium">1.1746</span>
-                                            </div>
-                                        </div>
-                                        <!-- Forward Points -->
-                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Forward Pts</div>
-                                            <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
-                                                <span class="font-medium">0.0005</span>
-                                            </div>
-                                        </div>
-                                        <!-- Forward Rate -->
-                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Forward Rate</div>
-                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
-                                                <span class="font-medium">1.1751</span>
-                                            </div>
-                                        </div>
-                                        <!-- ATM Vol -->
-                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">ATM Vol</div>
-                                            <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
-                                                <span class="font-medium">5.47%</span>
+                                                <span id="spot-rate-value-${legNum}" class="font-medium">—</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1810,32 +1709,15 @@
                                         <!-- Delta -->
                                         <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
                                             <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta</div>
-                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between">
-                                                <span class="font-medium">EUR</span>
-                                                <span class="font-bold">5,023,800</span>
-                                            </div>
-                                        </div>
-                                        <!-- Delta % -->
-                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Delta %</div>
-                                            <div class="bg-[#0f1114] text-slate-300 px-2 flex items-center justify-end">
-                                                <span class="font-medium">50.24%</span>
-                                            </div>
-                                        </div>
-                                        <!-- Vega -->
-                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
-                                            <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Vega</div>
-                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-between">
-                                                <span class="font-medium">EUR</span>
-                                                <span class="font-bold">4,850 /1%</span>
+                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                                <span id="delta-value-${legNum}" class="font-medium">—</span>
                                             </div>
                                         </div>
                                         <!-- Notional -->
-                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6 bg-[#14161b]">
+                                        <div class="grid grid-cols-[100px_1fr] border-b border-[#1e293b] text-[11px] h-6">
                                             <div class="bg-[#14161b] text-slate-600 px-2 flex items-center justify-end">Notional</div>
-                                            <div class="bg-[#14161b] text-white px-2 flex items-center justify-between">
-                                                <span class="font-medium">EUR</span>
-                                                <span class="font-bold">10,000,000</span>
+                                            <div class="bg-[#0f1114] text-white px-2 flex items-center justify-end">
+                                                <span id="notional-value-${legNum}" class="font-medium">—</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1891,6 +1773,11 @@
             // Insert after the leg being duplicated
             document.getElementById(`leg${legNum}-panel`).insertAdjacentHTML('afterend', legContainer);
 
+            // Populate ladder with dynamic LPs
+            if (window.tradeData && window.tradeData.lps) {
+                populateLegLadder(legCount, window.tradeData.lps);
+            }
+
             // Create dynamic toggle functions for this leg
             window[`toggleLadder${legCount}`] = function () {
                 toggleLadderForLeg(legCount);
@@ -1901,6 +1788,45 @@
             window[`toggleRisk${legCount}`] = function () {
                 toggleSection(`risk-content-${legCount}`, `risk-arrow-${legCount}`);
             };
+        }
+
+        // Populate ladder for a specific leg panel
+        function populateLegLadder(legNum, lps) {
+            console.log(`[FX Aggregator] Populating ladder for leg ${legNum} with ${lps.length} LPs`);
+
+            // Update LP count
+            const ladderSummary = document.querySelector(`#leg${legNum}-ladder-summary span:nth-child(2)`);
+            if (ladderSummary) {
+                ladderSummary.textContent = `${lps.length} LPs`;
+            }
+
+            // Populate ladder content
+            const ladderContent = document.getElementById(`leg${legNum}-ladder-content`);
+            if (!ladderContent) return;
+
+            ladderContent.innerHTML = '';
+
+            lps.forEach(lp => {
+                const row = document.createElement('div');
+                row.className = 'ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group';
+
+                row.innerHTML = `
+                    <div class="flex flex-col justify-center items-center opacity-60">
+                        <div class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">—</div>
+                        <div class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">—</div>
+                    </div>
+                    <div class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
+                        <span>${lp}</span>
+                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="${lp}" onchange="toggleLP(this)">
+                    </div>
+                    <div class="flex flex-col justify-center items-center opacity-60">
+                        <div class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">—</div>
+                        <div class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">—</div>
+                    </div>
+                `;
+
+                ladderContent.appendChild(row);
+            });
         }
 
         // Toggle Market Data section
@@ -2045,6 +1971,535 @@
         offerTile.addEventListener('mouseleave', function () {
             offerTooltip.classList.remove('visible');
         });
+
+        // ============================================================================
+        // WEBVIEW2 BRIDGE: Real-time GFI quote integration
+        // ============================================================================
+
+        // Check if we're running in WebView2 environment
+        const isWebView2 = window.chrome && window.chrome.webview;
+
+        if (isWebView2) {
+            console.log('[FX Aggregator] Running in WebView2 - GFI integration enabled');
+
+            // Listen for quotes from C# via WebView2 bridge
+            window.chrome.webview.addEventListener('message', event => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'quote') {
+                        updateLPQuote(data);
+                    } else if (data.type === 'tradeDetails') {
+                        initializeTradeDetails(data);
+                    }
+                } catch (error) {
+                    console.error('[FX Aggregator] Error processing message:', error);
+                }
+            });
+
+            // Notify C# that JavaScript is ready
+            window.chrome.webview.postMessage(JSON.stringify({ type: 'ready' }));
+        } else {
+            console.log('[FX Aggregator] Running in browser - using mock data');
+        }
+
+        // Initialize UI with trade details from TradeStructure
+        function initializeTradeDetails(trade) {
+            console.log(`[FX Aggregator] Initializing trade details: ${trade.underlying} ${trade.legs.length} leg(s)`);
+
+            // Update title with underlying
+            document.title = `FX Aggregator - ${trade.underlying}`;
+
+            // Populate Market Data: Spot Rate
+            const spotRateElement = document.getElementById('spot-rate-value');
+            if (spotRateElement && trade.spot) {
+                spotRateElement.textContent = trade.spot.toFixed(4);
+            }
+
+            // Build dynamic LP ladder from configuration
+            if (trade.lps && trade.lps.length > 0) {
+                buildDynamicLPLadder(trade.lps);
+            }
+
+            // Determine structure type name
+            const structureTypes = {
+                '1': 'Vanilla Option',
+                '5': 'Risk Reversal',
+                '8': 'Call Spread',
+                '9': 'Put Spread',
+                '10': 'Seagull'
+            };
+            const structureName = structureTypes[trade.structureType] || 'Multi-Leg Option';
+
+            // For single-leg trades, populate Option 1 details
+            if (trade.legs.length >= 1) {
+                const leg = trade.legs[0];
+                const baseCcy = trade.underlying.substring(0, 3); // EUR from EURNOK
+
+                // Populate Delta and Notional in Risk section
+                // Note: These will be updated with live quote data from GFI
+                const notionalElement = document.getElementById('notional-value');
+                if (notionalElement && leg.notionalMM) {
+                    notionalElement.textContent = `${baseCcy} ${leg.notionalMM}M`;
+                }
+
+                console.log(`[FX Aggregator] Leg 1: ${leg.direction} ${leg.notionalMM}M ${baseCcy} ${leg.strike} ${leg.optionType}`);
+            }
+
+            // Store trade data globally for execution
+            window.tradeData = trade;
+        }
+
+        // Dynamically build LP ladder rows from LP configuration
+        function buildDynamicLPLadder(lps) {
+            console.log(`[FX Aggregator] Building ladder for ${lps.length} LPs: ${lps.join(', ')}`);
+
+            // Update LP count in UI
+            const ladderSummary = document.querySelector('#ladder-summary span:nth-child(2)');
+            if (ladderSummary) {
+                ladderSummary.textContent = `${lps.length} LPs`;
+            }
+
+            // Clear existing hardcoded rows
+            const ladderContent = document.getElementById('ladder-content');
+            if (!ladderContent) return;
+
+            ladderContent.innerHTML = '';
+
+            // Create a row for each LP
+            lps.forEach(lp => {
+                const row = document.createElement('div');
+                row.className = 'ladder-row grid grid-cols-[1fr_60px_1fr] border-b border-[#1e293b]/50 items-stretch h-12 group';
+
+                row.innerHTML = `
+                    <div class="flex flex-col justify-center items-center opacity-60">
+                        <div class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">—</div>
+                        <div class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">—</div>
+                    </div>
+                    <div class="flex flex-col items-center justify-center font-bold text-white text-xs border-l border-r border-[#1e293b] ladder-col-mid">
+                        <span>${lp}</span>
+                        <input type="checkbox" checked class="lp-checkbox cursor-pointer" data-lp="${lp}" onchange="toggleLP(this)">
+                    </div>
+                    <div class="flex flex-col justify-center items-center opacity-60">
+                        <div class="text-white/80 font-medium text-sm group-hover:text-white transition-colors">—</div>
+                        <div class="text-slate-700 font-medium text-[10px] mt-0.5 group-hover:text-slate-500">—</div>
+                    </div>
+                `;
+
+                ladderContent.appendChild(row);
+            });
+
+            console.log(`[FX Aggregator] Created ${lps.length} LP rows dynamically`);
+        }
+
+        // Update LP ladder with live quote from GFI
+        function updateLPQuote(quote) {
+            console.log(`[FX Aggregator] Received quote: ${quote.lp} ${quote.side} BID:${quote.bidPremium} OFFER:${quote.offerPremium} Vol:${quote.bidVol}/${quote.offerVol} Notional:${quote.notional} Delta:${quote.delta}`);
+
+            // Find the LP row by data-lp attribute
+            const checkbox = document.querySelector(`.lp-checkbox[data-lp="${quote.lp}"]`);
+            if (!checkbox) {
+                console.warn(`[FX Aggregator] LP not found: ${quote.lp}`);
+                return;
+            }
+
+            const lpRow = checkbox.closest('.ladder-row');
+            if (!lpRow) return;
+
+            // Get all cells in the row
+            const cells = lpRow.querySelectorAll(':scope > div');
+            const bidCell = cells[0];    // First column (BID)
+            const midCell = cells[1];    // Middle column (LP name + spread)
+            const offerCell = cells[2];  // Third column (OFFER)
+
+            // Update BID side
+            if (quote.side === "BID") {
+                const bidPrice = bidCell.querySelector('div:first-child');
+                const bidDetails = bidCell.querySelector('div:nth-child(2)');
+
+                if (bidPrice) {
+                    bidPrice.textContent = formatPremium(quote.bidPremium);
+                    flashPrice(bidPrice);
+                }
+
+                if (bidDetails && quote.notional && quote.delta) {
+                    // Format: "69k | 39p"
+                    const notionalK = (quote.notional / 1000).toFixed(0) + 'k';
+                    const deltaP = Math.round(quote.delta) + 'p';
+                    bidDetails.textContent = `${notionalK} | ${deltaP}`;
+                }
+            }
+
+            // Update OFFER side
+            if (quote.side === "OFFER") {
+                const offerPrice = offerCell.querySelector('div:first-child');
+                const offerDetails = offerCell.querySelector('div:nth-child(2)');
+
+                if (offerPrice) {
+                    offerPrice.textContent = formatPremium(quote.offerPremium);
+                    flashPrice(offerPrice);
+                }
+
+                if (offerDetails && quote.notional && quote.delta) {
+                    // Format: "71k | 44p"
+                    const notionalK = (quote.notional / 1000).toFixed(0) + 'k';
+                    const deltaP = Math.round(quote.delta) + 'p';
+                    offerDetails.textContent = `${notionalK} | ${deltaP}`;
+                }
+            }
+
+            // Update spread in middle column (calculated when we have both BID and OFFER)
+            // Store quote data on the row for spread calculation
+            if (quote.side === "BID") {
+                lpRow.dataset.bidPremium = quote.bidPremium;
+                lpRow.dataset.bidVol = quote.bidVol;
+            } else {
+                lpRow.dataset.offerPremium = quote.offerPremium;
+                lpRow.dataset.offerVol = quote.offerVol;
+            }
+
+            // If we have both BID and OFFER, calculate and display spread
+            if (lpRow.dataset.bidPremium && lpRow.dataset.offerPremium) {
+                const spread = Math.abs(parseFloat(lpRow.dataset.offerPremium) - parseFloat(lpRow.dataset.bidPremium));
+                const spreadElement = midCell.querySelector('span:nth-child(2)');
+                if (spreadElement) {
+                    spreadElement.textContent = spread.toFixed(2);
+                }
+            }
+
+            // Update timestamp and expiry for staleness tracking
+            lpRow.dataset.quoteTime = quote.timestamp;
+            lpRow.dataset.quoteId = quote.quoteId;
+
+            // Store ValidUntilTime if provided (format: HH:MM:SS or yyyyMMdd-HH:MM:SS)
+            if (quote.validUntilTime) {
+                lpRow.dataset.validUntil = quote.validUntilTime;
+            }
+
+            // Reset opacity to full (fresh quote)
+            if (checkbox.checked) {
+                lpRow.style.opacity = '1.0';
+                lpRow.classList.remove('quote-expired');
+            }
+
+            // Update Delta in Risk section with quote data
+            if (quote.delta) {
+                const deltaElement = document.getElementById('delta-value');
+                if (deltaElement) {
+                    deltaElement.textContent = `${quote.delta.toFixed(2)}%`;
+                }
+            }
+
+            // Recalculate best BID/OFFER and update hero tiles
+            updateHeroTiles();
+        }
+
+        // Start countdown timer for quote expiry
+        let countdownTimerInterval = null;
+
+        function startQuoteCountdownTimer() {
+            if (countdownTimerInterval) {
+                clearInterval(countdownTimerInterval);
+            }
+
+            countdownTimerInterval = setInterval(() => {
+                updateQuoteCountdowns();
+            }, 1000); // Update every second
+
+            console.log('[FX Aggregator] Quote countdown timer started');
+        }
+
+        function updateQuoteCountdowns() {
+            const now = new Date();
+
+            document.querySelectorAll('.ladder-row').forEach(row => {
+                const validUntil = row.dataset.validUntil;
+                if (!validUntil) return;
+
+                // Parse ValidUntilTime (format: yyyyMMdd-HH:MM:SS or HH:MM:SS)
+                let expiryTime;
+                if (validUntil.includes('-')) {
+                    // Full format: yyyyMMdd-HH:MM:SS
+                    const [datePart, timePart] = validUntil.split('-');
+                    const year = parseInt(datePart.substring(0, 4));
+                    const month = parseInt(datePart.substring(4, 6)) - 1;
+                    const day = parseInt(datePart.substring(6, 8));
+                    const [hours, minutes, seconds] = timePart.split(':').map(Number);
+                    expiryTime = new Date(year, month, day, hours, minutes, seconds);
+                } else {
+                    // Time only: HH:MM:SS (assume today)
+                    const [hours, minutes, seconds] = validUntil.split(':').map(Number);
+                    expiryTime = new Date();
+                    expiryTime.setHours(hours, minutes, seconds, 0);
+                }
+
+                const remainingMs = expiryTime - now;
+                const remainingSec = Math.floor(remainingMs / 1000);
+
+                // Update spread element to show countdown
+                const checkbox = row.querySelector('.lp-checkbox');
+                if (!checkbox) return;
+
+                const midCell = row.querySelector('.ladder-col-mid');
+                if (!midCell) return;
+
+                let spreadElement = midCell.querySelector('.quote-countdown');
+                if (!spreadElement) {
+                    spreadElement = document.createElement('span');
+                    spreadElement.className = 'quote-countdown text-[10px] mt-0.5';
+                    midCell.appendChild(spreadElement);
+                }
+
+                if (remainingSec > 0) {
+                    // Format as MM:SS or SS
+                    if (remainingSec >= 60) {
+                        const mins = Math.floor(remainingSec / 60);
+                        const secs = remainingSec % 60;
+                        spreadElement.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                    } else {
+                        spreadElement.textContent = `${remainingSec}s`;
+                    }
+
+                    // Color code: green > 30s, yellow 10-30s, red < 10s
+                    if (remainingSec > 30) {
+                        spreadElement.className = 'quote-countdown text-[10px] text-green-500 mt-0.5';
+                    } else if (remainingSec > 10) {
+                        spreadElement.className = 'quote-countdown text-[10px] text-yellow-500 mt-0.5';
+                    } else {
+                        spreadElement.className = 'quote-countdown text-[10px] text-red-500 mt-0.5 font-bold';
+                    }
+
+                    // Fade out as quote ages
+                    const opacity = Math.max(0.4, remainingSec / 120); // Fade over 2 minutes
+                    row.style.opacity = opacity.toString();
+                } else {
+                    // Quote expired
+                    spreadElement.textContent = 'EXPIRED';
+                    spreadElement.className = 'quote-countdown text-[10px] text-red-600 mt-0.5 font-bold';
+                    row.style.opacity = '0.3';
+                    row.classList.add('quote-expired');
+                }
+            });
+
+            // Update hero tiles to exclude expired quotes
+            updateHeroTiles();
+        }
+
+        // Start timer when page loads
+        if (isWebView2) {
+            startQuoteCountdownTimer();
+        }
+
+        // Format premium value for display
+        function formatPremium(value) {
+            // Display absolute value with 2 decimals
+            return Math.abs(value).toFixed(2);
+        }
+
+        // Flash animation on price update
+        function flashPrice(element) {
+            element.classList.add('price-flash');
+            setTimeout(() => element.classList.remove('price-flash'), 500);
+        }
+
+        // Calculate best BID/OFFER across all enabled LPs
+        function updateHeroTiles() {
+            let bestBid = null;
+            let bestOffer = null;
+            let bestBidLP = null;
+            let bestOfferLP = null;
+            let bestBidVol = null;
+            let bestOfferVol = null;
+
+            // Iterate through checked (enabled) LPs only, excluding expired quotes
+            document.querySelectorAll('.lp-checkbox:checked').forEach(checkbox => {
+                const row = checkbox.closest('.ladder-row');
+
+                // Skip expired quotes
+                if (row.classList.contains('quote-expired')) {
+                    return;
+                }
+
+                const cells = row.querySelectorAll(':scope > div');
+
+                const bidCell = cells[0];
+                const offerCell = cells[2];
+
+                const bidPrice = bidCell.querySelector('div:first-child');
+                const offerPrice = offerCell.querySelector('div:first-child');
+
+                if (bidPrice && offerPrice) {
+                    const bid = parseFloat(bidPrice.textContent);
+                    const offer = parseFloat(offerPrice.textContent);
+                    const lp = checkbox.dataset.lp;
+
+                    // Get volatility values from row dataset
+                    const bidVol = row.dataset.bidVol ? parseFloat(row.dataset.bidVol) : null;
+                    const offerVol = row.dataset.offerVol ? parseFloat(row.dataset.offerVol) : null;
+
+                    // Best BID = highest (you receive more)
+                    if (!isNaN(bid) && (bestBid === null || bid > bestBid)) {
+                        bestBid = bid;
+                        bestBidLP = lp;
+                        bestBidVol = bidVol;
+                    }
+
+                    // Best OFFER = lowest (you pay less)
+                    if (!isNaN(offer) && (bestOffer === null || offer < bestOffer)) {
+                        bestOffer = offer;
+                        bestOfferLP = lp;
+                        bestOfferVol = offerVol;
+                    }
+                }
+            });
+
+            // Update hero tiles with best prices
+            const bidTile = document.getElementById('bid-tile');
+            const offerTile = document.getElementById('offer-tile');
+
+            if (bestBid !== null && bidTile) {
+                const bidValueElement = bidTile.querySelector('#bid-value');
+                if (bidValueElement) {
+                    bidValueElement.textContent = bestBid.toFixed(2);
+                    bidValueElement.classList.remove('text-slate-600');
+                    bidValueElement.classList.add('text-white');
+                }
+
+                // Update LP indicator
+                const bidLPElement = bidTile.querySelector('.text-xs.text-slate-500');
+                if (bidLPElement) {
+                    bidLPElement.textContent = bestBidLP || '—';
+                }
+
+                // Update volatility in secondary display
+                const bidSecondary = document.getElementById('bid-secondary');
+                if (bidSecondary && bestBidVol !== null) {
+                    bidSecondary.textContent = `${bestBidVol.toFixed(2)}%`;
+                    bidSecondary.classList.remove('invisible');
+                }
+
+                // Show BID label
+                const bidLabelContainer = document.getElementById('bid-label-container');
+                const bidRfqLabel = document.getElementById('bid-rfq-label');
+                if (bidLabelContainer) bidLabelContainer.classList.remove('invisible');
+                if (bidRfqLabel) bidRfqLabel.classList.add('invisible');
+            }
+
+            if (bestOffer !== null && offerTile) {
+                const offerValueElement = offerTile.querySelector('#offer-value');
+                if (offerValueElement) {
+                    offerValueElement.textContent = bestOffer.toFixed(2);
+                    offerValueElement.classList.remove('text-slate-600');
+                    offerValueElement.classList.add('text-white');
+                }
+
+                // Update LP indicator
+                const offerLPElement = offerTile.querySelector('.text-xs.text-slate-500');
+                if (offerLPElement) {
+                    offerLPElement.textContent = bestOfferLP || '—';
+                }
+
+                // Update volatility in secondary display
+                const offerSecondary = document.getElementById('offer-secondary');
+                if (offerSecondary && bestOfferVol !== null) {
+                    offerSecondary.textContent = `${bestOfferVol.toFixed(2)}%`;
+                    offerSecondary.classList.remove('invisible');
+                }
+
+                // Show OFFER label
+                const offerLabelContainer = document.getElementById('offer-label-container');
+                const offerRfqLabel = document.getElementById('offer-rfq-label');
+                if (offerLabelContainer) offerLabelContainer.classList.remove('invisible');
+                if (offerRfqLabel) offerRfqLabel.classList.add('invisible');
+            }
+
+            console.log(`[FX Aggregator] Best prices updated - BID: ${bestBid} (${bestBidLP}) ${bestBidVol}%, OFFER: ${bestOffer} (${bestOfferLP}) ${bestOfferVol}%`);
+        }
+
+        // Send execution request to C# when user clicks BID/OFFER tiles
+        function executeTrade(event, side) {
+            const tile = document.getElementById(side + '-tile');
+
+            // Flash Effect
+            tile.classList.remove('trade-flash-' + side);
+            void tile.offsetWidth; // Force reflow
+            tile.classList.add('trade-flash-' + side);
+
+            setTimeout(() => {
+                tile.classList.remove('trade-flash-' + side);
+            }, 750);
+
+            // Get the best quote for this side
+            const quoteId = getBestQuoteId(side);
+
+            if (quoteId && isWebView2) {
+                // Send execution request to C#
+                const message = {
+                    type: 'execute',
+                    side: side.toUpperCase(),
+                    quoteId: quoteId
+                };
+
+                window.chrome.webview.postMessage(JSON.stringify(message));
+                console.log(`[FX Aggregator] Execution requested: ${side} on QuoteID ${quoteId}`);
+            }
+
+            // Create deal card
+            createDealCard(side);
+        }
+
+        // Get the QuoteID for the best BID or OFFER
+        function getBestQuoteId(side) {
+            let bestPrice = null;
+            let bestQuoteId = null;
+
+            document.querySelectorAll('.lp-checkbox:checked').forEach(checkbox => {
+                const row = checkbox.closest('.ladder-row');
+                const cells = row.querySelectorAll(':scope > div');
+
+                const cell = side === 'bid' ? cells[0] : cells[2];
+                const priceElement = cell.querySelector('div:first-child');
+
+                if (priceElement) {
+                    const price = parseFloat(priceElement.textContent);
+                    const quoteId = row.dataset.quoteId;
+
+                    if (!isNaN(price) && quoteId) {
+                        if (bestPrice === null ||
+                            (side === 'bid' && price > bestPrice) ||
+                            (side === 'offer' && price < bestPrice)) {
+                            bestPrice = price;
+                            bestQuoteId = quoteId;
+                        }
+                    }
+                }
+            });
+
+            return bestQuoteId;
+        }
+
+        // CSS for price flash animation
+        const style = document.createElement('style');
+        style.textContent = `
+            .price-flash {
+                animation: priceFlash 0.5s ease-out;
+            }
+
+            @keyframes priceFlash {
+                0% {
+                    background-color: #3b82f6;
+                    color: white;
+                    transform: scale(1.1);
+                }
+                100% {
+                    background-color: transparent;
+                    color: inherit;
+                    transform: scale(1);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
     </script>
 </body>
 

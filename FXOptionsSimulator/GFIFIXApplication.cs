@@ -25,6 +25,7 @@ namespace FXOptionsSimulator.FIX
         public event Action<string> OnLogonEvent;
         public event Action<string> OnLogoutEvent;
         public event Action<string, FIXMessage> OnQuoteReceived;
+        public event Action<QuoteData> OnQuoteDataReceived; // New event for WebView2 integration
         public event Action<string, string, string> OnExecutionReport; // ClOrdID, Status, ExecID
         public event Action<string, string, string> OnTradeCaptureReceived; // ClOrdID, CounterpartyName, LEI
 
@@ -218,6 +219,51 @@ if (quote.IsSetField(5678)) // Volatility tag
      });
 
      OnQuoteReceived?.Invoke(quoteReqID, fixMsg);
+
+                // Fire new QuoteData event for WebView2 integration
+                try
+                {
+                    // Helper to safely parse double from FIX field
+                    double ParseFieldDouble(int tag)
+                    {
+                        if (quote.IsSetField(tag))
+                        {
+                            string value = quote.GetString(tag);
+                            if (double.TryParse(value, out double result))
+                                return result;
+                        }
+                        return 0;
+                    }
+
+                    string GetFieldString(int tag)
+                    {
+                        return quote.IsSetField(tag) ? quote.GetString(tag) : "";
+                    }
+
+                    var quoteData = new QuoteData
+                    {
+                        LP = lpName,
+                        Side = side,
+                        QuoteID = quoteID,
+                        Timestamp = DateTime.Now,
+                        Underlying = quote.IsSetField(Tags.Symbol) ? quote.GetString(Tags.Symbol) : "",
+                        BidPremium = side == "BID" ? ParseFieldDouble(6436) : 0,
+                        OfferPremium = side == "OFFER" ? ParseFieldDouble(6436) : 0,
+                        BidVol = side == "BID" ? ParseFieldDouble(5678) : 0,
+                        OfferVol = side == "OFFER" ? ParseFieldDouble(5678) : 0,
+                        Notional = ParseFieldDouble(5359),  // MQSize
+                        Delta = ParseFieldDouble(6035),      // LegDelta
+                        PremiumCurrency = GetFieldString(5830),  // PremiumCcy
+                        ValidUntilTime = GetFieldString(62),     // ValidUntilTime
+                        Spread = 0  // Will be calculated client-side
+                    };
+
+                    OnQuoteDataReceived?.Invoke(quoteData);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[GFI FIX] Failed to fire OnQuoteDataReceived: {ex.Message}");
+                }
 
                 // ====== ACTIVE LP SUMMARY ======
       PrintActiveLPSummary(groupID);

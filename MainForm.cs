@@ -645,9 +645,9 @@ namespace FXOAiTranslator
                 // Convert OVML to TradeStructure for future use
                 var tradeStructure = FXOptionsSimulator.OVMLBridge.ConvertToTradeStructure(ovmlResult);
 
-                // Show WebView2 Quote Window (HTML-based dark mode UI)
-                // TODO: Pass tradeStructure to initialize the HTML with trade data
-                var wpfWindow = new FXOAiTranslate.WPF.Views.WebQuoteWindow();
+                // Show WPF Multi-LP Quote Window (Bloomberg-style dark mode)
+                // var wpfWindow = new FXOAiTranslate.WPF.Views.MultiLPQuoteWindow(tradeStructure);
+                var wpfWindow = new FXOAiTranslate.WPF.Views.WebQuoteWindow(tradeStructure);
                 wpfWindow.ShowDialog();
             }
             catch (Exception ex)
