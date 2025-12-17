@@ -3,6 +3,7 @@
 
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/Colors.xaml"/>
+        <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/ButtonStyles.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
     <!-- Base TextBlock Style -->
