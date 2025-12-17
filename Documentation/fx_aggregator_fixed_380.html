@@ -2045,6 +2045,248 @@
         offerTile.addEventListener('mouseleave', function () {
             offerTooltip.classList.remove('visible');
         });
+
+        // ============================================================================
+        // WEBVIEW2 BRIDGE: Real-time GFI quote integration
+        // ============================================================================
+
+        // Check if we're running in WebView2 environment
+        const isWebView2 = window.chrome && window.chrome.webview;
+
+        if (isWebView2) {
+            console.log('[FX Aggregator] Running in WebView2 - GFI integration enabled');
+
+            // Listen for quotes from C# via WebView2 bridge
+            window.chrome.webview.addEventListener('message', event => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'quote') {
+                        updateLPQuote(data);
+                    }
+                } catch (error) {
+                    console.error('[FX Aggregator] Error processing quote:', error);
+                }
+            });
+
+            // Notify C# that JavaScript is ready
+            window.chrome.webview.postMessage(JSON.stringify({ type: 'ready' }));
+        } else {
+            console.log('[FX Aggregator] Running in browser - using mock data');
+        }
+
+        // Update LP ladder with live quote from GFI
+        function updateLPQuote(quote) {
+            console.log(`[FX Aggregator] Received quote: ${quote.lp} ${quote.side} BID:${quote.bidPremium} OFFER:${quote.offerPremium}`);
+
+            // Find the LP row by data-lp attribute
+            const checkbox = document.querySelector(`.lp-checkbox[data-lp="${quote.lp}"]`);
+            if (!checkbox) {
+                console.warn(`[FX Aggregator] LP not found: ${quote.lp}`);
+                return;
+            }
+
+            const lpRow = checkbox.closest('.ladder-row');
+            if (!lpRow) return;
+
+            // Get price cells (first and third columns)
+            const cells = lpRow.querySelectorAll(':scope > div');
+            const bidCell = cells[0]; // First column
+            const offerCell = cells[2]; // Third column (after middle LP name column)
+
+            // Update BID price
+            const bidPrice = bidCell.querySelector('div:first-child');
+            if (bidPrice) {
+                bidPrice.textContent = formatPremium(quote.bidPremium);
+                flashPrice(bidPrice);
+            }
+
+            // Update OFFER price
+            const offerPrice = offerCell.querySelector('div:first-child');
+            if (offerPrice) {
+                offerPrice.textContent = formatPremium(quote.offerPremium);
+                flashPrice(offerPrice);
+            }
+
+            // Update timestamp for staleness tracking
+            lpRow.dataset.quoteTime = quote.timestamp;
+            lpRow.dataset.quoteId = quote.quoteId;
+
+            // Reset opacity to full (fresh quote)
+            if (checkbox.checked) {
+                lpRow.style.opacity = '1.0';
+            }
+
+            // Recalculate best BID/OFFER and update hero tiles
+            updateHeroTiles();
+        }
+
+        // Format premium value for display
+        function formatPremium(value) {
+            // Display absolute value with 2 decimals
+            return Math.abs(value).toFixed(2);
+        }
+
+        // Flash animation on price update
+        function flashPrice(element) {
+            element.classList.add('price-flash');
+            setTimeout(() => element.classList.remove('price-flash'), 500);
+        }
+
+        // Calculate best BID/OFFER across all enabled LPs
+        function updateHeroTiles() {
+            let bestBid = null;
+            let bestOffer = null;
+            let bestBidLP = null;
+            let bestOfferLP = null;
+
+            // Iterate through checked (enabled) LPs only
+            document.querySelectorAll('.lp-checkbox:checked').forEach(checkbox => {
+                const row = checkbox.closest('.ladder-row');
+                const cells = row.querySelectorAll(':scope > div');
+
+                const bidCell = cells[0];
+                const offerCell = cells[2];
+
+                const bidPrice = bidCell.querySelector('div:first-child');
+                const offerPrice = offerCell.querySelector('div:first-child');
+
+                if (bidPrice && offerPrice) {
+                    const bid = parseFloat(bidPrice.textContent);
+                    const offer = parseFloat(offerPrice.textContent);
+                    const lp = checkbox.dataset.lp;
+
+                    // Best BID = highest (you receive more)
+                    if (!isNaN(bid) && (bestBid === null || bid > bestBid)) {
+                        bestBid = bid;
+                        bestBidLP = lp;
+                    }
+
+                    // Best OFFER = lowest (you pay less)
+                    if (!isNaN(offer) && (bestOffer === null || offer < bestOffer)) {
+                        bestOffer = offer;
+                        bestOfferLP = lp;
+                    }
+                }
+            });
+
+            // Update hero tiles with best prices
+            const bidTile = document.getElementById('bid-tile');
+            const offerTile = document.getElementById('offer-tile');
+
+            if (bestBid !== null && bidTile) {
+                const bidValueElement = bidTile.querySelector('.text-2xl.font-bold');
+                if (bidValueElement) {
+                    bidValueElement.textContent = bestBid.toFixed(2);
+                }
+
+                // Update LP indicator
+                const bidLPElement = bidTile.querySelector('.text-xs.text-slate-500');
+                if (bidLPElement) {
+                    bidLPElement.textContent = bestBidLP || '—';
+                }
+            }
+
+            if (bestOffer !== null && offerTile) {
+                const offerValueElement = offerTile.querySelector('.text-2xl.font-bold');
+                if (offerValueElement) {
+                    offerValueElement.textContent = bestOffer.toFixed(2);
+                }
+
+                // Update LP indicator
+                const offerLPElement = offerTile.querySelector('.text-xs.text-slate-500');
+                if (offerLPElement) {
+                    offerLPElement.textContent = bestOfferLP || '—';
+                }
+            }
+
+            console.log(`[FX Aggregator] Best prices updated - BID: ${bestBid} (${bestBidLP}), OFFER: ${bestOffer} (${bestOfferLP})`);
+        }
+
+        // Send execution request to C# when user clicks BID/OFFER tiles
+        function executeTrade(event, side) {
+            const tile = document.getElementById(side + '-tile');
+
+            // Flash Effect
+            tile.classList.remove('trade-flash-' + side);
+            void tile.offsetWidth; // Force reflow
+            tile.classList.add('trade-flash-' + side);
+
+            setTimeout(() => {
+                tile.classList.remove('trade-flash-' + side);
+            }, 750);
+
+            // Get the best quote for this side
+            const quoteId = getBestQuoteId(side);
+
+            if (quoteId && isWebView2) {
+                // Send execution request to C#
+                const message = {
+                    type: 'execute',
+                    side: side.toUpperCase(),
+                    quoteId: quoteId
+                };
+
+                window.chrome.webview.postMessage(JSON.stringify(message));
+                console.log(`[FX Aggregator] Execution requested: ${side} on QuoteID ${quoteId}`);
+            }
+
+            // Create deal card
+            createDealCard(side);
+        }
+
+        // Get the QuoteID for the best BID or OFFER
+        function getBestQuoteId(side) {
+            let bestPrice = null;
+            let bestQuoteId = null;
+
+            document.querySelectorAll('.lp-checkbox:checked').forEach(checkbox => {
+                const row = checkbox.closest('.ladder-row');
+                const cells = row.querySelectorAll(':scope > div');
+
+                const cell = side === 'bid' ? cells[0] : cells[2];
+                const priceElement = cell.querySelector('div:first-child');
+
+                if (priceElement) {
+                    const price = parseFloat(priceElement.textContent);
+                    const quoteId = row.dataset.quoteId;
+
+                    if (!isNaN(price) && quoteId) {
+                        if (bestPrice === null ||
+                            (side === 'bid' && price > bestPrice) ||
+                            (side === 'offer' && price < bestPrice)) {
+                            bestPrice = price;
+                            bestQuoteId = quoteId;
+                        }
+                    }
+                }
+            });
+
+            return bestQuoteId;
+        }
+
+        // CSS for price flash animation
+        const style = document.createElement('style');
+        style.textContent = `
+            .price-flash {
+                animation: priceFlash 0.5s ease-out;
+            }
+
+            @keyframes priceFlash {
+                0% {
+                    background-color: #3b82f6;
+                    color: white;
+                    transform: scale(1.1);
+                }
+                100% {
+                    background-color: transparent;
+                    color: inherit;
+                    transform: scale(1);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
     </script>
 </body>
 

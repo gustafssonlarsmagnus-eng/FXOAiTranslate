@@ -25,6 +25,7 @@ namespace FXOptionsSimulator.FIX
         public event Action<string> OnLogonEvent;
         public event Action<string> OnLogoutEvent;
         public event Action<string, FIXMessage> OnQuoteReceived;
+        public event Action<QuoteData> OnQuoteDataReceived; // New event for WebView2 integration
         public event Action<string, string, string> OnExecutionReport; // ClOrdID, Status, ExecID
         public event Action<string, string, string> OnTradeCaptureReceived; // ClOrdID, CounterpartyName, LEI
 
@@ -218,6 +219,29 @@ if (quote.IsSetField(5678)) // Volatility tag
      });
 
      OnQuoteReceived?.Invoke(quoteReqID, fixMsg);
+
+                // Fire new QuoteData event for WebView2 integration
+                try
+                {
+                    var quoteData = new QuoteData
+                    {
+                        LP = lpName,
+                        Side = side,
+                        QuoteID = quoteID,
+                        Timestamp = DateTime.Now,
+                        Underlying = quote.IsSetField(Tags.Symbol) ? quote.GetString(Tags.Symbol) : "",
+                        BidPremium = side == "BID" && quote.IsSetField(6436) ? quote.GetDouble(6436) : 0,
+                        OfferPremium = side == "OFFER" && quote.IsSetField(6436) ? quote.GetDouble(6436) : 0,
+                        BidVol = side == "BID" && quote.IsSetField(5678) ? quote.GetDouble(5678) : 0,
+                        OfferVol = side == "OFFER" && quote.IsSetField(5678) ? quote.GetDouble(5678) : 0
+                    };
+
+                    OnQuoteDataReceived?.Invoke(quoteData);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[GFI FIX] Failed to fire OnQuoteDataReceived: {ex.Message}");
+                }
 
                 // ====== ACTIVE LP SUMMARY ======
       PrintActiveLPSummary(groupID);
