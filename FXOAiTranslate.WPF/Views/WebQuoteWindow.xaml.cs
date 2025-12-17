@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
@@ -76,6 +77,9 @@ namespace FXOAiTranslate.WPF.Views
             {
                 _isWebViewReady = true;
 
+                // Send trade details to JavaScript for UI initialization
+                SendTradeDetailsToUI();
+
                 // Subscribe to GFI FIX quote updates
                 if (GlobalFIXSession.Instance != null)
                 {
@@ -92,6 +96,41 @@ namespace FXOAiTranslate.WPF.Views
                 {
                     Console.WriteLine("[WebQuoteWindow] WARNING: GlobalFIXSession is not initialized");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Send trade details to JavaScript UI on initialization
+        /// </summary>
+        private void SendTradeDetailsToUI()
+        {
+            try
+            {
+                var message = new
+                {
+                    type = "tradeDetails",
+                    underlying = _trade.Underlying,
+                    expiry = _trade.Expiry.ToString("dd-MMM-yy"),
+                    expiryISO = _trade.Expiry.ToString("yyyy-MM-dd"),
+                    spot = _trade.SpotReference,
+                    structureType = _trade.StructureType,
+                    legs = _trade.Legs.Select(leg => new
+                    {
+                        direction = leg.Direction,
+                        optionType = leg.OptionType,
+                        strike = leg.Strike,
+                        notionalMM = leg.NotionalMM
+                    }).ToList()
+                };
+
+                var json = JsonSerializer.Serialize(message);
+                webView.CoreWebView2.PostWebMessageAsJson(json);
+
+                Console.WriteLine($"[WebQuoteWindow] Sent trade details to UI: {_trade.Underlying} {_trade.Legs.Count} leg(s)");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WebQuoteWindow] Failed to send trade details: {ex.Message}");
             }
         }
 
@@ -163,7 +202,12 @@ namespace FXOAiTranslate.WPF.Views
                         quoteId = quote.QuoteID,
                         side = quote.Side,
                         underlying = quote.Underlying,
-                        timestamp = quote.Timestamp.ToString("o")
+                        timestamp = quote.Timestamp.ToString("o"),
+                        notional = quote.Notional,
+                        delta = quote.Delta,
+                        premiumCurrency = quote.PremiumCurrency,
+                        validUntilTime = quote.ValidUntilTime,
+                        spread = quote.Spread
                     };
 
                     var json = JsonSerializer.Serialize(message);

@@ -235,6 +235,11 @@ if (quote.IsSetField(5678)) // Volatility tag
                         return 0;
                     }
 
+                    string GetFieldString(int tag)
+                    {
+                        return quote.IsSetField(tag) ? quote.GetString(tag) : "";
+                    }
+
                     var quoteData = new QuoteData
                     {
                         LP = lpName,
@@ -245,7 +250,12 @@ if (quote.IsSetField(5678)) // Volatility tag
                         BidPremium = side == "BID" ? ParseFieldDouble(6436) : 0,
                         OfferPremium = side == "OFFER" ? ParseFieldDouble(6436) : 0,
                         BidVol = side == "BID" ? ParseFieldDouble(5678) : 0,
-                        OfferVol = side == "OFFER" ? ParseFieldDouble(5678) : 0
+                        OfferVol = side == "OFFER" ? ParseFieldDouble(5678) : 0,
+                        Notional = ParseFieldDouble(5359),  // MQSize
+                        Delta = ParseFieldDouble(6035),      // LegDelta
+                        PremiumCurrency = GetFieldString(5830),  // PremiumCcy
+                        ValidUntilTime = GetFieldString(62),     // ValidUntilTime
+                        Spread = 0  // Will be calculated client-side
                     };
 
                     OnQuoteDataReceived?.Invoke(quoteData);

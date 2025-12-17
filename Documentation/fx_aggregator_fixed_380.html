@@ -2063,9 +2063,11 @@
 
                     if (data.type === 'quote') {
                         updateLPQuote(data);
+                    } else if (data.type === 'tradeDetails') {
+                        initializeTradeDetails(data);
                     }
                 } catch (error) {
-                    console.error('[FX Aggregator] Error processing quote:', error);
+                    console.error('[FX Aggregator] Error processing message:', error);
                 }
             });
 
@@ -2075,9 +2077,40 @@
             console.log('[FX Aggregator] Running in browser - using mock data');
         }
 
+        // Initialize UI with trade details from TradeStructure
+        function initializeTradeDetails(trade) {
+            console.log(`[FX Aggregator] Initializing trade details: ${trade.underlying} ${trade.legs.length} leg(s)`);
+
+            // Update title with underlying
+            document.title = `FX Aggregator - ${trade.underlying}`;
+
+            // Determine structure type name
+            const structureTypes = {
+                '1': 'Vanilla Option',
+                '5': 'Risk Reversal',
+                '8': 'Call Spread',
+                '9': 'Put Spread',
+                '10': 'Seagull'
+            };
+            const structureName = structureTypes[trade.structureType] || 'Multi-Leg Option';
+
+            // For single-leg trades, populate Option 1 details
+            if (trade.legs.length >= 1) {
+                const leg = trade.legs[0];
+                const baseCcy = trade.underlying.substring(0, 3); // EUR from EURNOK
+
+                // Update Option 1 fields (you'll need to add IDs to the HTML elements)
+                // For now, just log the data
+                console.log(`[FX Aggregator] Leg 1: ${leg.direction} ${leg.notionalMM}M ${baseCcy} ${leg.strike} ${leg.optionType}`);
+            }
+
+            // Store trade data globally for execution
+            window.tradeData = trade;
+        }
+
         // Update LP ladder with live quote from GFI
         function updateLPQuote(quote) {
-            console.log(`[FX Aggregator] Received quote: ${quote.lp} ${quote.side} BID:${quote.bidPremium} OFFER:${quote.offerPremium}`);
+            console.log(`[FX Aggregator] Received quote: ${quote.lp} ${quote.side} BID:${quote.bidPremium} OFFER:${quote.offerPremium} Vol:${quote.bidVol}/${quote.offerVol} Notional:${quote.notional} Delta:${quote.delta}`);
 
             // Find the LP row by data-lp attribute
             const checkbox = document.querySelector(`.lp-checkbox[data-lp="${quote.lp}"]`);
@@ -2089,23 +2122,65 @@
             const lpRow = checkbox.closest('.ladder-row');
             if (!lpRow) return;
 
-            // Get price cells (first and third columns)
+            // Get all cells in the row
             const cells = lpRow.querySelectorAll(':scope > div');
-            const bidCell = cells[0]; // First column
-            const offerCell = cells[2]; // Third column (after middle LP name column)
+            const bidCell = cells[0];    // First column (BID)
+            const midCell = cells[1];    // Middle column (LP name + spread)
+            const offerCell = cells[2];  // Third column (OFFER)
 
-            // Update BID price
-            const bidPrice = bidCell.querySelector('div:first-child');
-            if (bidPrice) {
-                bidPrice.textContent = formatPremium(quote.bidPremium);
-                flashPrice(bidPrice);
+            // Update BID side
+            if (quote.side === "BID") {
+                const bidPrice = bidCell.querySelector('div:first-child');
+                const bidDetails = bidCell.querySelector('div:nth-child(2)');
+
+                if (bidPrice) {
+                    bidPrice.textContent = formatPremium(quote.bidPremium);
+                    flashPrice(bidPrice);
+                }
+
+                if (bidDetails && quote.notional && quote.delta) {
+                    // Format: "69k | 39p"
+                    const notionalK = (quote.notional / 1000).toFixed(0) + 'k';
+                    const deltaP = Math.round(quote.delta) + 'p';
+                    bidDetails.textContent = `${notionalK} | ${deltaP}`;
+                }
             }
 
-            // Update OFFER price
-            const offerPrice = offerCell.querySelector('div:first-child');
-            if (offerPrice) {
-                offerPrice.textContent = formatPremium(quote.offerPremium);
-                flashPrice(offerPrice);
+            // Update OFFER side
+            if (quote.side === "OFFER") {
+                const offerPrice = offerCell.querySelector('div:first-child');
+                const offerDetails = offerCell.querySelector('div:nth-child(2)');
+
+                if (offerPrice) {
+                    offerPrice.textContent = formatPremium(quote.offerPremium);
+                    flashPrice(offerPrice);
+                }
+
+                if (offerDetails && quote.notional && quote.delta) {
+                    // Format: "71k | 44p"
+                    const notionalK = (quote.notional / 1000).toFixed(0) + 'k';
+                    const deltaP = Math.round(quote.delta) + 'p';
+                    offerDetails.textContent = `${notionalK} | ${deltaP}`;
+                }
+            }
+
+            // Update spread in middle column (calculated when we have both BID and OFFER)
+            // Store quote data on the row for spread calculation
+            if (quote.side === "BID") {
+                lpRow.dataset.bidPremium = quote.bidPremium;
+                lpRow.dataset.bidVol = quote.bidVol;
+            } else {
+                lpRow.dataset.offerPremium = quote.offerPremium;
+                lpRow.dataset.offerVol = quote.offerVol;
+            }
+
+            // If we have both BID and OFFER, calculate and display spread
+            if (lpRow.dataset.bidPremium && lpRow.dataset.offerPremium) {
+                const spread = Math.abs(parseFloat(lpRow.dataset.offerPremium) - parseFloat(lpRow.dataset.bidPremium));
+                const spreadElement = midCell.querySelector('span:nth-child(2)');
+                if (spreadElement) {
+                    spreadElement.textContent = spread.toFixed(2);
+                }
             }
 
             // Update timestamp for staleness tracking
@@ -2139,6 +2214,8 @@
             let bestOffer = null;
             let bestBidLP = null;
             let bestOfferLP = null;
+            let bestBidVol = null;
+            let bestOfferVol = null;
 
             // Iterate through checked (enabled) LPs only
             document.querySelectorAll('.lp-checkbox:checked').forEach(checkbox => {
@@ -2156,16 +2233,22 @@
                     const offer = parseFloat(offerPrice.textContent);
                     const lp = checkbox.dataset.lp;
 
+                    // Get volatility values from row dataset
+                    const bidVol = row.dataset.bidVol ? parseFloat(row.dataset.bidVol) : null;
+                    const offerVol = row.dataset.offerVol ? parseFloat(row.dataset.offerVol) : null;
+
                     // Best BID = highest (you receive more)
                     if (!isNaN(bid) && (bestBid === null || bid > bestBid)) {
                         bestBid = bid;
                         bestBidLP = lp;
+                        bestBidVol = bidVol;
                     }
 
                     // Best OFFER = lowest (you pay less)
                     if (!isNaN(offer) && (bestOffer === null || offer < bestOffer)) {
                         bestOffer = offer;
                         bestOfferLP = lp;
+                        bestOfferVol = offerVol;
                     }
                 }
             });
@@ -2175,9 +2258,11 @@
             const offerTile = document.getElementById('offer-tile');
 
             if (bestBid !== null && bidTile) {
-                const bidValueElement = bidTile.querySelector('.text-2xl.font-bold');
+                const bidValueElement = bidTile.querySelector('#bid-value');
                 if (bidValueElement) {
                     bidValueElement.textContent = bestBid.toFixed(2);
+                    bidValueElement.classList.remove('text-slate-600');
+                    bidValueElement.classList.add('text-white');
                 }
 
                 // Update LP indicator
@@ -2185,12 +2270,27 @@
                 if (bidLPElement) {
                     bidLPElement.textContent = bestBidLP || '—';
                 }
+
+                // Update volatility in secondary display
+                const bidSecondary = document.getElementById('bid-secondary');
+                if (bidSecondary && bestBidVol !== null) {
+                    bidSecondary.textContent = `${bestBidVol.toFixed(2)}%`;
+                    bidSecondary.classList.remove('invisible');
+                }
+
+                // Show BID label
+                const bidLabelContainer = document.getElementById('bid-label-container');
+                const bidRfqLabel = document.getElementById('bid-rfq-label');
+                if (bidLabelContainer) bidLabelContainer.classList.remove('invisible');
+                if (bidRfqLabel) bidRfqLabel.classList.add('invisible');
             }
 
             if (bestOffer !== null && offerTile) {
-                const offerValueElement = offerTile.querySelector('.text-2xl.font-bold');
+                const offerValueElement = offerTile.querySelector('#offer-value');
                 if (offerValueElement) {
                     offerValueElement.textContent = bestOffer.toFixed(2);
+                    offerValueElement.classList.remove('text-slate-600');
+                    offerValueElement.classList.add('text-white');
                 }
 
                 // Update LP indicator
@@ -2198,9 +2298,22 @@
                 if (offerLPElement) {
                     offerLPElement.textContent = bestOfferLP || '—';
                 }
+
+                // Update volatility in secondary display
+                const offerSecondary = document.getElementById('offer-secondary');
+                if (offerSecondary && bestOfferVol !== null) {
+                    offerSecondary.textContent = `${bestOfferVol.toFixed(2)}%`;
+                    offerSecondary.classList.remove('invisible');
+                }
+
+                // Show OFFER label
+                const offerLabelContainer = document.getElementById('offer-label-container');
+                const offerRfqLabel = document.getElementById('offer-rfq-label');
+                if (offerLabelContainer) offerLabelContainer.classList.remove('invisible');
+                if (offerRfqLabel) offerRfqLabel.classList.add('invisible');
             }
 
-            console.log(`[FX Aggregator] Best prices updated - BID: ${bestBid} (${bestBidLP}), OFFER: ${bestOffer} (${bestOfferLP})`);
+            console.log(`[FX Aggregator] Best prices updated - BID: ${bestBid} (${bestBidLP}) ${bestBidVol}%, OFFER: ${bestOffer} (${bestOfferLP}) ${bestOfferVol}%`);
         }
 
         // Send execution request to C# when user clicks BID/OFFER tiles

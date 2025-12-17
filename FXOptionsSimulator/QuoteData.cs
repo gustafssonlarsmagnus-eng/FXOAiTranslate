@@ -56,5 +56,35 @@ namespace FXOptionsSimulator
         /// Quote side: "BID" or "OFFER"
         /// </summary>
         public string Side { get; set; }
+
+        /// <summary>
+        /// Notional amount (size)
+        /// FIX Tag 5359 (MQSize)
+        /// </summary>
+        public double Notional { get; set; }
+
+        /// <summary>
+        /// Delta (percentage)
+        /// FIX Tag 6035 (LegDelta)
+        /// </summary>
+        public double Delta { get; set; }
+
+        /// <summary>
+        /// Premium currency (EUR, USD, etc.)
+        /// FIX Tag 5830
+        /// </summary>
+        public string PremiumCurrency { get; set; }
+
+        /// <summary>
+        /// Quote expiry time
+        /// FIX Tag 62 (ValidUntilTime)
+        /// </summary>
+        public string ValidUntilTime { get; set; }
+
+        /// <summary>
+        /// Spread (difference between BID and OFFER premiums)
+        /// Calculated client-side
+        /// </summary>
+        public double Spread { get; set; }
     }
 }
