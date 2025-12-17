@@ -50,6 +50,8 @@
 
     <SolidColorBrush x:Key="BrushAccentBlue" Color="{StaticResource ColorAccentBlue}"/>
     <SolidColorBrush x:Key="BrushAccentPurple" Color="{StaticResource ColorAccentPurple}"/>
+    <SolidColorBrush x:Key="BrushAccentGreen" Color="{StaticResource ColorStatusFilled}"/> <!-- Used for Tile Header -->
+    <SolidColorBrush x:Key="BrushAccentRed" Color="{StaticResource ColorStatusRejected}"/> <!-- Used for Tile Header -->
     
     <!-- Legacy/Brand Specific -->
     <Color x:Key="ColorBloombergOrange">#ff8800</Color>
