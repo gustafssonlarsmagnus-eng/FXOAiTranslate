@@ -647,7 +647,7 @@ namespace FXOAiTranslator
 
                 // Show WPF Multi-LP Quote Window (Bloomberg-style dark mode)
                 // var wpfWindow = new FXOAiTranslate.WPF.Views.MultiLPQuoteWindow(tradeStructure);
-                var wpfWindow = new FXOAiTranslate.WPF.Views.WebQuoteWindow();
+                var wpfWindow = new FXOAiTranslate.WPF.Views.WebQuoteWindow(tradeStructure);
                 wpfWindow.ShowDialog();
 
                 // Note: WPF windows return bool?, not DialogResult
