@@ -37,10 +37,28 @@
         <GradientStop Color="#11151f" Offset="1.0"/>
     </LinearGradientBrush>
 
+    <!-- ===== INTER FONT FAMILY ===== -->
+    <FontFamily x:Key="InterFont">pack://application:,,,/FXOAiTranslate.WPF;component/Fonts/#Inter Variable</FontFamily>
+    
+    <!-- ===== EXACT FONT SIZES FROM HTML (Tailwind) ===== -->
+    <!-- text-7xl = 4.5rem = 72px (main prices) -->
+    <!-- text-6xl = 3.75rem = 60px (RFQ state) -->
+    <!-- text-5xl = 3rem = 48px (alternative) -->
+    <!-- text-lg = 1.125rem = 18px (LP name/timer) -->
+    <!-- text-sm = 0.875rem = 14px (ladder prices) -->
+    <!-- text-xs = 0.75rem = 12px (labels) -->
+    <!-- text-[10px] = 10px (small labels) -->
+    <!-- text-[11px] = 11px (input text) -->
+    
+    <!-- ===== TILE DIMENSIONS FROM HTML ===== -->
+    <!-- h-48 = 12rem = 192px (tile height) -->
+    <!-- h-20 = 5rem = 80px (inner content height) -->
+    <!-- h-12 = 3rem = 48px (ladder row height) -->
+
     <!-- ===== BASE STYLES ===== -->
     <Style TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
-        <Setter Property="FontFamily" Value="Inter, Segoe UI, sans-serif"/>
+        <Setter Property="FontFamily" Value="{StaticResource InterFont}"/>
         <Setter Property="FontSize" Value="12"/>
     </Style>
 

@@ -117,6 +117,62 @@ namespace FXOAiTranslate.WPF.Controls
             set { SetValue(SideLabelBrushProperty, value); }
         }
 
+        // ===== NEW PROPERTIES FOR HTML-MATCHING LAYOUT =====
+
+        public static readonly DependencyProperty DisplayPriceProperty =
+            DependencyProperty.Register("DisplayPrice", typeof(string), typeof(ExecutionTile), new PropertyMetadata("5.47"));
+
+        public string DisplayPrice
+        {
+            get { return (string)GetValue(DisplayPriceProperty); }
+            set { SetValue(DisplayPriceProperty, value); }
+        }
+
+        public static readonly DependencyProperty SubInfoProperty =
+            DependencyProperty.Register("SubInfo", typeof(string), typeof(ExecutionTile), new PropertyMetadata("68,778 USD | 43p"));
+
+        public string SubInfo
+        {
+            get { return (string)GetValue(SubInfoProperty); }
+            set { SetValue(SubInfoProperty, value); }
+        }
+
+        public static readonly DependencyProperty LPNameProperty =
+            DependencyProperty.Register("LPName", typeof(string), typeof(ExecutionTile), new PropertyMetadata("JPM"));
+
+        public string LPName
+        {
+            get { return (string)GetValue(LPNameProperty); }
+            set { SetValue(LPNameProperty, value); }
+        }
+
+        public static readonly DependencyProperty TimerTextProperty =
+            DependencyProperty.Register("TimerText", typeof(string), typeof(ExecutionTile), new PropertyMetadata("0:08"));
+
+        public string TimerText
+        {
+            get { return (string)GetValue(TimerTextProperty); }
+            set { SetValue(TimerTextProperty, value); }
+        }
+
+        public static readonly DependencyProperty LPAlignmentProperty =
+            DependencyProperty.Register("LPAlignment", typeof(HorizontalAlignment), typeof(ExecutionTile), new PropertyMetadata(HorizontalAlignment.Left));
+
+        public HorizontalAlignment LPAlignment
+        {
+            get { return (HorizontalAlignment)GetValue(LPAlignmentProperty); }
+            set { SetValue(LPAlignmentProperty, value); }
+        }
+
+        public static readonly DependencyProperty TimerAlignmentProperty =
+            DependencyProperty.Register("TimerAlignment", typeof(HorizontalAlignment), typeof(ExecutionTile), new PropertyMetadata(HorizontalAlignment.Right));
+
+        public HorizontalAlignment TimerAlignment
+        {
+            get { return (HorizontalAlignment)GetValue(TimerAlignmentProperty); }
+            set { SetValue(TimerAlignmentProperty, value); }
+        }
+
         #endregion
 
         private static void OnPriceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)

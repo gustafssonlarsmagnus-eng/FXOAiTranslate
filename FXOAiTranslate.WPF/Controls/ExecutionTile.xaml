@@ -4,93 +4,102 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="100" d:DesignWidth="150">
+             d:DesignHeight="192" d:DesignWidth="200">
 
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/Styles.xaml"/>
-                <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/ButtonStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Border Style="{StaticResource ExecutionButtonBorder}" 
-            x:Name="MainBorder"
+    <!-- HTML: h-48 = 192px, bg-tile-base gradient -->
+    <Border x:Name="MainBorder"
             Background="{StaticResource BrushTileBackground}"
+            BorderBrush="{StaticResource BrushBorder}"
+            BorderThickness="1"
+            CornerRadius="4"
+            Height="192"
+            Cursor="Hand"
             MouseLeftButtonUp="Border_MouseLeftButtonUp">
         
-        <Grid>
+        <Grid Margin="16,12">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>  <!-- Header: YOU REC/YOU PAY -->
+                <RowDefinition Height="*"/>     <!-- Price Display (centered) -->
+                <RowDefinition Height="Auto"/>  <!-- Sub-info: Premium | Pips -->
+                <RowDefinition Height="Auto"/>  <!-- Footer: LP + Timer -->
             </Grid.RowDefinitions>
 
-            <!-- Header: YOU SELL / YOU BUY -->
+            <!-- Header: YOU REC / YOU PAY (text-xs = 12px) -->
             <TextBlock x:Name="HeaderLabel"
                        Grid.Row="0"
                        Text="{Binding SideLabel, RelativeSource={RelativeSource AncestorType=UserControl}}"
                        HorizontalAlignment="Left"
-                       Margin="8,5,0,0"
-                       FontSize="11"
+                       FontSize="12"
                        FontWeight="Bold"
                        Foreground="{Binding SideLabelBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
 
-            <!-- Price Display -->
+            <!-- Price Display (centered) -->
             <StackPanel Grid.Row="1" 
                         Orientation="Horizontal" 
                         HorizontalAlignment="Center" 
                         VerticalAlignment="Center">
                 
-                <!-- RFQ State: Show "RFQ" text if not executable/no price -->
+                <!-- RFQ State: text-7xl = 72px -->
                 <TextBlock Text="RFQ"
-                           FontSize="24"
+                           FontSize="72"
                            FontWeight="Bold"
-                           Foreground="{StaticResource BrushTextPrimary}"
+                           Foreground="{StaticResource BrushTextMuted}"
                            Visibility="{Binding IsRfqState, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                <!-- Live Price State -->
-                <StackPanel Orientation="Horizontal"
-                            Visibility="{Binding IsRfqState, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                    
-                    <!-- Big Figure -->
-                    <TextBlock x:Name="BigFigText"
-                               Text="{Binding BigFigure, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                               FontSize="16"
-                               Foreground="{StaticResource BrushTextSecondary}"
-                               VerticalAlignment="Bottom"
-                               Margin="0,0,2,4"/>
-
-                    <!-- Pips (Large) -->
-                    <TextBlock x:Name="PipsText"
-                               Text="{Binding Pips, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                               FontSize="36"
-                               FontWeight="Bold"
-                               Foreground="{Binding PriceBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                               VerticalAlignment="Bottom"
-                               LineHeight="36"/>
-
-                    <!-- Tenths (Small superscript) -->
-                    <TextBlock x:Name="TenthsText"
-                               Text="{Binding Tenths, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                               FontSize="14"
-                               Foreground="{StaticResource BrushTextSecondary}"
-                               VerticalAlignment="Top"
-                               Margin="2,8,0,0"/>
-                </StackPanel>
+                <!-- Live Price State: text-7xl = 72px bold white -->
+                <TextBlock x:Name="PriceText"
+                           Text="{Binding DisplayPrice, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                           FontSize="72"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource BrushTextPrimary}"
+                           Visibility="{Binding IsRfqState, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
             </StackPanel>
 
-            <!-- Footer: Liquidity / Info -->
+            <!-- Sub-info: Premium | Pips (text-sm = 14px) -->
             <TextBlock Grid.Row="2"
-                       Text="{Binding FooterText, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                       Text="{Binding SubInfo, RelativeSource={RelativeSource AncestorType=UserControl}}"
                        HorizontalAlignment="Center"
-                       FontSize="10"
+                       FontSize="14"
+                       FontWeight="SemiBold"
                        Foreground="{StaticResource BrushTextMuted}"
-                       Margin="0,0,0,5"/>
+                       Margin="0,4,0,0"
+                       Visibility="{Binding IsRfqState, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
+
+            <!-- Footer: LP Name + Timer (text-lg = 18px) -->
+            <Grid Grid.Row="3" Margin="0,8,0,0"
+                  Visibility="{Binding IsRfqState, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- LP Name -->
+                <TextBlock Grid.Column="0"
+                           Text="{Binding LPName, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource BrushTextPrimary}"
+                           HorizontalAlignment="{Binding LPAlignment, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                
+                <!-- Timer -->
+                <TextBlock Grid.Column="1"
+                           Text="{Binding TimerText, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource BrushAccentAmber}"
+                           HorizontalAlignment="{Binding TimerAlignment, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+            </Grid>
             
-            <!-- Liquidity Pulse Animation (placeholder) -->
-            <Rectangle Grid.RowSpan="3" 
+            <!-- Hover overlay effect (transparent, for visual feedback) -->
+            <Rectangle Grid.RowSpan="4" 
                        Fill="Transparent" 
                        IsHitTestVisible="False"
                        x:Name="FlashOverlay"/>

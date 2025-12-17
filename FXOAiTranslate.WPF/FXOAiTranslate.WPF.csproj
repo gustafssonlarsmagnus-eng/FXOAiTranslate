@@ -28,4 +28,9 @@
     </None>
   </ItemGroup>
 
+  <!-- Embedded Inter Font -->
+  <ItemGroup>
+    <Resource Include="Fonts\InterVariable.ttf" />
+  </ItemGroup>
+
 </Project>
