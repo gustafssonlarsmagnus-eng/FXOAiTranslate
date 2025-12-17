@@ -17,6 +17,95 @@
         <Setter Property="FontSize" Value="12"/>
     </Style>
 
+    <!-- Slim TextBox Style -->
+    <Style x:Key="SlimTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="Height" Value="22"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Background" Value="#17191d"/> <!-- Darker than standard input -->
+        <Setter Property="BorderBrush" Value="#3a3f47"/>
+    </Style>
+
+    <!-- Custom Expander Toggle Button -->
+    <Style x:Key="ExpanderToggleButton" TargetType="{x:Type ToggleButton}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                    <Border Background="Transparent" Padding="5">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Path x:Name="MsgArrow" 
+                                  Data="M 0 0 L 4 4 L 8 0 Z" 
+                                  Fill="{TemplateBinding Foreground}"
+                                  VerticalAlignment="Center" 
+                                  Margin="0,0,5,0"
+                                  RenderTransformOrigin="0.5,0.5">
+                                <Path.RenderTransform>
+                                    <RotateTransform Angle="-90"/>
+                                </Path.RenderTransform>
+                            </Path>
+                            <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="MsgArrow" Property="RenderTransform">
+                                <Setter.Value>
+                                    <RotateTransform Angle="0"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Bar Expander Style -->
+    <Style x:Key="BarExpanderStyle" TargetType="Expander">
+        <Setter Property="Background" Value="{StaticResource BrushBackgroundHeader}"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Expander">
+                    <Border BorderBrush="{TemplateBinding BorderBrush}" 
+                            BorderThickness="{TemplateBinding BorderThickness}" 
+                            Background="{TemplateBinding Background}" 
+                            CornerRadius="2">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="28"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <!-- Header -->
+                            <ToggleButton Style="{StaticResource ExpanderToggleButton}"
+                                          IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          Content="{TemplateBinding Header}"
+                                          Grid.Row="0"/>
+                            
+                            <!-- Content -->
+                            <Border Grid.Row="1" 
+                                    BorderThickness="0,1,0,0" 
+                                    BorderBrush="{TemplateBinding BorderBrush}" 
+                                    Background="{StaticResource BrushBackgroundPanel}"
+                                    Visibility="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <ContentPresenter />
+                            </Border>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- TextBox Style -->
     <Style TargetType="TextBox">
         <Setter Property="Background" Value="{StaticResource BrushBackgroundInput}"/>

@@ -22,7 +22,14 @@
             
             <!-- HEADER -->
             <Border Grid.Row="0" Background="{StaticResource BrushBackgroundHeader}" Padding="10,5">
-                <TextBlock Text="Trade Blotter" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+                 <StackPanel Orientation="Horizontal">
+                    <Path Data="M 0 0 L 4 4 L 8 0 Z" Fill="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0">
+                        <Path.RenderTransform>
+                            <RotateTransform Angle="0"/>
+                        </Path.RenderTransform>
+                    </Path>
+                    <TextBlock Text="CONFIRMED DEALS" FontWeight="Bold" FontSize="11" Foreground="{StaticResource BrushTextPrimary}"/>
+                </StackPanel>
             </Border>
             
             <!-- BLOTTER GRID -->

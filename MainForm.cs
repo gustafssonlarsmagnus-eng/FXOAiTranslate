@@ -683,8 +683,7 @@ namespace FXOAiTranslator
                 }
             };
 
-                }
-            };
+
 
             // OLD:
             // var dialog = new GFIQuoteDialog(testTrade);
