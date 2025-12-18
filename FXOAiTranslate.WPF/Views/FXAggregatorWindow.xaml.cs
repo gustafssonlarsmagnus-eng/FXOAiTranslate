@@ -15,6 +15,17 @@ namespace FXOAiTranslate.WPF.Views
 {
     public partial class FXAggregatorWindow : Window
     {
+        // Constants for delta estimation
+        private const double ITM_MONEYNESS_THRESHOLD = 0.97;
+        private const double OTM_MONEYNESS_THRESHOLD = 1.03;
+        private const double ITM_DELTA = 0.70;
+        private const double OTM_DELTA = 0.30;
+        private const double ATM_DELTA = 0.50;
+
+        // Default values (should be from configuration)
+        private const string DEFAULT_CURRENCY_PAIR = "EURUSD";
+        private const int EXPECTED_CURRENCY_PAIR_LENGTH = 6;
+
         public ObservableCollection<LPQuoteRow> LPQuotes { get; set; }
         public ObservableCollection<DealViewModel> Deals { get; set; }
 
@@ -382,11 +393,19 @@ namespace FXOAiTranslate.WPF.Views
        
         if (_trade?.Legs?.Count > 0)
       {
-      // Get currency pair info
-       string pair = _trade.Underlying ?? "EURUSD";
-         string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
-        string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
-     string premCcy = _trade.PremiumCurrency ?? ccy2;
+      // Get currency pair info with validation
+       string pair = _trade.Underlying ?? DEFAULT_CURRENCY_PAIR;
+
+            // Validate currency pair format
+            if (string.IsNullOrEmpty(pair) || pair.Length != EXPECTED_CURRENCY_PAIR_LENGTH)
+            {
+                Console.WriteLine($"[WPF] WARNING: Invalid currency pair '{pair}' in Tenor_Changed, using default {DEFAULT_CURRENCY_PAIR}");
+                pair = DEFAULT_CURRENCY_PAIR;
+            }
+
+            string ccy1 = pair.Substring(0, 3);
+            string ccy2 = pair.Substring(3, 3);
+            string premCcy = _trade.PremiumCurrency ?? ccy2;
 
             try
        {
@@ -400,7 +419,7 @@ namespace FXOAiTranslate.WPF.Views
   ExpiryEOM = true
     };
 
-             var (tradeDate, spotDate, expiryDate, deliveryDate, premiumDate) = 
+             var (tradeDate, spotDate, expiryDate, deliveryDate, premiumDate) =
  FxDateService.ComputeDates(DateTime.UtcNow, pair, tenor, premCcy, rules);
 
   // Update trade structure
@@ -432,19 +451,41 @@ namespace FXOAiTranslate.WPF.Views
 
                Console.WriteLine($"[WPF] Tenor changed to {tenor}: Expiry={expiryDate:dd MMM yy}, Delivery={deliveryDate:dd MMM yy}");
    }
+         catch (ArgumentException ex)
+         {
+             // Invalid tenor format or date calculation arguments
+             Console.WriteLine($"[WPF] ERROR: Invalid tenor '{tenor}' or date parameters: {ex.Message}");
+             // Use a simple fallback for display only - don't send this to LPs
+             _trade.Legs[0].ExpiryDate = DateTime.Now.AddMonths(1);
+
+             var expiryDateTextBox = FindName("txtExpiryDate") as TextBox;
+             if (expiryDateTextBox != null)
+             {
+                 expiryDateTextBox.Text = "INVALID TENOR";
+             }
+         }
+         catch (FormatException ex)
+         {
+             // Tenor parsing error
+             Console.WriteLine($"[WPF] ERROR: Cannot parse tenor '{tenor}': {ex.Message}");
+
+             var expiryDateTextBox = FindName("txtExpiryDate") as TextBox;
+             if (expiryDateTextBox != null)
+             {
+                 expiryDateTextBox.Text = "ERROR";
+             }
+         }
          catch (Exception ex)
          {
- Console.WriteLine($"[WPF] Error calculating dates for tenor {tenor}: {ex.Message}");
-     // Fallback to simple calculation
-       var months = tenor.EndsWith("Y") ? int.Parse(tenor.TrimEnd('Y')) * 12 : int.Parse(tenor.TrimEnd('M'));
-         _trade.Legs[0].Tenor = tenor;
-     _trade.Legs[0].ExpiryDate = DateTime.Now.AddMonths(months);
-       
-      var expiryDateTextBox = FindName("txtExpiryDate") as TextBox;
-       if (expiryDateTextBox != null)
+             // Unexpected error - log and show error to user
+             Console.WriteLine($"[WPF] UNEXPECTED ERROR calculating dates for tenor {tenor}: {ex.GetType().Name} - {ex.Message}");
+             Console.WriteLine($"[WPF] Stack trace: {ex.StackTrace}");
+
+             var expiryDateTextBox = FindName("txtExpiryDate") as TextBox;
+             if (expiryDateTextBox != null)
              {
-   expiryDateTextBox.Text = _trade.Legs[0].ExpiryDate.ToString("dd MMM yy");
-     }
+                 expiryDateTextBox.Text = "ERROR";
+             }
    }
       }
        }
@@ -518,7 +559,7 @@ namespace FXOAiTranslate.WPF.Views
         /// Update hedge details panel with real data:
         /// - Spot Rate: From TradeStructure.SpotReference (Bloomberg) or MarketData
         /// - Value Date: Calculated using FxDateService calendar
-      /// - Amount: Delta × Notional (from FIX quotes or calculated)
+      /// - Amount: Delta ï¿½ Notional (from FIX quotes or calculated)
     /// </summary>
         private void UpdateHedgeDetails(bool isForward)
         {
@@ -527,10 +568,18 @@ namespace FXOAiTranslate.WPF.Views
      var amountLabel = FindName("lblHedgeAmount") as System.Windows.Controls.TextBlock;
    var amountHeader = FindName("lblHedgeAmountHeader") as System.Windows.Controls.TextBlock;
 
-    // Get currency pair from trade
-     string pair = _trade?.Underlying ?? "EURUSD";
-   string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
-            string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+    // Get currency pair from trade with validation
+     string pair = _trade?.Underlying ?? DEFAULT_CURRENCY_PAIR;
+
+            // Validate currency pair format
+            if (string.IsNullOrEmpty(pair) || pair.Length != EXPECTED_CURRENCY_PAIR_LENGTH)
+            {
+                Console.WriteLine($"[WPF] WARNING: Invalid currency pair '{pair}', using default {DEFAULT_CURRENCY_PAIR}");
+                pair = DEFAULT_CURRENCY_PAIR;
+            }
+
+            string ccy1 = pair.Substring(0, 3);
+            string ccy2 = pair.Substring(3, 3);
 
         // === RATE: Use TradeStructure.SpotReference or MarketData ===
    double rate = 0;
@@ -601,7 +650,7 @@ namespace FXOAiTranslate.WPF.Views
        valueDateLabel.Text = valueDate.ToString("dd MMM yy");
   }
 
-   // === AMOUNT: Delta × Notional (from FIX quotes or calculated) ===
+   // === AMOUNT: Delta ï¿½ Notional (from FIX quotes or calculated) ===
            // Update header to show currency
    if (amountHeader != null)
      {
@@ -659,10 +708,11 @@ namespace FXOAiTranslate.WPF.Views
 
    /// <summary>
    /// Estimate delta based on option type and strike vs spot
+   /// Uses moneyness thresholds to classify ITM/ATM/OTM
    /// </summary>
       private double EstimateDelta()
  {
-     if (_trade?.Legs == null || _trade.Legs.Count == 0) return 0.50;
+     if (_trade?.Legs == null || _trade.Legs.Count == 0) return ATM_DELTA;
 
        var leg = _trade.Legs[0];
    var spot = _trade.SpotReference > 0 ? _trade.SpotReference : 1.0;
@@ -670,20 +720,20 @@ namespace FXOAiTranslate.WPF.Views
 
       // Simple ATM approximation - adjust based on moneyness
        double moneyness = strike / spot;
-        
+
   if (leg.OptionType == "CALL")
      {
  // Call delta: roughly 0.5 ATM, higher for ITM, lower for OTM
-    if (moneyness < 0.97) return 0.70; // ITM
-        if (moneyness > 1.03) return 0.30; // OTM
-   return 0.50; // ATM
+    if (moneyness < ITM_MONEYNESS_THRESHOLD) return ITM_DELTA; // ITM
+        if (moneyness > OTM_MONEYNESS_THRESHOLD) return OTM_DELTA; // OTM
+   return ATM_DELTA; // ATM
         }
     else
      {
-   // Put delta: roughly -0.5 ATM
-     if (moneyness > 1.03) return 0.70; // ITM put
-       if (moneyness < 0.97) return 0.30; // OTM put
-return 0.50; // ATM
+   // Put delta: roughly -0.5 ATM (absolute value)
+     if (moneyness > OTM_MONEYNESS_THRESHOLD) return ITM_DELTA; // ITM put
+       if (moneyness < ITM_MONEYNESS_THRESHOLD) return OTM_DELTA; // OTM put
+return ATM_DELTA; // ATM
    }
  }
 
@@ -940,19 +990,21 @@ return 0.50; // ATM
             if (deltaExchangeCombo?.SelectedItem is ComboBoxItem item)
  {
           var selection = item.Content?.ToString() ?? "";
-     
-      if (selection.Contains("Forward"))
-  {
-                _trade.HedgeType = "FORWARD";
-   }
-    else if (selection.Contains("Spot"))
-  {
-     _trade.HedgeType = "SPOT";
-     }
-     else
-       {
-  _trade.HedgeType = "LIVE";
- }
+
+          // Use exact string matching for robustness
+          switch (selection)
+          {
+              case "Forward Hedge":
+                  _trade.HedgeType = "FORWARD";
+                  break;
+              case "Spot Hedge":
+                  _trade.HedgeType = "SPOT";
+                  break;
+              case "No Hedge (Live)":
+              default:
+                  _trade.HedgeType = "LIVE";
+                  break;
+          }
    }
 
   // Parse and apply the hedge rate
@@ -979,8 +1031,18 @@ return 0.50; // ATM
    if (deltaExchangeCombo?.SelectedItem is ComboBoxItem item)
        {
     var selection = item.Content?.ToString() ?? "";
- if (selection.Contains("Forward")) return "2"; // Forward Hedge
-          if (selection.Contains("Spot")) return "1";    // Spot Hedge
+
+            // Use exact string matching for robustness
+            switch (selection)
+            {
+                case "Forward Hedge":
+                    return "2"; // Forward Hedge
+                case "Spot Hedge":
+                    return "1"; // Spot Hedge
+                case "No Hedge (Live)":
+                default:
+                    return "0"; // No Hedge (Live)
+            }
    }
    return "0"; // No Hedge (Live)
         }
@@ -995,7 +1057,16 @@ return 0.50; // ATM
      if (premiumDueCombo?.SelectedItem is ComboBoxItem item)
      {
    var selection = item.Content?.ToString() ?? "";
-        if (selection.Contains("FORWARD")) return "F";
+
+            // Use exact string matching for robustness
+            switch (selection)
+            {
+                case "FORWARD":
+                    return "F"; // Forward premium
+                case "SPOT":
+                default:
+                    return "S"; // Spot premium (default)
+            }
     }
       return "S"; // Default to Spot
         }
