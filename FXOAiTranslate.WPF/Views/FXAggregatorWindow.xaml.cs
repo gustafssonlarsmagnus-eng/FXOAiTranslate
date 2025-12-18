@@ -68,9 +68,9 @@ namespace FXOAiTranslate.WPF.Views
             }
             else
             {
-                // Show placeholder if no trade provided (lighter color for visibility)
-                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10M EURUSD 1M call 1.18";
-                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94a3b8"));
+                // Show placeholder if no trade provided (matches RFQ inactive color)
+                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10m eurusd 1m call 1.18";
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
             }
         }
 
@@ -342,11 +342,11 @@ namespace FXOAiTranslate.WPF.Views
 
         private void txtTradeInput_Loaded(object sender, RoutedEventArgs e)
         {
-            // Initialize placeholder on load (lighter color for visibility)
+            // Initialize placeholder on load (matches RFQ inactive color)
             if (string.IsNullOrWhiteSpace(txtTradeInput.Text) || txtTradeInput.Text == txtTradeInput.Tag?.ToString())
             {
-                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10M EURUSD 1M call 1.18";
-                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94a3b8"));
+                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10m eurusd 1m call 1.18";
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
             }
         }
 
@@ -366,7 +366,7 @@ namespace FXOAiTranslate.WPF.Views
             if (string.IsNullOrWhiteSpace(txtTradeInput.Text))
             {
                 txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "";
-                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94a3b8"));
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
             }
         }
 
