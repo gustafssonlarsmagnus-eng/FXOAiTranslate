@@ -64,6 +64,13 @@ namespace FXOAiTranslate.WPF.Views
             {
                 var leg = trade.Legs[0];
                 txtTradeInput.Text = $"{leg.Direction} {leg.NotionalMM}M {trade.Underlying} {leg.Tenor} {leg.OptionType} {leg.Strike}";
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#e2e8f0"));
+            }
+            else
+            {
+                // Show placeholder if no trade provided
+                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10M EURUSD 1M call 1.18";
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
             }
         }
 
@@ -333,8 +340,35 @@ namespace FXOAiTranslate.WPF.Views
             SendRFQ();
         }
 
+        private void txtTradeInput_GotFocus(object sender, RoutedEventArgs e)
+        {
+            // Clear placeholder when textbox gets focus
+            if (txtTradeInput.Text == txtTradeInput.Tag?.ToString())
+            {
+                txtTradeInput.Text = "";
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#e2e8f0"));
+            }
+        }
+
+        private void txtTradeInput_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Show placeholder when textbox loses focus and is empty
+            if (string.IsNullOrWhiteSpace(txtTradeInput.Text))
+            {
+                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "";
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
+            }
+        }
+
         private void ParseTradeInput()
         {
+            // Don't parse if showing placeholder
+            if (string.IsNullOrWhiteSpace(txtTradeInput.Text) ||
+                txtTradeInput.Text == txtTradeInput.Tag?.ToString())
+            {
+                return;
+            }
+
             var input = txtTradeInput.Text.ToLower();
 
             // Simple parsing - update trade structure
@@ -518,7 +552,7 @@ namespace FXOAiTranslate.WPF.Views
         /// Update hedge details panel with real data:
         /// - Spot Rate: From TradeStructure.SpotReference (Bloomberg) or MarketData
         /// - Value Date: Calculated using FxDateService calendar
-      /// - Amount: Delta × Notional (from FIX quotes or calculated)
+      /// - Amount: Delta ï¿½ Notional (from FIX quotes or calculated)
     /// </summary>
         private void UpdateHedgeDetails(bool isForward)
         {
@@ -601,7 +635,7 @@ namespace FXOAiTranslate.WPF.Views
        valueDateLabel.Text = valueDate.ToString("dd MMM yy");
   }
 
-   // === AMOUNT: Delta × Notional (from FIX quotes or calculated) ===
+   // === AMOUNT: Delta ï¿½ Notional (from FIX quotes or calculated) ===
            // Update header to show currency
    if (amountHeader != null)
      {
