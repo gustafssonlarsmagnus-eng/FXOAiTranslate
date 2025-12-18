@@ -63,7 +63,8 @@ namespace FXOAiTranslate.WPF.Views
             if (trade != null && trade.Legs?.Count > 0)
             {
                 var leg = trade.Legs[0];
-                txtTradeInput.Text = $"{leg.Direction} {leg.NotionalMM}M {trade.Underlying} {leg.Tenor} {leg.OptionType} {leg.Strike}";
+                // Format trade text in lowercase to match placeholder style
+                txtTradeInput.Text = $"{leg.Direction?.ToLower()} {leg.NotionalMM}m {trade.Underlying?.ToLower()} {leg.Tenor?.ToLower()} {leg.OptionType?.ToLower()} {leg.Strike}";
                 txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#e2e8f0"));
             }
             else
