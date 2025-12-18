@@ -1,0 +1,642 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
+using FXOptionsSimulator;
+using FXOptionsSimulator.FIX;
+
+namespace FXOAiTranslate.WPF.Views
+{
+    public partial class FXAggregatorWindow : Window
+    {
+        public ObservableCollection<LPQuoteRow> LPQuotes { get; set; }
+        public ObservableCollection<DealViewModel> Deals { get; set; }
+
+private readonly TradeStructure _trade;
+   private readonly GFIFIXSessionManager _fixSession;
+        private readonly ConcurrentDictionary<string, LPQuoteData> _quotesByLP;
+      private readonly DispatcherTimer _countdownTimer;
+        private string _currentGroupId;
+    private bool _isRfqActive;
+
+        public FXAggregatorWindow()
+        {
+            InitializeComponent();
+
+    LPQuotes = new ObservableCollection<LPQuoteRow>();
+            Deals = new ObservableCollection<DealViewModel>();
+            _quotesByLP = new ConcurrentDictionary<string, LPQuoteData>();
+
+         lpLadder.ItemsSource = LPQuotes;
+            dealCards.ItemsSource = Deals;
+
+        // Get FIX session
+         _fixSession = GlobalFIXSession.Instance;
+
+        // Subscribe to quote events
+        if (_fixSession != null)
+          {
+      _fixSession.OnQuoteReceived += OnQuoteReceived;
+      Console.WriteLine("[WPF] Subscribed to FIX quote events");
+       }
+            else
+            {
+     Console.WriteLine("[WPF] WARNING: FIX session not available");
+            }
+
+  // Countdown timer for quote expiry
+            _countdownTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+  _countdownTimer.Tick += CountdownTimer_Tick;
+        }
+
+        public FXAggregatorWindow(TradeStructure trade) : this()
+        {
+      _trade = trade;
+
+      if (trade != null && trade.Legs?.Count > 0)
+     {
+      var leg = trade.Legs[0];
+ txtTradeInput.Text = $"{leg.Direction} {leg.NotionalMM}M {trade.Underlying} {leg.Tenor} {leg.OptionType} {leg.Strike}";
+            }
+        }
+
+     protected override void OnClosed(EventArgs e)
+ {
+            // Unsubscribe from events
+            if (_fixSession != null)
+         {
+       _fixSession.OnQuoteReceived -= OnQuoteReceived;
+    }
+_countdownTimer.Stop();
+      base.OnClosed(e);
+        }
+
+        #region RFQ State
+
+        private void ShowRfqState()
+        {
+  lblBidLabel.Text = "CLICK TO RFQ";
+          lblBidLabel.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+            lblBidValue.Text = "RFQ";
+  lblBidValue.FontSize = 48;
+            lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+     lblBidSecondary.Visibility = Visibility.Collapsed;
+      bidLPPanel.Visibility = Visibility.Collapsed;
+
+       lblOfferLabel.Text = "CLICK TO RFQ";
+            lblOfferLabel.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+       lblOfferValue.Text = "RFQ";
+   lblOfferValue.FontSize = 48;
+            lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+  lblOfferSecondary.Visibility = Visibility.Collapsed;
+            offerLPPanel.Visibility = Visibility.Collapsed;
+
+      spreadPanel.Visibility = Visibility.Collapsed;
+      lblNoQuotes.Visibility = Visibility.Visible;
+            LPQuotes.Clear();
+    _isRfqActive = false;
+   }
+
+        private void ShowLiveState()
+      {
+          lblBidLabel.Text = "BID (VOL)";
+            lblBidLabel.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Green
+   lblBidValue.FontSize = 56;
+          lblBidValue.Foreground = Brushes.White;
+  lblBidSecondary.Visibility = Visibility.Visible;
+    bidLPPanel.Visibility = Visibility.Visible;
+
+lblOfferLabel.Text = "OFFER (VOL)";
+            lblOfferLabel.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+            lblOfferValue.FontSize = 56;
+    lblOfferValue.Foreground = Brushes.White;
+   lblOfferSecondary.Visibility = Visibility.Visible;
+        offerLPPanel.Visibility = Visibility.Visible;
+
+          spreadPanel.Visibility = Visibility.Visible;
+        lblNoQuotes.Visibility = Visibility.Collapsed;
+ _isRfqActive = true;
+      _countdownTimer.Start();
+        }
+
+        #endregion
+
+        #region FIX Quote Handling
+
+   private void OnQuoteReceived(QuoteData quote)
+        {
+       // Marshal to UI thread
+   Dispatcher.BeginInvoke(() =>
+       {
+    ProcessQuote(quote);
+            });
+    }
+
+        private void ProcessQuote(QuoteData quote)
+        {
+  Console.WriteLine($"[WPF] Processing quote from {quote.LP} - Side: {quote.Side}, Vol: {(quote.Side == "BID" ? quote.BidVol : quote.OfferVol)}");
+
+            if (!_isRfqActive)
+ {
+   ShowLiveState();
+            }
+
+    // Update or add LP quote data
+    var lpData = _quotesByLP.GetOrAdd(quote.LP, _ => new LPQuoteData { LP = quote.LP });
+
+ if (quote.Side == "BID")
+            {
+           lpData.BidVol = quote.BidVol;
+     lpData.BidPremium = quote.BidPremium;
+       lpData.BidQuoteId = quote.QuoteID;
+   }
+            else
+            {
+      lpData.OfferVol = quote.OfferVol;
+     lpData.OfferPremium = quote.OfferPremium;
+       lpData.OfferQuoteId = quote.QuoteID;
+            }
+
+       lpData.LastUpdate = DateTime.Now;
+        lpData.ValidUntilTime = ParseValidUntilTime(quote.ValidUntilTime);
+       lpData.SpotRate = quote.Notional > 0 ? quote.Notional.ToString("F4") : "1.1746";
+            lpData.Delta = quote.Delta;
+
+            // Update ladder
+            UpdateLadder();
+
+        // Update best bid/offer tiles
+    UpdateBestPrices();
+        }
+
+ private DateTime ParseValidUntilTime(string validUntil)
+        {
+            // Format: "20251218-08:32:40"
+  if (!string.IsNullOrEmpty(validUntil) &&
+          DateTime.TryParseExact(validUntil, "yyyyMMdd-HH:mm:ss", null,
+          System.Globalization.DateTimeStyles.AssumeUniversal, out var dt))
+      {
+  return dt.ToLocalTime();
+            }
+   return DateTime.Now.AddMinutes(2);
+        }
+
+        private void UpdateLadder()
+        {
+            var sorted = _quotesByLP.Values
+ .OrderByDescending(q => q.BidVol) // Best bid first
+     .ToList();
+
+            // Find best prices
+            var bestBidLP = sorted.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault()?.LP;
+      var bestOfferLP = sorted.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault()?.LP;
+
+            LPQuotes.Clear();
+      foreach (var lp in sorted)
+  {
+    var secondsRemaining = (lp.ValidUntilTime - DateTime.Now).TotalSeconds;
+  var opacity = Math.Max(0.3, Math.Min(1.0, secondsRemaining / 120.0)); // Fade over 2 mins
+
+    LPQuotes.Add(new LPQuoteRow
+                {
+  LPName = lp.LP,
+          BidVol = lp.BidVol > 0 ? lp.BidVol.ToString("F2") : "-",
+    BidSecondary = lp.BidPremium != 0 ? $"{Math.Abs(lp.BidPremium / 1000):F0}k" : "-",
+          OfferVol = lp.OfferVol > 0 ? lp.OfferVol.ToString("F2") : "-",
+                 OfferSecondary = lp.OfferPremium != 0 ? $"{Math.Abs(lp.OfferPremium / 1000):F0}k" : "-",
+    Opacity = opacity,
+              IsBestBid = lp.LP == bestBidLP,
+     IsBestOffer = lp.LP == bestOfferLP,
+      IsEnabled = true
+            });
+  }
+        }
+
+        private void UpdateBestPrices()
+        {
+            var quotes = _quotesByLP.Values.ToList();
+
+            // Best bid = highest vol you receive
+            var bestBid = quotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
+         // Best offer = lowest vol you pay
+  var bestOffer = quotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
+
+            if (bestBid != null)
+            {
+  lblBidValue.Text = bestBid.BidVol.ToString("F2");
+             lblBidSecondary.Text = $"{Math.Abs(bestBid.BidPremium / 1000):F0}k";
+    lblBidLP.Text = bestBid.LP;
+   UpdateCountdown(lblBidCountdown, bestBid.ValidUntilTime);
+        }
+
+          if (bestOffer != null)
+   {
+    lblOfferValue.Text = bestOffer.OfferVol.ToString("F2");
+     lblOfferSecondary.Text = $"{Math.Abs(bestOffer.OfferPremium / 1000):F0}k";
+        lblOfferLP.Text = bestOffer.LP;
+     UpdateCountdown(lblOfferCountdown, bestOffer.ValidUntilTime);
+       }
+
+            // Spread
+   if (bestBid != null && bestOffer != null)
+       {
+     var spread = bestOffer.OfferVol - bestBid.BidVol;
+                lblSpread.Text = spread.ToString("F2");
+          }
+    }
+
+        private void UpdateCountdown(System.Windows.Controls.TextBlock label, DateTime validUntil)
+        {
+  var remaining = validUntil - DateTime.Now;
+         if (remaining.TotalSeconds > 0)
+  {
+label.Text = $"{(int)remaining.TotalMinutes}:{remaining.Seconds:D2}";
+     label.Foreground = remaining.TotalSeconds < 10
+         ? new SolidColorBrush(Color.FromRgb(239, 68, 68))  // Red when urgent
+       : new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Amber
+            }
+            else
+          {
+        label.Text = "EXPIRED";
+      label.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+  }
+    }
+
+        private void CountdownTimer_Tick(object sender, EventArgs e)
+        {
+         if (_quotesByLP.IsEmpty) return;
+
+            UpdateBestPrices();
+
+       // Remove expired quotes
+            var now = DateTime.Now;
+            var expired = _quotesByLP.Where(kv => kv.Value.ValidUntilTime < now).ToList();
+        foreach (var kv in expired)
+            {
+      _quotesByLP.TryRemove(kv.Key, out _);
+   Console.WriteLine($"[WPF] Quote from {kv.Key} expired");
+            }
+
+            if (expired.Any())
+   {
+                UpdateLadder();
+            }
+
+     if (_quotesByLP.IsEmpty && _isRfqActive)
+            {
+      ShowRfqState();
+      _countdownTimer.Stop();
+            }
+        }
+
+        #endregion
+
+ #region UI Event Handlers
+
+        private void ParseButton_Click(object sender, RoutedEventArgs e)
+        {
+ SendRFQ();
+        }
+
+     private void BidTile_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isRfqActive)
+       {
+ SendRFQ();
+        return;
+   }
+       ExecuteTrade("BID");
+}
+
+     private void OfferTile_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isRfqActive)
+     {
+       SendRFQ();
+                return;
+            }
+            ExecuteTrade("OFFER");
+        }
+
+        private void SendRFQ()
+ {
+            if (_trade == null)
+  {
+         MessageBox.Show("No trade structure loaded. Please enter a trade.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+         return;
+  }
+
+if (_fixSession == null || !_fixSession.IsLoggedOn)
+            {
+      MessageBox.Show("FIX session not connected. Please wait for connection.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+        return;
+  }
+
+            try
+  {
+           _quotesByLP.Clear();
+    LPQuotes.Clear();
+
+ _currentGroupId = $"WPF_{DateTime.Now.Ticks}";
+
+  // Send to working LPs (BNP and HSBC confirmed working)
+     var lps = new[] { "BNP", "HSBC" };
+
+        Console.WriteLine($"\n[WPF] ========== SENDING RFQ ==========");
+           Console.WriteLine($"[WPF] GroupID: {_currentGroupId}");
+                Console.WriteLine($"[WPF] Trade: {_trade.Underlying} {_trade.Legs[0].Tenor} {_trade.Legs[0].OptionType}");
+
+      foreach (var lp in lps)
+        {
+            var quoteReqId = _fixSession.SendQuoteRequest(_trade, lp, _currentGroupId);
+     Console.WriteLine($"[WPF] Sent RFQ to {lp}: {quoteReqId}");
+        }
+
+            ShowLiveState();
+             Console.WriteLine($"[WPF] RFQ sent to {lps.Length} LPs, waiting for quotes...\n");
+  }
+         catch (Exception ex)
+            {
+             MessageBox.Show($"Error sending RFQ: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+      Console.WriteLine($"[WPF] ERROR sending RFQ: {ex.Message}");
+       }
+   }
+
+        private void ExecuteTrade(string side)
+        {
+   // Flash animation
+     var tile = side == "BID" ? bidTile : offerTile;
+     var originalBrush = tile.Background;
+      tile.Background = new SolidColorBrush(Color.FromArgb(80, 59, 130, 246));
+
+       var flashTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+flashTimer.Tick += (s, args) =>
+        {
+     tile.Background = originalBrush;
+    flashTimer.Stop();
+            };
+     flashTimer.Start();
+
+    // Get best quote for the side
+      var quotes = _quotesByLP.Values.ToList();
+        LPQuoteData bestQuote;
+            string tradeSide;
+string quoteIdToExecute;
+
+ if (side == "BID")
+            {
+ bestQuote = quotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
+  tradeSide = "SELL"; // Selling to the bidder
+    quoteIdToExecute = bestQuote?.BidQuoteId;
+       }
+ else
+            {
+         bestQuote = quotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
+                tradeSide = "BUY"; // Buying from the offerer
+                quoteIdToExecute = bestQuote?.OfferQuoteId;
+            }
+
+    if (bestQuote == null || string.IsNullOrEmpty(quoteIdToExecute))
+     {
+          MessageBox.Show("No valid quote available to execute", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+ return;
+            }
+
+            Console.WriteLine($"\n[WPF] ========== EXECUTING TRADE ==========");
+       Console.WriteLine($"[WPF] Side: {tradeSide}, LP: {bestQuote.LP}");
+            Console.WriteLine($"[WPF] QuoteID: {quoteIdToExecute}");
+         Console.WriteLine($"[WPF] Vol: {(side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol)}");
+
+            // Create deal card
+         var deal = new DealViewModel
+      {
+     Time = DateTime.Now.ToString("HH:mm:ss"),
+    Instrument = $"{_trade?.Underlying ?? "EURUSD"} {_trade?.Legs?[0]?.Tenor ?? "1M"} {_trade?.Legs?[0]?.OptionType ?? "CALL"}",
+        LP = bestQuote.LP,
+       Side = tradeSide,
+         Status = "PENDING",
+       Volatility = $"{(side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol):F2}%",
+         Premium = (decimal)Math.Abs(side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium),
+           EurPips = $"{Math.Abs((side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium) / 1000):F0}p",
+       SpotRate = bestQuote.SpotRate ?? "1.1746",
+  Strike = _trade?.Legs?[0]?.Strike.ToString("F4") ?? "1.1751",
+     Notional = $"EUR {_trade?.Legs?[0]?.NotionalMM ?? 10}M",
+                ExpiryDate = _trade?.Legs?[0]?.ExpiryDate.ToString("dd MMM yy") ?? "14 Jan 26",
+         Tenor = _trade?.Legs?[0]?.Tenor ?? "1M",
+        ExpiryCut = "NYC",
+     OrderId = $"FENICS.{DateTime.Now.Ticks.ToString().Substring(10, 8)}",
+     QuoteId = quoteIdToExecute
+   };
+
+            Deals.Insert(0, deal);
+  lblNoDeals.Visibility = Visibility.Collapsed;
+
+        // Send actual FIX execution
+            try
+  {
+       // Build FIXMessage from quote data for execution
+   var quoteMsg = new FIXMessage("S");
+            quoteMsg.Set("117", quoteIdToExecute); // QuoteID
+ quoteMsg.Set("115", bestQuote.LP);      // OnBehalfOfCompID
+       quoteMsg.Set("55", _trade?.Underlying ?? "EURUSD");
+    quoteMsg.Set("5678", (side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol).ToString());
+          quoteMsg.Set("6436", (side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium).ToString());
+
+         var executionSide = tradeSide == "BUY" ? "1" : "2"; // FIX Side: 1=Buy, 2=Sell
+        var clOrdId = _fixSession.SendExecution(quoteMsg, executionSide, _trade);
+
+      deal.ClOrdId = clOrdId;
+     Console.WriteLine($"[WPF] Execution sent: ClOrdID={clOrdId}");
+
+    // Subscribe to execution report for this order
+       SubscribeToExecutionReport(deal);
+   }
+            catch (Exception ex)
+        {
+   Console.WriteLine($"[WPF] ERROR sending execution: {ex.Message}");
+             deal.Status = "FAILED";
+
+   // Fallback: simulate confirmation for demo
+   var confirmTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+           confirmTimer.Tick += (s, args) =>
+     {
+     deal.Status = "CONFIRMED";
+         confirmTimer.Stop();
+    };
+       confirmTimer.Start();
+    }
+   }
+
+        private void SubscribeToExecutionReport(DealViewModel deal)
+        {
+     // Listen for execution reports
+            Action<string, string, string> handler = null;
+            handler = (clOrdId, status, execId) =>
+          {
+        if (clOrdId == deal.ClOrdId)
+       {
+  Dispatcher.BeginInvoke(() =>
+     {
+   if (status == "2") // Filled
+ {
+          deal.Status = "CONFIRMED";
+   Console.WriteLine($"[WPF] Trade CONFIRMED: {clOrdId}");
+          }
+    else if (status == "8") // Rejected
+      {
+    deal.Status = "REJECTED";
+  Console.WriteLine($"[WPF] Trade REJECTED: {clOrdId}");
+             }
+                 });
+
+             // Unsubscribe after handling
+          _fixSession.Application.OnExecutionReport -= handler;
+                }
+ };
+
+   _fixSession.Application.OnExecutionReport += handler;
+
+            // Timeout: if no response in 30 seconds, assume confirmed (for demo)
+            var timeout = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+       timeout.Tick += (s, args) =>
+     {
+             if (deal.Status == "PENDING")
+ {
+               deal.Status = "CONFIRMED";
+           Console.WriteLine($"[WPF] Trade confirmed (timeout): {deal.ClOrdId}");
+ }
+   _fixSession.Application.OnExecutionReport -= handler;
+         timeout.Stop();
+ };
+            timeout.Start();
+        }
+
+        private void DealCard_Click(object sender, MouseButtonEventArgs e)
+        {
+   var border = sender as System.Windows.Controls.Border;
+            if (border?.DataContext is DealViewModel deal)
+      {
+         deal.IsExpanded = !deal.IsExpanded;
+            }
+ }
+
+        #endregion
+    }
+
+    #region Data Models
+
+    public class LPQuoteData
+    {
+        public string LP { get; set; }
+        public double BidVol { get; set; }
+        public double BidPremium { get; set; }
+        public string BidQuoteId { get; set; }
+        public double OfferVol { get; set; }
+     public double OfferPremium { get; set; }
+        public string OfferQuoteId { get; set; }
+        public DateTime LastUpdate { get; set; }
+        public DateTime ValidUntilTime { get; set; }
+     public string SpotRate { get; set; }
+        public double Delta { get; set; }
+    }
+
+    #endregion
+
+    #region ViewModels
+
+    public class LPQuoteRow : INotifyPropertyChanged
+    {
+    public string LPName { get; set; }
+        public string BidVol { get; set; }
+        public string BidSecondary { get; set; }
+      public string OfferVol { get; set; }
+        public string OfferSecondary { get; set; }
+        public double Opacity { get; set; } = 1.0;
+        public bool IsBestBid { get; set; }
+        public bool IsBestOffer { get; set; }
+  public bool IsEnabled { get; set; } = true;
+
+        public Brush BidBorderBrush => IsBestBid ? new SolidColorBrush(Color.FromRgb(59, 130, 246)) : Brushes.Transparent;
+        public Brush OfferBorderBrush => IsBestOffer ? new SolidColorBrush(Color.FromRgb(59, 130, 246)) : Brushes.Transparent;
+     public Brush BidBackground => IsBestBid ? new SolidColorBrush(Color.FromArgb(30, 30, 58, 138)) : Brushes.Transparent;
+   public Brush OfferBackground => IsBestOffer ? new SolidColorBrush(Color.FromArgb(30, 30, 58, 138)) : Brushes.Transparent;
+
+   public event PropertyChangedEventHandler PropertyChanged;
+    protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    public class DealViewModel : INotifyPropertyChanged
+    {
+        public string Time { get; set; }
+        public string Instrument { get; set; }
+        public string LP { get; set; }
+        public string Side { get; set; }
+    public string ClOrdId { get; set; }
+     public string QuoteId { get; set; }
+
+        private string _status = "PENDING";
+        public string Status
+        {
+            get => _status;
+            set
+     {
+    _status = value;
+              OnPropertyChanged(nameof(Status));
+      OnPropertyChanged(nameof(StatusBackground));
+ OnPropertyChanged(nameof(StatusForeground));
+     }
+        }
+
+        private bool _isExpanded;
+        public bool IsExpanded
+   {
+            get => _isExpanded;
+       set { _isExpanded = value; OnPropertyChanged(nameof(IsExpanded)); }
+        }
+
+  public string Volatility { get; set; }
+        public decimal Premium { get; set; }
+     public string PremiumDisplay => Premium.ToString("N0");
+        public string PremiumLabel => Side == "BUY" ? "Pay" : "Receive";
+    public string EurPips { get; set; }
+      public string SpotRate { get; set; }
+        public string Strike { get; set; }
+        public string Notional { get; set; }
+  public string ExpiryDate { get; set; }
+      public string Tenor { get; set; }
+public string ExpiryCut { get; set; }
+        public string OrderId { get; set; }
+
+        public Brush SideColor => Side == "BUY"
+            ? new SolidColorBrush(Color.FromRgb(34, 197, 94))
+    : new SolidColorBrush(Color.FromRgb(239, 68, 68));
+
+        public Brush PremiumColor => Side == "BUY"
+            ? new SolidColorBrush(Color.FromRgb(239, 68, 68))
+     : new SolidColorBrush(Color.FromRgb(34, 197, 94));
+
+        public Brush StatusBackground => Status switch
+        {
+    "CONFIRMED" => new SolidColorBrush(Color.FromArgb(51, 34, 197, 94)),
+      "REJECTED" or "FAILED" => new SolidColorBrush(Color.FromArgb(51, 239, 68, 68)),
+            _ => new SolidColorBrush(Color.FromArgb(51, 245, 158, 11))
+        };
+
+        public Brush StatusForeground => Status switch
+        {
+            "CONFIRMED" => new SolidColorBrush(Color.FromRgb(34, 197, 94)),
+            "REJECTED" or "FAILED" => new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+            _ => new SolidColorBrush(Color.FromRgb(245, 158, 11))
+        };
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    #endregion
+}

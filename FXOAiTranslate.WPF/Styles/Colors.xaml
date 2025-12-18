@@ -2,23 +2,61 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- ============================================ -->
+    <!-- BLOOMBERG-STYLE DARK THEME     -->
     <!-- ============================================ -->
 
+    <!-- Background Colors -->
+    <SolidColorBrush x:Key="Brush.Background" Color="#0b0d10"/>
+    <SolidColorBrush x:Key="Brush.BackgroundCard" Color="#14161b"/>
+    <SolidColorBrush x:Key="Brush.BackgroundTile" Color="#16181d"/>
+    <SolidColorBrush x:Key="Brush.BackgroundHover" Color="#1e2536"/>
+    <SolidColorBrush x:Key="Brush.BackgroundInput" Color="#0f1114"/>
+    <SolidColorBrush x:Key="Brush.Border" Color="#1e293b"/>
+    <SolidColorBrush x:Key="Brush.BorderLight" Color="#334155"/>
+    
+    <!-- Panel backgrounds (for grid compatibility) -->
+    <SolidColorBrush x:Key="Brush.PanelBackground" Color="#14161b"/>
+    <SolidColorBrush x:Key="Brush.HeaderBackground" Color="#1a1d23"/>
 
-    <SolidColorBrush x:Key="Brush.TealMain" Color="#FF00876C"/>
-    <SolidColorBrush x:Key="Brush.TealDark" Color="#FF004D3D"/>
-    <SolidColorBrush x:Key="Brush.TealMuted" Color="#FF1A3A33"/>
-    <SolidColorBrush x:Key="Brush.RedMain" Color="#FF870020"/>
-    <SolidColorBrush x:Key="Brush.Gold" Color="#FFFFCC00"/>
-
-    <!-- Winner highlight - just the accent bar -->
-    <SolidColorBrush x:Key="Brush.WinnerAccent" Color="#FF00AA88"/>
+    <!-- Accent Colors -->
+    <SolidColorBrush x:Key="Brush.AccentBlue" Color="#3b82f6"/>
+    <SolidColorBrush x:Key="Brush.AccentBlueDim" Color="#1e3a5f"/>
+    
+    <!-- Trading Colors -->
+    <SolidColorBrush x:Key="Brush.BidGreen" Color="#22c55e"/>
+    <SolidColorBrush x:Key="Brush.OfferRed" Color="#ef4444"/>
+    <SolidColorBrush x:Key="Brush.Countdown" Color="#f59e0b"/>
+    <SolidColorBrush x:Key="Brush.Strike" Color="#facc15"/>
+    
+    <!-- Legacy color mappings -->
+    <SolidColorBrush x:Key="Brush.TealMain" Color="#22c55e"/>
+    <SolidColorBrush x:Key="Brush.TealDark" Color="#166534"/>
+    <SolidColorBrush x:Key="Brush.TealMuted" Color="#14532d"/>
+    <SolidColorBrush x:Key="Brush.RedMain" Color="#ef4444"/>
+    <SolidColorBrush x:Key="Brush.Gold" Color="#facc15"/>
+    <SolidColorBrush x:Key="Brush.WinnerAccent" Color="#3b82f6"/>
 
     <!-- Typography Colors -->
-    <SolidColorBrush x:Key="Brush.TextMain" Color="#FFE0E0E0"/>
-    <SolidColorBrush x:Key="Brush.TextSub" Color="#FF888888"/>
-    <SolidColorBrush x:Key="Brush.TextDim" Color="#FF555555"/>
+    <SolidColorBrush x:Key="Brush.TextMain" Color="#e2e8f0"/>
+    <SolidColorBrush x:Key="Brush.TextSub" Color="#94a3b8"/>
+    <SolidColorBrush x:Key="Brush.TextDim" Color="#64748b"/>
+    <SolidColorBrush x:Key="Brush.TextMuted" Color="#334155"/>
 
+    <!-- Status Colors -->
+    <SolidColorBrush x:Key="Brush.StatusPending" Color="#f59e0b"/>
+    <SolidColorBrush x:Key="Brush.StatusPendingBg" Color="#2d2006"/>
+    <SolidColorBrush x:Key="Brush.StatusConfirmed" Color="#22c55e"/>
+    <SolidColorBrush x:Key="Brush.StatusConfirmedBg" Color="#052e16"/>
 
+    <!-- Tile Gradient -->
+    <LinearGradientBrush x:Key="Brush.TileGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#16181d" Offset="0"/>
+        <GradientStop Color="#0f1114" Offset="1"/>
+    </LinearGradientBrush>
+    
+    <LinearGradientBrush x:Key="Brush.TileHoverGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#1e2536" Offset="0"/>
+        <GradientStop Color="#11151f" Offset="1"/>
+    </LinearGradientBrush>
 
 </ResourceDictionary>

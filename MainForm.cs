@@ -658,29 +658,29 @@ namespace FXOAiTranslator
         private void BtnTestGFI_Click(object sender, EventArgs e)
         {
             var testTrade = new FXOptionsSimulator.TradeStructure
-            {
-                Underlying = "EURSEK",
-                StructureType = "1",
-                PremiumCurrency = "EUR",
-                SpotReference = 11.75,
-                Legs = new List<FXOptionsSimulator.TradeStructure.OptionLeg>
-                {
-                    new FXOptionsSimulator.TradeStructure.OptionLeg
-                    {
-                        Direction = "BUY",
-                        OptionType = "CALL",
-                        Strike = 11.75,
-                        Tenor = "1M",
-                        ExpiryDate = DateTime.Now.AddMonths(1),
-                        DeliveryDate = DateTime.Now.AddMonths(1).AddDays(2),
-                        NotionalMM = 10.0,
-                        NotionalCurrency = "EUR"
-                    }
-                }
-            };
+      {
+           Underlying = "EURUSD",
+     StructureType = "Vanilla",
+      PremiumCurrency = "EUR",
+          SpotReference = 1.1746,
+          Legs = new List<FXOptionsSimulator.TradeStructure.OptionLeg>
+        {
+ new FXOptionsSimulator.TradeStructure.OptionLeg
+     {
+  Direction = "BUY",
+     OptionType = "CALL",
+              Strike = 1.1751,
+  Tenor = "1M",
+            ExpiryDate = DateTime.Now.AddMonths(1),
+    DeliveryDate = DateTime.Now.AddMonths(1).AddDays(2),
+     NotionalMM = 10.0,
+             NotionalCurrency = "EUR"
+   }
+  }
+        };
 
-            // Show WPF Web Quote Window for testing
-            var wpfWindow = new FXOAiTranslate.WPF.Views.WebQuoteWindow(testTrade);
+  // Show WPF FX Aggregator Window with live FIX quotes
+  var wpfWindow = new FXOAiTranslate.WPF.Views.FXAggregatorWindow(testTrade);
             wpfWindow.ShowDialog();
         }
 
