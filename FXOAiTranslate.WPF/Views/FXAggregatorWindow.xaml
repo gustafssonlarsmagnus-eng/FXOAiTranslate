@@ -272,8 +272,8 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
      </StackPanel>
      <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-       <TextBlock Text="MS" FontSize="10" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-<CheckBox x:Name="chkMS" Style="{StaticResource DarkCheckBox}" IsChecked="True" HorizontalAlignment="Center" Margin="0,2,0,0"
+       <TextBlock Text="MS" FontSize="10" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
+<CheckBox x:Name="chkMS" Style="{StaticResource DarkCheckBox}" IsChecked="False" HorizontalAlignment="Center" Margin="0,2,0,0"
   Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
         </StackPanel>
     </Border>
