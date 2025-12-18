@@ -124,7 +124,11 @@ namespace FXOAiTranslate.WPF.Views
             lblOfferSecondary.Visibility = Visibility.Visible;
             offerLPPanel.Visibility = Visibility.Visible;
 
-            spreadPanel.Visibility = Visibility.Visible;
+            // Don't show spread panel until we have actual quotes
+            // It will be shown in UpdateBestPrices when both bid and offer exist
+            spreadPanel.Visibility = Visibility.Collapsed;
+            lblSpread.Text = "---";
+            
             lblNoQuotes.Visibility = Visibility.Collapsed;
             _isRfqActive = true;
             _countdownTimer.Start();
@@ -239,6 +243,12 @@ namespace FXOAiTranslate.WPF.Views
                 lblBidLP.Text = bestBid.LP;
                 UpdateCountdown(lblBidCountdown, bestBid.ValidUntilTime);
             }
+            else
+            {
+                lblBidValue.Text = "---";
+                lblBidSecondary.Text = "---";
+                lblBidLP.Text = "";
+            }
 
             if (bestOffer != null)
             {
@@ -247,12 +257,24 @@ namespace FXOAiTranslate.WPF.Views
                 lblOfferLP.Text = bestOffer.LP;
                 UpdateCountdown(lblOfferCountdown, bestOffer.ValidUntilTime);
             }
+            else
+            {
+                lblOfferValue.Text = "---";
+                lblOfferSecondary.Text = "---";
+                lblOfferLP.Text = "";
+            }
 
-            // Spread
+            // Spread - only show when we have both bid and offer
             if (bestBid != null && bestOffer != null)
             {
                 var spread = bestOffer.OfferVol - bestBid.BidVol;
                 lblSpread.Text = spread.ToString("F2");
+                spreadPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                lblSpread.Text = "---";
+                spreadPanel.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -353,30 +375,319 @@ namespace FXOAiTranslate.WPF.Views
 
         private void Tenor_Changed(object sender, SelectionChangedEventArgs e)
         {
-            // Update expiry date based on tenor selection
+            // Update expiry date based on tenor selection using FX calendar
             if (sender is ComboBox combo && combo.SelectedItem is ComboBoxItem item)
             {
                 var tenor = item.Content?.ToString() ?? "1M";
-                var months = 1;
-                if (tenor.EndsWith("M"))
-                {
-                    int.TryParse(tenor.TrimEnd('M'), out months);
-                }
-                else if (tenor.EndsWith("Y"))
-                {
-                    int.TryParse(tenor.TrimEnd('Y'), out var years);
-                    months = years * 12;
-                }
+       
+        if (_trade?.Legs?.Count > 0)
+      {
+      // Get currency pair info
+       string pair = _trade.Underlying ?? "EURUSD";
+         string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+        string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+     string premCcy = _trade.PremiumCurrency ?? ccy2;
 
-                if (_trade?.Legs?.Count > 0)
-                {
-                    _trade.Legs[0].Tenor = tenor;
-                    _trade.Legs[0].ExpiryDate = DateTime.Now.AddMonths(months);
-                }
-            }
+            try
+       {
+     // Use FxDateService to compute proper dates with FX calendar
+  var rules = new FxDateRules
+              {
+    Ccy1 = ccy1,
+      Ccy2 = ccy2,
+  SpotLag = PairSpotLag.TwoBD,
+    ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing,
+  ExpiryEOM = true
+    };
+
+             var (tradeDate, spotDate, expiryDate, deliveryDate, premiumDate) = 
+ FxDateService.ComputeDates(DateTime.UtcNow, pair, tenor, premCcy, rules);
+
+  // Update trade structure
+   _trade.Legs[0].Tenor = tenor;
+     _trade.Legs[0].ExpiryDate = expiryDate;
+              _trade.Legs[0].DeliveryDate = deliveryDate;
+
+          // Update expiry date display
+  var expiryDateTextBox = FindName("txtExpiryDate") as TextBox;
+                 if (expiryDateTextBox != null)
+            {
+      expiryDateTextBox.Text = expiryDate.ToString("dd MMM yy");
+       }
+
+           // Update forward rate in market data section if visible
+         UpdateMarketDataDisplay(tenor);
+
+      // If hedge details are visible, update them too (value date and forward rate change with tenor)
+         var deltaExchangeCombo = FindName("cmbDeltaExchange") as ComboBox;
+             if (deltaExchangeCombo?.SelectedItem is ComboBoxItem deltaItem)
+         {
+        var hedgeSelection = deltaItem.Content?.ToString() ?? "";
+          if (hedgeSelection.Contains("Forward") || hedgeSelection.Contains("Spot"))
+    {
+        // Refresh hedge details with new tenor
+     UpdateHedgeDetails(isForward: hedgeSelection.Contains("Forward"));
+       }
+       }
+
+               Console.WriteLine($"[WPF] Tenor changed to {tenor}: Expiry={expiryDate:dd MMM yy}, Delivery={deliveryDate:dd MMM yy}");
+   }
+         catch (Exception ex)
+         {
+ Console.WriteLine($"[WPF] Error calculating dates for tenor {tenor}: {ex.Message}");
+     // Fallback to simple calculation
+       var months = tenor.EndsWith("Y") ? int.Parse(tenor.TrimEnd('Y')) * 12 : int.Parse(tenor.TrimEnd('M'));
+         _trade.Legs[0].Tenor = tenor;
+     _trade.Legs[0].ExpiryDate = DateTime.Now.AddMonths(months);
+       
+      var expiryDateTextBox = FindName("txtExpiryDate") as TextBox;
+       if (expiryDateTextBox != null)
+             {
+   expiryDateTextBox.Text = _trade.Legs[0].ExpiryDate.ToString("dd MMM yy");
+     }
+   }
+      }
+       }
         }
 
-        private void LadderHeader_Click(object sender, MouseButtonEventArgs e)
+      /// <summary>
+        /// Update market data display (forward rate, forward points) based on tenor
+        /// </summary>
+        private void UpdateMarketDataDisplay(string tenor)
+        {
+            if (_trade == null) return;
+
+            var marketData = GetMarketDataForPair(_trade.Underlying ?? "EURUSD");
+            if (marketData == null) return;
+
+          // Update forward rate display
+            var lblForwardRate = FindName("lblForwardRate") as System.Windows.Controls.TextBlock;
+ var lblForwardPts = FindName("lblForwardPts") as System.Windows.Controls.TextBlock;
+
+            if (lblForwardRate != null)
+       {
+    var forwardRate = marketData.GetForwardRate(tenor);
+      lblForwardRate.Text = forwardRate.ToString("F4");
+  }
+
+         if (lblForwardPts != null && marketData.ForwardPoints.TryGetValue(tenor, out var points))
+            {
+       lblForwardPts.Text = points.ToString("F1");
+}
+
+         // Update forward reference in trade structure
+        _trade.ForwardReference = marketData.GetForwardRate(tenor);
+ }
+
+        private void DeltaExchange_Changed(object sender, SelectionChangedEventArgs e)
+        {
+      // Update the hedge details panel based on selection
+   if (sender is ComboBox combo && combo.SelectedItem is ComboBoxItem item)
+    {
+   var selection = item.Content?.ToString() ?? "";
+         var detailsPanel = FindName("hedgeDetailsPanel") as Border;
+  var rateHeader = FindName("lblHedgeRateHeader") as System.Windows.Controls.TextBlock;
+   
+    if (selection.Contains("Forward"))
+           {
+     // Show hedge details with Forward settings
+      if (detailsPanel != null) detailsPanel.Visibility = Visibility.Visible;
+    if (rateHeader != null) rateHeader.Text = "Outright";
+       
+       // Update with forward rate and delivery date
+     UpdateHedgeDetails(isForward: true);
+          }
+       else if (selection.Contains("Spot"))
+           {
+    // Show hedge details with Spot settings
+   if (detailsPanel != null) detailsPanel.Visibility = Visibility.Visible;
+    if (rateHeader != null) rateHeader.Text = "Spot";
+ 
+   // Update with spot rate and spot date
+       UpdateHedgeDetails(isForward: false);
+        }
+      else
+   {
+   // No Hedge (Live) - hide hedge details
+        if (detailsPanel != null) detailsPanel.Visibility = Visibility.Collapsed;
+   }
+   }
+     }
+
+     /// <summary>
+        /// Update hedge details panel with real data:
+        /// - Spot Rate: From TradeStructure.SpotReference (Bloomberg) or MarketData
+        /// - Value Date: Calculated using FxDateService calendar
+      /// - Amount: Delta × Notional (from FIX quotes or calculated)
+    /// </summary>
+        private void UpdateHedgeDetails(bool isForward)
+        {
+  var hedgeRateTextBox = FindName("txtHedgeRate") as TextBox;
+    var valueDateLabel = FindName("lblHedgeValueDate") as System.Windows.Controls.TextBlock;
+     var amountLabel = FindName("lblHedgeAmount") as System.Windows.Controls.TextBlock;
+   var amountHeader = FindName("lblHedgeAmountHeader") as System.Windows.Controls.TextBlock;
+
+    // Get currency pair from trade
+     string pair = _trade?.Underlying ?? "EURUSD";
+   string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+            string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+
+        // === RATE: Use TradeStructure.SpotReference or MarketData ===
+   double rate = 0;
+    if (isForward)
+  {
+         // Forward rate = spot + forward points
+   rate = _trade?.ForwardReference ?? 0;
+      if (rate == 0)
+       {
+       // Calculate from market data if not set
+    var marketData = GetMarketDataForPair(pair);
+          var tenor = _trade?.Legs?.FirstOrDefault()?.Tenor ?? "1M";
+   rate = marketData?.GetForwardRate(tenor) ?? marketData?.SpotRate ?? 1.0;
+       }
+   }
+     else
+     {
+  // Spot rate from trade or market data
+     rate = _trade?.SpotReference ?? 0;
+  if (rate == 0)
+   {
+          var marketData = GetMarketDataForPair(pair);
+   rate = marketData?.SpotRate ?? 1.0;
+}
+     }
+
+    if (hedgeRateTextBox != null)
+   {
+       hedgeRateTextBox.Text = rate.ToString("F4");
+  }
+
+   // === VALUE DATE: Calculate using FxDateService calendar ===
+    DateTime valueDate;
+ try
+     {
+    var rules = new FxDateRules
+           {
+     Ccy1 = ccy1,
+     Ccy2 = ccy2,
+   SpotLag = PairSpotLag.TwoBD,
+    ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing
+        };
+
+   if (isForward && _trade?.Legs?.Count > 0)
+   {
+        // Forward: use delivery date from expiry
+    var tenor = _trade.Legs[0].Tenor ?? "1M";
+          var premCcy = _trade.PremiumCurrency ?? ccy2;
+      var (_, _, _, deliveryDate, _) = FxDateService.ComputeDates(DateTime.UtcNow, pair, tenor, premCcy, rules);
+         valueDate = deliveryDate;
+        }
+  else
+       {
+   // Spot: T+2 calculated using calendar
+  var (_, spotDate, _, _, _) = FxDateService.ComputeDates(DateTime.UtcNow, pair, "1M", ccy2, rules);
+   valueDate = spotDate;
+     }
+       }
+  catch (Exception ex)
+      {
+   Console.WriteLine($"[WPF] Error calculating value date: {ex.Message}");
+       // Fallback to simple T+2
+      valueDate = DateTime.Now.AddDays(isForward ? 30 : 2);
+   }
+
+     if (valueDateLabel != null)
+ {
+       valueDateLabel.Text = valueDate.ToString("dd MMM yy");
+  }
+
+   // === AMOUNT: Delta × Notional (from FIX quotes or calculated) ===
+           // Update header to show currency
+   if (amountHeader != null)
+     {
+       amountHeader.Text = $"Amount({ccy1})";
+         }
+
+   if (amountLabel != null && _trade?.Legs?.Count > 0)
+   {
+   var notional = _trade.Legs[0].NotionalMM * 1_000_000;
+         
+      // Try to get delta from latest quote
+    double delta = GetLatestDeltaFromQuotes();
+    if (delta == 0)
+     {
+          // Fallback: estimate delta based on option type and moneyness
+        delta = EstimateDelta();
+   }
+      
+         var hedgeAmount = notional * Math.Abs(delta);
+        amountLabel.Text = hedgeAmount.ToString("N0");
+   }
+  }
+
+   /// <summary>
+   /// Get market data for the given currency pair
+    /// </summary>
+        private MarketData GetMarketDataForPair(string pair)
+   {
+  return pair?.ToUpperInvariant() switch
+{
+     "EURUSD" => MarketData.GetEURUSD(),
+    "USDSEK" => MarketData.GetUSDSEK(),
+   _ => MarketData.GetEURUSD() // Default
+};
+        }
+
+        /// <summary>
+ /// Get latest delta from received FIX quotes
+   /// </summary>
+      private double GetLatestDeltaFromQuotes()
+  {
+   // Check if we have any quotes with delta
+       if (_quotesByLP?.Values != null)
+   {
+          foreach (var lpData in _quotesByLP.Values)
+      {
+            if (lpData.Delta > 0)
+ {
+  return lpData.Delta / 100.0; // Convert from percentage to decimal
+          }
+    }
+   }
+   return 0;
+   }
+
+   /// <summary>
+   /// Estimate delta based on option type and strike vs spot
+   /// </summary>
+      private double EstimateDelta()
+ {
+     if (_trade?.Legs == null || _trade.Legs.Count == 0) return 0.50;
+
+       var leg = _trade.Legs[0];
+   var spot = _trade.SpotReference > 0 ? _trade.SpotReference : 1.0;
+      var strike = leg.Strike;
+
+      // Simple ATM approximation - adjust based on moneyness
+       double moneyness = strike / spot;
+        
+  if (leg.OptionType == "CALL")
+     {
+ // Call delta: roughly 0.5 ATM, higher for ITM, lower for OTM
+    if (moneyness < 0.97) return 0.70; // ITM
+        if (moneyness > 1.03) return 0.30; // OTM
+   return 0.50; // ATM
+        }
+    else
+     {
+   // Put delta: roughly -0.5 ATM
+     if (moneyness > 1.03) return 0.70; // ITM put
+       if (moneyness < 0.97) return 0.30; // OTM put
+return 0.50; // ATM
+   }
+ }
+
+   private void LadderHeader_Click(object sender, MouseButtonEventArgs e)
         {
             // Toggle ladder visibility
             if (FindName("ladderContent") is StackPanel content && FindName("lblLadderArrow") is TextBlock arrow)
@@ -583,25 +894,110 @@ namespace FXOAiTranslate.WPF.Views
                     return;
                 }
 
-                Console.WriteLine($"\n[WPF] ========== SENDING RFQ ==========");
-                Console.WriteLine($"[WPF] GroupID: {_currentGroupId}");
-                Console.WriteLine($"[WPF] Trade: {_trade.Underlying} {_trade.Legs[0].Tenor} {_trade.Legs[0].OptionType}");
-                Console.WriteLine($"[WPF] Selected LPs: {string.Join(", ", selectedLPs)}");
+                // Apply hedge settings from UI to trade structure
+     ApplyHedgeSettingsToTrade();
 
-                foreach (var lp in selectedLPs)
-                {
-                    var quoteReqId = _fixSession.SendQuoteRequest(_trade, lp, _currentGroupId);
-                    Console.WriteLine($"[WPF] Sent RFQ to {lp}: {quoteReqId}");
-                }
+      Console.WriteLine($"\n[WPF] ========== SENDING RFQ ==========");
+     Console.WriteLine($"[WPF] GroupID: {_currentGroupId}");
+         Console.WriteLine($"[WPF] Trade: {_trade.Underlying} {_trade.Legs[0].Tenor} {_trade.Legs[0].OptionType}");
+      Console.WriteLine($"[WPF] Hedge Type: {_trade.HedgeType} (Tag 9016: {GetHedgeTypeTag()})");
+             Console.WriteLine($"[WPF] Spot Rate: {_trade.SpotReference} (Tag 5235)");
+     Console.WriteLine($"[WPF] Selected LPs: {string.Join(", ", selectedLPs)}");
 
-                ShowLiveState();
-                Console.WriteLine($"[WPF] RFQ sent to {selectedLPs.Count} LPs, waiting for quotes...\n");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error sending RFQ: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                Console.WriteLine($"[WPF] ERROR sending RFQ: {ex.Message}");
-            }
+  // Get hedge type for FIX
+     var hedgeType = GetHedgeTypeTag();
+     var premiumType = GetPremiumTypeTag();
+
+            foreach (var lp in selectedLPs)
+       {
+   var quoteReqId = _fixSession.SendQuoteRequest(_trade, lp, _currentGroupId, hedgeType, premiumType);
+ Console.WriteLine($"[WPF] Sent RFQ to {lp}: {quoteReqId}");
+ }
+
+  ShowLiveState();
+     Console.WriteLine($"[WPF] RFQ sent to {selectedLPs.Count} LPs, waiting for quotes...\n");
+       }
+         catch (Exception ex)
+  {
+      MessageBox.Show($"Error sending RFQ: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+     Console.WriteLine($"[WPF] ERROR sending RFQ: {ex.Message}");
+      }
+      }
+
+        /// <summary>
+        /// Apply hedge settings from UI controls to the trade structure
+        /// Maps UI values to FIX fields:
+        /// - Tag 9016 (HedgeTradeType): "0" = Live, "1" = Spot, "2" = Forward
+        /// - Tag 5235 (LegSpotRate): The hedge rate (spot or forward)
+        /// </summary>
+        private void ApplyHedgeSettingsToTrade()
+        {
+ if (_trade == null) return;
+
+     var deltaExchangeCombo = FindName("cmbDeltaExchange") as ComboBox;
+ var hedgeRateTextBox = FindName("txtHedgeRate") as TextBox;
+
+            if (deltaExchangeCombo?.SelectedItem is ComboBoxItem item)
+ {
+          var selection = item.Content?.ToString() ?? "";
+     
+      if (selection.Contains("Forward"))
+  {
+                _trade.HedgeType = "FORWARD";
+   }
+    else if (selection.Contains("Spot"))
+  {
+     _trade.HedgeType = "SPOT";
+     }
+     else
+       {
+  _trade.HedgeType = "LIVE";
+ }
+   }
+
+  // Parse and apply the hedge rate
+   if (hedgeRateTextBox != null && double.TryParse(hedgeRateTextBox.Text, out double rate))
+       {
+       if (_trade.HedgeType == "FORWARD")
+ {
+      _trade.ForwardReference = rate;
+      }
+       else
+       {
+       _trade.SpotReference = rate;
+      }
+     }
+ }
+
+   /// <summary>
+        /// Get the FIX Tag 9016 value based on hedge type
+ /// "0" = No Hedge (Live), "1" = Spot Hedge, "2" = Forward Hedge
+/// </summary>
+ private string GetHedgeTypeTag()
+        {
+  var deltaExchangeCombo = FindName("cmbDeltaExchange") as ComboBox;
+   if (deltaExchangeCombo?.SelectedItem is ComboBoxItem item)
+       {
+    var selection = item.Content?.ToString() ?? "";
+ if (selection.Contains("Forward")) return "2"; // Forward Hedge
+          if (selection.Contains("Spot")) return "1";    // Spot Hedge
+   }
+   return "0"; // No Hedge (Live)
+        }
+
+    /// <summary>
+        /// Get the FIX Tag 5475 value based on premium due setting
+      /// "S" = Spot, "F" = Forward
+  /// </summary>
+  private string GetPremiumTypeTag()
+ {
+   var premiumDueCombo = FindName("cmbPremiumDue") as ComboBox;
+     if (premiumDueCombo?.SelectedItem is ComboBoxItem item)
+     {
+   var selection = item.Content?.ToString() ?? "";
+        if (selection.Contains("FORWARD")) return "F";
+    }
+      return "S"; // Default to Spot
         }
 
         private void LPHeader_Click(object sender, MouseButtonEventArgs e)

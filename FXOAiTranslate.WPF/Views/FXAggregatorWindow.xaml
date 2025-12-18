@@ -22,7 +22,7 @@
 
     <Grid>
         <!-- Main Content -->
-        <Grid Margin="8">
+        <Grid Margin="8,8,8,-308">
   <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="420"/>
   <ColumnDefinition Width="*"/>
@@ -157,8 +157,8 @@ MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
        <Border x:Name="spreadPanel" Grid.ColumnSpan="3" VerticalAlignment="Bottom" HorizontalAlignment="Center"
  Margin="0,0,0,4"
      Background="#0b0d10" Padding="12,4" CornerRadius="4"
-        BorderBrush="#1e293b" BorderThickness="1" Visibility="Collapsed">
-        <TextBlock x:Name="lblSpread" Text="0.6" FontSize="18" FontWeight="Bold" Foreground="White"/>
+   BorderBrush="#1e293b" BorderThickness="1" Visibility="Collapsed">
+        <TextBlock x:Name="lblSpread" Text="---" FontSize="18" FontWeight="Bold" Foreground="White"/>
      </Border>
         </Grid>
 
@@ -503,12 +503,12 @@ VerticalAlignment="Center" Margin="0,0,12,0"
         
          <!-- Option Details Content -->
  <StackPanel x:Name="optionContent" Background="#0f1114">
-           <!-- Type -->
+<!-- Type -->
     <Grid Height="32">
 <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="100"/>
-    <ColumnDefinition Width="*"/>
-       </Grid.ColumnDefinitions>
+ <ColumnDefinition Width="100"/>
+ <ColumnDefinition Width="*"/>
+ </Grid.ColumnDefinitions>
      <TextBlock Text="Type" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
  <ComboBox x:Name="cmbOptionType" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0" Margin="0,0,8,0">
   <ComboBoxItem Content="Vanilla Option"/>
@@ -518,71 +518,71 @@ VerticalAlignment="Center" Margin="0,0,12,0"
        </ComboBox>
     </Grid>
       <Border Height="1" Background="#1e293b"/>
-            
+       
       <!-- Quantity -->
-        <Grid Height="32">
-           <Grid.ColumnDefinitions>
+      <Grid Height="32">
+        <Grid.ColumnDefinitions>
  <ColumnDefinition Width="100"/>
-          <ColumnDefinition Width="Auto"/>
+     <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-               <TextBlock Text="Quantity" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+     <TextBlock Text="Quantity" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
  <ComboBox x:Name="cmbNotionalCcy" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0" MinWidth="55">
-                  <ComboBoxItem Content="EUR"/>
-              <ComboBoxItem Content="USD"/>
-           </ComboBox>
-  <TextBox x:Name="txtNotional" Grid.Column="2" Text="10,000,000" Style="{StaticResource DarkTextBox}"
+             <ComboBoxItem Content="EUR"/>
+        <ComboBoxItem Content="USD"/>
+    </ComboBox>
+  <TextBox x:Name="txtNotional" Grid.Column="2" Text="" Style="{StaticResource DarkTextBox}"
         FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="4,0,8,0" MinWidth="100"/>
-                 </Grid>
+ </Grid>
   <Border Height="1" Background="#1e293b"/>
  
              <!-- Option Type (Call/Put) -->
-                  <Grid Height="32">
-            <Grid.ColumnDefinitions>
-         <ColumnDefinition Width="100"/>
+ <Grid Height="32">
+   <Grid.ColumnDefinitions>
+   <ColumnDefinition Width="100"/>
       <ColumnDefinition Width="*"/>
              </Grid.ColumnDefinitions>
    <TextBlock Text="Option Type" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
   <ComboBox x:Name="cmbCallPut" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0">
       <ComboBoxItem Content="EUR Call / USD Put"/>
-         <ComboBoxItem Content="EUR Put / USD Call"/>
+  <ComboBoxItem Content="EUR Put / USD Call"/>
  </ComboBox>
         </Grid>
    <Border Height="1" Background="#1e293b"/>
-         
-               <!-- Expiry Date -->
+  
+ <!-- Expiry Date -->
        <Grid Height="32">
           <Grid.ColumnDefinitions>
     <ColumnDefinition Width="100"/>
-          <ColumnDefinition Width="*"/>
+ <ColumnDefinition Width="*"/>
     <ColumnDefinition Width="Auto"/>
        </Grid.ColumnDefinitions>
   <TextBlock Text="Expiry Date" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-  <TextBox x:Name="txtExpiryDate" Grid.Column="1" Text="14 Jan 26" Style="{StaticResource DarkTextBox}"
-        HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,4,0" MinWidth="80"/>
+  <TextBox x:Name="txtExpiryDate" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
+     HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,4,0" MinWidth="80"/>
   <ComboBox x:Name="cmbTenor" Grid.Column="2" Style="{StaticResource DarkComboBox}" Foreground="#3b82f6" FontWeight="Medium"
       SelectedIndex="0" Margin="0,0,8,0" SelectionChanged="Tenor_Changed" MinWidth="55">
  <ComboBoxItem Content="1M"/>
      <ComboBoxItem Content="2M"/>
         <ComboBoxItem Content="3M"/>
-             <ComboBoxItem Content="6M"/>
+      <ComboBoxItem Content="6M"/>
    <ComboBoxItem Content="1Y"/>
    </ComboBox>
       </Grid>
-            <Border Height="1" Background="#1e293b"/>
-         
-    <!-- Strike -->
+      <Border Height="1" Background="#1e293b"/>
+       
+   <!-- Strike -->
   <Grid Height="32">
      <Grid.ColumnDefinitions>
       <ColumnDefinition Width="100"/>
        <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-    <TextBlock Text="Strike" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-       <TextBox x:Name="txtStrike" Grid.Column="1" Text="1.1751" Style="{StaticResource DarkTextBox}"
+<TextBlock Text="Strike" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+       <TextBox x:Name="txtStrike" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
     Foreground="#facc15" FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0"/>
-        </Grid>
-   <Border Height="1" Background="#1e293b"/>
-         
+  </Grid>
+ <Border Height="1" Background="#1e293b"/>
+  
       <!-- Expiry Cut -->
     <Grid Height="32">
         <Grid.ColumnDefinitions>
@@ -598,20 +598,58 @@ VerticalAlignment="Center" Margin="0,0,12,0"
       </Grid>
           <Border Height="1" Background="#1e293b"/>
        
-   <!-- Delta Exchange -->
-     <Grid Height="32">
-  <Grid.ColumnDefinitions>
-         <ColumnDefinition Width="100"/>
+<!-- Delta Exchange Section -->
+   <StackPanel x:Name="deltaExchangeSection">
+      <!-- Header -->
+      <TextBlock Text="Delta Exchange" FontSize="11" Foreground="#64748b" Margin="8,8,8,4"/>
+      
+      <!-- Hedge Type Dropdown -->
+      <ComboBox x:Name="cmbDeltaExchange" Style="{StaticResource DarkComboBox}" 
+  Foreground="White" FontSize="11" SelectedIndex="1" Margin="8,0,8,4"
+          SelectionChanged="DeltaExchange_Changed">
+         <ComboBoxItem Content="No Hedge (Live)"/>
+  <ComboBoxItem Content="Spot Hedge"/>
+         <ComboBoxItem Content="Forward Hedge"/>
+      </ComboBox>
+      
+      <!-- Hedge Details Panel (shown when Spot or Forward selected) -->
+      <Border x:Name="hedgeDetailsPanel" Background="#14161b" Margin="8,4,8,8" CornerRadius="2">
+  <StackPanel>
+ <!-- Column Headers -->
+      <Grid Height="24" Background="#1a1d23">
+   <Grid.ColumnDefinitions>
+   <ColumnDefinition Width="80"/>
+      <ColumnDefinition Width="70"/>
         <ColumnDefinition Width="*"/>
-          </Grid.ColumnDefinitions>
-      <TextBlock Text="Delta Exchange" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-      <ComboBox x:Name="cmbDeltaExchange" Grid.Column="1" Style="{StaticResource DarkComboBox}" Foreground="#3b82f6" SelectedIndex="0" Margin="0,0,8,0">
-     <ComboBoxItem Content="No Hedge (Live)"/>
-        <ComboBoxItem Content="Spot Hedge"/>
-      <ComboBoxItem Content="Forward Hedge"/>
-       </ComboBox>
-   </Grid>
-         <Border Height="1" Background="#1e293b"/>
+ </Grid.ColumnDefinitions>
+    <TextBlock Text="Value Date" FontSize="9" Foreground="#64748b" 
+   VerticalAlignment="Center" Margin="8,0,0,0"/>
+<TextBlock x:Name="lblHedgeRateHeader" Grid.Column="1" Text="Spot" FontSize="9" Foreground="#64748b" 
+        VerticalAlignment="Center" HorizontalAlignment="Center"/>
+  <TextBlock x:Name="lblHedgeAmountHeader" Grid.Column="2" Text="Amount(EUR)" FontSize="9" Foreground="#64748b" 
+   VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
+       </Grid>
+      
+            <!-- Data Row -->
+        <Grid Height="28">
+    <Grid.ColumnDefinitions>
+         <ColumnDefinition Width="80"/>
+     <ColumnDefinition Width="70"/>
+      <ColumnDefinition Width="*"/>
+     </Grid.ColumnDefinitions>
+       <TextBlock x:Name="lblHedgeValueDate" Text="---" FontSize="11" Foreground="White" 
+       VerticalAlignment="Center" Margin="8,0,0,0"/>
+   <TextBox x:Name="txtHedgeRate" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
+  Foreground="White" FontSize="11" Padding="4,2" 
+       VerticalAlignment="Center" HorizontalAlignment="Center" Width="60"
+          HorizontalContentAlignment="Center"/>
+         <TextBlock x:Name="lblHedgeAmount" Grid.Column="2" Text="---" FontSize="11" Foreground="White" 
+        VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
+            </Grid>
+         </StackPanel>
+   </Border>
+ </StackPanel>
+   <Border Height="1" Background="#1e293b"/>
    
     <!-- Premium Due -->
    <Grid Height="32">
@@ -623,7 +661,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
   <ComboBox x:Name="cmbPremiumDue" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0" Margin="0,0,8,0">
        <ComboBoxItem Content="SPOT"/>
       <ComboBoxItem Content="FORWARD"/>
-        </ComboBox>
+       </ComboBox>
     </Grid>
   <Border Height="1" Background="#1e293b"/>
             
@@ -670,48 +708,48 @@ VerticalAlignment="Center" Margin="0,0,12,0"
             <StackPanel x:Name="marketDataContent" Visibility="Collapsed" Background="#0f1114">
       <!-- Spot Rate -->
       <Grid Height="28">
-           <Grid.ColumnDefinitions>
+     <Grid.ColumnDefinitions>
           <ColumnDefinition Width="100"/>
        <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-              <TextBlock Text="Spot Rate" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-    <TextBlock x:Name="lblSpotRate" Grid.Column="1" Text="1.1746" FontSize="11" Foreground="White" FontWeight="Medium"
+    <TextBlock Text="Spot Rate" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+    <TextBlock x:Name="lblSpotRate" Grid.Column="1" Text="---" FontSize="11" Foreground="White" FontWeight="Medium"
           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-       </Grid>
+</Grid>
     <Border Height="1" Background="#1e293b"/>
       
      <!-- Forward Points -->
          <Grid Height="28">
   <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="100"/>
-       <ColumnDefinition Width="*"/>
+     <ColumnDefinition Width="100"/>
+ <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
    <TextBlock Text="Forward Pts" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-      <TextBlock x:Name="lblForwardPts" Grid.Column="1" Text="0.0005" FontSize="11" Foreground="#94a3b8"
+      <TextBlock x:Name="lblForwardPts" Grid.Column="1" Text="---" FontSize="11" Foreground="#94a3b8"
    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-           </Grid>
+</Grid>
        <Border Height="1" Background="#1e293b"/>
              
-           <!-- Forward Rate -->
-       <Grid Height="28">
-         <Grid.ColumnDefinitions>
+    <!-- Forward Rate -->
+     <Grid Height="28">
+      <Grid.ColumnDefinitions>
       <ColumnDefinition Width="100"/>
         <ColumnDefinition Width="*"/>
    </Grid.ColumnDefinitions>
             <TextBlock Text="Forward Rate" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-              <TextBlock x:Name="lblForwardRate" Grid.Column="1" Text="1.1751" FontSize="11" Foreground="White" FontWeight="Medium"
+   <TextBlock x:Name="lblForwardRate" Grid.Column="1" Text="---" FontSize="11" Foreground="White" FontWeight="Medium"
           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
      </Grid>
      <Border Height="1" Background="#1e293b"/>
    
           <!-- ATM Vol -->
-        <Grid Height="28">
+<Grid Height="28">
             <Grid.ColumnDefinitions>
-             <ColumnDefinition Width="100"/>
+   <ColumnDefinition Width="100"/>
              <ColumnDefinition Width="*"/>
        </Grid.ColumnDefinitions>
      <TextBlock Text="ATM Vol" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-    <TextBlock x:Name="lblAtmVol" Grid.Column="1" Text="5.47%" FontSize="11" Foreground="#94a3b8"
+    <TextBlock x:Name="lblAtmVol" Grid.Column="1" Text="---" FontSize="11" Foreground="#94a3b8"
       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
        </Grid>
           </StackPanel>
@@ -736,54 +774,54 @@ VerticalAlignment="Center" Margin="0,0,12,0"
        <!-- Delta -->
         <Grid Height="28">
         <Grid.ColumnDefinitions>
-         <ColumnDefinition Width="100"/>
-       <ColumnDefinition Width="Auto"/>
+      <ColumnDefinition Width="100"/>
+   <ColumnDefinition Width="Auto"/>
      <ColumnDefinition Width="*"/>
-          </Grid.ColumnDefinitions>
+ </Grid.ColumnDefinitions>
     <TextBlock Text="Delta" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
     <TextBlock Grid.Column="1" Text="EUR" FontSize="11" Foreground="#94a3b8" VerticalAlignment="Center"/>
-         <TextBlock x:Name="lblDelta" Grid.Column="2" Text="5,023,800" FontSize="11" Foreground="White" FontWeight="Bold"
+         <TextBlock x:Name="lblDelta" Grid.Column="2" Text="---" FontSize="11" Foreground="White" FontWeight="Bold"
           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-   </Grid>
-      <Border Height="1" Background="#1e293b"/>
+ </Grid>
+   <Border Height="1" Background="#1e293b"/>
            
     <!-- Delta % -->
-              <Grid Height="28">
-       <Grid.ColumnDefinitions>
+    <Grid Height="28">
+ <Grid.ColumnDefinitions>
      <ColumnDefinition Width="100"/>
-             <ColumnDefinition Width="*"/>
+  <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
  <TextBlock Text="Delta %" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
- <TextBlock x:Name="lblDeltaPct" Grid.Column="1" Text="50.24%" FontSize="11" Foreground="#94a3b8"
+ <TextBlock x:Name="lblDeltaPct" Grid.Column="1" Text="---" FontSize="11" Foreground="#94a3b8"
        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-           </Grid>
-                 <Border Height="1" Background="#1e293b"/>
-             
-        <!-- Vega -->
-          <Grid Height="28">
-            <Grid.ColumnDefinitions>
+    </Grid>
+       <Border Height="1" Background="#1e293b"/>
+      
+     <!-- Vega -->
+   <Grid Height="28">
+     <Grid.ColumnDefinitions>
      <ColumnDefinition Width="100"/>
 <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
            </Grid.ColumnDefinitions>
-             <TextBlock Text="Vega" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+    <TextBlock Text="Vega" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
      <TextBlock Grid.Column="1" Text="EUR" FontSize="11" Foreground="#94a3b8" VerticalAlignment="Center"/>
-           <TextBlock x:Name="lblVega" Grid.Column="2" Text="4,850 /1%" FontSize="11" Foreground="White" FontWeight="Bold"
-              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+       <TextBlock x:Name="lblVega" Grid.Column="2" Text="---" FontSize="11" Foreground="White" FontWeight="Bold"
+      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
   </Grid>
-           <Border Height="1" Background="#1e293b"/>
-               
-        <!-- Gamma -->
-      <Grid Height="28" Background="#14161b">
-        <Grid.ColumnDefinitions>
+ <Border Height="1" Background="#1e293b"/>
+        
+  <!-- Gamma -->
+   <Grid Height="28" Background="#14161b">
+     <Grid.ColumnDefinitions>
     <ColumnDefinition Width="100"/>
       <ColumnDefinition Width="Auto"/>
 <ColumnDefinition Width="*"/>
  </Grid.ColumnDefinitions>
      <TextBlock Text="Gamma" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
    <TextBlock Grid.Column="1" Text="EUR" FontSize="11" Foreground="#94a3b8" VerticalAlignment="Center"/>
- <TextBlock x:Name="lblGamma" Grid.Column="2" Text="--" FontSize="11" Foreground="White" FontWeight="Bold"
-     HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+ <TextBlock x:Name="lblGamma" Grid.Column="2" Text="---" FontSize="11" Foreground="White" FontWeight="Bold"
+   HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
       </Grid>
 </StackPanel>
    </StackPanel>
