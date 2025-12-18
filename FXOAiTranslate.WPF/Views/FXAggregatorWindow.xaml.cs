@@ -363,12 +363,54 @@ namespace FXOAiTranslate.WPF.Views
 
         private void txtTradeInput_LostFocus(object sender, RoutedEventArgs e)
         {
+            // Format notional amounts before checking if empty
+            if (!string.IsNullOrWhiteSpace(txtTradeInput.Text) && txtTradeInput.Text != txtTradeInput.Tag?.ToString())
+            {
+                FormatNotionalAmounts();
+            }
+
             // Show placeholder when textbox loses focus and is empty
             if (string.IsNullOrWhiteSpace(txtTradeInput.Text))
             {
                 txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "";
                 txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
             }
+        }
+
+        private void FormatNotionalAmounts()
+        {
+            var text = txtTradeInput.Text;
+
+            // Pattern to match numbers with k or m suffix (case insensitive)
+            // Context-aware: only expand notional-sized numbers, not tenors
+            var pattern = @"\b(\d+(?:\.\d+)?)\s*([kmKM])\b";
+
+            text = System.Text.RegularExpressions.Regex.Replace(text, pattern, match =>
+            {
+                var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                var suffix = match.Groups[2].Value.ToLower();
+
+                // Heuristic: only expand if number suggests notional (not tenor)
+                // Tenors are typically small numbers: 1m, 3m, 6m, 1y
+                // Notionals are typically large: 10m, 50m, 100k
+                if (suffix == "m" && number >= 10)
+                {
+                    // Format millions with space as thousand separator
+                    long formatted = (long)(number * 1_000_000);
+                    return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                }
+                else if (suffix == "k")
+                {
+                    // Format thousands with space as thousand separator
+                    long formatted = (long)(number * 1000);
+                    return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                }
+
+                // Leave as-is (likely tenor like "1m", "3m")
+                return match.Value;
+            });
+
+            txtTradeInput.Text = text;
         }
 
         private void ParseTradeInput()
@@ -393,11 +435,23 @@ namespace FXOAiTranslate.WPF.Views
                 // Parse option type
                 leg.OptionType = input.Contains("put") ? "PUT" : "CALL";
 
-                // Parse notional
+                // Parse notional - handle both "10m" format and "10 000 000" formatted numbers
                 var notionalMatch = System.Text.RegularExpressions.Regex.Match(input, @"(\d+(?:\.\d+)?)\s*[mM]");
                 if (notionalMatch.Success)
                 {
                     leg.NotionalMM = double.Parse(notionalMatch.Groups[1].Value);
+                }
+                else
+                {
+                    // Try to match space-separated numbers (e.g., "10 000 000" or "100 000")
+                    var formattedMatch = System.Text.RegularExpressions.Regex.Match(input, @"\b(\d{1,3}(?:\s+\d{3})+)\b");
+                    if (formattedMatch.Success)
+                    {
+                        var numberStr = formattedMatch.Groups[1].Value.Replace(" ", "");
+                        var number = double.Parse(numberStr);
+                        // Convert to millions (assume large formatted numbers are in base units)
+                        leg.NotionalMM = number / 1_000_000;
+                    }
                 }
 
                 // Parse tenor
