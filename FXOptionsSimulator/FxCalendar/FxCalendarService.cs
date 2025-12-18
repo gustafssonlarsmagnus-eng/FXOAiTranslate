@@ -1,5 +1,6 @@
 using System;
 using System.Configuration;
+using Microsoft.Data.SqlClient;
 
 namespace FX.Infrastructure.Calendars.Legacy
 {
@@ -24,7 +25,7 @@ namespace FX.Infrastructure.Calendars.Legacy
                 Console.WriteLine($"[FX-CALENDAR] Testing connection: {connectionString}");
 
                 // Parse connection string to check DNS
-                var builder = new System.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
+                var builder = new SqlConnectionStringBuilder(connectionString);
                 Console.WriteLine($"[FX-CALENDAR] Data Source: {builder.DataSource}");
                 Console.WriteLine($"[FX-CALENDAR] Connect Timeout: {builder.ConnectTimeout}s");
 
