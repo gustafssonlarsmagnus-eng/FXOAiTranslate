@@ -1351,6 +1351,19 @@ return 0.50; // ATM
             }
         }
 
+        private void CallPutToggle_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Toggle between EUR Call/USD Put and EUR Put/USD Call
+            if (txtCallPut.Text == "EUR Put / USD Call")
+            {
+                txtCallPut.Text = "EUR Call / USD Put";
+            }
+            else
+            {
+                txtCallPut.Text = "EUR Put / USD Call";
+            }
+        }
+
         #endregion
     }
 

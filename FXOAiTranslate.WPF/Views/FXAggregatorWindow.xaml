@@ -563,7 +563,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  </Grid>
   <Border Height="1" Background="#1e293b"/>
  
-             <!-- Option Type (Call/Put) - ComboBox with Switch Arrow -->
+             <!-- Option Type (Call/Put) - Toggle Button with Switch Arrow -->
  <Grid Height="32">
    <Grid.ColumnDefinitions>
    <ColumnDefinition Width="100"/>
@@ -571,19 +571,19 @@ VerticalAlignment="Center" Margin="0,0,12,0"
              </Grid.ColumnDefinitions>
    <TextBlock Text="Option Type" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
 
-  <!-- Grid to overlay switch arrow on ComboBox -->
-  <Grid Grid.Column="1">
-      <ComboBox x:Name="cmbCallPut" Style="{StaticResource DarkComboBox}" SelectedIndex="1" Margin="0,0,8,0">
-          <ComboBoxItem Content="EUR Call / USD Put"/>
-          <ComboBoxItem Content="EUR Put / USD Call"/>
-      </ComboBox>
-
-      <!-- Switch arrow overlaid on the right (pointer-events disabled) -->
-      <TextBlock Text="⇄" FontSize="14" Foreground="#64748b"
-                 HorizontalAlignment="Right" VerticalAlignment="Center"
-                 Margin="0,0,12,0" FontWeight="Bold"
-                 IsHitTestVisible="False"/>
-  </Grid>
+  <!-- Clickable toggle button to switch between Call/Put -->
+  <Border Grid.Column="1" Background="#1e293b" BorderBrush="#334155" BorderThickness="1"
+          CornerRadius="4" Margin="0,0,8,0" Cursor="Hand"
+          MouseLeftButtonUp="CallPutToggle_Click">
+      <Grid Margin="8,6">
+          <TextBlock x:Name="txtCallPut" Text="EUR Put / USD Call"
+                     Foreground="#e2e8f0" FontSize="11" FontWeight="Medium"
+                     HorizontalAlignment="Left" VerticalAlignment="Center"/>
+          <TextBlock Text="⇄" FontSize="14" Foreground="#64748b"
+                     HorizontalAlignment="Right" VerticalAlignment="Center"
+                     FontWeight="Bold"/>
+      </Grid>
+  </Border>
         </Grid>
    <Border Height="1" Background="#1e293b"/>
   
