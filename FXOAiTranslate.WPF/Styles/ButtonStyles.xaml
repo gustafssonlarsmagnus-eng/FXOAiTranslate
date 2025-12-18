@@ -268,40 +268,33 @@
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="CheckBox">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="16"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Border x:Name="CheckBorder"
-                                Width="14" Height="14"
-                                Background="#0f1114"
-                                BorderBrush="#334155"
-                                BorderThickness="1"
-                                CornerRadius="2">
-                            <Path x:Name="CheckMark"
-                                  Data="M 2 6 L 5 9 L 11 3"
-                                  Stroke="#3b82f6"
-                                  StrokeThickness="2"
-                                  Visibility="Collapsed"/>
-                        </Border>
-                        <ContentPresenter Grid.Column="1"
-                                          Margin="6,0,0,0"
-                                          VerticalAlignment="Center"/>
-                    </Grid>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
-                            <Setter TargetName="CheckBorder" Property="Background" Value="#1e3a5f"/>
-                            <Setter TargetName="CheckBorder" Property="BorderBrush" Value="#3b82f6"/>
-                        </Trigger>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="CheckBorder" Property="BorderBrush" Value="#3b82f6"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
+    <ControlTemplate TargetType="CheckBox">
+       <Border x:Name="CheckBorder"
+         Width="14" Height="14"
+            Background="#0f1114"
+          BorderBrush="#334155"
+         BorderThickness="1"
+        CornerRadius="2"
+          HorizontalAlignment="Center"
+       VerticalAlignment="Center">
+     <Path x:Name="CheckMark"
+      Data="M 2 6 L 5 9 L 11 3"
+        Stroke="#3b82f6"
+            StrokeThickness="2"
+           Visibility="Collapsed"/>
+             </Border>
+     <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+          <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+          <Setter TargetName="CheckBorder" Property="Background" Value="#1e3a5f"/>
+         <Setter TargetName="CheckBorder" Property="BorderBrush" Value="#3b82f6"/>
+            </Trigger>
+         <Trigger Property="IsMouseOver" Value="True">
+  <Setter TargetName="CheckBorder" Property="BorderBrush" Value="#3b82f6"/>
+   </Trigger>
+          </ControlTemplate.Triggers>
+    </ControlTemplate>
+   </Setter.Value>
         </Setter>
     </Style>
 
