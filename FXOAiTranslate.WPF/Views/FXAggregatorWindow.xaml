@@ -48,13 +48,13 @@
         <Button Content="Parse"
      HorizontalAlignment="Right" VerticalAlignment="Center"
      Margin="0,0,8,0" Padding="12,4"
-  Background="#2563EB33" Foreground="#60a5fa"
+  Background="#332563EB" Foreground="#60a5fa"
             BorderThickness="0" Cursor="Hand" FontWeight="Medium"
             FontSize="11"
            Click="ParseButton_Click">
             <Button.Style>
                 <Style TargetType="Button">
-                    <Setter Property="Background" Value="#2563EB33"/>
+                    <Setter Property="Background" Value="#332563EB"/>
                     <Setter Property="Foreground" Value="#60a5fa"/>
                     <Setter Property="Template">
                         <Setter.Value>
@@ -65,7 +65,7 @@
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#2563EB4D"/>
+                                        <Setter TargetName="border" Property="Background" Value="#4D2563EB"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
