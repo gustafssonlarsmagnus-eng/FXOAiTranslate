@@ -642,17 +642,16 @@ namespace FXOAiTranslator
 
             try
             {
-                // Convert OVML to TradeStructure for future use
+                // Convert OVML to TradeStructure for GFI quote dialog
                 var tradeStructure = FXOptionsSimulator.OVMLBridge.ConvertToTradeStructure(ovmlResult);
 
-                // Show WPF Multi-LP Quote Window (Bloomberg-style dark mode)
-                // var wpfWindow = new FXOAiTranslate.WPF.Views.MultiLPQuoteWindow(tradeStructure);
-                var wpfWindow = new FXOAiTranslate.WPF.Views.WebQuoteWindow(tradeStructure);
-                wpfWindow.ShowDialog();
+                // Show GFI Quote Dialog for requesting quotes from liquidity providers
+                var gfiDialog = new GFIQuoteDialog(tradeStructure);
+                gfiDialog.Show();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error opening quote window:\n\n{ex.Message}", "Error",
+                MessageBox.Show($"Error opening GFI quote dialog:\n\n{ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -680,8 +679,9 @@ namespace FXOAiTranslator
                 }
             };
 
-            var dialog = new GFIQuoteDialog(testTrade);
-            dialog.Show();
+            // Show WPF Web Quote Window for testing
+            var wpfWindow = new FXOAiTranslate.WPF.Views.WebQuoteWindow(testTrade);
+            wpfWindow.ShowDialog();
         }
 
         private void SetupEventHandlers()
@@ -1188,7 +1188,7 @@ namespace FXOAiTranslator
                     {
                         var match = Regex.Match(method, @"Learned-Pattern-(\d{8}-\d{6})");
                         if (match.Success)
-                        {
+                {
                             string patternTimestamp = match.Groups[1].Value;
 
                             var choice = MessageBox.Show(
