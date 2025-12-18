@@ -35,10 +35,10 @@
         <!-- TRADE INPUT -->
      <Border Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8">
            <Grid>
-           <!-- TextBox with extra right padding for button -->
+           <!-- TextBox with extra right padding for button (matches HTML text-sm, px-3, py-2) -->
            <TextBox x:Name="txtTradeInput"
      Style="{StaticResource DarkTextBox}"
-  FontSize="13" Padding="12,10,80,10"
+  FontSize="14" Padding="12,8,80,8"
         Text=""
         Tag="E.g., buy 10M EURUSD 1M call 1.18"
         GotFocus="txtTradeInput_GotFocus"

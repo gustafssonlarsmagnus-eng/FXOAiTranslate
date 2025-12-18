@@ -70,7 +70,7 @@ namespace FXOAiTranslate.WPF.Views
             {
                 // Show placeholder if no trade provided
                 txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10M EURUSD 1M call 1.18";
-                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#475569"));
             }
         }
 
@@ -356,7 +356,7 @@ namespace FXOAiTranslate.WPF.Views
             if (string.IsNullOrWhiteSpace(txtTradeInput.Text))
             {
                 txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "";
-                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#475569"));
             }
         }
 
