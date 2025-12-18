@@ -1351,6 +1351,24 @@ return 0.50; // ATM
             }
         }
 
+        private void CallPutSwitch_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                // Toggle between Call and Put
+                if (btn.Tag?.ToString() == "PUT")
+                {
+                    btn.Content = "EUR Call / USD Put";
+                    btn.Tag = "CALL";
+                }
+                else
+                {
+                    btn.Content = "EUR Put / USD Call";
+                    btn.Tag = "PUT";
+                }
+            }
+        }
+
         #endregion
     }
 
