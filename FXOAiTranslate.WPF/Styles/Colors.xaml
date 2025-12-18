@@ -17,15 +17,22 @@
     <!-- Panel backgrounds (for grid compatibility) -->
     <SolidColorBrush x:Key="Brush.PanelBackground" Color="#14161b"/>
     <SolidColorBrush x:Key="Brush.HeaderBackground" Color="#1a1d23"/>
+    <SolidColorBrush x:Key="Brush.ControlBar" Color="#14161b"/>
+    <SolidColorBrush x:Key="Brush.LegHeader" Color="#1a2850"/>
+    <SolidColorBrush x:Key="Brush.LegBackground" Color="#152040"/>
+    <SolidColorBrush x:Key="Brush.RowLabel" Color="#14161b"/>
+    <SolidColorBrush x:Key="Brush.LadderMiddle" Color="#0f1114"/>
 
     <!-- Accent Colors -->
     <SolidColorBrush x:Key="Brush.AccentBlue" Color="#3b82f6"/>
     <SolidColorBrush x:Key="Brush.AccentBlueDim" Color="#1e3a5f"/>
+    <SolidColorBrush x:Key="Brush.AccentBlueHover" Color="#2563eb"/>
     
     <!-- Trading Colors -->
     <SolidColorBrush x:Key="Brush.BidGreen" Color="#22c55e"/>
     <SolidColorBrush x:Key="Brush.OfferRed" Color="#ef4444"/>
     <SolidColorBrush x:Key="Brush.Countdown" Color="#f59e0b"/>
+    <SolidColorBrush x:Key="Brush.CountdownUrgent" Color="#ef4444"/>
     <SolidColorBrush x:Key="Brush.Strike" Color="#facc15"/>
     
     <!-- Legacy color mappings -->
@@ -41,6 +48,7 @@
     <SolidColorBrush x:Key="Brush.TextSub" Color="#94a3b8"/>
     <SolidColorBrush x:Key="Brush.TextDim" Color="#64748b"/>
     <SolidColorBrush x:Key="Brush.TextMuted" Color="#334155"/>
+    <SolidColorBrush x:Key="Brush.TextWhite" Color="White"/>
 
     <!-- Status Colors -->
     <SolidColorBrush x:Key="Brush.StatusPending" Color="#f59e0b"/>
@@ -48,15 +56,51 @@
     <SolidColorBrush x:Key="Brush.StatusConfirmed" Color="#22c55e"/>
     <SolidColorBrush x:Key="Brush.StatusConfirmedBg" Color="#052e16"/>
 
-    <!-- Tile Gradient -->
+    <!-- Tile Gradient (Default state) -->
     <LinearGradientBrush x:Key="Brush.TileGradient" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#16181d" Offset="0"/>
         <GradientStop Color="#0f1114" Offset="1"/>
     </LinearGradientBrush>
     
+    <!-- Tile Hover Gradient (Midnight Blue) -->
     <LinearGradientBrush x:Key="Brush.TileHoverGradient" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#1e2536" Offset="0"/>
         <GradientStop Color="#11151f" Offset="1"/>
     </LinearGradientBrush>
+ 
+    <!-- Tile Flash Gradient (for trade execution) -->
+    <LinearGradientBrush x:Key="Brush.TileFlashGradient" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#152040" Offset="0"/>
+        <GradientStop Color="#0d1530" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- Best Bid Background (gradient from left) -->
+    <LinearGradientBrush x:Key="Brush.BestBidBackground" StartPoint="0,0.5" EndPoint="1,0.5">
+      <GradientStop Color="#331e3a8a" Offset="0"/>
+      <GradientStop Color="Transparent" Offset="1"/>
+    </LinearGradientBrush>
+    
+    <!-- Best Offer Background (gradient from right) -->
+    <LinearGradientBrush x:Key="Brush.BestOfferBackground" StartPoint="1,0.5" EndPoint="0,0.5">
+        <GradientStop Color="#331e3a8a" Offset="0"/>
+        <GradientStop Color="Transparent" Offset="1"/>
+    </LinearGradientBrush>
+    
+<!-- LP Badge Background (bid side - gradient to right) -->
+    <LinearGradientBrush x:Key="Brush.LPBadgeBid" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#4d1e3a8a" Offset="0"/>
+        <GradientStop Color="#0d1e3a8a" Offset="1"/>
+    </LinearGradientBrush>
+    
+  <!-- LP Badge Background (offer side - gradient to left) -->
+    <LinearGradientBrush x:Key="Brush.LPBadgeOffer" StartPoint="1,0.5" EndPoint="0,0.5">
+        <GradientStop Color="#4d1e3a8a" Offset="0"/>
+        <GradientStop Color="#0d1e3a8a" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- Tooltip Styling -->
+    <SolidColorBrush x:Key="Brush.TooltipBackground" Color="#0f1318"/>
+    <SolidColorBrush x:Key="Brush.TooltipBorder" Color="#1e3a5f"/>
+  <SolidColorBrush x:Key="Brush.TooltipHighlight" Color="#60a5fa"/>
 
 </ResourceDictionary>

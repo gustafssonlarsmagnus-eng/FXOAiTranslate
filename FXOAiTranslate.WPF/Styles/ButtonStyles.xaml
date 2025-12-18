@@ -5,7 +5,308 @@
         <ResourceDictionary Source="/FXOAiTranslate.WPF;component/Styles/Colors.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
+     <!-- ============================================ -->
+    <!-- DARK SCROLLBAR STYLE         -->
     <!-- ============================================ -->
+
+    <!-- Scrollbar Thumb (the draggable part) -->
+  <Style x:Key="DarkScrollBarThumb" TargetType="Thumb">
+ <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+    <Setter Property="Template">
+       <Setter.Value>
+ <ControlTemplate TargetType="Thumb">
+          <Border x:Name="thumbBorder"
+      Background="#334155"
+     CornerRadius="2"
+     Margin="1"/>
+    <ControlTemplate.Triggers>
+      <Trigger Property="IsMouseOver" Value="True">
+      <Setter TargetName="thumbBorder" Property="Background" Value="#475569"/>
+ </Trigger>
+               <Trigger Property="IsDragging" Value="True">
+   <Setter TargetName="thumbBorder" Property="Background" Value="#3b82f6"/>
+        </Trigger>
+      </ControlTemplate.Triggers>
+          </ControlTemplate>
+       </Setter.Value>
+        </Setter>
+    </Style>
+
+<!-- Vertical Scrollbar -->
+    <Style x:Key="DarkScrollBar" TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Width" Value="6"/>
+        <Setter Property="MinWidth" Value="6"/>
+      <Setter Property="Template">
+  <Setter.Value>
+           <ControlTemplate TargetType="ScrollBar">
+  <Grid Background="#0f1115">
+       <Track x:Name="PART_Track" IsDirectionReversed="True">
+    <Track.Thumb>
+          <Thumb Style="{StaticResource DarkScrollBarThumb}"/>
+         </Track.Thumb>
+    </Track>
+ </Grid>
+   </ControlTemplate>
+         </Setter.Value>
+    </Setter>
+        <Style.Triggers>
+     <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+        <Setter Property="Height" Value="6"/>
+       <Setter Property="MinHeight" Value="6"/>
+         <Setter Property="Template">
+            <Setter.Value>
+<ControlTemplate TargetType="ScrollBar">
+        <Grid Background="#0f1115">
+    <Track x:Name="PART_Track" IsDirectionReversed="False">
+         <Track.Thumb>
+       <Thumb Style="{StaticResource DarkScrollBarThumb}"/>
+   </Track.Thumb>
+          </Track>
+         </Grid>
+    </ControlTemplate>
+      </Setter.Value>
+        </Setter>
+ </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Dark ScrollViewer Style -->
+  <Style x:Key="DarkScrollViewer" TargetType="ScrollViewer">
+ <Setter Property="Template">
+    <Setter.Value>
+     <ControlTemplate TargetType="ScrollViewer">
+            <Grid>
+  <Grid.ColumnDefinitions>
+        <ColumnDefinition/>
+        <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+   <Grid.RowDefinitions>
+         <RowDefinition/>
+             <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+           <ScrollContentPresenter Grid.Column="0" Grid.Row="0"/>
+       <ScrollBar x:Name="PART_VerticalScrollBar"
+      Grid.Column="1" Grid.Row="0"
+     Style="{StaticResource DarkScrollBar}"
+         Value="{TemplateBinding VerticalOffset}"
+        Maximum="{TemplateBinding ScrollableHeight}"
+     ViewportSize="{TemplateBinding ViewportHeight}"
+  Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+           <ScrollBar x:Name="PART_HorizontalScrollBar"
+       Grid.Column="0" Grid.Row="1"
+       Style="{StaticResource DarkScrollBar}"
+            Orientation="Horizontal"
+               Value="{TemplateBinding HorizontalOffset}"
+            Maximum="{TemplateBinding ScrollableWidth}"
+             ViewportSize="{TemplateBinding ViewportWidth}"
+    Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+ </Grid>
+     </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================================ -->
+    <!-- DARK THEME INPUT CONTROLS   -->
+    <!-- ============================================ -->
+
+    <!-- Dark TextBox Style -->
+    <Style x:Key="DarkTextBox" TargetType="TextBox">
+        <Setter Property="Background" Value="#0f1114"/>
+        <Setter Property="Foreground" Value="#e2e8f0"/>
+        <Setter Property="BorderBrush" Value="#1e293b"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="CaretBrush" Value="#e2e8f0"/>
+        <Setter Property="SelectionBrush" Value="#3b82f6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="2">
+                        <ScrollViewer x:Name="PART_ContentHost"
+                                      Margin="{TemplateBinding Padding}"
+                                      VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="BorderBrush" Value="#334155"/>
+                        </Trigger>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter Property="BorderBrush" Value="#3b82f6"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Dark ComboBox Toggle Button -->
+    <Style x:Key="DarkComboBoxToggleButton" TargetType="ToggleButton">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition Width="20"/>
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="Border" Grid.ColumnSpan="2"
+                                Background="#0f1114"
+                                BorderBrush="#1e293b"
+                                BorderThickness="1"
+                                CornerRadius="2"/>
+                        <Path x:Name="Arrow" Grid.Column="1"
+                              Data="M 0 0 L 4 4 L 8 0 Z"
+                              Fill="#64748b"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="BorderBrush" Value="#334155"/>
+                            <Setter TargetName="Arrow" Property="Fill" Value="#94a3b8"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Border" Property="BorderBrush" Value="#3b82f6"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Dark ComboBox Style -->
+    <Style x:Key="DarkComboBox" TargetType="ComboBox">
+        <Setter Property="Background" Value="#0f1114"/>
+        <Setter Property="Foreground" Value="#e2e8f0"/>
+        <Setter Property="BorderBrush" Value="#1e293b"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <ToggleButton x:Name="ToggleButton"
+                                      Style="{StaticResource DarkComboBoxToggleButton}"
+                                      Focusable="False"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                      ClickMode="Press"/>
+                        <ContentPresenter x:Name="ContentSite"
+                                          IsHitTestVisible="False"
+                                          Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                          Margin="10,4,28,4"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Left"/>
+                        <Popup x:Name="Popup"
+                               Placement="Bottom"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               PopupAnimation="Slide">
+                            <Grid x:Name="DropDown"
+                                  SnapsToDevicePixels="True"
+                                  MinWidth="{TemplateBinding ActualWidth}"
+                                  MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                <Border x:Name="DropDownBorder"
+                                        Background="#14161b"
+                                        BorderBrush="#334155"
+                                        BorderThickness="1"
+                                        CornerRadius="2">
+                                    <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Grid>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Dark ComboBoxItem Style -->
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#e2e8f0"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="Border"
+                            Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}"
+                            CornerRadius="2">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="#1e2536"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="#1e3a5f"/>
+                            <Setter Property="Foreground" Value="#3b82f6"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Dark CheckBox Style -->
+    <Style x:Key="DarkCheckBox" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="#e2e8f0"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="CheckBorder"
+                                Width="14" Height="14"
+                                Background="#0f1114"
+                                BorderBrush="#334155"
+                                BorderThickness="1"
+                                CornerRadius="2">
+                            <Path x:Name="CheckMark"
+                                  Data="M 2 6 L 5 9 L 11 3"
+                                  Stroke="#3b82f6"
+                                  StrokeThickness="2"
+                                  Visibility="Collapsed"/>
+                        </Border>
+                        <ContentPresenter Grid.Column="1"
+                                          Margin="6,0,0,0"
+                                          VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="CheckBorder" Property="Background" Value="#1e3a5f"/>
+                            <Setter TargetName="CheckBorder" Property="BorderBrush" Value="#3b82f6"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="CheckBorder" Property="BorderBrush" Value="#3b82f6"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================================ -->
+    <!-- BUTTON STYLES    -->
     <!-- ============================================ -->
 
     <Style x:Key="ExecutionButtonBorder" TargetType="Border">

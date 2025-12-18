@@ -82,18 +82,20 @@ namespace FXOAiTranslate.WPF.Views
 
         private void ShowRfqState()
         {
-            lblBidLabel.Text = "CLICK TO RFQ";
-            lblBidLabel.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+            // Reset bid tile to RFQ state
+            lblBidLabel.Visibility = Visibility.Collapsed;
+            lblBidRfqHint.Visibility = Visibility.Visible;
             lblBidValue.Text = "RFQ";
-            lblBidValue.FontSize = 48;
+            lblBidValue.FontSize = 72;
             lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
             lblBidSecondary.Visibility = Visibility.Collapsed;
             bidLPPanel.Visibility = Visibility.Collapsed;
 
-            lblOfferLabel.Text = "CLICK TO RFQ";
-            lblOfferLabel.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+            // Reset offer tile to RFQ state
+            lblOfferLabel.Visibility = Visibility.Collapsed;
+            lblOfferRfqHint.Visibility = Visibility.Visible;
             lblOfferValue.Text = "RFQ";
-            lblOfferValue.FontSize = 48;
+            lblOfferValue.FontSize = 72;
             lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
             lblOfferSecondary.Visibility = Visibility.Collapsed;
             offerLPPanel.Visibility = Visibility.Collapsed;
@@ -106,16 +108,18 @@ namespace FXOAiTranslate.WPF.Views
 
         private void ShowLiveState()
         {
-            lblBidLabel.Text = "BID (VOL)";
-            lblBidLabel.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Green
-            lblBidValue.FontSize = 56;
+            // Show bid tile in live quoting state
+            lblBidLabel.Visibility = Visibility.Visible;
+            lblBidRfqHint.Visibility = Visibility.Collapsed;
+            lblBidValue.FontSize = 72;
             lblBidValue.Foreground = Brushes.White;
             lblBidSecondary.Visibility = Visibility.Visible;
             bidLPPanel.Visibility = Visibility.Visible;
 
-            lblOfferLabel.Text = "OFFER (VOL)";
-            lblOfferLabel.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
-            lblOfferValue.FontSize = 56;
+            // Show offer tile in live quoting state
+            lblOfferLabel.Visibility = Visibility.Visible;
+            lblOfferRfqHint.Visibility = Visibility.Collapsed;
+            lblOfferValue.FontSize = 72;
             lblOfferValue.Foreground = Brushes.White;
             lblOfferSecondary.Visibility = Visibility.Visible;
             offerLPPanel.Visibility = Visibility.Visible;
@@ -408,9 +412,89 @@ namespace FXOAiTranslate.WPF.Views
             }
         }
 
+        private void MarketDataHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Toggle market data section visibility
+            if (FindName("marketDataContent") is StackPanel content && FindName("lblMarketDataArrow") is TextBlock arrow)
+            {
+                if (content.Visibility == Visibility.Visible)
+                {
+                    content.Visibility = Visibility.Collapsed;
+                    arrow.Text = "\u25B6";
+                }
+                else
+                {
+                    content.Visibility = Visibility.Visible;
+                    arrow.Text = "\u25BC";
+                }
+            }
+        }
+
+        private void RiskHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Toggle risk section visibility
+            if (FindName("riskContent") is StackPanel content && FindName("lblRiskArrow") is TextBlock arrow)
+            {
+                if (content.Visibility == Visibility.Visible)
+                {
+                    content.Visibility = Visibility.Collapsed;
+                    arrow.Text = "\u25B6";
+                }
+                else
+                {
+                    content.Visibility = Visibility.Visible;
+                    arrow.Text = "\u25BC";
+                }
+            }
+        }
+
         private void AddLeg_Click(object sender, MouseButtonEventArgs e)
         {
             MessageBox.Show("Add leg functionality - coming soon!", "Add Leg", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void Tile_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is Border tile)
+            {
+                // Apply hover gradient
+                tile.Background = (Brush)FindResource("Brush.TileHoverGradient");
+
+                // Brighten the RFQ text on hover when not in live state
+                if (!_isRfqActive)
+                {
+                    if (tile == bidTile)
+                    {
+                        lblBidValue.Foreground = Brushes.White;
+                    }
+                    else if (tile == offerTile)
+                    {
+                        lblOfferValue.Foreground = Brushes.White;
+                    }
+                }
+            }
+        }
+
+        private void Tile_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is Border tile)
+            {
+                // Restore default gradient
+                tile.Background = (Brush)FindResource("Brush.TileGradient");
+
+                // Restore dim text color when not in live state
+                if (!_isRfqActive)
+                {
+                    if (tile == bidTile)
+                    {
+                        lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                    }
+                    else if (tile == offerTile)
+                    {
+                        lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                    }
+                }
+            }
         }
 
         private void DealsHeader_Click(object sender, MouseButtonEventArgs e)
@@ -492,7 +576,7 @@ namespace FXOAiTranslate.WPF.Views
 
                 // Get selected LPs from checkboxes
                 var selectedLPs = GetSelectedLPs();
-  
+
                 if (selectedLPs.Count == 0)
                 {
                     MessageBox.Show("Please select at least one LP.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -542,6 +626,37 @@ namespace FXOAiTranslate.WPF.Views
         {
             // Update LP count in header
             UpdateLPCount();
+
+            // Update visual state of the LP row when checkbox changes
+            if (sender is CheckBox checkbox)
+            {
+                // Find the parent Grid (LP row)
+                var parent = checkbox.Parent;
+                while (parent != null && !(parent is Grid grid && grid.Parent is Border))
+                {
+                    parent = (parent as FrameworkElement)?.Parent;
+                }
+
+                if (parent is Grid lpRowGrid && lpRowGrid.Parent is Border)
+                {
+                    // Update opacity based on checked state
+                    bool isChecked = checkbox.IsChecked == true;
+                    lpRowGrid.Opacity = isChecked ? 0.9 : 0.4;
+
+                    // Find the LP name TextBlock and update its color
+                    var centerBorder = lpRowGrid.Children.OfType<Border>().FirstOrDefault(b => Grid.GetColumn(b) == 1);
+                    if (centerBorder?.Child is StackPanel sp)
+                    {
+                        var nameLabel = sp.Children.OfType<TextBlock>().FirstOrDefault();
+                        if (nameLabel != null)
+                        {
+                            nameLabel.Foreground = isChecked
+                                ? new SolidColorBrush(Colors.White)
+                                : new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748b
+                        }
+                    }
+                }
+            }
         }
 
         private void UpdateLPCount()
@@ -557,21 +672,29 @@ namespace FXOAiTranslate.WPF.Views
         {
             var lps = new List<string>();
 
-            // Check each LP checkbox from the initial panel
-            if (FindName("chkBNP") is CheckBox bnp && bnp.IsChecked == true) lps.Add("BNP");
-            if (FindName("chkHSBC") is CheckBox hsbc && hsbc.IsChecked == true) lps.Add("HSBC");
-            if (FindName("chkSOCGEN") is CheckBox socgen && socgen.IsChecked == true) lps.Add("SOCGEN");
+            // Check all 9 LP checkboxes from the initial panel (matching FenicsConfig)
             if (FindName("chkMS") is CheckBox ms && ms.IsChecked == true) lps.Add("MS");
-  
-            // Also check LPs from quote rows
-            foreach (var quoteRow in LPQuotes)
+            if (FindName("chkHSBC") is CheckBox hsbc && hsbc.IsChecked == true) lps.Add("HSBC");
+            if (FindName("chkBNP") is CheckBox bnp && bnp.IsChecked == true) lps.Add("BNP");
+            if (FindName("chkNATWEST") is CheckBox natwest && natwest.IsChecked == true) lps.Add("NATWEST");
+            if (FindName("chkSOCGEN") is CheckBox socgen && socgen.IsChecked == true) lps.Add("SOCGEN");
+            if (FindName("chkCIBC") is CheckBox cibc && cibc.IsChecked == true) lps.Add("CIBC");
+            if (FindName("chkSCBL") is CheckBox scbl && scbl.IsChecked == true) lps.Add("SCBL");
+            if (FindName("chkNOMURA") is CheckBox nomura && nomura.IsChecked == true) lps.Add("NOMURA");
+            if (FindName("chkBAML") is CheckBox baml && baml.IsChecked == true) lps.Add("BAML");
+
+            // Also check LPs from quote rows (when quotes are active)
+            if (LPQuotes != null)
             {
-                if (quoteRow.IsEnabled && !lps.Contains(quoteRow.LPName))
+                foreach (var quoteRow in LPQuotes)
                 {
-                    lps.Add(quoteRow.LPName);
+                    if (quoteRow.IsEnabled && !lps.Contains(quoteRow.LPName))
+                    {
+                        lps.Add(quoteRow.LPName);
+                    }
                 }
             }
-    
+
             return lps;
         }
 
@@ -767,24 +890,24 @@ namespace FXOAiTranslate.WPF.Views
         public double Opacity { get; set; } = 1.0;
         public bool IsBestBid { get; set; }
         public bool IsBestOffer { get; set; }
-  
+
         private bool _isEnabled = true;
-        public bool IsEnabled 
-        { 
-          get => _isEnabled; 
-    set { _isEnabled = value; OnPropertyChanged(nameof(IsEnabled)); OnPropertyChanged(nameof(LPForeground)); }
+        public bool IsEnabled
+        {
+            get => _isEnabled;
+            set { _isEnabled = value; OnPropertyChanged(nameof(IsEnabled)); OnPropertyChanged(nameof(LPForeground)); }
         }
 
-    // Border highlights for best prices
-      public Brush BidBorderBrush => IsBestBid ? new SolidColorBrush(Color.FromRgb(59, 130, 246)) : Brushes.Transparent;
+        // Border highlights for best prices
+        public Brush BidBorderBrush => IsBestBid ? new SolidColorBrush(Color.FromRgb(59, 130, 246)) : Brushes.Transparent;
         public Brush OfferBorderBrush => IsBestOffer ? new SolidColorBrush(Color.FromRgb(59, 130, 246)) : Brushes.Transparent;
         public Brush BidBackground => IsBestBid ? new SolidColorBrush(Color.FromArgb(30, 30, 58, 138)) : Brushes.Transparent;
         public Brush OfferBackground => IsBestOffer ? new SolidColorBrush(Color.FromArgb(30, 30, 58, 138)) : Brushes.Transparent;
-  
+
         // Text colors - best prices are bold white, others are dimmer
-    public Brush BidForeground => IsBestBid ? Brushes.White : new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
-    public Brush OfferForeground => IsBestOffer ? Brushes.White : new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
- public Brush LPForeground => IsEnabled ? Brushes.White : new SolidColorBrush(Color.FromRgb(100, 116, 139));
+        public Brush BidForeground => IsBestBid ? Brushes.White : new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
+        public Brush OfferForeground => IsBestOffer ? Brushes.White : new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
+        public Brush LPForeground => IsEnabled ? Brushes.White : new SolidColorBrush(Color.FromRgb(100, 116, 139));
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
