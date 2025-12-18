@@ -40,7 +40,7 @@
      Style="{StaticResource DarkTextBox}"
   FontSize="14" Padding="12,6,80,6"
         Text=""
-        Tag="E.g., buy 10m eurusd 1m call 1.18"
+        Tag="E.g., buy 10mio EURUSD 1m call 1.18"
         GotFocus="txtTradeInput_GotFocus"
         LostFocus="txtTradeInput_LostFocus"
         Loaded="txtTradeInput_Loaded"/>

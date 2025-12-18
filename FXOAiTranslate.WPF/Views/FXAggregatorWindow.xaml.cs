@@ -63,14 +63,14 @@ namespace FXOAiTranslate.WPF.Views
             if (trade != null && trade.Legs?.Count > 0)
             {
                 var leg = trade.Legs[0];
-                // Format trade text in lowercase with "E.g.," prefix to match placeholder style
-                txtTradeInput.Text = $"E.g., {leg.Direction?.ToLower()} {leg.NotionalMM}m {trade.Underlying?.ToLower()} {leg.Tenor?.ToLower()} {leg.OptionType?.ToLower()} {leg.Strike}";
-                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#e2e8f0"));
+                // Format trade text to match RFQ color and style: "E.g., buy 10mio EURUSD 1m call 1.1750"
+                txtTradeInput.Text = $"E.g., {leg.Direction?.ToLower()} {leg.NotionalMM}mio {trade.Underlying?.ToUpper()} {leg.Tenor?.ToLower()} {leg.OptionType?.ToLower()} {leg.Strike}";
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
             }
             else
             {
                 // Show placeholder if no trade provided (matches RFQ inactive color)
-                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10m eurusd 1m call 1.18";
+                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10mio EURUSD 1m call 1.18";
                 txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
             }
         }
@@ -346,7 +346,7 @@ namespace FXOAiTranslate.WPF.Views
             // Initialize placeholder on load (matches RFQ inactive color)
             if (string.IsNullOrWhiteSpace(txtTradeInput.Text) || txtTradeInput.Text == txtTradeInput.Tag?.ToString())
             {
-                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10m eurusd 1m call 1.18";
+                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10mio EURUSD 1m call 1.18";
                 txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
             }
         }
