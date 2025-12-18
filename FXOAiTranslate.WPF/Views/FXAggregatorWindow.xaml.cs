@@ -68,9 +68,9 @@ namespace FXOAiTranslate.WPF.Views
             }
             else
             {
-                // Show placeholder if no trade provided
+                // Show placeholder if no trade provided (lighter color for visibility)
                 txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10M EURUSD 1M call 1.18";
-                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#475569"));
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94a3b8"));
             }
         }
 
@@ -340,6 +340,16 @@ namespace FXOAiTranslate.WPF.Views
             SendRFQ();
         }
 
+        private void txtTradeInput_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Initialize placeholder on load (lighter color for visibility)
+            if (string.IsNullOrWhiteSpace(txtTradeInput.Text) || txtTradeInput.Text == txtTradeInput.Tag?.ToString())
+            {
+                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10M EURUSD 1M call 1.18";
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94a3b8"));
+            }
+        }
+
         private void txtTradeInput_GotFocus(object sender, RoutedEventArgs e)
         {
             // Clear placeholder when textbox gets focus
@@ -356,7 +366,7 @@ namespace FXOAiTranslate.WPF.Views
             if (string.IsNullOrWhiteSpace(txtTradeInput.Text))
             {
                 txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "";
-                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#475569"));
+                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94a3b8"));
             }
         }
 
