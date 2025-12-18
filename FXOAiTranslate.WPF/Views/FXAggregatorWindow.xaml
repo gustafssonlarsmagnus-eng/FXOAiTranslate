@@ -570,26 +570,20 @@ VerticalAlignment="Center" Margin="0,0,12,0"
       <ColumnDefinition Width="*"/>
              </Grid.ColumnDefinitions>
    <TextBlock Text="Option Type" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-  <ComboBox x:Name="cmbCallPut" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="1" Margin="0,0,8,0">
-      <ComboBox.Resources>
-          <!-- Override the toggle button template to use switch arrow -->
-          <Style x:Key="ComboBoxToggleButton" TargetType="ToggleButton">
-              <Setter Property="Template">
-                  <Setter.Value>
-                      <ControlTemplate TargetType="ToggleButton">
-                          <Border Background="Transparent">
-                              <TextBlock Text="⇄" FontSize="14" Foreground="#64748b"
-                                         HorizontalAlignment="Right" VerticalAlignment="Center"
-                                         Margin="0,0,8,0" FontWeight="Bold"/>
-                          </Border>
-                      </ControlTemplate>
-                  </Setter.Value>
-              </Setter>
-          </Style>
-      </ComboBox.Resources>
-      <ComboBoxItem Content="EUR Call / USD Put"/>
-      <ComboBoxItem Content="EUR Put / USD Call"/>
-  </ComboBox>
+
+  <!-- Grid to overlay switch arrow on ComboBox -->
+  <Grid Grid.Column="1">
+      <ComboBox x:Name="cmbCallPut" Style="{StaticResource DarkComboBox}" SelectedIndex="1" Margin="0,0,8,0">
+          <ComboBoxItem Content="EUR Call / USD Put"/>
+          <ComboBoxItem Content="EUR Put / USD Call"/>
+      </ComboBox>
+
+      <!-- Switch arrow overlaid on the right (pointer-events disabled) -->
+      <TextBlock Text="⇄" FontSize="14" Foreground="#64748b"
+                 HorizontalAlignment="Right" VerticalAlignment="Center"
+                 Margin="0,0,12,0" FontWeight="Bold"
+                 IsHitTestVisible="False"/>
+  </Grid>
         </Grid>
    <Border Height="1" Background="#1e293b"/>
   
