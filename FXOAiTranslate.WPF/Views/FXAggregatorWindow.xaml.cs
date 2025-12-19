@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using FXOptionsSimulator;
 using FXOptionsSimulator.FIX;
+using FXOAiTranslator;
 
 namespace FXOAiTranslate.WPF.Views
 {
@@ -20,6 +21,7 @@ namespace FXOAiTranslate.WPF.Views
 
         private readonly TradeStructure _trade;
         private readonly GFIFIXSessionManager _fixSession;
+        private readonly BloombergService _bloombergService;
         private readonly ConcurrentDictionary<string, LPQuoteData> _quotesByLP;
         private readonly DispatcherTimer _countdownTimer;
         private string _currentGroupId;
@@ -36,6 +38,10 @@ namespace FXOAiTranslate.WPF.Views
 
             lpLadder.ItemsSource = LPQuotes;
             dealCards.ItemsSource = Deals;
+
+            // Initialize Bloomberg service for real market data
+            _bloombergService = new BloombergService();
+            Console.WriteLine($"[WPF] Bloomberg service initialized - Connected: {_bloombergService.IsConnected}");
 
             // Get FIX session
             _fixSession = GlobalFIXSession.Instance;
@@ -149,13 +155,13 @@ namespace FXOAiTranslate.WPF.Views
         private void OnQuoteReceived(QuoteData quote)
         {
             // Marshal to UI thread
-            Dispatcher.BeginInvoke(() =>
+            Dispatcher.BeginInvoke(async () =>
             {
-                ProcessQuote(quote);
+                await ProcessQuoteAsync(quote);
             });
         }
 
-        private void ProcessQuote(QuoteData quote)
+        private async Task ProcessQuoteAsync(QuoteData quote)
         {
             Console.WriteLine($"[WPF] Processing quote from {quote.LP} - Side: {quote.Side}, Vol: {(quote.Side == "BID" ? quote.BidVol : quote.OfferVol)}");
 
@@ -182,7 +188,11 @@ namespace FXOAiTranslate.WPF.Views
 
             lpData.LastUpdate = DateTime.Now;
             lpData.ValidUntilTime = ParseValidUntilTime(quote.ValidUntilTime);
-            lpData.SpotRate = quote.Notional > 0 ? quote.Notional.ToString("F4") : "1.1746";
+
+            // Fetch real-time Bloomberg spot instead of using hardcoded fallback
+            string pair = _trade?.Underlying ?? "EURUSD";
+            double bloombergSpot = await GetBloombergSpotAsync(pair);
+            lpData.SpotRate = bloombergSpot.ToString("F4");
             lpData.Delta = quote.Delta;
 
             // Update ladder
@@ -760,17 +770,70 @@ namespace FXOAiTranslate.WPF.Views
    }
   }
 
-   /// <summary>
-   /// Get market data for the given currency pair
-    /// </summary>
+        // Cache for Bloomberg spot rates to avoid excessive API calls
+        private readonly ConcurrentDictionary<string, (double Rate, DateTime Timestamp)> _spotRateCache
+            = new ConcurrentDictionary<string, (double, DateTime)>();
+
+        /// <summary>
+        /// Get real-time spot rate from Bloomberg API with caching
+        /// </summary>
+        private async Task<double> GetBloombergSpotAsync(string pair)
+        {
+            if (string.IsNullOrEmpty(pair))
+                return 1.0;
+
+            // Check cache (5 second expiry for real-time data)
+            if (_spotRateCache.TryGetValue(pair, out var cached))
+            {
+                if ((DateTime.Now - cached.Timestamp).TotalSeconds < 5)
+                {
+                    return cached.Rate;
+                }
+            }
+
+            // Fetch from Bloomberg
+            if (_bloombergService?.IsConnected == true)
+            {
+                var spot = await _bloombergService.GetSpotRate(pair);
+                if (spot.HasValue && spot.Value > 0)
+                {
+                    _spotRateCache[pair] = (spot.Value, DateTime.Now);
+                    Console.WriteLine($"[WPF] Bloomberg spot for {pair}: {spot.Value:F4}");
+                    return spot.Value;
+                }
+            }
+
+            // Fallback to mock data if Bloomberg unavailable
+            Console.WriteLine($"[WPF] WARNING: Bloomberg not available, using mock spot for {pair}");
+            return GetMockSpotRate(pair);
+        }
+
+        /// <summary>
+        /// Fallback mock spot rates when Bloomberg is unavailable
+        /// </summary>
+        private double GetMockSpotRate(string pair)
+        {
+            return pair?.ToUpperInvariant() switch
+            {
+                "EURUSD" => 1.0850,
+                "USDSEK" => 10.4560,
+                "EURNOK" => 11.7800,
+                "GBPUSD" => 1.2650,
+                _ => 1.0
+            };
+        }
+
+        /// <summary>
+        /// Get market data for the given currency pair (DEPRECATED - use GetBloombergSpotAsync)
+        /// </summary>
         private MarketData GetMarketDataForPair(string pair)
-   {
-  return pair?.ToUpperInvariant() switch
-{
-     "EURUSD" => MarketData.GetEURUSD(),
-    "USDSEK" => MarketData.GetUSDSEK(),
-   _ => MarketData.GetEURUSD() // Default
-};
+        {
+            return pair?.ToUpperInvariant() switch
+            {
+                "EURUSD" => MarketData.GetEURUSD(),
+                "USDSEK" => MarketData.GetUSDSEK(),
+                _ => MarketData.GetEURUSD() // Default
+            };
         }
 
         /// <summary>
@@ -986,7 +1049,7 @@ return 0.50; // ATM
                 SendRFQ();
                 return;
             }
-            ExecuteTrade("BID");
+            _ = ExecuteTradeAsync("BID");
         }
 
         private void OfferTile_Click(object sender, MouseButtonEventArgs e)
@@ -996,7 +1059,7 @@ return 0.50; // ATM
                 SendRFQ();
                 return;
             }
-            ExecuteTrade("OFFER");
+            _ = ExecuteTradeAsync("OFFER");
         }
 
         private void SendRFQ()
@@ -1229,7 +1292,7 @@ return 0.50; // ATM
             return lps;
         }
 
-        private void ExecuteTrade(string side)
+        private async Task ExecuteTradeAsync(string side)
         {
             // Flash animation
             var tile = side == "BID" ? bidTile : offerTile;
@@ -1285,7 +1348,11 @@ return 0.50; // ATM
                 Volatility = $"{(side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol):F2}%",
                 Premium = (decimal)Math.Abs(side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium),
                 EurPips = $"{Math.Abs((side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium) / 1000):F0}p",
-                SpotRate = bestQuote.SpotRate ?? "1.1746",
+                // Use Bloomberg spot from quote data (already fetched in ProcessQuoteAsync)
+                // If not available, fetch from Bloomberg as fallback
+                SpotRate = !string.IsNullOrEmpty(bestQuote.SpotRate)
+                    ? bestQuote.SpotRate
+                    : (await GetBloombergSpotAsync(_trade?.Underlying ?? "EURUSD")).ToString("F4"),
                 Strike = _trade?.Legs?[0]?.Strike.ToString("F4") ?? "1.1751",
                 Notional = $"EUR {_trade?.Legs?[0]?.NotionalMM ?? 10}M",
                 ExpiryDate = _trade?.Legs?[0]?.ExpiryDate.ToString("dd MMM yy") ?? "14 Jan 26",
