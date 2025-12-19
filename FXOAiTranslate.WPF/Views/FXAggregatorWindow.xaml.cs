@@ -413,6 +413,42 @@ namespace FXOAiTranslate.WPF.Views
             txtTradeInput.Text = text;
         }
 
+        private void txtNotional_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Format notional amounts in the Quantity field
+            if (!string.IsNullOrWhiteSpace(txtNotional.Text))
+            {
+                var text = txtNotional.Text;
+
+                // Pattern to match numbers with k or m suffix (case insensitive)
+                var pattern = @"\b(\d+(?:\.\d+)?)\s*([kmKM])\b";
+
+                text = System.Text.RegularExpressions.Regex.Replace(text, pattern, match =>
+                {
+                    var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                    var suffix = match.Groups[2].Value.ToLower();
+
+                    // Format millions (10m -> 10 000 000)
+                    if (suffix == "m" && number >= 10)
+                    {
+                        long formatted = (long)(number * 1_000_000);
+                        return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                    }
+                    // Format thousands (100k -> 100 000)
+                    else if (suffix == "k")
+                    {
+                        long formatted = (long)(number * 1000);
+                        return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                    }
+
+                    // Leave as-is (small numbers like "1m" for tenor)
+                    return match.Value;
+                });
+
+                txtNotional.Text = text;
+            }
+        }
+
         private void ParseTradeInput()
         {
             // Don't parse if showing placeholder

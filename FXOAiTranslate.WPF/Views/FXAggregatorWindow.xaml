@@ -559,7 +559,8 @@ VerticalAlignment="Center" Margin="0,0,12,0"
         <ComboBoxItem Content="USD"/>
     </ComboBox>
   <TextBox x:Name="txtNotional" Grid.Column="2" Text="" Style="{StaticResource DarkTextBox}"
-        FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="4,0,8,0" MinWidth="100"/>
+        FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="4,0,8,0" MinWidth="100"
+        LostFocus="txtNotional_LostFocus"/>
  </Grid>
   <Border Height="1" Background="#1e293b"/>
  
