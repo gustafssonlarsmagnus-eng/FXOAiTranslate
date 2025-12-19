@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FXOptionsSimulator\FXOptionsSimulator.csproj" />
+    <ProjectReference Include="..\FXOAiTranslator.csproj" />
   </ItemGroup>
 
   <ItemGroup>
