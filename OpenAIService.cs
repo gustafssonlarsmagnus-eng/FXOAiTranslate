@@ -550,7 +550,7 @@ Output ONLY the OVML line:";
             return "";
         }
 
-        public async Task<TradeParseResult> TryLearnedPatterns(string input, string underlying, string expiry)
+        public async Task<TradeParseResult> TryLearnedPatterns(string input, string underlying, string expiry, string liveSpot)
         {
             Console.WriteLine($"[AI] TryLearnedPatterns called - _learnedPatterns null: {_learnedPatterns == null}");
             Console.WriteLine($"[AI] _learnedPatterns count: {_learnedPatterns?.Count ?? 0}");

@@ -83,6 +83,27 @@ namespace FXOAiTranslator
             LogDebug($"DEBUG: Extracted underlying: '{underlying}'");
             LogDebug($"DEBUG: Extracted expiry: '{expiry}'");
 
+            // Fetch live Bloomberg spot for option type inference and pricing
+            string liveSpotForInference = "";
+            if (_bloombergService != null && _bloombergService.IsConnected)
+            {
+                try
+                {
+                    var liveSpotTask = _bloombergService.GetSpotRate(underlying);
+                    double? liveSpot = await liveSpotTask;
+
+                    if (liveSpot.HasValue)
+                    {
+                        liveSpotForInference = liveSpot.Value.ToString("0.####", CultureInfo.InvariantCulture);
+                        LogDebug($"DEBUG: Fetched live Bloomberg spot for option type inference: {liveSpotForInference}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogDebug($"DEBUG: Failed to fetch live spot for inference: {ex.Message}");
+                }
+            }
+
             // ADD EXPIRY VALIDATION HERE - Check if expiry extraction failed
             if (expiry == "3M" && !input.ToLower().Contains("3m") && !input.ToLower().Contains("three month") && !forceAI)
             {
@@ -108,7 +129,7 @@ namespace FXOAiTranslator
                 if (_patternLearner != null)
                 {
                     LogDebug("[Parser] Checking learned patterns...");
-                    var learnedResult = await _patternLearner.TryLearnedPatterns(input, underlying, expiry);
+                    var learnedResult = await _patternLearner.TryLearnedPatterns(input, underlying, expiry, liveSpotForInference);
                     if (learnedResult != null)
                     {
                         LogDebug($"[Parser] ✓ Used learned pattern");
