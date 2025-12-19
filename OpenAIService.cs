@@ -622,17 +622,20 @@ Output ONLY the OVML line:";
                                 var formattedNewStrike = FormatStrikeForOVML(newStrike);
                                 var formattedOldStrike = FormatStrikeForOVML(oldStrike);
 
-                                // Extract spot reference from OVML to determine if Call or Put
-                                var spotMatch = System.Text.RegularExpressions.Regex.Match(ovmlWithNewValues, @"SP(\d+\.\d+)");
+                                // Use LIVE Bloomberg spot to determine if Call or Put (not old stored spot from pattern)
                                 string optionType = "C"; // Default to Call
 
-                                if (spotMatch.Success && double.TryParse(formattedNewStrike, out double strikeVal)
-                                    && double.TryParse(spotMatch.Groups[1].Value, out double spotVal))
+                                if (double.TryParse(formattedNewStrike, out double strikeVal) && !string.IsNullOrEmpty(liveSpot)
+                                    && double.TryParse(liveSpot, out double spotVal))
                                 {
                                     // If strike < spot → PUT (OTM put)
                                     // If strike > spot → CALL (OTM call)
                                     optionType = strikeVal < spotVal ? "P" : "C";
-                                    Console.WriteLine($"[AI]   Strike {strikeVal} vs Spot {spotVal} → {(optionType == "C" ? "CALL" : "PUT")}");
+                                    Console.WriteLine($"[AI-LEARNED] Strike {strikeVal} vs LIVE Spot {spotVal} → {(optionType == "C" ? "CALL" : "PUT")}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[AI-LEARNED] WARNING: Could not determine option type from live spot (using default CALL)");
                                 }
 
                                 // Replace strike and option type in OVML
@@ -657,6 +660,28 @@ Output ONLY the OVML line:";
 
                                 ovmlWithNewValues = ovmlWithNewValues.Replace(formattedOldNotional, formattedNewNotional);
                                 Console.WriteLine($"[AI]   Adapted notional: {oldNotional} → {newNotional}");
+                            }
+                        }
+
+                        // Update spot reference to live Bloomberg spot
+                        if (!string.IsNullOrEmpty(liveSpot))
+                        {
+                            var oldSpotMatch = System.Text.RegularExpressions.Regex.Match(ovmlWithNewValues, @"SP(\d+\.?\d*)");
+                            if (oldSpotMatch.Success)
+                            {
+                                var oldSpotValue = oldSpotMatch.Groups[1].Value;
+                                ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
+                                    ovmlWithNewValues,
+                                    @"SP\d+\.?\d*",
+                                    "SP" + liveSpot
+                                );
+                                Console.WriteLine($"[AI]   Updated spot reference: SP{oldSpotValue} → SP{liveSpot}");
+                            }
+                            else if (!ovmlWithNewValues.Contains("SP"))
+                            {
+                                // Add spot reference if it doesn't exist
+                                ovmlWithNewValues += " SP" + liveSpot;
+                                Console.WriteLine($"[AI]   Added spot reference: SP{liveSpot}");
                             }
                         }
 

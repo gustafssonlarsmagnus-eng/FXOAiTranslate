@@ -271,8 +271,8 @@ namespace FXOptionsSimulator
                     // Use FxCalendarService for database-backed business day calculation
                     var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
                         DateTime.UtcNow,
-                        expiry.ToUpper(),
-                        currencyPair
+                        currencyPair,
+                        expiry.ToUpper()
                     );
 
                     Console.WriteLine($"[CALENDAR-OVML] Tenor {expiry} for {currencyPair}: {expiryDate:yyyy-MM-dd (ddd)} (business day adjusted)");

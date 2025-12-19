@@ -1125,8 +1125,8 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     // Use FxCalendarService for database-backed business day calculation
                     var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
                         DateTime.UtcNow,
-                        expiry.ToUpper(),
-                        currencyPair
+                        currencyPair,
+                        expiry.ToUpper()
                     );
 
                     // Return in OVML format: MM/dd/yy
@@ -1531,8 +1531,8 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                 // Use FxCalendarService for database-backed business day calculation
                 var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
                     DateTime.UtcNow,
-                    tenor,
-                    currencyPair
+                    currencyPair,
+                    tenor
                 );
 
                 Console.WriteLine($"[CALENDAR] Tenor {tenor} for {currencyPair}: {expiryDate:yyyy-MM-dd (ddd)} (adjusted for business days)");

@@ -1325,8 +1325,8 @@ namespace FXOAiTranslator
                 // Use FxCalendarService for database-backed business day calculation
                 var expiryDate = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance.CalculateExpiry(
                     DateTime.UtcNow,
-                    tenor.ToUpper(),
-                    currencyPair
+                    currencyPair,
+                    tenor.ToUpper()
                 );
 
                 return expiryDate;
