@@ -343,10 +343,11 @@ namespace FXOAiTranslate.WPF.Views
 
         #region UI Event Handlers
 
-        private void ParseButton_Click(object sender, RoutedEventArgs e)
+        private async void ParseButton_Click(object sender, RoutedEventArgs e)
         {
             // Parse trade input and update the trade structure
-            ParseTradeInput();
+            await ParseTradeInput();
+            UpdateUIFieldsFromTrade();
             SendRFQ();
         }
 
@@ -372,7 +373,7 @@ namespace FXOAiTranslate.WPF.Views
             }
         }
 
-        private void txtTradeInput_LostFocus(object sender, RoutedEventArgs e)
+        private async void txtTradeInput_LostFocus(object sender, RoutedEventArgs e)
         {
             // Format notional amounts before checking if empty
             // Don't format if it's placeholder text
@@ -383,7 +384,7 @@ namespace FXOAiTranslate.WPF.Views
                 FormatNotionalAmounts();
 
                 // Automatically parse trade input and populate all fields
-                ParseTradeInput();
+                await ParseTradeInput();
                 UpdateUIFieldsFromTrade();
             }
 
@@ -467,7 +468,7 @@ namespace FXOAiTranslate.WPF.Views
             }
         }
 
-        private void ParseTradeInput()
+        private async Task ParseTradeInput()
         {
             // Don't parse if showing placeholder
             if (string.IsNullOrWhiteSpace(txtTradeInput.Text) ||
@@ -487,8 +488,12 @@ namespace FXOAiTranslate.WPF.Views
                 // Parse direction
                 leg.Direction = input.Contains("sell") ? "SELL" : "BUY";
 
-                // Parse option type
-                leg.OptionType = input.Contains("put") ? "PUT" : "CALL";
+                // Parse currency pair first (needed for Bloomberg lookup)
+                var pairMatch = System.Text.RegularExpressions.Regex.Match(input, @"\b([a-z]{3})([a-z]{3})\b");
+                if (pairMatch.Success)
+                {
+                    _trade.Underlying = pairMatch.Value.ToUpper();
+                }
 
                 // Parse notional - handle both "10m" format and "10 000 000" formatted numbers
                 var notionalMatch = System.Text.RegularExpressions.Regex.Match(input, @"(\d+(?:\.\d+)?)\s*[mM]");
@@ -523,7 +528,42 @@ namespace FXOAiTranslate.WPF.Views
                     leg.Strike = double.Parse(strikeMatch.Groups[1].Value);
                 }
 
-                Console.WriteLine($"[WPF] Parsed trade: {leg.Direction} {leg.NotionalMM}M {leg.Tenor} {leg.OptionType} @ {leg.Strike}");
+                // Determine option type (CALL vs PUT) using Bloomberg spot
+                // Priority: 1) Explicit "call" or "put" in input, 2) Auto-determine from strike vs Bloomberg spot
+                bool explicitCallPut = input.Contains("call") || input.Contains("put");
+                if (explicitCallPut)
+                {
+                    leg.OptionType = input.Contains("put") ? "PUT" : "CALL";
+                }
+                else if (leg.Strike > 0)
+                {
+                    // Auto-determine based on strike vs real-time Bloomberg spot
+                  // Market convention for protection:
+                      // Strike < Spot = PUT (protect against EUR weakening below strike)
+                        // Strike > Spot = CALL (participate if EUR strengthens above strike)
+                       string pair = _trade.Underlying ?? "EURUSD";
+                       double spotRef = await GetBloombergSpotAsync(pair);
+
+     // Save spot reference to trade structure for hedge details
+        _trade.SpotReference = spotRef;
+
+      if (leg.Strike < spotRef)
+            {
+     leg.OptionType = "PUT"; // Strike below spot = downside protection
+  }
+      else if (leg.Strike > spotRef)
+       {
+   leg.OptionType = "CALL"; // Strike above spot = upside participation
+   }
+       else
+     {
+  leg.OptionType = "CALL"; // ATM default
+    }
+
+Console.WriteLine($"[WPF] Auto-determined: Strike {leg.Strike} vs Spot {spotRef:F4} => {leg.OptionType}");
+    }
+
+                Console.WriteLine($"[WPF] Parsed trade: {leg.Direction} {leg.NotionalMM}M {_trade.Underlying} {leg.Tenor} {leg.OptionType} @ {leg.Strike}");
             }
         }
 
@@ -549,36 +589,71 @@ namespace FXOAiTranslate.WPF.Views
             // Notional
             if (FindName("txtNotional") is TextBox notionalBox)
             {
-                notionalBox.Text = leg.NotionalMM > 0 ? $"{leg.NotionalMM:F1}" : "";
-            }
-
-            // Call/Put display
-            if (FindName("txtCallPut") is TextBlock callPutText)
-            {
-                string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
-                string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
-                callPutText.Text = leg.OptionType == "PUT"
-                    ? $"{ccy1} Put / {ccy2} Call"
-                    : $"{ccy1} Call / {ccy2} Put";
-            }
-
-            // Tenor
-            if (FindName("cmbTenor") is ComboBox tenorCombo && !string.IsNullOrEmpty(leg.Tenor))
-            {
-                // Find matching tenor in combo box
-                for (int i = 0; i < tenorCombo.Items.Count; i++)
+           if (leg.NotionalMM > 0)
                 {
-                    if (tenorCombo.Items[i] is ComboBoxItem item &&
-                        item.Content?.ToString() == leg.Tenor)
-                    {
-                        tenorCombo.SelectedIndex = i;
-                        break;
-                    }
-                }
+  // Convert millions to base units and format with spaces
+          long notionalBase = (long)(leg.NotionalMM * 1_000_000);
+    notionalBox.Text = notionalBase.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+       }
+     else
+     {
+  notionalBox.Text = "";
+            }
             }
 
-            // Strike
-            if (FindName("txtStrike") is TextBox strikeBox)
+          // Call/Put display
+          if (FindName("txtCallPut") is TextBlock callPutText)
+          {
+              string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+              string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+              callPutText.Text = leg.OptionType == "PUT"
+                  ? $"{ccy1} Put / {ccy2} Call"
+                  : $"{ccy1} Call / {ccy2} Put";
+          }
+
+            // Tenor and Expiry Date
+if (FindName("cmbTenor") is ComboBox tenorCombo && !string.IsNullOrEmpty(leg.Tenor))
+  {
+       // Find matching tenor in combo box
+for (int i = 0; i < tenorCombo.Items.Count; i++)
+      {
+     if (tenorCombo.Items[i] is ComboBoxItem item &&
+     item.Content?.ToString() == leg.Tenor)
+  {
+  tenorCombo.SelectedIndex = i;
+      break;
+    }
+       }
+         
+       // Calculate and display expiry date from tenor using FX calendar
+        try
+     {
+   var rules = new FxDateRules
+{
+  Ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR",
+       Ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD",
+         SpotLag = PairSpotLag.TwoBD,
+ ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing
+   };
+
+  var premCcy = _trade.PremiumCurrency ?? rules.Ccy2;
+      var (_, _, expiryDate, _, _) = FxDateService.ComputeDates(DateTime.UtcNow, pair, leg.Tenor, premCcy, rules);
+            
+leg.ExpiryDate = expiryDate;
+           
+          if (FindName("txtExpiryDate") is TextBox expiryBox)
+   {
+   expiryBox.Text = expiryDate.ToString("dd MMM yy");
+     }
+  }
+        catch (Exception ex)
+{
+          Console.WriteLine($"[WPF] Error calculating expiry: {ex.Message}");
+  }
+ }
+
+      // Strike
+  if (FindName("txtStrike") is TextBox strikeBox)
             {
                 strikeBox.Text = leg.Strike > 0 ? leg.Strike.ToString("F4") : "";
             }
@@ -661,6 +736,20 @@ namespace FXOAiTranslate.WPF.Views
                 gammaLabel.Text = (gamma * 1000).ToString("F0");
             }
 
+            // Update hedge details if a hedge type is selected
+            if (FindName("cmbDeltaExchange") is ComboBox deltaExchangeCombo && 
+      deltaExchangeCombo.SelectedItem is ComboBoxItem selectedItem)
+      {
+string hedgeSelection = selectedItem.Content?.ToString() ?? "";
+   bool isForwardHedge = hedgeSelection.Contains("Forward");
+   bool hasHedge = hedgeSelection.Contains("Spot") || hedgeSelection.Contains("Forward");
+  
+     if (hasHedge)
+  {
+           UpdateHedgeDetails(isForwardHedge);
+     }
+       }
+
             Console.WriteLine($"[WPF] Updated UI fields from trade: {pair} {leg.Tenor} {leg.OptionType} {leg.Strike}");
         }
 
@@ -726,7 +815,7 @@ namespace FXOAiTranslate.WPF.Views
          catch (Exception ex)
          {
  Console.WriteLine($"[WPF] Error calculating dates for tenor {tenor}: {ex.Message}");
-     // Fallback to simple calculation
+       // Fallback to simple calculation
        var months = tenor.EndsWith("Y") ? int.Parse(tenor.TrimEnd('Y')) * 12 : int.Parse(tenor.TrimEnd('M'));
          _trade.Legs[0].Tenor = tenor;
      _trade.Legs[0].ExpiryDate = DateTime.Now.AddMonths(months);
@@ -870,7 +959,7 @@ namespace FXOAiTranslate.WPF.Views
         // Forward: use delivery date from expiry
     var tenor = _trade.Legs[0].Tenor ?? "1M";
           var premCcy = _trade.PremiumCurrency ?? ccy2;
-      var (_, _, _, deliveryDate, _) = FxDateService.ComputeDates(DateTime.UtcNow, pair, tenor, premCcy, rules);
+      var (_, _, deliveryDate, _, _) = FxDateService.ComputeDates(DateTime.UtcNow, pair, tenor, premCcy, rules);
          valueDate = deliveryDate;
         }
   else
@@ -1316,7 +1405,7 @@ return 0.50; // ATM
    /// <summary>
         /// Get the FIX Tag 9016 value based on hedge type
  /// "0" = No Hedge (Live), "1" = Spot Hedge, "2" = Forward Hedge
-/// </summary>
+        /// </summary>
  private string GetHedgeTypeTag()
         {
   var deltaExchangeCombo = FindName("cmbDeltaExchange") as ComboBox;

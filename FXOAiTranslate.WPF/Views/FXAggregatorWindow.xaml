@@ -588,24 +588,16 @@ VerticalAlignment="Center" Margin="0,0,12,0"
         </Grid>
    <Border Height="1" Background="#1e293b"/>
   
- <!-- Expiry Date -->
+ <!-- Expiry Date (includes tenor from parsed input) -->
        <Grid Height="32">
           <Grid.ColumnDefinitions>
-    <ColumnDefinition Width="100"/>
+  <ColumnDefinition Width="100"/>
  <ColumnDefinition Width="*"/>
-    <ColumnDefinition Width="Auto"/>
        </Grid.ColumnDefinitions>
   <TextBlock Text="Expiry Date" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
   <TextBox x:Name="txtExpiryDate" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
-     HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,4,0" MinWidth="80"/>
-  <ComboBox x:Name="cmbTenor" Grid.Column="2" Style="{StaticResource DarkComboBox}" Foreground="#3b82f6" FontWeight="Medium"
-      SelectedIndex="0" Margin="0,0,8,0" SelectionChanged="Tenor_Changed" MinWidth="55">
- <ComboBoxItem Content="1M"/>
-     <ComboBoxItem Content="2M"/>
-        <ComboBoxItem Content="3M"/>
-      <ComboBoxItem Content="6M"/>
-   <ComboBoxItem Content="1Y"/>
-   </ComboBox>
+     HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="120"
+     IsReadOnly="True" Foreground="#3b82f6"/>
       </Grid>
       <Border Height="1" Background="#1e293b"/>
        
@@ -717,7 +709,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
         </StackPanel>
       </Grid>
      <Border Height="1" Background="#1e293b"/>
-     
+
        <!-- Volatility (calculated) -->
      <Grid Height="32" Background="#14161b">
       <Grid.ColumnDefinitions>
