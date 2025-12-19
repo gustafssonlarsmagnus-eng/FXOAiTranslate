@@ -1459,8 +1459,8 @@ return 0.50; // ATM
  }
 
    /// <summary>
-        /// Get the FIX Tag 9016 value based on hedge type
- /// "0" = No Hedge (Live), "1" = Spot Hedge, "2" = Forward Hedge
+        /// Get the hedge type string for FIX session
+ /// Returns "Live", "Spot", or "Forward" (converted to FIX tag 9016 by session manager)
         /// </summary>
  private string GetHedgeTypeTag()
         {
@@ -1468,15 +1468,15 @@ return 0.50; // ATM
    if (deltaExchangeCombo?.SelectedItem is ComboBoxItem item)
        {
     var selection = item.Content?.ToString() ?? "";
- if (selection.Contains("Forward")) return "2"; // Forward Hedge
-          if (selection.Contains("Spot")) return "1";    // Spot Hedge
+ if (selection.Contains("Forward")) return "Forward";
+          if (selection.Contains("Spot")) return "Spot";
    }
-   return "0"; // No Hedge (Live)
+   return "Live"; // No Hedge
         }
 
     /// <summary>
-        /// Get the FIX Tag 5475 value based on premium due setting
-      /// "S" = Spot, "F" = Forward
+        /// Get the premium type string for FIX session
+      /// Returns "Spot" or "Forward" (converted to FIX tag 5475 by session manager)
   /// </summary>
   private string GetPremiumTypeTag()
  {
@@ -1484,9 +1484,9 @@ return 0.50; // ATM
      if (premiumDueCombo?.SelectedItem is ComboBoxItem item)
      {
    var selection = item.Content?.ToString() ?? "";
-        if (selection.Contains("FORWARD")) return "F";
+        if (selection.Contains("FORWARD")) return "Forward";
     }
-      return "S"; // Default to Spot
+      return "Spot"; // Default to Spot
         }
 
         private void LPHeader_Click(object sender, MouseButtonEventArgs e)
