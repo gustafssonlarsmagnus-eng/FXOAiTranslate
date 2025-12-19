@@ -392,9 +392,9 @@ namespace FXOAiTranslate.WPF.Views
                 await ParseTradeInput();
                 UpdateUIFieldsFromTrade();
 
-                // Reset to RFQ state when new trade is entered (clear old quotes)
-                ShowRfqState();
-                Console.WriteLine("[WPF] New trade parsed - reset to RFQ state");
+                // Don't call ShowRfqState() here - tiles should remain in current state
+                // Only the form fields should update, not the execution tiles
+                Console.WriteLine("[WPF] Trade parsed, fields updated - tiles remain in RFQ state");
             }
 
             // Show placeholder when textbox loses focus and is empty
