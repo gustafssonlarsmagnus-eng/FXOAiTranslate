@@ -29,6 +29,13 @@ namespace FXOptionsSimulator.FIX
             remove { _application.OnQuoteDataReceived -= value; }
         }
 
+        // Relay quote rejection events
+        public event Action<string, int, string> OnQuoteRequestRejected
+        {
+            add { _application.OnQuoteRequestRejected += value; }
+            remove { _application.OnQuoteRequestRejected -= value; }
+        }
+
         public GFIFIXSessionManager(string configFile = "quickfix.cfg")
         {
             Console.WriteLine($"[FIX Manager] Initializing with config: {configFile}");

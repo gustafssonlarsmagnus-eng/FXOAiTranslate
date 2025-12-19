@@ -50,6 +50,7 @@ namespace FXOAiTranslate.WPF.Views
             if (_fixSession != null)
             {
                 _fixSession.OnQuoteReceived += OnQuoteReceived;
+                _fixSession.OnQuoteRequestRejected += OnQuoteRequestRejected;
                 Console.WriteLine("[WPF] Subscribed to FIX quote events");
             }
             else
@@ -87,6 +88,7 @@ namespace FXOAiTranslate.WPF.Views
             if (_fixSession != null)
             {
                 _fixSession.OnQuoteReceived -= OnQuoteReceived;
+                _fixSession.OnQuoteRequestRejected -= OnQuoteRequestRejected;
             }
             _countdownTimer.Stop();
             base.OnClosed(e);
@@ -122,27 +124,31 @@ namespace FXOAiTranslate.WPF.Views
 
         private void ShowLiveState()
         {
-            // Show bid tile in live quoting state
+            // Show bid tile in live quoting state (waiting for quotes)
             lblBidLabel.Visibility = Visibility.Visible;
             lblBidRfqHint.Visibility = Visibility.Collapsed;
+            lblBidValue.Text = "---"; // Clear to blank/waiting state
             lblBidValue.FontSize = 72;
-            lblBidValue.Foreground = Brushes.White;
+            lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // Dim grey while waiting
+            lblBidSecondary.Text = "Requesting...";
             lblBidSecondary.Visibility = Visibility.Visible;
-            bidLPPanel.Visibility = Visibility.Visible;
+            bidLPPanel.Visibility = Visibility.Collapsed; // Hide LP badge until quote received
 
-            // Show offer tile in live quoting state
+            // Show offer tile in live quoting state (waiting for quotes)
             lblOfferLabel.Visibility = Visibility.Visible;
             lblOfferRfqHint.Visibility = Visibility.Collapsed;
+            lblOfferValue.Text = "---"; // Clear to blank/waiting state
             lblOfferValue.FontSize = 72;
-            lblOfferValue.Foreground = Brushes.White;
+            lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // Dim grey while waiting
+            lblOfferSecondary.Text = "Requesting...";
             lblOfferSecondary.Visibility = Visibility.Visible;
-            offerLPPanel.Visibility = Visibility.Visible;
+            offerLPPanel.Visibility = Visibility.Collapsed; // Hide LP badge until quote received
 
             // Don't show spread panel until we have actual quotes
             // It will be shown in UpdateBestPrices when both bid and offer exist
             spreadPanel.Visibility = Visibility.Collapsed;
             lblSpread.Text = "---";
-            
+
             lblNoQuotes.Visibility = Visibility.Collapsed;
             _isRfqActive = true;
             _countdownTimer.Start();
@@ -158,6 +164,25 @@ namespace FXOAiTranslate.WPF.Views
             Dispatcher.BeginInvoke(async () =>
             {
                 await ProcessQuoteAsync(quote);
+            });
+        }
+
+        private void OnQuoteRequestRejected(string quoteReqID, int rejectReason, string rejectText)
+        {
+            // Marshal to UI thread
+            Dispatcher.BeginInvoke(() =>
+            {
+                Console.WriteLine($"[WPF] Quote request rejected: {rejectText}");
+
+                // Reset to RFQ state (clear "Requesting..." text)
+                ShowRfqState();
+
+                // Show error message to user
+                MessageBox.Show(
+                    $"Quote request rejected by GFI:\n\n{rejectText}\n\nReason code: {rejectReason}\n\nPlease check your trade parameters and try again.",
+                    "Quote Request Rejected",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             });
         }
 

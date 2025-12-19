@@ -28,6 +28,7 @@ namespace FXOptionsSimulator.FIX
         public event Action<QuoteData> OnQuoteDataReceived; // New event for WebView2 integration
         public event Action<string, string, string> OnExecutionReport; // ClOrdID, Status, ExecID
         public event Action<string, string, string> OnTradeCaptureReceived; // ClOrdID, CounterpartyName, LEI
+        public event Action<string, int, string> OnQuoteRequestRejected; // QuoteReqID, RejectReason, RejectText
 
         public bool IsLoggedOn { get; private set; }
 
@@ -431,25 +432,32 @@ Console.WriteLine($"\n┌──────────────────�
             Console.WriteLine($"\n[GFI FIX] <<< QUOTE REQUEST REJECT (35=AG)");
             Console.WriteLine(new string('=', 60));
 
+            string quoteReqID = "";
+            int rejectReason = 99; // Default: Other
+            string rejectText = "";
+
             if (reject.IsSetField(131))
             {
-                string quoteReqID = reject.GetString(131);
+                quoteReqID = reject.GetString(131);
                 Console.WriteLine($"  QuoteReqID: {quoteReqID}");
             }
 
             if (reject.IsSetField(658))
             {
-                int rejectReason = reject.GetInt(658);
+                rejectReason = reject.GetInt(658);
                 Console.WriteLine($"  RejectReason: {rejectReason} ({GetQuoteRequestRejectReasonText(rejectReason)})");
             }
 
             if (reject.IsSetField(58))
             {
-                string rejectText = reject.GetString(58);
+                rejectText = reject.GetString(58);
                 Console.WriteLine($"  ⚠️  Reject Text: {rejectText}");
             }
 
             Console.WriteLine(new string('=', 60));
+
+            // Fire event to notify UI
+            OnQuoteRequestRejected?.Invoke(quoteReqID, rejectReason, rejectText);
         }
 
         public void OnMessage(QuickFix.FIX44.Reject reject, SessionID sessionID)
