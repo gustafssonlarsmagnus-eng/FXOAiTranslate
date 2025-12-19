@@ -27,6 +27,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="Bloomberglp.Blpapi">
+      <HintPath>C:\Program Files (x86)\STP\Bloomberglp.Blpapi.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="quickfix.cfg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

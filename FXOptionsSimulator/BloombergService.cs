@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FXOAiTranslator
+namespace FXOptionsSimulator
 {
     public class BloombergService
     {

@@ -10,7 +10,6 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using FXOptionsSimulator;
 using FXOptionsSimulator.FIX;
-using FXOAiTranslator;
 
 namespace FXOAiTranslate.WPF.Views
 {
