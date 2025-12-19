@@ -1,5 +1,6 @@
 using System;
 using System.Configuration;
+using System.Linq;
 using Microsoft.Data.SqlClient;
 
 namespace FX.Infrastructure.Calendars.Legacy
@@ -11,258 +12,440 @@ namespace FX.Infrastructure.Calendars.Legacy
     public class FxCalendarService
     {
         private readonly HolidayCalendar _holidayCalendar;
-        private readonly bool _isDatabaseAvailable;
+      private readonly bool _isDatabaseAvailable;
         private static FxCalendarService _instance;
         private static readonly object _lock = new object();
 
         /// <summary>
-        /// Private constructor for singleton pattern.
+    /// Whether the database connection is available.
+        /// </summary>
+  public bool IsDatabaseAvailable => _isDatabaseAvailable;
+
+        /// <summary>
+ /// Private constructor for singleton pattern.
         /// </summary>
         private FxCalendarService(string connectionString)
         {
             try
             {
-                Console.WriteLine($"[FX-CALENDAR] Testing connection: {connectionString}");
+                // Ensure connection string uses TCP/IP for remote access
+    connectionString = EnsureRemoteCompatible(connectionString);
+                
+       Console.WriteLine($"[FX-CALENDAR] Testing connection: {MaskConnectionString(connectionString)}");
 
-                // Parse connection string to check DNS
-                var builder = new SqlConnectionStringBuilder(connectionString);
-                Console.WriteLine($"[FX-CALENDAR] Data Source: {builder.DataSource}");
-                Console.WriteLine($"[FX-CALENDAR] Connect Timeout: {builder.ConnectTimeout}s");
+           // Parse connection string to check DNS
+       var builder = new SqlConnectionStringBuilder(connectionString);
+     Console.WriteLine($"[FX-CALENDAR] Data Source: {builder.DataSource}");
+          Console.WriteLine($"[FX-CALENDAR] Connect Timeout: {builder.ConnectTimeout}s");
+       Console.WriteLine($"[FX-CALENDAR] Encrypt: {builder.Encrypt}, TrustServerCertificate: {builder.TrustServerCertificate}");
 
-                // Try DNS resolution first
-                try
-                {
-                    var sw = System.Diagnostics.Stopwatch.StartNew();
-                    var addresses = System.Net.Dns.GetHostAddresses(builder.DataSource);
-                    sw.Stop();
-                    Console.WriteLine($"[FX-CALENDAR] DNS resolved in {sw.ElapsedMilliseconds}ms: {string.Join(", ", addresses.Select(a => a.ToString()))}");
-                }
-                catch (Exception dnsEx)
-                {
-                    Console.WriteLine($"[FX-CALENDAR] DNS FAILED: {dnsEx.Message}");
-                    throw new Exception($"DNS resolution failed for {builder.DataSource}", dnsEx);
-                }
+    // Try DNS resolution first
+ try
+{
+  var sw = System.Diagnostics.Stopwatch.StartNew();
+       var serverName = builder.DataSource.Replace("tcp:", "").Split(',')[0];
+   var addresses = System.Net.Dns.GetHostAddresses(serverName);
+             sw.Stop();
+         Console.WriteLine($"[FX-CALENDAR] DNS resolved in {sw.ElapsedMilliseconds}ms: {string.Join(", ", addresses.Select(a => a.ToString()))}");
+   }
+      catch (Exception dnsEx)
+   {
+           Console.WriteLine($"[FX-CALENDAR] DNS FAILED: {dnsEx.Message}");
+      Console.WriteLine($"[FX-CALENDAR] Tip: If on VPN, ensure you're connected and can reach internal servers");
+          throw new Exception($"DNS resolution failed for {builder.DataSource}", dnsEx);
+  }
 
-                _holidayCalendar = new HolidayCalendar(connectionString);
+         _holidayCalendar = new HolidayCalendar(connectionString);
 
-                // Test connection by trying to get a small date range
-                var testDate = DateTime.UtcNow;
-                Console.WriteLine($"[FX-CALENDAR] Attempting SQL connection...");
-                var sw2 = System.Diagnostics.Stopwatch.StartNew();
-                _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 5);
+// Test connection by trying to get a small date range
+         var testDate = DateTime.UtcNow;
+       Console.WriteLine($"[FX-CALENDAR] Attempting SQL connection via TCP/IP...");
+             var sw2 = System.Diagnostics.Stopwatch.StartNew();
+         _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 10);
                 sw2.Stop();
 
                 _isDatabaseAvailable = true;
-                Console.WriteLine($"[FX-CALENDAR] Database connection successful ({sw2.ElapsedMilliseconds}ms)");
+        Console.WriteLine($"[FX-CALENDAR] Database connection successful ({sw2.ElapsedMilliseconds}ms)");
             }
-            catch (Exception ex)
+   catch (SqlException sqlEx)
             {
-                _isDatabaseAvailable = false;
-                Console.WriteLine($"[FX-CALENDAR] WARNING: Database unavailable, using fallback calculations: {ex.Message}");
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"[FX-CALENDAR] Inner exception: {ex.InnerException.Message}");
+         _isDatabaseAvailable = false;
+            Console.WriteLine($"[FX-CALENDAR] SQL ERROR ({sqlEx.Number}): {sqlEx.Message}");
+        
+     // Provide helpful troubleshooting tips based on error
+     if (sqlEx.Number == 53 || sqlEx.Message.Contains("Named Pipes"))
+         {
+       Console.WriteLine($"[FX-CALENDAR] TIP: Named Pipes failed. This often happens when working remotely.");
+          Console.WriteLine($"[FX-CALENDAR] TIP: Ensure connection uses 'tcp:servername,1433' format.");
                 }
+     else if (sqlEx.Number == 18456)
+                {
+  Console.WriteLine($"[FX-CALENDAR] TIP: Login failed. Windows auth may not work over VPN - consider SQL auth.");
+                }
+                else if (sqlEx.Message.Contains("Access is denied"))
+     {
+    Console.WriteLine($"[FX-CALENDAR] TIP: Access denied - Windows credentials not passing over network.");
+        Console.WriteLine($"[FX-CALENDAR] TIP: Try using SQL Server authentication instead of Integrated Security.");
+ }
+            }
+      catch (Exception ex)
+            {
+_isDatabaseAvailable = false;
+  Console.WriteLine($"[FX-CALENDAR] WARNING: Database unavailable, using fallback calculations: {ex.Message}");
+         if (ex.InnerException != null)
+  {
+         Console.WriteLine($"[FX-CALENDAR] Inner exception: {ex.InnerException.Message}");
+      }
             }
         }
 
         /// <summary>
-        /// Get singleton instance. Reads connection string from App.config.
+     /// Ensures connection string is compatible with remote/VPN access
+        /// </summary>
+        private static string EnsureRemoteCompatible(string connectionString)
+        {
+          var builder = new SqlConnectionStringBuilder(connectionString);
+        
+ // If server doesn't specify tcp:, add it for explicit TCP/IP connection
+       if (!builder.DataSource.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase))
+   {
+       // Check if port is specified
+    if (!builder.DataSource.Contains(","))
+          {
+       // Add default SQL Server port
+ builder.DataSource = $"tcp:{builder.DataSource},1433";
+     }
+        else
+                {
+   builder.DataSource = $"tcp:{builder.DataSource}";
+        }
+   }
+
+    // Increase timeout for VPN latency
+            if (builder.ConnectTimeout < 15)
+   {
+           builder.ConnectTimeout = 15;
+            }
+
+            // Enable encryption with TrustServerCertificate for internal servers
+      if (!builder.Encrypt)
+  {
+       builder.Encrypt = true;
+    builder.TrustServerCertificate = true;
+            }
+
+  return builder.ConnectionString;
+ }
+
+  /// <summary>
+        /// Mask sensitive parts of connection string for logging
+        /// </summary>
+        private static string MaskConnectionString(string connectionString)
+        {
+            var builder = new SqlConnectionStringBuilder(connectionString);
+            if (!string.IsNullOrEmpty(builder.Password))
+      {
+       builder.Password = "****";
+       }
+            return builder.ConnectionString;
+        }
+
+        /// <summary>
+ /// Get singleton instance. Reads connection string from App.config.
         /// </summary>
         public static FxCalendarService Instance
         {
-            get
-            {
+   get
+        {
                 if (_instance == null)
-                {
-                    lock (_lock)
-                    {
-                        if (_instance == null)
-                        {
-                            // Try to get connection string from App.config
-                            var connString = ConfigurationManager.ConnectionStrings["AHSKvant"]?.ConnectionString;
+              {
+    lock (_lock)
+       {
+    if (_instance == null)
+     {
+         // Try to get connection string from App.config
+                 var connString = ConfigurationManager.ConnectionStrings["AHSKvant"]?.ConnectionString;
 
-                            if (string.IsNullOrWhiteSpace(connString))
-                            {
-                                // Fallback to appSettings if not in connectionStrings
-                                connString = ConfigurationManager.AppSettings["AHSKvantConnectionString"];
-                            }
+                if (string.IsNullOrWhiteSpace(connString))
+                  {
+                 // Fallback to appSettings if not in connectionStrings
+   connString = ConfigurationManager.AppSettings["AHSKvantConnectionString"];
+     }
 
-                            if (string.IsNullOrWhiteSpace(connString))
-                            {
-                                throw new InvalidOperationException(
-                                    "FxCalendarService requires connection string 'AHSKvant' in App.config. " +
-                                    "Add: <connectionStrings><add name=\"AHSKvant\" connectionString=\"...\"/></connectionStrings>");
-                            }
+      if (string.IsNullOrWhiteSpace(connString))
+         {
+     throw new InvalidOperationException(
+     "FxCalendarService requires connection string 'AHSKvant' in App.config. " +
+           "Add: <connectionStrings><add name=\"AHSKvant\" connectionString=\"...\"/></connectionStrings>");
+          }
 
-                            _instance = new FxCalendarService(connString);
-                        }
-                    }
-                }
-                return _instance;
+        _instance = new FxCalendarService(connString);
+    }
+          }
+       }
+       return _instance;
+      }
+    }
+
+        /// <summary>
+        /// Get the next business day from a given date.
+  /// </summary>
+ public DateTime GetNextBusinessDay(DateTime date, string currencyPair, bool includeStart = true)
+        {
+   if (!_isDatabaseAvailable)
+   {
+                return GetNextBusinessDayFallback(date, includeStart);
+ }
+
+      try
+            {
+                var markets = GetMarketsForPair(currencyPair);
+   var startDate = includeStart ? date : date.AddDays(1);
+    return _holidayCalendar.NextBusinessDay(startDate, markets);
             }
+   catch (Exception ex)
+       {
+          Console.WriteLine($"[FX-CALENDAR] Error getting next business day: {ex.Message}");
+    return GetNextBusinessDayFallback(date, includeStart);
+  }
+ }
+
+        /// <summary>
+        /// Calculate spot date (T+2 for most pairs, T+1 for some).
+        /// </summary>
+        public DateTime CalculateSpotDate(DateTime tradeDate, string currencyPair)
+        {
+         if (!_isDatabaseAvailable)
+  {
+             // Fallback: simple T+2 calculation
+ return AddBusinessDaysFallback(tradeDate, 2);
+ }
+
+         try
+            {
+        var markets = GetMarketsForPair(currencyPair);
+
+                // T+1 pairs (USD/CAD, USD/MXN, etc.)
+    int spotLag = IsT1Pair(currencyPair) ? 1 : 2;
+       
+    var result = tradeDate;
+            for (int i = 0; i < spotLag; i++)
+            {
+           result = _holidayCalendar.NextBusinessDay(result.AddDays(1), markets);
+ }
+        return result;
+}
+      catch (Exception ex)
+    {
+        Console.WriteLine($"[FX-CALENDAR] Error calculating spot date: {ex.Message}");
+             return AddBusinessDaysFallback(tradeDate, 2);
+   }
+    }
+
+        /// <summary>
+        /// Calculate expiry date from trade date and tenor.
+        /// </summary>
+      public DateTime CalculateExpiry(DateTime tradeDate, string currencyPair, string tenor)
+    {
+            if (!_isDatabaseAvailable)
+          {
+   // Fallback: simple tenor calculation
+            return CalculateExpiryFallback(tradeDate, tenor);
+            }
+
+      try
+  {
+             var spotDate = CalculateSpotDate(tradeDate, currencyPair);
+     var markets = GetMarketsForPair(currencyPair);
+          
+         // Parse tenor (1M, 3M, 6M, 1Y, etc.)
+var rawExpiry = AddTenor(spotDate, tenor);
+       
+                // Adjust for holidays - find next business day if it falls on holiday/weekend
+        return _holidayCalendar.NextBusinessDay(rawExpiry, markets);
+    }
+  catch (Exception ex)
+            {
+     Console.WriteLine($"[FX-CALENDAR] Error calculating expiry: {ex.Message}");
+    return CalculateExpiryFallback(tradeDate, tenor);
+          }
         }
 
-        /// <summary>
-        /// Gets whether the database is available and connected.
+ /// <summary>
+        /// Calculate delivery date from expiry date.
         /// </summary>
-        public bool IsDatabaseAvailable => _isDatabaseAvailable;
+        public DateTime CalculateDeliveryDate(DateTime expiryDate, string currencyPair)
+        {
+            if (!_isDatabaseAvailable)
+            {
+   return AddBusinessDaysFallback(expiryDate, 2);
+     }
+
+            try
+    {
+         var markets = GetMarketsForPair(currencyPair);
+                int spotLag = IsT1Pair(currencyPair) ? 1 : 2;
+ 
+                var result = expiryDate;
+       for (int i = 0; i < spotLag; i++)
+      {
+       result = _holidayCalendar.NextBusinessDay(result.AddDays(1), markets);
+          }
+                return result;
+            }
+     catch (Exception ex)
+         {
+  Console.WriteLine($"[FX-CALENDAR] Error calculating delivery date: {ex.Message}");
+     return AddBusinessDaysFallback(expiryDate, 2);
+ }
+     }
 
         /// <summary>
-        /// Create instance with explicit connection string (for testing or custom scenarios).
-        /// </summary>
-        public static FxCalendarService CreateWithConnectionString(string connectionString)
+        /// Check if a date is a business day.
+      /// </summary>
+        public bool IsBusinessDay(DateTime date, string currencyPair)
         {
-            return new FxCalendarService(connectionString);
-        }
+  if (!_isDatabaseAvailable)
+          {
+   return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
+            }
 
-        /// <summary>
-        /// Calculate expiry date from tenor (e.g., "1M", "3M", "6M", "1Y").
-        /// Uses Modified Following convention: adjusts to next business day, but if that
-        /// crosses month boundary, uses previous business day instead.
-        /// </summary>
-        /// <param name="tradeDate">Starting date (usually today)</param>
-        /// <param name="tenor">Tenor string (1M, 3M, 6M, 1Y, etc.)</param>
-        /// <param name="currencyPair">Currency pair (e.g., "EURUSD")</param>
-        /// <returns>Business day adjusted expiry date</returns>
-        public DateTime CalculateExpiry(DateTime tradeDate, string tenor, string currencyPair)
-        {
             try
             {
-                // Use database-backed calculation if available
-                if (_isDatabaseAvailable && _holidayCalendar != null)
-                {
-                    return CurrencyCalendarMapper.CalculateExpiryFromTenor(
-                        currencyPair,
-                        tradeDate,
-                        tenor,
-                        _holidayCalendar,
-                        useModifiedFollowing: true
-                    );
-                }
-                else
-                {
-                    // Fallback: simple calculation without holiday calendar
-                    return CalculateExpiryFallback(tradeDate, tenor);
-                }
+      var markets = GetMarketsForPair(currencyPair);
+                // A date is a business day if it's not a weekend and not a holiday
+        if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+     return false;
+     
+         return !_holidayCalendar.IsHoliday(date, markets);
             }
-            catch (Exception ex)
+  catch
             {
-                Console.WriteLine($"[FX-CALENDAR] ERROR calculating expiry for {tenor}/{currencyPair}: {ex.Message}");
-                // Use fallback instead of throwing
-                return CalculateExpiryFallback(tradeDate, tenor);
-            }
+          return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
+     }
         }
 
-        /// <summary>
-        /// Fallback expiry calculation when database is unavailable.
-        /// Simple calendar-based calculation with weekend adjustment only (no holidays).
-        /// </summary>
-        private DateTime CalculateExpiryFallback(DateTime tradeDate, string tenor)
+        #region Helper Methods
+
+  /// <summary>
+        /// Get market codes for a currency pair.
+    /// </summary>
+        private static string[] GetMarketsForPair(string currencyPair)
         {
-            DateTime result = tradeDate;
+          if (string.IsNullOrEmpty(currencyPair) || currencyPair.Length < 6)
+            return new[] { "USA" };
+                
+            var ccy1 = currencyPair.Substring(0, 3).ToUpperInvariant();
+   var ccy2 = currencyPair.Substring(3, 3).ToUpperInvariant();
+     
+            // Map currency codes to market codes
+      return new[] { CurrencyToMarket(ccy1), CurrencyToMarket(ccy2) }.Distinct().ToArray();
+     }
 
-            // Parse tenor
-            if (string.IsNullOrWhiteSpace(tenor) || tenor.Length < 2)
-                return result;
+        /// <summary>
+   /// Map currency code to market code.
+        /// </summary>
+        private static string CurrencyToMarket(string currency)
+  {
+            return currency switch
+    {
+           "USD" => "USA",
+          "EUR" => "EUR",  // TARGET2 calendar
+          "GBP" => "GBR",
+     "JPY" => "JPN",
+           "CHF" => "CHE",
+                "CAD" => "CAN",
+       "AUD" => "AUS",
+    "NZD" => "NZL",
+        "SEK" => "SWE",
+      "NOK" => "NOR",
+      "DKK" => "DNK",
+      "SGD" => "SGP",
+     "HKD" => "HKG",
+                "CNY" => "CHN",
+     "MXN" => "MEX",
+    "ZAR" => "ZAF",
+   _ => currency  // Use currency code as market code if no mapping
+      };
+     }
 
-            char unit = char.ToUpper(tenor[tenor.Length - 1]);
-            if (!int.TryParse(tenor.Substring(0, tenor.Length - 1), out int amount))
-                return result;
+private static bool IsT1Pair(string pair)
+        {
+            // T+1 pairs
+var t1Pairs = new[] { "USDCAD", "CADUSD", "USDMXN", "MXNUSD", "USDRUB", "RUBUSD" };
+            return t1Pairs.Contains(pair.ToUpperInvariant());
+  }
 
-            // Add tenor
-            switch (unit)
+      private static DateTime AddTenor(DateTime date, string tenor)
+        {
+       tenor = tenor.ToUpperInvariant().Trim();
+            
+   if (tenor.EndsWith("D"))
+      {
+         int days = int.Parse(tenor.TrimEnd('D'));
+           return date.AddDays(days);
+     }
+ else if (tenor.EndsWith("W"))
             {
-                case 'D':
-                    result = result.AddDays(amount);
-                    break;
-                case 'W':
-                    result = result.AddDays(amount * 7);
-                    break;
-                case 'M':
-                    result = result.AddMonths(amount);
-                    break;
-                case 'Y':
-                    result = result.AddYears(amount);
-                    break;
-            }
+      int weeks = int.Parse(tenor.TrimEnd('W'));
+    return date.AddDays(weeks * 7);
+     }
+            else if (tenor.EndsWith("M"))
+         {
+     int months = int.Parse(tenor.TrimEnd('M'));
+        return date.AddMonths(months);
+        }
+            else if (tenor.EndsWith("Y"))
+         {
+   int years = int.Parse(tenor.TrimEnd('Y'));
+         return date.AddYears(years);
+   }
+    
+            throw new ArgumentException($"Invalid tenor format: {tenor}");
+      }
 
-            // Simple weekend adjustment
-            while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+        private static DateTime AddBusinessDaysFallback(DateTime date, int days)
+        {
+            var result = date;
+int added = 0;
+          
+       while (added < days)
             {
+ result = result.AddDays(1);
+          if (result.DayOfWeek != DayOfWeek.Saturday && result.DayOfWeek != DayOfWeek.Sunday)
+         {
+  added++;
+          }
+   }
+
+            return result;
+ }
+
+    private static DateTime GetNextBusinessDayFallback(DateTime date, bool includeStart)
+        {
+   var result = includeStart ? date : date.AddDays(1);
+  while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+ {
                 result = result.AddDays(1);
-            }
-
-            // FX Market Rule - January 1st can NEVER be an expiry or settlement date
-            // (New Year's Day - global holiday)
-            // If expiry falls on Jan 1st, move BACK to last business day of December
-            if (result.Month == 1 && result.Day == 1)
-            {
-                result = result.AddDays(-1);
-                // Adjust again for weekends
-                while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
-                {
-                    result = result.AddDays(-1);
-                }
-            }
-
+      }
             return result;
         }
 
-        /// <summary>
-        /// Check if a date is a business day for a currency pair.
-        /// </summary>
-        public bool IsBusinessDay(DateTime date, string currencyPair)
+        private static DateTime CalculateExpiryFallback(DateTime tradeDate, string tenor)
         {
-            if (_isDatabaseAvailable && _holidayCalendar != null)
-            {
-                try
-                {
-                    return CurrencyCalendarMapper.IsBusinessDay(currencyPair, date, _holidayCalendar);
-                }
-                catch
-                {
-                    // Fallback to simple weekend check
-                    return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
-                }
-            }
-            else
-            {
-                // Fallback: only check weekends (no holidays)
-                return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
-            }
-        }
+         // Simple T+2 spot, then add tenor
+ var spotDate = AddBusinessDaysFallback(tradeDate, 2);
+          var rawExpiry = AddTenor(spotDate, tenor);
+          
+   // Ensure it's a business day
+            while (rawExpiry.DayOfWeek == DayOfWeek.Saturday || rawExpiry.DayOfWeek == DayOfWeek.Sunday)
+    {
+  rawExpiry = rawExpiry.AddDays(1);
+    }
+  
+        return rawExpiry;
+  }
 
-        /// <summary>
-        /// Get next business day for a currency pair.
-        /// </summary>
-        public DateTime GetNextBusinessDay(DateTime date, string currencyPair, bool includeStart = true)
-        {
-            return CurrencyCalendarMapper.NextBusinessDay(currencyPair, date, _holidayCalendar, includeStart);
-        }
-
-        /// <summary>
-        /// Get previous business day for a currency pair.
-        /// </summary>
-        public DateTime GetPreviousBusinessDay(DateTime date, string currencyPair, bool includeStart = true)
-        {
-            return CurrencyCalendarMapper.PreviousBusinessDay(currencyPair, date, _holidayCalendar, includeStart);
-        }
-
-        /// <summary>
-        /// Format expiry date for display (matches existing format: "30-Dec-25, Tue (1M)").
-        /// </summary>
-        public string FormatExpiryForDisplay(DateTime expiryDate, string tenor = null)
-        {
-            var enUS = System.Globalization.CultureInfo.GetCultureInfo("en-US");
-            string dateStr = expiryDate.ToString("dd-MMM-yy, ddd", enUS);
-
-            if (!string.IsNullOrEmpty(tenor))
-            {
-                return $"{dateStr} ({tenor})";
-            }
-
-            return dateStr;
-        }
+    #endregion
     }
 }
