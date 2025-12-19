@@ -360,6 +360,10 @@ namespace FXOAiTranslate.WPF.Views
                 txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "E.g., buy 10mio EURUSD 1m call 1.18";
                 txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
             }
+
+            // Initialize window to RFQ state (not live state)
+            ShowRfqState();
+            Console.WriteLine("[WPF] Window initialized to RFQ state (_isRfqActive = false)");
         }
 
         private void txtTradeInput_GotFocus(object sender, RoutedEventArgs e)
@@ -387,6 +391,10 @@ namespace FXOAiTranslate.WPF.Views
                 // Automatically parse trade input and populate all fields
                 await ParseTradeInput();
                 UpdateUIFieldsFromTrade();
+
+                // Reset to RFQ state when new trade is entered (clear old quotes)
+                ShowRfqState();
+                Console.WriteLine("[WPF] New trade parsed - reset to RFQ state");
             }
 
             // Show placeholder when textbox loses focus and is empty
