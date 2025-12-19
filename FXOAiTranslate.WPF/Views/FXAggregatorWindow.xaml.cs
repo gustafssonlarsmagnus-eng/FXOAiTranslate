@@ -469,6 +469,55 @@ namespace FXOAiTranslate.WPF.Views
             }
         }
 
+        private void txtExpiryDate_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Parse tenor input like "1m", "1w", "3m" and calculate expiry date
+            if (_trade == null || _trade.Legs == null || _trade.Legs.Count == 0)
+                return;
+
+            string input = txtExpiryDate.Text?.Trim().ToUpper();
+            if (string.IsNullOrEmpty(input) || input == "---")
+                return;
+
+            // Parse tenor format: 1W, 1M, 3M, 6M, 1Y, etc.
+            var tenorMatch = System.Text.RegularExpressions.Regex.Match(input, @"^(\d+)\s*([WDMY])$");
+            if (tenorMatch.Success)
+            {
+                string tenor = tenorMatch.Groups[1].Value + tenorMatch.Groups[2].Value;
+                var leg = _trade.Legs[0];
+                leg.Tenor = tenor;
+
+                string pair = _trade.Underlying ?? "EURUSD";
+
+                try
+                {
+                    var rules = new FxDateRules
+                    {
+                        Ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR",
+                        Ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD",
+                        SpotLag = PairSpotLag.TwoBD,
+                        ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing
+                    };
+
+                    var premCcy = _trade.PremiumCurrency ?? rules.Ccy2;
+                    var (_, _, expiryDate, _, _) = FxDateService.ComputeDates(DateTime.UtcNow, pair, tenor, premCcy, rules);
+
+                    leg.ExpiryDate = expiryDate;
+
+                    // Format: "23-Jan-26, Fri (1M)"
+                    string dayOfWeek = expiryDate.ToString("ddd");
+                    string formattedDate = expiryDate.ToString("dd-MMM-yy");
+                    txtExpiryDate.Text = $"{formattedDate}, {dayOfWeek} ({tenor})";
+
+                    Console.WriteLine($"[WPF] Expiry calculated: {tenor} → {txtExpiryDate.Text}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WPF] Error calculating expiry from input: {ex.Message}");
+                }
+            }
+        }
+
         private async Task ParseTradeInput()
         {
             // Don't parse if showing placeholder
@@ -636,10 +685,13 @@ for (int i = 0; i < tenorCombo.Items.Count; i++)
       var (_, _, expiryDate, _, _) = FxDateService.ComputeDates(DateTime.UtcNow, pair, leg.Tenor, premCcy, rules);
             
 leg.ExpiryDate = expiryDate;
-           
+
           if (FindName("txtExpiryDate") is TextBox expiryBox)
    {
-   expiryBox.Text = expiryDate.ToString("dd MMM yy");
+   // Format: "23-Jan-26, Fri (1M)"
+   string dayOfWeek = expiryDate.ToString("ddd");
+   string formattedDate = expiryDate.ToString("dd-MMM-yy");
+   expiryBox.Text = $"{formattedDate}, {dayOfWeek} ({leg.Tenor})";
      }
   }
         catch (Exception ex)

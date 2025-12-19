@@ -597,7 +597,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
   <TextBlock Text="Expiry Date" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
   <TextBox x:Name="txtExpiryDate" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
      HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="120"
-     IsReadOnly="True" Foreground="#3b82f6"/>
+     Foreground="#3b82f6" LostFocus="txtExpiryDate_LostFocus"/>
       </Grid>
       <Border Height="1" Background="#1e293b"/>
        
