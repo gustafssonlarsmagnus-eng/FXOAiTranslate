@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using FXOptionsSimulator;
 using FXOptionsSimulator.FIX;
+using FXOAiTranslator;
 
 namespace FXOAiTranslate.WPF.Views
 {
@@ -495,41 +496,39 @@ namespace FXOAiTranslate.WPF.Views
                     _trade.Underlying = pairMatch.Value.ToUpper();
                 }
 
-                // Parse notional - handle both "10m" format and "10 000 000" formatted numbers
-                var notionalMatch = System.Text.RegularExpressions.Regex.Match(input, @"(\d+(?:\.\d+)?)\s*[mM]");
-                if (notionalMatch.Success)
-                {
-                    leg.NotionalMM = double.Parse(notionalMatch.Groups[1].Value);
-                }
-                else
-                {
-                    // Try to match space-separated numbers (e.g., "10 000 000" or "100 000")
-                    var formattedMatch = System.Text.RegularExpressions.Regex.Match(input, @"\b(\d{1,3}(?:\s+\d{3})+)\b");
-                    if (formattedMatch.Success)
-                    {
-                        var numberStr = formattedMatch.Groups[1].Value.Replace(" ", "");
-                        var number = double.Parse(numberStr);
-                        // Convert to millions (assume large formatted numbers are in base units)
-                        leg.NotionalMM = number / 1_000_000;
-                    }
-                }
-
-                // Parse tenor
-                var tenorMatch = System.Text.RegularExpressions.Regex.Match(input, @"(\d+)\s*([mMyY])");
+                // Parse tenor FIRST (specific patterns: 1M, 3M, 1Y, 2W, ON, TN)
+                // Must come before notional to avoid confusion
+                var tenorMatch = System.Text.RegularExpressions.Regex.Match(input, @"\b(\d+)\s*([mywWdD])\s+");
                 if (tenorMatch.Success)
                 {
                     leg.Tenor = tenorMatch.Groups[1].Value + tenorMatch.Groups[2].Value.ToUpper();
+                }
+
+                // Parse notional - look for patterns like "25mio", "25m ", "10mm"
+                // Use word boundaries and specific patterns to avoid matching tenor
+                var notionalMatch = System.Text.RegularExpressions.Regex.Match(input, @"(\d+(?:\.\d+)?)\s*(?:mio|mm)\b");
+                if (notionalMatch.Success)
+                {
+                    leg.NotionalMM = double.Parse(notionalMatch.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    // Try "in 25m" or "25m in" patterns (space after helps distinguish from tenor)
+                    var notionalMatch2 = System.Text.RegularExpressions.Regex.Match(input, @"(?:in\s+)?(\d+)\s*m(?:\s+|$|io)");
+                    if (notionalMatch2.Success && notionalMatch2.Groups[1].Value != leg.Tenor?.TrimEnd('M'))
+                    {
+                        leg.NotionalMM = double.Parse(notionalMatch2.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                    }
                 }
 
                 // Parse strike
                 var strikeMatch = System.Text.RegularExpressions.Regex.Match(input, @"(\d+\.\d{2,4})");
                 if (strikeMatch.Success)
                 {
-                    leg.Strike = double.Parse(strikeMatch.Groups[1].Value);
+                    leg.Strike = double.Parse(strikeMatch.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
                 }
 
-                // Determine option type (CALL vs PUT) using Bloomberg spot
-                // Priority: 1) Explicit "call" or "put" in input, 2) Auto-determine from strike vs Bloomberg spot
+                // Determine option type using Bloomberg spot
                 bool explicitCallPut = input.Contains("call") || input.Contains("put");
                 if (explicitCallPut)
                 {
@@ -537,36 +536,33 @@ namespace FXOAiTranslate.WPF.Views
                 }
                 else if (leg.Strike > 0)
                 {
-                    // Auto-determine based on strike vs real-time Bloomberg spot
-                  // Market convention for protection:
-                      // Strike < Spot = PUT (protect against EUR weakening below strike)
-                        // Strike > Spot = CALL (participate if EUR strengthens above strike)
-                       string pair = _trade.Underlying ?? "EURUSD";
-                       double spotRef = await GetBloombergSpotAsync(pair);
+                    string pair = _trade.Underlying ?? "EURUSD";
+                    double spotRef = await GetBloombergSpotAsync(pair);
+                    _trade.SpotReference = spotRef;
 
-     // Save spot reference to trade structure for hedge details
-        _trade.SpotReference = spotRef;
+                    if (leg.Strike < spotRef)
+                    {
+                        leg.OptionType = "PUT"; // Strike below spot = PUT
+                    }
+                    else if (leg.Strike > spotRef)
+                    {
+                        leg.OptionType = "CALL"; // Strike above spot = CALL
+                    }
+                    else
+                    {
+                        leg.OptionType = "CALL"; // ATM default
+                    }
 
-      if (leg.Strike < spotRef)
-            {
-     leg.OptionType = "PUT"; // Strike below spot = downside protection
-  }
-      else if (leg.Strike > spotRef)
-       {
-   leg.OptionType = "CALL"; // Strike above spot = upside participation
-   }
-       else
-     {
-  leg.OptionType = "CALL"; // ATM default
-    }
-
-Console.WriteLine($"[WPF] Auto-determined: Strike {leg.Strike} vs Spot {spotRef:F4} => {leg.OptionType}");
-    }
+                    Console.WriteLine($"[WPF] Auto-determined: Strike {leg.Strike} vs Spot {spotRef:F4} => {leg.OptionType}");
+                }
+                else
+                {
+                    leg.OptionType = "CALL"; // Default
+                }
 
                 Console.WriteLine($"[WPF] Parsed trade: {leg.Direction} {leg.NotionalMM}M {_trade.Underlying} {leg.Tenor} {leg.OptionType} @ {leg.Strike}");
             }
         }
-
         /// <summary>
         /// Update all UI fields from the parsed trade structure
         /// </summary>
