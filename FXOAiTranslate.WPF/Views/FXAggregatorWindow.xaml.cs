@@ -363,7 +363,9 @@ namespace FXOAiTranslate.WPF.Views
         private void txtTradeInput_GotFocus(object sender, RoutedEventArgs e)
         {
             // Clear placeholder when textbox gets focus
-            if (txtTradeInput.Text == txtTradeInput.Tag?.ToString())
+            // Check if it's the placeholder (either the static Tag or any text starting with "E.g.,")
+            if (txtTradeInput.Text == txtTradeInput.Tag?.ToString() ||
+                txtTradeInput.Text.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
             {
                 txtTradeInput.Text = "";
                 txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#e2e8f0"));
@@ -373,7 +375,10 @@ namespace FXOAiTranslate.WPF.Views
         private void txtTradeInput_LostFocus(object sender, RoutedEventArgs e)
         {
             // Format notional amounts before checking if empty
-            if (!string.IsNullOrWhiteSpace(txtTradeInput.Text) && txtTradeInput.Text != txtTradeInput.Tag?.ToString())
+            // Don't format if it's placeholder text
+            if (!string.IsNullOrWhiteSpace(txtTradeInput.Text) &&
+                txtTradeInput.Text != txtTradeInput.Tag?.ToString() &&
+                !txtTradeInput.Text.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
             {
                 FormatNotionalAmounts();
             }
@@ -462,7 +467,8 @@ namespace FXOAiTranslate.WPF.Views
         {
             // Don't parse if showing placeholder
             if (string.IsNullOrWhiteSpace(txtTradeInput.Text) ||
-                txtTradeInput.Text == txtTradeInput.Tag?.ToString())
+                txtTradeInput.Text == txtTradeInput.Tag?.ToString() ||
+                txtTradeInput.Text.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
