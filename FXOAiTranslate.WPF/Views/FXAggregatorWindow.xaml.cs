@@ -381,6 +381,10 @@ namespace FXOAiTranslate.WPF.Views
                 !txtTradeInput.Text.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
             {
                 FormatNotionalAmounts();
+
+                // Automatically parse trade input and populate all fields
+                ParseTradeInput();
+                UpdateUIFieldsFromTrade();
             }
 
             // Show placeholder when textbox loses focus and is empty
@@ -521,6 +525,143 @@ namespace FXOAiTranslate.WPF.Views
 
                 Console.WriteLine($"[WPF] Parsed trade: {leg.Direction} {leg.NotionalMM}M {leg.Tenor} {leg.OptionType} @ {leg.Strike}");
             }
+        }
+
+        /// <summary>
+        /// Update all UI fields from the parsed trade structure
+        /// </summary>
+        private async void UpdateUIFieldsFromTrade()
+        {
+            if (_trade == null || _trade.Legs == null || _trade.Legs.Count == 0)
+                return;
+
+            var leg = _trade.Legs[0];
+            string pair = _trade.Underlying ?? "EURUSD";
+
+            // === OPTION 1 FIELDS ===
+
+            // Option type combo
+            if (FindName("cmbOptionType") is ComboBox optTypeCombo)
+            {
+                optTypeCombo.SelectedIndex = leg.Direction == "SELL" ? 1 : 0; // 0=Buy, 1=Sell
+            }
+
+            // Notional
+            if (FindName("txtNotional") is TextBox notionalBox)
+            {
+                notionalBox.Text = leg.NotionalMM > 0 ? $"{leg.NotionalMM:F1}" : "";
+            }
+
+            // Call/Put display
+            if (FindName("txtCallPut") is TextBlock callPutText)
+            {
+                string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+                string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+                callPutText.Text = leg.OptionType == "PUT"
+                    ? $"{ccy1} Put / {ccy2} Call"
+                    : $"{ccy1} Call / {ccy2} Put";
+            }
+
+            // Tenor
+            if (FindName("cmbTenor") is ComboBox tenorCombo && !string.IsNullOrEmpty(leg.Tenor))
+            {
+                // Find matching tenor in combo box
+                for (int i = 0; i < tenorCombo.Items.Count; i++)
+                {
+                    if (tenorCombo.Items[i] is ComboBoxItem item &&
+                        item.Content?.ToString() == leg.Tenor)
+                    {
+                        tenorCombo.SelectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // Strike
+            if (FindName("txtStrike") is TextBox strikeBox)
+            {
+                strikeBox.Text = leg.Strike > 0 ? leg.Strike.ToString("F4") : "";
+            }
+
+            // === MARKET DATA FIELDS ===
+
+            // Fetch Bloomberg spot
+            double spot = await GetBloombergSpotAsync(pair);
+
+            if (FindName("lblSpotRate") is TextBlock spotLabel)
+            {
+                spotLabel.Text = spot.ToString("F4");
+            }
+
+            // Forward points and rate (using MarketData for now)
+            var marketData = GetMarketDataForPair(pair);
+            if (marketData != null && !string.IsNullOrEmpty(leg.Tenor))
+            {
+                double fwdRate = marketData.GetForwardRate(leg.Tenor);
+                double fwdPts = (fwdRate - spot) * 10000;
+
+                if (FindName("lblForwardPts") is TextBlock fwdPtsLabel)
+                {
+                    fwdPtsLabel.Text = fwdPts.ToString("F1");
+                }
+
+                if (FindName("lblForwardRate") is TextBlock fwdRateLabel)
+                {
+                    fwdRateLabel.Text = fwdRate.ToString("F4");
+                }
+
+                // ATM Vol
+                double atmVol = marketData.GetVolatility(leg.Tenor, 50);
+                if (FindName("lblAtmVol") is TextBlock atmVolLabel)
+                {
+                    atmVolLabel.Text = $"{atmVol:F2}%";
+                }
+            }
+
+            // === HEDGE FIELDS ===
+
+            if (FindName("txtHedgeRate") is TextBox hedgeRateBox)
+            {
+                hedgeRateBox.Text = spot.ToString("F4");
+            }
+
+            // Calculate hedge amount (delta-based)
+            double delta = EstimateDelta();
+            double hedgeAmount = leg.NotionalMM * delta * 1_000_000; // Convert to base currency units
+
+            if (FindName("lblHedgeAmount") is TextBlock hedgeAmountLabel)
+            {
+                hedgeAmountLabel.Text = Math.Abs(hedgeAmount).ToString("N0");
+            }
+
+            // === RISK FIELDS ===
+
+            // Delta
+            if (FindName("lblDelta") is TextBlock deltaLabel)
+            {
+                deltaLabel.Text = (delta * leg.NotionalMM * 1_000_000).ToString("N0");
+            }
+
+            if (FindName("lblDeltaPct") is TextBlock deltaPctLabel)
+            {
+                deltaPctLabel.Text = $"{(delta * 100):F1}%";
+            }
+
+            // Vega (simplified estimate)
+            double vega = leg.NotionalMM * 0.01 * Math.Sqrt(0.25); // Rough estimate
+            if (FindName("lblVega") is TextBlock vegaLabel)
+            {
+                vegaLabel.Text = (vega * 1000).ToString("F0"); // Per 1% vol
+            }
+
+            // Gamma (simplified estimate)
+            double gamma = leg.NotionalMM * 0.001;
+            if (FindName("lblGamma") is TextBlock gammaLabel)
+            {
+                gammaLabel.Text = (gamma * 1000).ToString("F0");
+            }
+
+            Console.WriteLine($"[WPF] Updated UI fields from trade: {pair} {leg.Tenor} {leg.OptionType} {leg.Strike}");
         }
 
         private void Tenor_Changed(object sender, SelectionChangedEventArgs e)
