@@ -374,7 +374,8 @@ namespace FXOAiTranslate.WPF.Views
             // Parse trade input and update the trade structure
             await ParseTradeInput();
             UpdateUIFieldsFromTrade();
-            SendRFQ();
+            // Don't auto-send RFQ - let user click RFQ tiles manually to request quotes
+            Console.WriteLine("[WPF] Trade parsed - ready for RFQ (user should click tiles)");
         }
 
         private void txtTradeInput_Loaded(object sender, RoutedEventArgs e)
