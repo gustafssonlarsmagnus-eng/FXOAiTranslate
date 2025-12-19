@@ -656,49 +656,57 @@ namespace FXOAiTranslate.WPF.Views
                   : $"{ccy1} Call / {ccy2} Put";
           }
 
-            // Tenor and Expiry Date
-if (FindName("cmbTenor") is ComboBox tenorCombo && !string.IsNullOrEmpty(leg.Tenor))
-  {
-       // Find matching tenor in combo box
-for (int i = 0; i < tenorCombo.Items.Count; i++)
-      {
-     if (tenorCombo.Items[i] is ComboBoxItem item &&
-     item.Content?.ToString() == leg.Tenor)
-  {
-  tenorCombo.SelectedIndex = i;
-      break;
-    }
-       }
-         
-       // Calculate and display expiry date from tenor using FX calendar
-        try
-     {
-   var rules = new FxDateRules
-{
-  Ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR",
-       Ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD",
-         SpotLag = PairSpotLag.TwoBD,
- ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing
-   };
+            // Tenor combo box selection
+            if (FindName("cmbTenor") is ComboBox tenorCombo && !string.IsNullOrEmpty(leg.Tenor))
+            {
+                // Find matching tenor in combo box
+                for (int i = 0; i < tenorCombo.Items.Count; i++)
+                {
+                    if (tenorCombo.Items[i] is ComboBoxItem item &&
+                        item.Content?.ToString() == leg.Tenor)
+                    {
+                        tenorCombo.SelectedIndex = i;
+                        break;
+                    }
+                }
+            }
 
-  var premCcy = _trade.PremiumCurrency ?? rules.Ccy2;
-      var (_, _, expiryDate, _, _) = FxDateService.ComputeDates(DateTime.UtcNow, pair, leg.Tenor, premCcy, rules);
-            
-leg.ExpiryDate = expiryDate;
+            // Calculate and display expiry date from tenor using FX calendar
+            if (!string.IsNullOrEmpty(leg.Tenor))
+            {
+                try
+                {
+                    var rules = new FxDateRules
+                    {
+                        Ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR",
+                        Ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD",
+                        SpotLag = PairSpotLag.TwoBD,
+                        ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing
+                    };
 
-          if (FindName("txtExpiryDate") is TextBox expiryBox)
-   {
-   // Format: "23-Jan-26, Fri (1M)"
-   string dayOfWeek = expiryDate.ToString("ddd");
-   string formattedDate = expiryDate.ToString("dd-MMM-yy");
-   expiryBox.Text = $"{formattedDate}, {dayOfWeek} ({leg.Tenor})";
-     }
-  }
-        catch (Exception ex)
-{
-          Console.WriteLine($"[WPF] Error calculating expiry: {ex.Message}");
-  }
- }
+                    var premCcy = _trade.PremiumCurrency ?? rules.Ccy2;
+                    var (_, _, expiryDate, _, _) = FxDateService.ComputeDates(DateTime.UtcNow, pair, leg.Tenor, premCcy, rules);
+
+                    leg.ExpiryDate = expiryDate;
+
+                    if (FindName("txtExpiryDate") is TextBox expiryBox)
+                    {
+                        // Format: "23-Jan-26, Fri (1M)"
+                        string dayOfWeek = expiryDate.ToString("ddd");
+                        string formattedDate = expiryDate.ToString("dd-MMM-yy");
+                        expiryBox.Text = $"{formattedDate}, {dayOfWeek} ({leg.Tenor})";
+                        Console.WriteLine($"[WPF] Expiry date set: {expiryBox.Text}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WPF] Error calculating expiry: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"[WPF] WARNING: Tenor is empty, cannot calculate expiry date");
+            }
 
       // Strike
   if (FindName("txtStrike") is TextBox strikeBox)
