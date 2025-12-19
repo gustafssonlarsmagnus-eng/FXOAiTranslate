@@ -250,10 +250,11 @@ namespace FXOptionsSimulator.FIX
                 _rawBuilder.SetMsgSeqNum(seqNum);
 
                 // Convert hedge type to FIX tag value: "Live"=0, "Spot"=1, "Forward"=2
-                string hedgeTypeTag = hedgeType switch
+                // Use case-insensitive comparison to handle both "Spot"/"SPOT" and "Forward"/"FORWARD"
+                string hedgeTypeTag = hedgeType.ToUpper() switch
                 {
-                    "Forward" => "2",
-                    "Spot" => "1",
+                    "FORWARD" => "2",
+                    "SPOT" => "1",
                     _ => "0"  // "Live" (no hedge)
                 };
 

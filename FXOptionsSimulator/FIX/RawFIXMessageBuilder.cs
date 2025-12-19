@@ -206,7 +206,11 @@ namespace FXOptionsSimulator.FIX
                 AddField(687, leg.NotionalMM.ToString(CultureInfo.InvariantCulture)); // LegQty
 
                 // LegStrategyID (7940) - generate if not provided
-                string legId = !string.IsNullOrEmpty(leg.LegID) ? leg.LegID : $"SL{i}";
+                // For vanilla (single leg), use "SL" per GFI samples
+                // For multi-leg, use "SL0", "SL1", etc.
+                string legId = !string.IsNullOrEmpty(leg.LegID)
+                    ? leg.LegID
+                    : (trade.Legs.Count == 1 ? "SL" : $"SL{i}");
                 AddField(7940, legId); // LegStrategyID
 
                 AddField(9034, ccy1); // LegStrategyCcy - always Ccy1 (base currency) per GFI spec
