@@ -57,37 +57,44 @@ namespace FX.Infrastructure.Calendars.Legacy
 
          _holidayCalendar = new HolidayCalendar(connectionString);
 
-// Test connection by trying to get a small date range
-         var testDate = DateTime.UtcNow;
-       Console.WriteLine($"[FX-CALENDAR] Attempting SQL connection via TCP/IP...");
-             var sw2 = System.Diagnostics.Stopwatch.StartNew();
-         _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 10);
+       // Test connection by trying to get a small date range
+                var testDate = DateTime.UtcNow;
+        Console.WriteLine($"[FX-CALENDAR] Attempting SQL connection via TCP/IP...");
+        var sw2 = System.Diagnostics.Stopwatch.StartNew();
+                _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 30);
                 sw2.Stop();
 
-                _isDatabaseAvailable = true;
-        Console.WriteLine($"[FX-CALENDAR] Database connection successful ({sw2.ElapsedMilliseconds}ms)");
-            }
-   catch (SqlException sqlEx)
-            {
-         _isDatabaseAvailable = false;
-            Console.WriteLine($"[FX-CALENDAR] SQL ERROR ({sqlEx.Number}): {sqlEx.Message}");
+      _isDatabaseAvailable = true;
+           Console.WriteLine($"[FX-CALENDAR] Database connection successful ({sw2.ElapsedMilliseconds}ms)");
+         }
+            catch (SqlException sqlEx)
+          {
+                _isDatabaseAvailable = false;
+         Console.WriteLine($"[FX-CALENDAR] SQL ERROR ({sqlEx.Number}): {sqlEx.Message}");
         
-     // Provide helpful troubleshooting tips based on error
-     if (sqlEx.Number == 53 || sqlEx.Message.Contains("Named Pipes"))
-         {
-       Console.WriteLine($"[FX-CALENDAR] TIP: Named Pipes failed. This often happens when working remotely.");
-          Console.WriteLine($"[FX-CALENDAR] TIP: Ensure connection uses 'tcp:servername,1433' format.");
-                }
-     else if (sqlEx.Number == 18456)
-                {
-  Console.WriteLine($"[FX-CALENDAR] TIP: Login failed. Windows auth may not work over VPN - consider SQL auth.");
-                }
-                else if (sqlEx.Message.Contains("Access is denied"))
-     {
-    Console.WriteLine($"[FX-CALENDAR] TIP: Access denied - Windows credentials not passing over network.");
-        Console.WriteLine($"[FX-CALENDAR] TIP: Try using SQL Server authentication instead of Integrated Security.");
+            // Provide helpful troubleshooting tips based on error
+   if (sqlEx.Number == 53 || sqlEx.Message.Contains("Named Pipes"))
+       {
+  Console.WriteLine($"[FX-CALENDAR] TIP: Named Pipes failed. This often happens when working remotely.");
+              Console.WriteLine($"[FX-CALENDAR] TIP: Ensure connection uses 'tcp:servername,1433' format.");
+          }
+      else if (sqlEx.Number == 258 || sqlEx.Message.Contains("wait operation timed out"))
+  {
+              Console.WriteLine($"[FX-CALENDAR] TIP: Connection timeout. The server may be unreachable or blocked by firewall.");
+          Console.WriteLine($"[FX-CALENDAR] TIP: Verify VPN is connected and you can ping the server.");
+         Console.WriteLine($"[FX-CALENDAR] TIP: Check if port 1433 is open: Test-NetConnection -ComputerName AHSKvant-prod-db -Port 1433");
+          Console.WriteLine($"[FX-CALENDAR] TIP: Try increasing timeout or check with IT if SQL Server allows remote connections.");
  }
-            }
+                else if (sqlEx.Number == 18456)
+        {
+          Console.WriteLine($"[FX-CALENDAR] TIP: Login failed. Windows auth may not work over VPN - consider SQL auth.");
+      }
+   else if (sqlEx.Message.Contains("Access is denied"))
+      {
+          Console.WriteLine($"[FX-CALENDAR] TIP: Access denied - Windows credentials not passing over network.");
+                  Console.WriteLine($"[FX-CALENDAR] TIP: Try using SQL Server authentication instead of Integrated Security.");
+   }
+       }
       catch (Exception ex)
             {
 _isDatabaseAvailable = false;
@@ -100,42 +107,42 @@ _isDatabaseAvailable = false;
         }
 
         /// <summary>
-     /// Ensures connection string is compatible with remote/VPN access
+        /// Ensures connection string is compatible with remote/VPN access
         /// </summary>
-        private static string EnsureRemoteCompatible(string connectionString)
+    private static string EnsureRemoteCompatible(string connectionString)
         {
-          var builder = new SqlConnectionStringBuilder(connectionString);
-        
+  var builder = new SqlConnectionStringBuilder(connectionString);
+   
  // If server doesn't specify tcp:, add it for explicit TCP/IP connection
-       if (!builder.DataSource.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase))
-   {
-       // Check if port is specified
-    if (!builder.DataSource.Contains(","))
-          {
-       // Add default SQL Server port
- builder.DataSource = $"tcp:{builder.DataSource},1433";
-     }
-        else
-                {
-   builder.DataSource = $"tcp:{builder.DataSource}";
+            if (!builder.DataSource.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase))
+ {
+                // Check if port is specified
+       if (!builder.DataSource.Contains(","))
+        {
+        // Add default SQL Server port
+builder.DataSource = $"tcp:{builder.DataSource},1433";
         }
+      else
+             {
+            builder.DataSource = $"tcp:{builder.DataSource}";
+ }
+         }
+
+   // Increase timeout for VPN latency - 30 seconds minimum
+            if (builder.ConnectTimeout < 30)
+  {
+            builder.ConnectTimeout = 30;
+        }
+
+  // Enable encryption with TrustServerCertificate for internal servers
+       if (!builder.Encrypt)
+            {
+        builder.Encrypt = true;
+        builder.TrustServerCertificate = true;
    }
 
-    // Increase timeout for VPN latency
-            if (builder.ConnectTimeout < 15)
-   {
-           builder.ConnectTimeout = 15;
-            }
-
-            // Enable encryption with TrustServerCertificate for internal servers
-      if (!builder.Encrypt)
-  {
-       builder.Encrypt = true;
-    builder.TrustServerCertificate = true;
-            }
-
   return builder.ConnectionString;
- }
+        }
 
   /// <summary>
         /// Mask sensitive parts of connection string for logging

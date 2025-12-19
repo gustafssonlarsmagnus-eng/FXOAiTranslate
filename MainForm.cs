@@ -682,7 +682,7 @@ namespace FXOAiTranslator
 
   // Show WPF FX Aggregator Window with live FIX quotes
   var wpfWindow = new FXOAiTranslate.WPF.Views.FXAggregatorWindow(testTrade);
-            wpfWindow.ShowDialog();
+                wpfWindow.ShowDialog();
         }
 
         private void SetupEventHandlers()
