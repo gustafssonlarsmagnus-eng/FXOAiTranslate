@@ -170,15 +170,18 @@ namespace FXOAiTranslate.WPF.Views
   }
 
             lblNoQuotes.Visibility = Visibility.Collapsed;
-        
+
    // Hide initial LP checkbox panel, show dynamic ladder with quotes
          if (FindName("initialLPPanel") is StackPanel initialPanel)
    {
      initialPanel.Visibility = Visibility.Collapsed;
  }
-    
+
             _isRfqActive = true;
-  _countdownTimer.Start();
+
+            // Reset countdown timer for new RFQ (stop first, then start to reset)
+            _countdownTimer.Stop();
+            _countdownTimer.Start();
     }
 
         #endregion
