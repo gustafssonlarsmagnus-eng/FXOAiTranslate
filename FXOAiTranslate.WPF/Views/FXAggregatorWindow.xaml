@@ -538,8 +538,9 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  </Grid.ColumnDefinitions>
      <TextBlock Text="Currency Pair" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
      <TextBox x:Name="txtCurrencyPair" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
-              Foreground="#3b82f6" FontWeight="Bold" IsReadOnly="True"
-              HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0"/>
+              Foreground="#3b82f6" FontWeight="Bold"
+              HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0"
+              LostFocus="txtCurrencyPair_LostFocus"/>
     </Grid>
       <Border Height="1" Background="#1e293b"/>
 

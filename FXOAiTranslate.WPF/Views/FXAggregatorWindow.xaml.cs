@@ -630,6 +630,85 @@ namespace FXOAiTranslate.WPF.Views
             }
         }
 
+        private async void txtCurrencyPair_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Update all related fields when currency pair is manually changed
+            if (FindName("txtCurrencyPair") is not TextBox pairBox || string.IsNullOrWhiteSpace(pairBox.Text))
+                return;
+
+            string newPair = pairBox.Text.Trim().ToUpper();
+
+            // Validate format (6 characters)
+            if (newPair.Length != 6 || newPair == "---")
+                return;
+
+            // Update trade object
+            if (_trade != null)
+            {
+                _trade.Underlying = newPair;
+            }
+
+            string ccy1 = newPair.Substring(0, 3);
+            string ccy2 = newPair.Substring(3, 3);
+
+            // Update notional labels
+            if (FindName("lblNotional1") is TextBlock lbl1)
+            {
+                lbl1.Text = $"Notional ({ccy1})";
+            }
+            if (FindName("lblNotional2") is TextBlock lbl2)
+            {
+                lbl2.Text = $"Notional ({ccy2})";
+            }
+
+            // Update Call/Put display
+            if (FindName("txtCallPut") is TextBlock callPutText && _trade?.Legs != null && _trade.Legs.Count > 0)
+            {
+                var leg = _trade.Legs[0];
+                callPutText.Text = leg.OptionType == "PUT"
+                    ? $"{ccy1} Put / {ccy2} Call"
+                    : $"{ccy1} Call / {ccy2} Put";
+            }
+
+            // Fetch new spot rate from Bloomberg
+            try
+            {
+                double newSpot = await GetBloombergSpotAsync(newPair);
+                if (newSpot > 0 && _trade != null)
+                {
+                    _trade.SpotReference = newSpot;
+                    Console.WriteLine($"[WPF] Updated spot for {newPair}: {newSpot}");
+
+                    // Recalculate notional2 based on new spot
+                    if (FindName("txtNotional1") is TextBox notional1Box &&
+                        FindName("txtNotional2") is TextBox notional2Box &&
+                        !string.IsNullOrWhiteSpace(notional1Box.Text) &&
+                        notional1Box.Text != "---")
+                    {
+                        try
+                        {
+                            string cleanText = notional1Box.Text.Replace(" ", "");
+                            if (double.TryParse(cleanText, System.Globalization.NumberStyles.Number,
+                                System.Globalization.CultureInfo.InvariantCulture, out double notional1))
+                            {
+                                double notional2 = notional1 * newSpot;
+                                notional2Box.Text = ((long)notional2).ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                                Console.WriteLine($"[WPF] Recalculated Notional2 for new pair: {notional1:N0} * {newSpot} = {notional2:N0}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[WPF] Error recalculating notional2: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error fetching spot for {newPair}: {ex.Message}");
+            }
+        }
+
         private void txtExpiryDate_LostFocus(object sender, RoutedEventArgs e)
         {
             // Parse tenor input like "1m", "1w", "3m" and calculate expiry date
