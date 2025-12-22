@@ -680,6 +680,27 @@ namespace FXOAiTranslate.WPF.Views
             }
             }
 
+            // Notional currency (set based on premium currency)
+            if (FindName("cmbNotionalCcy") is ComboBox notionalCcyCombo)
+            {
+                string premiumCcy = _trade.PremiumCurrency ?? (pair.Length >= 6 ? pair.Substring(3, 3) : "USD");
+                // Select EUR or USD in combo
+                if (premiumCcy == "EUR")
+                {
+                    notionalCcyCombo.SelectedIndex = 0; // EUR
+                }
+                else if (premiumCcy == "USD")
+                {
+                    notionalCcyCombo.SelectedIndex = 1; // USD
+                }
+                else
+                {
+                    // For other currencies (SEK, NOK, etc), default to term currency
+                    // Add them to combo if needed, or just select USD as fallback
+                    notionalCcyCombo.SelectedIndex = 1; // USD fallback
+                }
+            }
+
           // Call/Put display
           if (FindName("txtCallPut") is TextBlock callPutText)
           {
