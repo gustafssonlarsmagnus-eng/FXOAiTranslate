@@ -1953,6 +1953,21 @@ ShowRfqState();
             Console.WriteLine($"[WPF] LP selection changed");
         }
 
+        private void CancelRFQ_Click(object sender, RoutedEventArgs e)
+        {
+            // Cancel pending RFQ and reset to RFQ state
+            Console.WriteLine($"[WPF] Canceling RFQ...");
+
+            // Clear pending quotes
+            _quotesByLP.Clear();
+            LPQuotes.Clear();
+
+            // Reset to RFQ state
+            ShowRfqState();
+
+            Console.WriteLine($"[WPF] RFQ canceled, returned to RFQ state");
+        }
+
         private void CallPutToggle_Click(object sender, MouseButtonEventArgs e)
         {
             // Toggle between Call and Put
