@@ -1904,11 +1904,13 @@ ShowRfqState();
 
         private string GetHedgeTypeTag()
         {
-      return _trade?.HedgeType switch
-    {
-   "SPOT" => "1",
-                "FORWARD" => "2",
-    _ => "0"
+            // Return semantic name, not FIX tag value
+            // Session manager will convert to tag value internally
+            return _trade?.HedgeType switch
+            {
+                "SPOT" => "Spot",
+                "FORWARD" => "Forward",
+                _ => "Live"  // Default: No hedge
             };
         }
 
