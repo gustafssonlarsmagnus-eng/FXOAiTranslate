@@ -684,7 +684,7 @@ namespace FXOAiTranslate.WPF.Views
             if (FindName("cmbNotionalCcy") is ComboBox notionalCcyCombo)
             {
                 string premiumCcy = _trade.PremiumCurrency ?? (pair.Length >= 6 ? pair.Substring(3, 3) : "USD");
-                // Select EUR or USD in combo
+                // Only select if EUR or USD - leave blank for other currencies
                 if (premiumCcy == "EUR")
                 {
                     notionalCcyCombo.SelectedIndex = 0; // EUR
@@ -695,9 +695,10 @@ namespace FXOAiTranslate.WPF.Views
                 }
                 else
                 {
-                    // For other currencies (SEK, NOK, etc), default to term currency
-                    // Add them to combo if needed, or just select USD as fallback
-                    notionalCcyCombo.SelectedIndex = 1; // USD fallback
+                    // For other currencies (SEK, NOK, GBP, NZD, etc), leave blank
+                    // User needs to manually select or we need to add more currencies to combo
+                    notionalCcyCombo.SelectedIndex = -1; // Blank/unselected
+                    Console.WriteLine($"[WPF] Premium currency {premiumCcy} not in combo - leaving blank");
                 }
             }
 
