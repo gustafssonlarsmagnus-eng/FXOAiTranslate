@@ -113,7 +113,7 @@ FontSize="10" FontWeight="Bold" Foreground="#22c55e"
     HorizontalAlignment="Center" Margin="0,0,0,4"/>
       
   <TextBlock x:Name="lblBidValue" Text="RFQ"
-    FontFamily="Consolas" FontSize="72" FontWeight="Bold" Foreground="#64748b"
+    FontFamily="Segoe UI" FontSize="72" FontWeight="Bold" Foreground="#64748b"
    HorizontalAlignment="Center" VerticalAlignment="Center"
 TextOptions.TextFormattingMode="Display"
  TextOptions.TextRenderingMode="ClearType"/>
@@ -163,7 +163,7 @@ TextOptions.TextFormattingMode="Display"
    HorizontalAlignment="Center" Margin="0,0,0,4"/>
           
         <TextBlock x:Name="lblOfferValue" Text="RFQ"
-  FontFamily="Consolas" FontSize="72" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
+  FontFamily="Segoe UI" FontSize="72" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
        TextOptions.TextFormattingMode="Display"
     TextOptions.TextRenderingMode="ClearType"/>
    <TextBlock x:Name="lblOfferSecondary" Text=""
