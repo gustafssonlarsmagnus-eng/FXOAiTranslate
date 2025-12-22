@@ -115,7 +115,7 @@ MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
      <TextBlock x:Name="lblBidValue" Text="RFQ" 
     FontSize="72" FontWeight="Bold" Foreground="#64748b"
          HorizontalAlignment="Center" VerticalAlignment="Center"/>
-       <TextBlock x:Name="lblBidSecondary" Text="---" 
+       <TextBlock x:Name="lblBidSecondary" Text=""
   FontSize="12" FontWeight="Bold" Foreground="#334155"
          HorizontalAlignment="Center" Margin="0,8,0,0"
       Visibility="Collapsed"/>
@@ -160,10 +160,10 @@ MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
   FontSize="10" FontWeight="Bold" Foreground="#64748b"
    HorizontalAlignment="Center" Margin="0,0,0,4"/>
           
-        <TextBlock x:Name="lblOfferValue" Text="RFQ" 
+        <TextBlock x:Name="lblOfferValue" Text="RFQ"
        FontSize="72" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
-   <TextBlock x:Name="lblOfferSecondary" Text="---" 
-         FontSize="12" FontWeight="Bold" Foreground="#334155" 
+   <TextBlock x:Name="lblOfferSecondary" Text=""
+         FontSize="12" FontWeight="Bold" Foreground="#334155"
        HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed"/>
      </StackPanel>
         
@@ -185,7 +185,7 @@ MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
  Margin="0,0,0,4"
      Background="#0b0d10" Padding="12,4" CornerRadius="4"
    BorderBrush="#1e293b" BorderThickness="1" Visibility="Collapsed">
-        <TextBlock x:Name="lblSpread" Text="---" FontSize="18" FontWeight="Bold" Foreground="White"/>
+        <TextBlock x:Name="lblSpread" Text="" FontSize="18" FontWeight="Bold" Foreground="White"/>
      </Border>
         </Grid>
 
@@ -537,10 +537,10 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  <ColumnDefinition Width="*"/>
  </Grid.ColumnDefinitions>
      <TextBlock Text="Currency Pair" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-     <TextBox x:Name="txtCurrencyPair" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
+     <TextBox x:Name="txtCurrencyPair" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
               Foreground="#3b82f6" FontWeight="Bold"
               HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0"
-              LostFocus="txtCurrencyPair_LostFocus"/>
+              LostFocus="txtCurrencyPair_LostFocus" TextChanged="txtCurrencyPair_TextChanged"/>
     </Grid>
       <Border Height="1" Background="#1e293b"/>
 
@@ -566,8 +566,8 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  <ColumnDefinition Width="100"/>
         <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-     <TextBlock x:Name="lblNotional1" Text="Notional (---)" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-  <TextBox x:Name="txtNotional1" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
+     <TextBlock x:Name="lblNotional1" Text="Notional" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+  <TextBox x:Name="txtNotional1" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
         FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="100"
         LostFocus="txtNotional1_LostFocus"/>
  </Grid>
@@ -579,8 +579,8 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  <ColumnDefinition Width="100"/>
         <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-     <TextBlock x:Name="lblNotional2" Text="Notional (---)" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-  <TextBox x:Name="txtNotional2" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
+     <TextBlock x:Name="lblNotional2" Text="Notional" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+  <TextBox x:Name="txtNotional2" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
         FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="100"
         LostFocus="txtNotional2_LostFocus"/>
  </Grid>
@@ -599,7 +599,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
           CornerRadius="4" Margin="0,0,8,0" Cursor="Hand"
           MouseLeftButtonUp="CallPutToggle_Click">
       <Grid Margin="8,6">
-          <TextBlock x:Name="txtCallPut" Text="---"
+          <TextBlock x:Name="txtCallPut" Text=""
                      Foreground="#64748b" FontSize="11" FontWeight="Normal"
                      HorizontalAlignment="Left" VerticalAlignment="Center"/>
           <TextBlock Text="⇄" FontSize="14" Foreground="#64748b"
@@ -617,7 +617,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  <ColumnDefinition Width="*"/>
        </Grid.ColumnDefinitions>
   <TextBlock Text="Expiry Date" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-  <TextBox x:Name="txtExpiryDate" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
+  <TextBox x:Name="txtExpiryDate" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
      HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="120"
      Foreground="#3b82f6" LostFocus="txtExpiryDate_LostFocus"/>
       </Grid>
@@ -689,13 +689,13 @@ VerticalAlignment="Center" Margin="0,0,12,0"
      <ColumnDefinition Width="70"/>
       <ColumnDefinition Width="*"/>
      </Grid.ColumnDefinitions>
-       <TextBlock x:Name="lblHedgeValueDate" Text="---" FontSize="11" Foreground="White" 
+       <TextBlock x:Name="lblHedgeValueDate" Text="" FontSize="11" Foreground="White"
        VerticalAlignment="Center" Margin="8,0,0,0"/>
-   <TextBox x:Name="txtHedgeRate" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
-  Foreground="White" FontSize="11" Padding="4,2" 
+   <TextBox x:Name="txtHedgeRate" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
+  Foreground="White" FontSize="11" Padding="4,2"
        VerticalAlignment="Center" HorizontalAlignment="Center" Width="60"
           HorizontalContentAlignment="Center"/>
-         <TextBlock x:Name="lblHedgeAmount" Grid.Column="2" Text="---" FontSize="11" Foreground="White" 
+         <TextBlock x:Name="lblHedgeAmount" Grid.Column="2" Text="" FontSize="11" Foreground="White"
         VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
             </Grid>
          </StackPanel>
@@ -765,11 +765,11 @@ VerticalAlignment="Center" Margin="0,0,12,0"
        <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
     <TextBlock Text="Spot Rate" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-    <TextBlock x:Name="lblSpotRate" Grid.Column="1" Text="---" FontSize="11" Foreground="White" FontWeight="Medium"
+    <TextBlock x:Name="lblSpotRate" Grid.Column="1" Text="" FontSize="11" Foreground="White" FontWeight="Medium"
           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
 </Grid>
     <Border Height="1" Background="#1e293b"/>
-      
+
      <!-- Forward Points -->
          <Grid Height="28">
   <Grid.ColumnDefinitions>
@@ -777,11 +777,11 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
    <TextBlock Text="Forward Pts" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-      <TextBlock x:Name="lblForwardPts" Grid.Column="1" Text="---" FontSize="11" Foreground="#94a3b8"
+      <TextBlock x:Name="lblForwardPts" Grid.Column="1" Text="" FontSize="11" Foreground="#94a3b8"
    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
 </Grid>
        <Border Height="1" Background="#1e293b"/>
-             
+
     <!-- Forward Rate -->
      <Grid Height="28">
       <Grid.ColumnDefinitions>
@@ -789,11 +789,11 @@ VerticalAlignment="Center" Margin="0,0,12,0"
         <ColumnDefinition Width="*"/>
    </Grid.ColumnDefinitions>
             <TextBlock Text="Forward Rate" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-   <TextBlock x:Name="lblForwardRate" Grid.Column="1" Text="---" FontSize="11" Foreground="White" FontWeight="Medium"
+   <TextBlock x:Name="lblForwardRate" Grid.Column="1" Text="" FontSize="11" Foreground="White" FontWeight="Medium"
           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
      </Grid>
      <Border Height="1" Background="#1e293b"/>
-   
+
           <!-- ATM Vol -->
 <Grid Height="28">
             <Grid.ColumnDefinitions>
@@ -801,7 +801,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
              <ColumnDefinition Width="*"/>
        </Grid.ColumnDefinitions>
      <TextBlock Text="ATM Vol" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-    <TextBlock x:Name="lblAtmVol" Grid.Column="1" Text="---" FontSize="11" Foreground="#94a3b8"
+    <TextBlock x:Name="lblAtmVol" Grid.Column="1" Text="" FontSize="11" Foreground="#94a3b8"
       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
        </Grid>
           </StackPanel>
@@ -832,11 +832,11 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  </Grid.ColumnDefinitions>
     <TextBlock Text="Delta" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
     <TextBlock Grid.Column="1" Text="EUR" FontSize="11" Foreground="#94a3b8" VerticalAlignment="Center"/>
-         <TextBlock x:Name="lblDelta" Grid.Column="2" Text="---" FontSize="11" Foreground="White" FontWeight="Bold"
+         <TextBlock x:Name="lblDelta" Grid.Column="2" Text="" FontSize="11" Foreground="White" FontWeight="Bold"
           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
  </Grid>
    <Border Height="1" Background="#1e293b"/>
-           
+
     <!-- Delta % -->
     <Grid Height="28">
  <Grid.ColumnDefinitions>
@@ -844,11 +844,11 @@ VerticalAlignment="Center" Margin="0,0,12,0"
   <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
  <TextBlock Text="Delta %" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
- <TextBlock x:Name="lblDeltaPct" Grid.Column="1" Text="---" FontSize="11" Foreground="#94a3b8"
+ <TextBlock x:Name="lblDeltaPct" Grid.Column="1" Text="" FontSize="11" Foreground="#94a3b8"
        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
     </Grid>
        <Border Height="1" Background="#1e293b"/>
-      
+
      <!-- Vega -->
    <Grid Height="28">
      <Grid.ColumnDefinitions>
@@ -858,7 +858,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
            </Grid.ColumnDefinitions>
     <TextBlock Text="Vega" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
      <TextBlock Grid.Column="1" Text="EUR" FontSize="11" Foreground="#94a3b8" VerticalAlignment="Center"/>
-       <TextBlock x:Name="lblVega" Grid.Column="2" Text="---" FontSize="11" Foreground="White" FontWeight="Bold"
+       <TextBlock x:Name="lblVega" Grid.Column="2" Text="" FontSize="11" Foreground="White" FontWeight="Bold"
       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
   </Grid>
  <Border Height="1" Background="#1e293b"/>
@@ -872,7 +872,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  </Grid.ColumnDefinitions>
      <TextBlock Text="Gamma" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
    <TextBlock Grid.Column="1" Text="EUR" FontSize="11" Foreground="#94a3b8" VerticalAlignment="Center"/>
- <TextBlock x:Name="lblGamma" Grid.Column="2" Text="---" FontSize="11" Foreground="White" FontWeight="Bold"
+ <TextBlock x:Name="lblGamma" Grid.Column="2" Text="" FontSize="11" Foreground="White" FontWeight="Bold"
    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
       </Grid>
 </StackPanel>

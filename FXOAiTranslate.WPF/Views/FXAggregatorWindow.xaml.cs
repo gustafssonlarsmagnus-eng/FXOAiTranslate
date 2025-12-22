@@ -630,6 +630,23 @@ namespace FXOAiTranslate.WPF.Views
             }
         }
 
+        private void txtCurrencyPair_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Auto-convert to uppercase as user types (e.g., "eurusd" → "EURUSD")
+            if (sender is TextBox textBox)
+            {
+                int selectionStart = textBox.SelectionStart;
+                string original = textBox.Text;
+                string upper = original.ToUpper();
+
+                if (original != upper)
+                {
+                    textBox.Text = upper;
+                    textBox.SelectionStart = selectionStart; // Maintain cursor position
+                }
+            }
+        }
+
         private async void txtCurrencyPair_LostFocus(object sender, RoutedEventArgs e)
         {
             // Update all related fields when currency pair is manually changed
@@ -639,7 +656,7 @@ namespace FXOAiTranslate.WPF.Views
             string newPair = pairBox.Text.Trim().ToUpper();
 
             // Validate format (6 characters)
-            if (newPair.Length != 6 || newPair == "---")
+            if (newPair.Length != 6)
                 return;
 
             // Update trade object
@@ -716,7 +733,7 @@ namespace FXOAiTranslate.WPF.Views
                 return;
 
             string input = txtExpiryDate.Text?.Trim().ToUpper();
-            if (string.IsNullOrEmpty(input) || input == "---")
+            if (string.IsNullOrEmpty(input))
                 return;
 
             // Parse tenor format: 1W, 1M, 3M, 6M, 1Y, etc.
@@ -902,7 +919,7 @@ namespace FXOAiTranslate.WPF.Views
                 }
                 else
                 {
-                    notional1Box.Text = "---";
+                    notional1Box.Text = "";
                 }
             }
 
@@ -919,7 +936,7 @@ namespace FXOAiTranslate.WPF.Views
                 }
                 else
                 {
-                    notional2Box.Text = "---";
+                    notional2Box.Text = "";
                 }
             }
 
