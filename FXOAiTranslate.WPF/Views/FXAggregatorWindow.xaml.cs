@@ -1923,6 +1923,72 @@ ShowRfqState();
             return "0";
         }
 
+        #region UI Event Handlers
+
+        private void Tile_MouseEnter(object sender, MouseEventArgs e)
+        {
+            // Brighten tile on hover (only when in RFQ state)
+            if (!_isRfqActive && sender is Border tile)
+            {
+                // Store original background
+                tile.Tag = tile.Background;
+                // Brighten by adjusting opacity or color
+                tile.Opacity = 1.0;
+            }
+        }
+
+        private void Tile_MouseLeave(object sender, MouseEventArgs e)
+        {
+            // Restore original appearance
+            if (!_isRfqActive && sender is Border tile && tile.Tag is Brush originalBrush)
+            {
+                tile.Background = originalBrush;
+                tile.Opacity = 0.9;
+            }
+        }
+
+        private void LPCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            // LP selection changed - could update UI or validate selection
+            Console.WriteLine($"[WPF] LP selection changed");
+        }
+
+        private void CallPutToggle_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Toggle between Call and Put
+            if (FindName("txtCallPut") is TextBlock callPutText && _trade?.Legs != null && _trade.Legs.Count > 0)
+            {
+                var leg = _trade.Legs[0];
+                string pair = _trade.Underlying ?? "EURUSD";
+                string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+                string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+
+                // Toggle the option type
+                leg.OptionType = leg.OptionType == "CALL" ? "PUT" : "CALL";
+
+                // Update display
+                callPutText.Text = leg.OptionType == "PUT"
+                    ? $"{ccy1} Put / {ccy2} Call"
+                    : $"{ccy1} Call / {ccy2} Put";
+
+                Console.WriteLine($"[WPF] Toggled option type to {leg.OptionType}");
+            }
+        }
+
+        private void DealsHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Toggle deals panel expansion
+            Console.WriteLine($"[WPF] Deals header clicked");
+        }
+
+        private void DealsTabHandle_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Handle deals tab click
+            Console.WriteLine($"[WPF] Deals tab handle clicked");
+        }
+
+        #endregion
+
  #endregion
     }
 }
