@@ -687,7 +687,7 @@ namespace FXOAiTranslate.WPF.Views
                     : $"{ccy1} Call / {ccy2} Put";
             }
 
-            // Fetch new spot rate from Bloomberg
+            // Fetch new spot rate from Bloomberg and recalculate dates
             try
             {
                 double newSpot = await GetBloombergSpotAsync(newPair);
@@ -696,11 +696,16 @@ namespace FXOAiTranslate.WPF.Views
                     _trade.SpotReference = newSpot;
                     Console.WriteLine($"[WPF] Updated spot for {newPair}: {newSpot}");
 
+                    // Update spot rate in Market Data section
+                    if (FindName("lblSpotRate") is TextBlock spotLabel)
+                    {
+                        spotLabel.Text = newSpot.ToString("F4");
+                    }
+
                     // Recalculate notional2 based on new spot
                     if (FindName("txtNotional1") is TextBox notional1Box &&
                         FindName("txtNotional2") is TextBox notional2Box &&
-                        !string.IsNullOrWhiteSpace(notional1Box.Text) &&
-                        notional1Box.Text != "---")
+                        !string.IsNullOrWhiteSpace(notional1Box.Text))
                     {
                         try
                         {
@@ -716,6 +721,47 @@ namespace FXOAiTranslate.WPF.Views
                         catch (Exception ex)
                         {
                             Console.WriteLine($"[WPF] Error recalculating notional2: {ex.Message}");
+                        }
+                    }
+
+                    // Recalculate expiry date based on tenor and new currency pair calendar
+                    if (_trade.Legs != null && _trade.Legs.Count > 0 && !string.IsNullOrEmpty(_trade.Legs[0].Tenor))
+                    {
+                        try
+                        {
+                            var rules = new FxDateRules
+                            {
+                                Ccy1 = ccy1,
+                                Ccy2 = ccy2,
+                                SpotLag = PairSpotLag.TwoBD,
+                                ExpiryConvention = QLNet.BusinessDayConvention.ModifiedFollowing
+                            };
+
+                            var premCcy = _trade.PremiumCurrency ?? ccy2;
+                            var (spotDate, deliveryDate, expiryDate, _, _) = FxDateService.ComputeDates(
+                                DateTime.UtcNow, newPair, _trade.Legs[0].Tenor, premCcy, rules);
+
+                            _trade.Legs[0].ExpiryDate = expiryDate;
+
+                            // Update expiry date display
+                            if (FindName("txtExpiryDate") is TextBox expiryBox)
+                            {
+                                string dayOfWeek = expiryDate.ToString("ddd");
+                                string formattedDate = expiryDate.ToString("dd-MMM-yy");
+                                expiryBox.Text = $"{formattedDate}, {dayOfWeek} ({_trade.Legs[0].Tenor})";
+                                Console.WriteLine($"[WPF] Recalculated expiry for {newPair}: {expiryBox.Text}");
+                            }
+
+                            // Update hedge value date (spot date for the new pair)
+                            if (FindName("lblHedgeValueDate") is TextBlock hedgeDateLabel)
+                            {
+                                hedgeDateLabel.Text = spotDate.ToString("dd-MMM-yy");
+                                Console.WriteLine($"[WPF] Updated hedge value date for {newPair}: {spotDate:dd-MMM-yy}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[WPF] Error recalculating dates for {newPair}: {ex.Message}");
                         }
                     }
                 }
