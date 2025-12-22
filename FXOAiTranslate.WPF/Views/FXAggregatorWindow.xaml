@@ -112,11 +112,11 @@ FontSize="10" FontWeight="Bold" Foreground="#22c55e"
         FontSize="10" FontWeight="Bold" Foreground="#64748b"
     HorizontalAlignment="Center" Margin="0,0,0,4"/>
       
-  <TextBlock x:Name="lblBidValue" Text="RFQ" 
+  <TextBlock x:Name="lblBidValue" Text="RFQ"
     FontSize="72" FontWeight="Bold" Foreground="#64748b"
    HorizontalAlignment="Center" VerticalAlignment="Center"
 TextOptions.TextFormattingMode="Display"
- TextOptions.TextRenderingMode="Aliased"/>
+ TextOptions.TextRenderingMode="ClearType"/>
    <TextBlock x:Name="lblBidSecondary" Text=""
   FontSize="12" FontWeight="Bold" Foreground="#64748b"
       HorizontalAlignment="Center" Margin="0,8,0,0"
@@ -165,7 +165,7 @@ TextOptions.TextFormattingMode="Display"
         <TextBlock x:Name="lblOfferValue" Text="RFQ"
   FontSize="72" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
        TextOptions.TextFormattingMode="Display"
-    TextOptions.TextRenderingMode="Aliased"/>
+    TextOptions.TextRenderingMode="ClearType"/>
    <TextBlock x:Name="lblOfferSecondary" Text=""
     FontSize="12" FontWeight="Bold" Foreground="#64748b"
 HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed"/>
@@ -214,14 +214,13 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
         <Button x:Name="btnStopRFQ" Grid.Column="1" Content="⬛ STOP RFQ"
  Visibility="Collapsed"
     Padding="12,4" FontSize="11" FontWeight="Medium"
-    Background="#33ef4444" Foreground="#ef4444"
         BorderThickness="0"
      HorizontalAlignment="Center" VerticalAlignment="Center"
 Cursor="Hand" Click="CancelRFQ_Click">
        <Button.Style>
       <Style TargetType="Button">
-                <Setter Property="Background" Value="#33ef4444"/>
-                <Setter Property="Foreground" Value="#ef4444"/>
+                <Setter Property="Background" Value="#332563EB"/>
+                <Setter Property="Foreground" Value="#60a5fa"/>
 <Setter Property="Template">
         <Setter.Value>
        <ControlTemplate TargetType="Button">
@@ -233,7 +232,7 @@ Cursor="Hand" Click="CancelRFQ_Click">
   </Border>
          <ControlTemplate.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
-   <Setter TargetName="border" Property="Background" Value="#4Def4444"/>
+   <Setter TargetName="border" Property="Background" Value="#4D2563EB"/>
  </Trigger>
     </ControlTemplate.Triggers>
        </ControlTemplate>
