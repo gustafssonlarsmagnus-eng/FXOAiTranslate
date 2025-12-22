@@ -1960,6 +1960,9 @@ ShowRfqState();
             // Cancel pending RFQ and reset to RFQ state
             Console.WriteLine($"[WPF] Canceling RFQ...");
 
+            // Stop countdown timer
+            _countdownTimer.Stop();
+
             // Clear pending quotes
             _quotesByLP.Clear();
             LPQuotes.Clear();
@@ -1967,7 +1970,7 @@ ShowRfqState();
             // Reset to RFQ state
             ShowRfqState();
 
-            Console.WriteLine($"[WPF] RFQ canceled, returned to RFQ state");
+            Console.WriteLine($"[WPF] RFQ canceled, countdown stopped, returned to RFQ state");
         }
 
         private void CallPutToggle_Click(object sender, MouseButtonEventArgs e)
