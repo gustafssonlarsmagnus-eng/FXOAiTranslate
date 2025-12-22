@@ -1,0 +1,34 @@
+═══════════════════════════════════════════════════════════════
+  INTER FONT SETUP - Quick Instructions
+═══════════════════════════════════════════════════════════════
+
+⚠️  ACTION REQUIRED: Download Inter font to complete setup
+
+STEP 1: Download
+   → Visit: https://fonts.google.com/specimen/Inter
+   → Click "Download family" (blue button)
+   → Save the ZIP file
+
+STEP 2: Extract
+   → Unzip the downloaded file
+   → Navigate to the "static" folder
+   → Find: Inter-Bold.ttf
+
+STEP 3: Copy to Project
+   → Copy Inter-Bold.ttf to this folder:
+     FXOAiTranslate.WPF/Assets/Fonts/
+
+STEP 4: Set Build Action (in Visual Studio)
+   → Right-click Inter-Bold.ttf in Solution Explorer
+   → Properties
+   → Build Action: Resource
+   → Copy to Output: Do not copy
+
+STEP 5: Rebuild Project
+   → Build → Rebuild Solution
+   → Run the app
+
+═══════════════════════════════════════════════════════════════
+RESULT: Hero numbers will display in Inter font (like HTML mockup)
+FALLBACK: If font not found, uses Segoe UI automatically
+═══════════════════════════════════════════════════════════════
