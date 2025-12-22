@@ -503,6 +503,132 @@ namespace FXOAiTranslate.WPF.Views
             }
         }
 
+        private void txtNotional1_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Format notional1 and calculate notional2
+            if (FindName("txtNotional1") is not TextBox notional1Box || string.IsNullOrWhiteSpace(notional1Box.Text))
+                return;
+
+            var text = notional1Box.Text;
+
+            // Pattern to match numbers with k or m suffix (case insensitive)
+            var pattern = @"\b(\d+(?:\.\d+)?)\s*([kmKM])\b";
+
+            text = System.Text.RegularExpressions.Regex.Replace(text, pattern, match =>
+            {
+                var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                var suffix = match.Groups[2].Value.ToLower();
+
+                // Format millions (10m -> 10 000 000)
+                if (suffix == "m" && number >= 10)
+                {
+                    long formatted = (long)(number * 1_000_000);
+                    return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                }
+                // Format thousands (100k -> 100 000)
+                else if (suffix == "k")
+                {
+                    long formatted = (long)(number * 1000);
+                    return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                }
+
+                return match.Value;
+            });
+
+            notional1Box.Text = text;
+
+            // Update trade object with new notional (in millions)
+            try
+            {
+                string cleanText = text.Replace(" ", "");
+                if (double.TryParse(cleanText, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out double notional1))
+                {
+                    if (_trade?.Legs != null && _trade.Legs.Count > 0)
+                    {
+                        _trade.Legs[0].NotionalMM = notional1 / 1_000_000.0;
+                        Console.WriteLine($"[WPF] Updated trade notional: {_trade.Legs[0].NotionalMM}M");
+                    }
+
+                    // Calculate notional2 based on spot rate
+                    if (_trade?.SpotReference > 0 && FindName("txtNotional2") is TextBox notional2Box)
+                    {
+                        // Calculate notional2 = notional1 * spot
+                        double notional2 = notional1 * _trade.SpotReference;
+                        notional2Box.Text = ((long)notional2).ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                        Console.WriteLine($"[WPF] Auto-calculated Notional2: {notional1:N0} * {_trade.SpotReference} = {notional2:N0}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error updating notional: {ex.Message}");
+            }
+        }
+
+        private void txtNotional2_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Format notional2 and calculate notional1
+            if (FindName("txtNotional2") is not TextBox notional2Box || string.IsNullOrWhiteSpace(notional2Box.Text))
+                return;
+
+            var text = notional2Box.Text;
+
+            // Pattern to match numbers with k or m suffix (case insensitive)
+            var pattern = @"\b(\d+(?:\.\d+)?)\s*([kmKM])\b";
+
+            text = System.Text.RegularExpressions.Regex.Replace(text, pattern, match =>
+            {
+                var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                var suffix = match.Groups[2].Value.ToLower();
+
+                // Format millions (10m -> 10 000 000)
+                if (suffix == "m" && number >= 10)
+                {
+                    long formatted = (long)(number * 1_000_000);
+                    return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                }
+                // Format thousands (100k -> 100 000)
+                else if (suffix == "k")
+                {
+                    long formatted = (long)(number * 1000);
+                    return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                }
+
+                return match.Value;
+            });
+
+            notional2Box.Text = text;
+
+            // Calculate notional1 based on spot rate and update trade object
+            if (_trade?.SpotReference > 0 && FindName("txtNotional1") is TextBox notional1Box)
+            {
+                try
+                {
+                    // Parse notional2 (remove spaces)
+                    string cleanText = text.Replace(" ", "");
+                    if (double.TryParse(cleanText, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out double notional2))
+                    {
+                        // Calculate notional1 = notional2 / spot
+                        double notional1 = notional2 / _trade.SpotReference;
+                        notional1Box.Text = ((long)notional1).ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+
+                        // Update trade object (notional is always in base currency, i.e., notional1)
+                        if (_trade?.Legs != null && _trade.Legs.Count > 0)
+                        {
+                            _trade.Legs[0].NotionalMM = notional1 / 1_000_000.0;
+                            Console.WriteLine($"[WPF] Updated trade notional from Notional2: {_trade.Legs[0].NotionalMM}M");
+                        }
+
+                        Console.WriteLine($"[WPF] Auto-calculated Notional1: {notional2:N0} / {_trade.SpotReference} = {notional1:N0}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WPF] Error calculating notional1: {ex.Message}");
+                }
+            }
+        }
+
         private void txtExpiryDate_LostFocus(object sender, RoutedEventArgs e)
         {
             // Parse tenor input like "1m", "1w", "3m" and calculate expiry date
@@ -659,46 +785,61 @@ namespace FXOAiTranslate.WPF.Views
 
             // === OPTION 1 FIELDS ===
 
+            // Currency Pair
+            if (FindName("txtCurrencyPair") is TextBox currencyPairBox)
+            {
+                currencyPairBox.Text = pair;
+            }
+
             // Option type combo
             if (FindName("cmbOptionType") is ComboBox optTypeCombo)
             {
                 optTypeCombo.SelectedIndex = leg.Direction == "SELL" ? 1 : 0; // 0=Buy, 1=Sell
             }
 
-            // Notional
-            if (FindName("txtNotional") is TextBox notionalBox)
+            // Dual Notionals (like GFI Fenics)
+            string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+            string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+
+            // Update labels to show currency names
+            if (FindName("lblNotional1") is TextBlock lbl1)
             {
-           if (leg.NotionalMM > 0)
-                {
-  // Convert millions to base units and format with spaces
-          long notionalBase = (long)(leg.NotionalMM * 1_000_000);
-    notionalBox.Text = notionalBase.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
-       }
-     else
-     {
-  notionalBox.Text = "";
+                lbl1.Text = $"Notional ({ccy1})";
             }
+            if (FindName("lblNotional2") is TextBlock lbl2)
+            {
+                lbl2.Text = $"Notional ({ccy2})";
             }
 
-            // Notional currency (set based on premium currency)
-            if (FindName("cmbNotionalCcy") is ComboBox notionalCcyCombo)
+            // Set notional 1 (base currency) from parsed trade
+            if (FindName("txtNotional1") is TextBox notional1Box)
             {
-                string premiumCcy = _trade.PremiumCurrency ?? (pair.Length >= 6 ? pair.Substring(3, 3) : "USD");
-                // Only select if EUR or USD - leave blank for other currencies
-                if (premiumCcy == "EUR")
+                if (leg.NotionalMM > 0)
                 {
-                    notionalCcyCombo.SelectedIndex = 0; // EUR
-                }
-                else if (premiumCcy == "USD")
-                {
-                    notionalCcyCombo.SelectedIndex = 1; // USD
+                    // Convert millions to base units and format with spaces
+                    long notionalBase = (long)(leg.NotionalMM * 1_000_000);
+                    notional1Box.Text = notionalBase.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
                 }
                 else
                 {
-                    // For other currencies (SEK, NOK, GBP, NZD, etc), leave blank
-                    // User needs to manually select or we need to add more currencies to combo
-                    notionalCcyCombo.SelectedIndex = -1; // Blank/unselected
-                    Console.WriteLine($"[WPF] Premium currency {premiumCcy} not in combo - leaving blank");
+                    notional1Box.Text = "---";
+                }
+            }
+
+            // Calculate notional 2 (quote currency) based on spot rate
+            if (FindName("txtNotional2") is TextBox notional2Box)
+            {
+                if (leg.NotionalMM > 0 && _trade.SpotReference > 0)
+                {
+                    // For EURUSD: 10M EUR * 1.0850 = 10.85M USD
+                    double notional2MM = leg.NotionalMM * _trade.SpotReference;
+                    long notional2Base = (long)(notional2MM * 1_000_000);
+                    notional2Box.Text = notional2Base.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+                    Console.WriteLine($"[WPF] Calculated Notional2: {leg.NotionalMM}M {ccy1} * {_trade.SpotReference} = {notional2MM:F2}M {ccy2}");
+                }
+                else
+                {
+                    notional2Box.Text = "---";
                 }
             }
 

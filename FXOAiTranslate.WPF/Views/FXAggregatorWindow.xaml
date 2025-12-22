@@ -530,6 +530,19 @@ VerticalAlignment="Center" Margin="0,0,12,0"
         
          <!-- Option Details Content -->
  <StackPanel x:Name="optionContent" Background="#0f1114">
+<!-- Currency Pair -->
+    <Grid Height="32">
+<Grid.ColumnDefinitions>
+ <ColumnDefinition Width="100"/>
+ <ColumnDefinition Width="*"/>
+ </Grid.ColumnDefinitions>
+     <TextBlock Text="Currency Pair" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+     <TextBox x:Name="txtCurrencyPair" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
+              Foreground="#3b82f6" FontWeight="Bold" IsReadOnly="True"
+              HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0"/>
+    </Grid>
+      <Border Height="1" Background="#1e293b"/>
+
 <!-- Type -->
     <Grid Height="32">
 <Grid.ColumnDefinitions>
@@ -546,21 +559,29 @@ VerticalAlignment="Center" Margin="0,0,12,0"
     </Grid>
       <Border Height="1" Background="#1e293b"/>
        
-      <!-- Quantity -->
+      <!-- Notional 1 (Base Currency) -->
       <Grid Height="32">
         <Grid.ColumnDefinitions>
  <ColumnDefinition Width="100"/>
-     <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-     <TextBlock Text="Quantity" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
- <ComboBox x:Name="cmbNotionalCcy" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="-1" MinWidth="55">
-             <ComboBoxItem Content="EUR"/>
-        <ComboBoxItem Content="USD"/>
-    </ComboBox>
-  <TextBox x:Name="txtNotional" Grid.Column="2" Text="" Style="{StaticResource DarkTextBox}"
-        FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="4,0,8,0" MinWidth="100"
-        LostFocus="txtNotional_LostFocus"/>
+     <TextBlock x:Name="lblNotional1" Text="Notional (---)" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+  <TextBox x:Name="txtNotional1" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
+        FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="100"
+        LostFocus="txtNotional1_LostFocus"/>
+ </Grid>
+  <Border Height="1" Background="#1e293b"/>
+
+      <!-- Notional 2 (Quote Currency) -->
+      <Grid Height="32">
+        <Grid.ColumnDefinitions>
+ <ColumnDefinition Width="100"/>
+        <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+     <TextBlock x:Name="lblNotional2" Text="Notional (---)" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+  <TextBox x:Name="txtNotional2" Grid.Column="1" Text="---" Style="{StaticResource DarkTextBox}"
+        FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="100"
+        LostFocus="txtNotional2_LostFocus"/>
  </Grid>
   <Border Height="1" Background="#1e293b"/>
 
