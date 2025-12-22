@@ -88,14 +88,14 @@
     
 <!-- LP Badge Background (bid side - gradient to right) -->
     <LinearGradientBrush x:Key="Brush.LPBadgeBid" StartPoint="0,0.5" EndPoint="1,0.5">
-        <GradientStop Color="#4d1e3a8a" Offset="0"/>
-        <GradientStop Color="#0d1e3a8a" Offset="1"/>
+        <GradientStop Color="#4D1e3a8a" Offset="0"/>
+        <GradientStop Color="#0D1e3a8a" Offset="1"/>
     </LinearGradientBrush>
     
   <!-- LP Badge Background (offer side - gradient to left) -->
     <LinearGradientBrush x:Key="Brush.LPBadgeOffer" StartPoint="1,0.5" EndPoint="0,0.5">
-        <GradientStop Color="#4d1e3a8a" Offset="0"/>
-        <GradientStop Color="#0d1e3a8a" Offset="1"/>
+        <GradientStop Color="#4D1e3a8a" Offset="0"/>
+        <GradientStop Color="#0D1e3a8a" Offset="1"/>
     </LinearGradientBrush>
 
     <!-- Tooltip Styling -->

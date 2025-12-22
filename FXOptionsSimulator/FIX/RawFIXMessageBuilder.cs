@@ -86,12 +86,12 @@ namespace FXOptionsSimulator.FIX
             AddField(131, quoteReqID); // QuoteReqID
             AddField(5475, premiumDeliveryType); // PremDel: "S"=Spot, "F"=Forward
             AddField(5830, trade.PremiumCurrency); // PremiumCcy
+            AddField(8051, groupId); // ✅ MOVED: GroupID BEFORE hedge/structure tags
             AddField(9016, hedgeType); // HedgeTradeType: "0"=None, "1"=Spot, "2"=Forward
 
             int structureCode = GetStructureCode(trade.StructureType);
             AddField(9126, structureCode.ToString()); // Structure
             AddField(9943, "2"); // ProductQuoteType
-            AddField(8051, groupId);
             AddField(146, "1"); // NoRelatedSym
 
             // NoRelatedSym group - EXACT order from GFI sample

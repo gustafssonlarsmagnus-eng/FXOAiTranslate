@@ -81,14 +81,14 @@
    <!-- EXECUTION TILES -->
     <Grid Height="200" Margin="0,0,0,8">
    <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*"/>
+<ColumnDefinition Width="*"/>
    <ColumnDefinition Width="2"/>
            <ColumnDefinition Width="*"/>
    </Grid.ColumnDefinitions>
 
             <!-- BID TILE -->
      <Border x:Name="bidTile" Grid.Column="0" 
-    Background="{StaticResource Brush.TileGradient}"
+ Background="{StaticResource Brush.TileGradient}"
       BorderBrush="#1e293b" BorderThickness="1"
        CornerRadius="4,0,0,4" Cursor="Hand"
         MouseLeftButtonUp="BidTile_Click"
@@ -96,116 +96,153 @@ MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
        <Grid Margin="16">
   <Grid.RowDefinitions>
    <RowDefinition Height="Auto"/>
-           <RowDefinition Height="*"/>
+  <RowDefinition Height="*"/>
            <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
-       
-       <!-- BID Label (top-left, hidden initially, shown when quoting) -->
-       <TextBlock x:Name="lblBidLabel" Text="BID (VOL)" 
-     FontSize="10" FontWeight="Bold" Foreground="#22c55e" 
-   Visibility="Collapsed"/>
+   
+  <!-- BID Label (top-left, hidden initially, shown when quoting) -->
+     <TextBlock x:Name="lblBidLabel" Text="YOU REC" 
+FontSize="10" FontWeight="Bold" Foreground="#22c55e" 
+   Visibility="Collapsed" HorizontalAlignment="Left"/>
     
-       <!-- Center Content -->
+   <!-- Center Content -->
     <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
          <!-- RFQ instruction label (shown in initial state) -->
-         <TextBlock x:Name="lblBidRfqHint" Text="CLICK TO RFQ (F9)" 
-            FontSize="10" FontWeight="Bold" Foreground="#64748b"
-          HorizontalAlignment="Center" Margin="0,0,0,4"/>
+     <TextBlock x:Name="lblBidRfqHint" Text="CLICK TO RFQ (F9)" 
+        FontSize="10" FontWeight="Bold" Foreground="#64748b"
+    HorizontalAlignment="Center" Margin="0,0,0,4"/>
       
-     <TextBlock x:Name="lblBidValue" Text="RFQ" 
+  <TextBlock x:Name="lblBidValue" Text="RFQ" 
     FontSize="72" FontWeight="Bold" Foreground="#64748b"
-         HorizontalAlignment="Center" VerticalAlignment="Center"/>
-       <TextBlock x:Name="lblBidSecondary" Text=""
-  FontSize="12" FontWeight="Bold" Foreground="#334155"
-         HorizontalAlignment="Center" Margin="0,8,0,0"
+   HorizontalAlignment="Center" VerticalAlignment="Center"
+TextOptions.TextFormattingMode="Display"
+ TextOptions.TextRenderingMode="Aliased"/>
+   <TextBlock x:Name="lblBidSecondary" Text=""
+  FontSize="12" FontWeight="Bold" Foreground="#64748b"
+      HorizontalAlignment="Center" Margin="0,8,0,0"
       Visibility="Collapsed"/>
-      </StackPanel>
-     
+   </StackPanel>
+
      <!-- LP Badge (bottom-left, gradient background) -->
      <Border Grid.Row="2" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-          Padding="12,6" CornerRadius="4"
-          Background="{StaticResource Brush.LPBadgeBid}" 
-    x:Name="bidLPPanel" Visibility="Collapsed">
+     Padding="12,6" CornerRadius="4"
+        Background="{StaticResource Brush.LPBadgeBid}" 
+  x:Name="bidLPPanel" Visibility="Collapsed">
   <StackPanel Orientation="Horizontal">
     <TextBlock x:Name="lblBidLP" Text="" FontSize="18" FontWeight="Bold" Foreground="White" MinWidth="50"/>
   <TextBlock x:Name="lblBidCountdown" Text="" FontSize="18" FontWeight="Bold" Foreground="#f59e0b" Margin="8,0,0,0"/>
  </StackPanel>
      </Border>
     </Grid>
-       </Border>
+</Border>
 
       <!-- OFFER TILE -->
-       <Border x:Name="offerTile" Grid.Column="2" 
-   Background="{StaticResource Brush.TileGradient}"
-      BorderBrush="#1e293b" BorderThickness="1"
-    CornerRadius="0,4,4,0" Cursor="Hand"
+   <Border x:Name="offerTile" Grid.Column="2" 
+ Background="{StaticResource Brush.TileGradient}"
+    BorderBrush="#1e293b" BorderThickness="1"
+ CornerRadius="0,4,4,0" Cursor="Hand"
  MouseLeftButtonUp="OfferTile_Click"
  MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
 <Grid Margin="16">
-      <Grid.RowDefinitions>
+ <Grid.RowDefinitions>
    <RowDefinition Height="Auto"/>
-         <RowDefinition Height="*"/>
-        <RowDefinition Height="Auto"/>
-      </Grid.RowDefinitions>
+    <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+   </Grid.RowDefinitions>
       
       <!-- OFFER Label (top-right, hidden initially, shown when quoting) -->
-    <TextBlock x:Name="lblOfferLabel" Text="OFFER (VOL)" 
-       FontSize="10" FontWeight="Bold" Foreground="#ef4444" HorizontalAlignment="Right"
+    <TextBlock x:Name="lblOfferLabel" Text="YOU PAY" 
+     FontSize="10" FontWeight="Bold" Foreground="#ef4444" HorizontalAlignment="Right"
        Visibility="Collapsed"/>
     
        <!-- Center Content -->
-      <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <!-- RFQ instruction label (shown in initial state) -->
-            <TextBlock x:Name="lblOfferRfqHint" Text="CLICK TO RFQ (F9)" 
+  <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+          <!-- RFQ instruction label (shown in initial state) -->
+  <TextBlock x:Name="lblOfferRfqHint" Text="CLICK TO RFQ (F9)" 
   FontSize="10" FontWeight="Bold" Foreground="#64748b"
    HorizontalAlignment="Center" Margin="0,0,0,4"/>
           
         <TextBlock x:Name="lblOfferValue" Text="RFQ"
-       FontSize="72" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
+  FontSize="72" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
+       TextOptions.TextFormattingMode="Display"
+    TextOptions.TextRenderingMode="Aliased"/>
    <TextBlock x:Name="lblOfferSecondary" Text=""
-         FontSize="12" FontWeight="Bold" Foreground="#334155"
-       HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed"/>
+    FontSize="12" FontWeight="Bold" Foreground="#64748b"
+HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed"/>
      </StackPanel>
         
-        <!-- LP Badge (bottom-right, gradient background) -->
+      <!-- LP Badge (bottom-right, gradient background) -->
    <Border Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Bottom"
   Padding="12,6" CornerRadius="4"
-            Background="{StaticResource Brush.LPBadgeOffer}" 
+  Background="{StaticResource Brush.LPBadgeOffer}" 
          x:Name="offerLPPanel" Visibility="Collapsed">
     <StackPanel Orientation="Horizontal">
-        <TextBlock x:Name="lblOfferCountdown" Text="" FontSize="18" Foreground="#94a3b8"/>
+    <TextBlock x:Name="lblOfferCountdown" Text="" FontSize="18" FontWeight="Bold" Foreground="#f59e0b"/>
      <TextBlock x:Name="lblOfferLP" Text="" FontSize="18" FontWeight="Bold" Foreground="White" Margin="8,0,0,0" MinWidth="50" TextAlignment="Right"/>
   </StackPanel>
-       </Border>
-       </Grid>
-            </Border>
+   </Border>
+    </Grid>
+         </Border>
 
      <!-- Spread Indicator (centered at bottom) -->
-       <Border x:Name="spreadPanel" Grid.ColumnSpan="3" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+<Border x:Name="spreadPanel" Grid.ColumnSpan="3" VerticalAlignment="Bottom" HorizontalAlignment="Center"
  Margin="0,0,0,4"
-     Background="#0b0d10" Padding="12,4" CornerRadius="4"
+  Background="#0b0d10" Padding="12,4" CornerRadius="4"
    BorderBrush="#1e293b" BorderThickness="1" Visibility="Collapsed">
         <TextBlock x:Name="lblSpread" Text="" FontSize="18" FontWeight="Bold" Foreground="White"/>
      </Border>
-        </Grid>
+</Grid>
 
-           <!-- COMBINED CONTROL BAR: Ladder toggle + Price Display -->
+    <!-- COMBINED CONTROL BAR: Ladder toggle + STOP RFQ + Price Display -->
 <Border Background="#14161b" BorderBrush="#1e293b" BorderThickness="1" CornerRadius="4" Margin="0,0,0,1">
    <Grid Height="28">
 <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="Auto"/>
-   <ColumnDefinition Width="*"/>
   <ColumnDefinition Width="Auto"/>
-    </Grid.ColumnDefinitions>
-  
+   <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="Auto"/>
+</Grid.ColumnDefinitions>
+
      <!-- Left: Ladder toggle -->
   <StackPanel Orientation="Horizontal" Margin="12,0" Cursor="Hand" MouseLeftButtonUp="LadderHeader_Click">
   <TextBlock x:Name="lblLadderArrow" Text="&#x25BC;" FontSize="10" Foreground="#64748b" 
 VerticalAlignment="Center" Margin="0,0,6,0"/>
   <TextBlock x:Name="lblLPCount" Text="3 LPs" FontSize="10" FontWeight="Bold" Foreground="#64748b" 
-      VerticalAlignment="Center"/>
+ VerticalAlignment="Center"/>
  </StackPanel>
   
+  <!-- Center: STOP RFQ Button (only shown when quoting) -->
+        <Button x:Name="btnStopRFQ" Grid.Column="1" Content="⬛ STOP RFQ" 
+ Visibility="Collapsed"
+    Padding="10,4" FontSize="10" FontWeight="Bold"
+    Background="#33ef4444" Foreground="#ef4444"
+        BorderBrush="#ef4444" BorderThickness="1"
+     HorizontalAlignment="Center" VerticalAlignment="Center"
+Cursor="Hand" Click="CancelRFQ_Click">
+       <Button.Style>
+      <Style TargetType="Button">
+<Setter Property="Template">
+        <Setter.Value>
+       <ControlTemplate TargetType="Button">
+ <Border x:Name="border" 
+      Background="{TemplateBinding Background}"
+      BorderBrush="{TemplateBinding BorderBrush}"
+        BorderThickness="{TemplateBinding BorderThickness}"
+    CornerRadius="3" 
+     Padding="{TemplateBinding Padding}">
+<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+  </Border>
+         <ControlTemplate.Triggers>
+      <Trigger Property="IsMouseOver" Value="True">
+   <Setter TargetName="border" Property="Background" Value="#4Def4444"/>
+ </Trigger>
+    </ControlTemplate.Triggers>
+       </ControlTemplate>
+  </Setter.Value>
+     </Setter>
+</Style>
+ </Button.Style>
+        </Button>
+
         <!-- Right: Price Display dropdown -->
     <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,12,0">
   <TextBlock Text="Price Display" FontSize="10" Foreground="#64748b" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -214,7 +251,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
       <ComboBoxItem Content="VOL"/>
     <ComboBoxItem Content="Premium"/>
   <ComboBoxItem Content="EUR Pips"/>
-      <ComboBoxItem Content="USD Pips"/>
+    <ComboBoxItem Content="USD Pips"/>
      </ComboBox>
    </StackPanel>
     </Grid>
@@ -909,7 +946,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
   <!-- Header with collapse button -->
      <Grid Background="#0b0d10">
    <Grid.ColumnDefinitions>
-       <ColumnDefinition Width="Auto"/>
+    <ColumnDefinition Width="Auto"/>
  <ColumnDefinition Width="*"/>
   </Grid.ColumnDefinitions>
        <TextBlock x:Name="lblDealsArrow" Text="&#x25B6;" FontSize="10" Foreground="#64748b" 
@@ -1029,26 +1066,26 @@ VerticalAlignment="Center" Margin="0,0,12,0"
            <TextBlock Text="Notional" Width="60" FontSize="11" Foreground="#64748b"/>
    <TextBlock Text="{Binding Notional}" FontSize="11" Foreground="White"/>
 </StackPanel>
-           <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
  <TextBlock Text="ExpCut" Width="60" FontSize="11" Foreground="#64748b"/>
        <TextBlock Text="{Binding ExpiryCut}" FontSize="11" Foreground="White"/>
  </StackPanel>
      </StackPanel>
            </Grid>
-            <Border Height="1" Background="#1e293b" Margin="0,12"/>
+       <Border Height="1" Background="#1e293b" Margin="0,12"/>
            <Grid>
 <TextBlock Text="{Binding OrderId}" FontSize="10" FontFamily="JetBrains Mono, Consolas" Foreground="#64748b"/>
     <TextBlock Text="{Binding Status}" FontSize="10" FontWeight="Bold" Foreground="{Binding StatusForeground}" HorizontalAlignment="Right"/>
-          </Grid>
+       </Grid>
          </StackPanel>
      </Border>
       </StackPanel>
-    </Border>
+  </Border>
     </DataTemplate>
-             </ItemsControl.ItemTemplate>
-         </ItemsControl>
+      </ItemsControl.ItemTemplate>
+  </ItemsControl>
       </StackPanel>
-         </ScrollViewer>
+    </ScrollViewer>
     </Grid>
           </Border>
       </Grid>

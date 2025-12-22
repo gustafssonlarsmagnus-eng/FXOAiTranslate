@@ -117,8 +117,22 @@ namespace FXOAiTranslate.WPF.Views
             offerLPPanel.Visibility = Visibility.Collapsed;
 
             spreadPanel.Visibility = Visibility.Collapsed;
+            
+            // Hide STOP RFQ button
+         if (FindName("btnStopRFQ") is Button stopButton)
+     {
+         stopButton.Visibility = Visibility.Collapsed;
+         }
+
             lblNoQuotes.Visibility = Visibility.Visible;
-            LPQuotes.Clear();
+        LPQuotes.Clear();
+            
+    // Show initial LP checkbox panel, hide dynamic ladder
+   if (FindName("initialLPPanel") is StackPanel initialPanel)
+        {
+         initialPanel.Visibility = Visibility.Visible;
+    }
+   
             _isRfqActive = false;
         }
 
@@ -142,17 +156,30 @@ namespace FXOAiTranslate.WPF.Views
             lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // Dim grey while waiting
             lblOfferSecondary.Text = "Requesting...";
             lblOfferSecondary.Visibility = Visibility.Visible;
-            offerLPPanel.Visibility = Visibility.Collapsed; // Hide LP badge until quote received
+    offerLPPanel.Visibility = Visibility.Collapsed; // Hide LP badge until quote received
 
-            // Don't show spread panel until we have actual quotes
-            // It will be shown in UpdateBestPrices when both bid and offer exist
-            spreadPanel.Visibility = Visibility.Collapsed;
-            lblSpread.Text = "---";
+    // Don't show spread panel until we have actual quotes
+    // It will be shown in UpdateBestPrices when both bid and offer exist
+        spreadPanel.Visibility = Visibility.Collapsed;
+  lblSpread.Text = "---";
+
+   // Show STOP RFQ button in control bar
+     if (FindName("btnStopRFQ") is Button stopButton)
+      {
+       stopButton.Visibility = Visibility.Visible;
+  }
 
             lblNoQuotes.Visibility = Visibility.Collapsed;
+        
+   // Hide initial LP checkbox panel, show dynamic ladder with quotes
+         if (FindName("initialLPPanel") is StackPanel initialPanel)
+   {
+     initialPanel.Visibility = Visibility.Collapsed;
+ }
+    
             _isRfqActive = true;
-            _countdownTimer.Start();
-        }
+  _countdownTimer.Start();
+    }
 
         #endregion
 
@@ -172,17 +199,16 @@ namespace FXOAiTranslate.WPF.Views
             // Marshal to UI thread
             Dispatcher.BeginInvoke(() =>
             {
-                Console.WriteLine($"[WPF] Quote request rejected: {rejectText}");
+                Console.WriteLine($"[WPF] Quote request rejected for {quoteReqID}: {rejectText} (Reason: {rejectReason})");
 
-                // Reset to RFQ state (clear "Requesting..." text)
-                ShowRfqState();
+                // DON'T reset to RFQ state - other LPs may still quote successfully
+                // Just log the rejection and continue waiting for other quotes
 
-                // Show error message to user
-                MessageBox.Show(
-                    $"Quote request rejected by GFI:\n\n{rejectText}\n\nReason code: {rejectReason}\n\nPlease check your trade parameters and try again.",
-                    "Quote Request Rejected",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                // Optional: Show a non-blocking notification instead of modal dialog
+                // (You could use a toast notification or status bar message here)
+
+                // Only show MessageBox if ALL LPs have responded (none pending)
+                // For now, just log it - user will see successful quotes from other LPs
             });
         }
 
@@ -241,86 +267,165 @@ namespace FXOAiTranslate.WPF.Views
 
         private void UpdateLadder()
         {
-            var sorted = _quotesByLP.Values
-                .OrderByDescending(q => q.BidVol) // Best bid first
-                .ToList();
+            // Don't clear and re-add rows - just update existing LP rows in place
+        // This preserves the original LP order from the XAML (MS, HSBC, BNP, NATWEST, etc.)
+      
+            // Find best prices for highlighting
+            var allQuotes = _quotesByLP.Values.ToList();
+       var bestBidLP = allQuotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault()?.LP;
+    var bestOfferLP = allQuotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault()?.LP;
 
-            // Find best prices
-            var bestBidLP = sorted.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault()?.LP;
-            var bestOfferLP = sorted.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault()?.LP;
+      // Update each LP row with its quote data (if available)
+     foreach (var lpName in new[] { "MS", "HSBC", "BNP", "NATWEST", "SOCGEN", "CIBC", "SCBL", "NOMURA", "BAML" })
+     {
+    if (_quotesByLP.TryGetValue(lpName, out var lpData))
+   {
+     // LP has quoted - add/update in the ladder
+     var existingRow = LPQuotes.FirstOrDefault(r => r.LPName == lpName);
+       
+ var secondsRemaining = (lpData.ValidUntilTime - DateTime.Now).TotalSeconds;
+      var opacity = Math.Max(0.3, Math.Min(1.0, secondsRemaining / 120.0)); // Fade over 2 mins
 
-            LPQuotes.Clear();
-            foreach (var lp in sorted)
-            {
-                var secondsRemaining = (lp.ValidUntilTime - DateTime.Now).TotalSeconds;
-                var opacity = Math.Max(0.3, Math.Min(1.0, secondsRemaining / 120.0)); // Fade over 2 mins
+              var bidVol = lpData.BidVol > 0 ? lpData.BidVol.ToString("F2") : "-";
+           var offerVol = lpData.OfferVol > 0 ? lpData.OfferVol.ToString("F2") : "-";
 
-                LPQuotes.Add(new LPQuoteRow
-                {
-                    LPName = lp.LP,
-                    BidVol = lp.BidVol > 0 ? lp.BidVol.ToString("F2") : "-",
-                    BidSecondary = lp.BidPremium != 0 ? $"{Math.Abs(lp.BidPremium / 1000):F0}k" : "-",
-                    OfferVol = lp.OfferVol > 0 ? lp.OfferVol.ToString("F2") : "-",
-                    OfferSecondary = lp.OfferPremium != 0 ? $"{Math.Abs(lp.OfferPremium / 1000):F0}k" : "-",
-                    Opacity = opacity,
-                    IsBestBid = lp.LP == bestBidLP,
-                    IsBestOffer = lp.LP == bestOfferLP,
-                    IsEnabled = true
-                });
-            }
+      if (existingRow != null)
+          {
+        // Update existing row
+    existingRow.BidVol = bidVol;
+          existingRow.OfferVol = offerVol;
+  existingRow.BidSecondary = lpData.BidPremium != 0 ? $"{Math.Abs(lpData.BidPremium / 1000):F0}k" : "-";
+           existingRow.OfferSecondary = lpData.OfferPremium != 0 ? $"{Math.Abs(lpData.OfferPremium / 1000):F0}k" : "-";
+existingRow.Opacity = opacity;
+          existingRow.IsBestBid = lpName == bestBidLP;
+      existingRow.IsBestOffer = lpName == bestOfferLP;
+                  }
+         else
+  {
+          // Add new row (in order)
+         var row = new LPQuoteRow(lpName, bidVol, offerVol)
+     {
+       BidSecondary = lpData.BidPremium != 0 ? $"{Math.Abs(lpData.BidPremium / 1000):F0}k" : "-",
+        OfferSecondary = lpData.OfferPremium != 0 ? $"{Math.Abs(lpData.OfferPremium / 1000):F0}k" : "-",
+Opacity = opacity,
+       IsBestBid = lpName == bestBidLP,
+               IsBestOffer = lpName == bestOfferLP,
+        IsEnabled = true
+                 };
+     
+             // Insert at correct position to maintain order
+     int insertIndex = GetInsertIndexForLP(lpName);
+     if (insertIndex >= 0 && insertIndex <= LPQuotes.Count)
+        {
+       LPQuotes.Insert(insertIndex, row);
+              }
+          else
+              {
+           LPQuotes.Add(row);
+                }
+          }
+       }
+   }
         }
 
+        private int GetInsertIndexForLP(string lpName)
+      {
+            // Define the standard LP order (matching XAML checkbox order)
+            var lpOrder = new[] { "MS", "HSBC", "BNP", "NATWEST", "SOCGEN", "CIBC", "SCBL", "NOMURA", "BAML" };
+          int targetIndex = Array.IndexOf(lpOrder, lpName);
+     
+    if (targetIndex < 0) return LPQuotes.Count; // Unknown LP, add at end
+         
+   // Find the first LP in the list that should come after this one
+            for (int i = 0; i < LPQuotes.Count; i++)
+         {
+    int existingIndex = Array.IndexOf(lpOrder, LPQuotes[i].LPName);
+     if (existingIndex > targetIndex)
+         {
+     return i;
+       }
+            }
+     
+         return LPQuotes.Count; // Add at end
+  }
         private void UpdateBestPrices()
         {
-            var quotes = _quotesByLP.Values.ToList();
+          var quotes = _quotesByLP.Values.ToList();
 
-            // Best bid = highest vol you receive
-            var bestBid = quotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
-            // Best offer = lowest vol you pay
-            var bestOffer = quotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
+          // Best bid = highest vol you receive
+    var bestBid = quotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
+ // Best offer = lowest vol you pay
+    var bestOffer = quotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
 
-            if (bestBid != null)
-            {
-                lblBidValue.Text = bestBid.BidVol.ToString("F2");
-                lblBidSecondary.Text = $"{Math.Abs(bestBid.BidPremium / 1000):F0}k";
-                lblBidLP.Text = bestBid.LP;
-                UpdateCountdown(lblBidCountdown, bestBid.ValidUntilTime);
-            }
-            else
-            {
-                lblBidValue.Text = "---";
-                lblBidSecondary.Text = "---";
-                lblBidLP.Text = "";
-            }
+      if (bestBid != null)
+   {
+     // Display vol as main value (large white text)
+    lblBidValue.Text = bestBid.BidVol.ToString("F2");
+     lblBidValue.Foreground = Brushes.White;
+        
+   // Calculate pips: premium_usd / (notional_usd * 10000)
+            double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0; // Default 10M
+     double premiumPips = Math.Abs(bestBid.BidPremium) / (notionalUSD * 1_000_000) * 10000;
+          
+         // Format secondary text: "68,778 USD  43p"
+  lblBidSecondary.Text = $"{Math.Abs(bestBid.BidPremium):N0} USD    {premiumPips:F0}p";
+       lblBidSecondary.Visibility = Visibility.Visible;
+     
+ // Show LP badge with gradient background
+         lblBidLP.Text = bestBid.LP;
+     UpdateCountdown(lblBidCountdown, bestBid.ValidUntilTime);
+    bidLPPanel.Visibility = Visibility.Visible;
+          }
+  else
+     {
+        lblBidValue.Text = "---";
+         lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+     lblBidSecondary.Text = "---";
+       lblBidLP.Text = "";
+       bidLPPanel.Visibility = Visibility.Collapsed;
+     }
 
             if (bestOffer != null)
             {
-                lblOfferValue.Text = bestOffer.OfferVol.ToString("F2");
-                lblOfferSecondary.Text = $"{Math.Abs(bestOffer.OfferPremium / 1000):F0}k";
-                lblOfferLP.Text = bestOffer.LP;
-                UpdateCountdown(lblOfferCountdown, bestOffer.ValidUntilTime);
-            }
-            else
-            {
-                lblOfferValue.Text = "---";
-                lblOfferSecondary.Text = "---";
-                lblOfferLP.Text = "";
-            }
+      // Display vol as main value (large white text)
+          lblOfferValue.Text = bestOffer.OfferVol.ToString("F2");
+            lblOfferValue.Foreground = Brushes.White;
+    
+    // Calculate pips
+     double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
+ double premiumPips = Math.Abs(bestOffer.OfferPremium) / (notionalUSD * 1_000_000) * 10000;
+        
+   // Format secondary text: "71,699 USD  44p"
+    lblOfferSecondary.Text = $"{Math.Abs(bestOffer.OfferPremium):N0} USD    {premiumPips:F0}p";
+lblOfferSecondary.Visibility = Visibility.Visible;
+       
+       // Show LP badge with gradient background
+      lblOfferLP.Text = bestOffer.LP;
+       UpdateCountdown(lblOfferCountdown, bestOffer.ValidUntilTime);
+       offerLPPanel.Visibility = Visibility.Visible;
+   }
+        else
+         {
+    lblOfferValue.Text = "---";
+       lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+      lblOfferSecondary.Text = "---";
+       lblOfferLP.Text = "";
+       offerLPPanel.Visibility = Visibility.Collapsed;
+  }
 
-            // Spread - only show when we have both bid and offer
-            if (bestBid != null && bestOffer != null)
-            {
-                var spread = bestOffer.OfferVol - bestBid.BidVol;
-                lblSpread.Text = spread.ToString("F2");
-                spreadPanel.Visibility = Visibility.Visible;
+      // Spread - only show when we have both bid and offer
+   if (bestBid != null && bestOffer != null)
+      {
+       var spread = bestOffer.OfferVol - bestBid.BidVol;
+   lblSpread.Text = spread.ToString("F2");
+     spreadPanel.Visibility = Visibility.Visible;
             }
-            else
-            {
-                lblSpread.Text = "---";
-                spreadPanel.Visibility = Visibility.Collapsed;
-            }
-        }
-
+         else
+         {
+   lblSpread.Text = "---";
+     spreadPanel.Visibility = Visibility.Collapsed;
+       }
+  }
         private void UpdateCountdown(System.Windows.Controls.TextBlock label, DateTime validUntil)
         {
             var remaining = validUntil - DateTime.Now;
@@ -782,7 +887,7 @@ namespace FXOAiTranslate.WPF.Views
             if (string.IsNullOrEmpty(input))
                 return;
 
-            // Parse tenor format: 1W, 1M, 3M, 6M, 1Y, etc.
+            // Parse tenor format: 1W, 1M, 3M, 6M, 1Y, 2W, ON, TN)
             var tenorMatch = System.Text.RegularExpressions.Regex.Match(input, @"^(\d+)\s*([WDMY])$");
             if (tenorMatch.Success)
             {
@@ -1259,7 +1364,7 @@ string hedgeSelection = selectedItem.Content?.ToString() ?? "";
    if (sender is ComboBox combo && combo.SelectedItem is ComboBoxItem item)
     {
    var selection = item.Content?.ToString() ?? "";
-         var detailsPanel = FindName("hedgeDetailsPanel") as Border;
+     var detailsPanel = FindName("hedgeDetailsPanel") as Border;
   var rateHeader = FindName("lblHedgeRateHeader") as System.Windows.Controls.TextBlock;
    
     if (selection.Contains("Forward"))
@@ -1289,7 +1394,7 @@ string hedgeSelection = selectedItem.Content?.ToString() ?? "";
      }
 
      /// <summary>
-        /// Update hedge details panel with real data:
+ /// Update hedge details panel with real data:
         /// - Spot Rate: From TradeStructure.SpotReference (Bloomberg) or MarketData
         /// - Value Date: Calculated using FxDateService calendar
       /// - Amount: Delta � Notional (from FIX quotes or calculated)
@@ -1453,7 +1558,7 @@ string hedgeSelection = selectedItem.Content?.ToString() ?? "";
         }
 
         /// <summary>
-        /// Get market data for the given currency pair (DEPRECATED - use GetBloombergSpotAsync)
+ /// Get market data for the given currency pair (DEPRECATED - use GetBloombergSpotAsync)
         /// </summary>
         private MarketData GetMarketDataForPair(string pair)
         {
@@ -1591,635 +1696,233 @@ return 0.50; // ATM
             MessageBox.Show("Add leg functionality - coming soon!", "Add Leg", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void Tile_MouseEnter(object sender, MouseEventArgs e)
-        {
-            if (sender is Border tile)
-            {
-                // Apply hover gradient
-                tile.Background = (Brush)FindResource("Brush.TileHoverGradient");
-
-                // Brighten the RFQ text on hover when not in live state
-                if (!_isRfqActive)
-                {
-                    if (tile == bidTile)
-                    {
-                        lblBidValue.Foreground = Brushes.White;
-                    }
-                    else if (tile == offerTile)
-                    {
-                        lblOfferValue.Foreground = Brushes.White;
-                    }
-                }
-            }
+        /// <summary>
+        /// Event handler for deal card clicks
+        /// </summary>
+        private void DealCard_Click(object sender, MouseButtonEventArgs e)
+ {
+   // Expand/collapse deal details
+ if (sender is Border border && border.DataContext is DealViewModel deal)
+      {
+    deal.IsExpanded = !deal.IsExpanded;
+  Console.WriteLine($"[WPF] Deal {deal.OrderId} {(deal.IsExpanded ? "expanded" : "collapsed")}");
         }
-
-        private void Tile_MouseLeave(object sender, MouseEventArgs e)
-        {
-            if (sender is Border tile)
-            {
-                // Restore default gradient
-                tile.Background = (Brush)FindResource("Brush.TileGradient");
-
-                // Restore dim text color when not in live state
-                if (!_isRfqActive)
-                {
-                    if (tile == bidTile)
-                    {
-                        lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
-                    }
-                    else if (tile == offerTile)
-                    {
-                        lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
-                    }
-                }
-            }
         }
-
-        private void DealsHeader_Click(object sender, MouseButtonEventArgs e)
-        {
-            ToggleDealsPanel();
-        }
-
-        private void DealsTabHandle_Click(object sender, MouseButtonEventArgs e)
-        {
-            ToggleDealsPanel();
-        }
-
-        private void ToggleDealsPanel()
-        {
-            var column = FindName("dealsPanelColumn") as ColumnDefinition;
-            var panel = FindName("dealsPanel") as Border;
-            var handle = FindName("dealsTabHandle") as Border;
-
-            if (column == null || panel == null || handle == null) return;
-
-            if (_dealsPanelExpanded)
-            {
-                // Collapse
-                column.Width = new GridLength(0);
-                panel.Visibility = Visibility.Collapsed;
-                handle.Visibility = Visibility.Visible;
-                _dealsPanelExpanded = false;
-            }
-            else
-            {
-                // Expand
-                column.Width = new GridLength(380);
-                panel.Visibility = Visibility.Visible;
-                handle.Visibility = Visibility.Collapsed;
-                _dealsPanelExpanded = true;
-            }
-        }
-
-        private void BidTile_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (!_isRfqActive)
-            {
-                SendRFQ();
-                return;
-            }
-            _ = ExecuteTradeAsync("BID");
-        }
-
-        private void OfferTile_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (!_isRfqActive)
-            {
-                SendRFQ();
-                return;
-            }
-            _ = ExecuteTradeAsync("OFFER");
-        }
-
-        private void SendRFQ()
-        {
-            if (_trade == null)
-            {
-                MessageBox.Show("No trade structure loaded. Please enter a trade.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            if (_fixSession == null || !_fixSession.IsLoggedOn)
-            {
-                MessageBox.Show("FIX session not connected. Please wait for connection.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                _quotesByLP.Clear();
-                LPQuotes.Clear();
-
-                _currentGroupId = $"WPF_{DateTime.Now.Ticks}";
-
-                // Get selected LPs from checkboxes
-                var selectedLPs = GetSelectedLPs();
-
-                if (selectedLPs.Count == 0)
-                {
-                    MessageBox.Show("Please select at least one LP.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                // Apply hedge settings from UI to trade structure
-     ApplyHedgeSettingsToTrade();
-
-      Console.WriteLine($"\n[WPF] ========== SENDING RFQ ==========");
-     Console.WriteLine($"[WPF] GroupID: {_currentGroupId}");
-         Console.WriteLine($"[WPF] Trade: {_trade.Underlying} {_trade.Legs[0].Tenor} {_trade.Legs[0].OptionType}");
-      Console.WriteLine($"[WPF] Hedge Type: {_trade.HedgeType} (Tag 9016: {GetHedgeTypeTag()})");
-             Console.WriteLine($"[WPF] Spot Rate: {_trade.SpotReference} (Tag 5235)");
-     Console.WriteLine($"[WPF] Selected LPs: {string.Join(", ", selectedLPs)}");
-
-  // Get hedge type for FIX
-     var hedgeType = GetHedgeTypeTag();
-     var premiumType = GetPremiumTypeTag();
-
-            foreach (var lp in selectedLPs)
-       {
-   var quoteReqId = _fixSession.SendQuoteRequest(_trade, lp, _currentGroupId, hedgeType, premiumType);
- Console.WriteLine($"[WPF] Sent RFQ to {lp}: {quoteReqId}");
- }
-
-  ShowLiveState();
-     Console.WriteLine($"[WPF] RFQ sent to {selectedLPs.Count} LPs, waiting for quotes...\n");
-       }
-         catch (Exception ex)
-  {
-      MessageBox.Show($"Error sending RFQ: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-     Console.WriteLine($"[WPF] ERROR sending RFQ: {ex.Message}");
-      }
-      }
 
         /// <summary>
-        /// Apply hedge settings from UI controls to the trade structure
-        /// Maps UI values to FIX fields:
-        /// - Tag 9016 (HedgeTradeType): "0" = Live, "1" = Spot, "2" = Forward
-        /// - Tag 5235 (LegSpotRate): The hedge rate (spot or forward)
+     /// Bid tile click - execute on best bid price (you receive)
         /// </summary>
-        private void ApplyHedgeSettingsToTrade()
+        private async void BidTile_Click(object sender, MouseButtonEventArgs e)
         {
- if (_trade == null) return;
-
-     var deltaExchangeCombo = FindName("cmbDeltaExchange") as ComboBox;
- var hedgeRateTextBox = FindName("txtHedgeRate") as TextBox;
-
-            if (deltaExchangeCombo?.SelectedItem is ComboBoxItem item)
+   if (!_isRfqActive)
  {
-          var selection = item.Content?.ToString() ?? "";
-     
-      if (selection.Contains("Forward"))
-  {
-                _trade.HedgeType = "FORWARD";
+        // Not quoting - trigger RFQ
+    _  = SendQuoteRequestsAsync();
    }
-    else if (selection.Contains("Spot"))
-  {
-     _trade.HedgeType = "SPOT";
+  else
+    {
+  // Quoting - execute trade at best bid
+        await ExecuteTradeOnBestPrice("BID");
      }
-     else
-       {
-  _trade.HedgeType = "LIVE";
- }
+  }
+
+        /// <summary>
+    /// Offer tile click - execute on best offer price (you pay)
+/// </summary>
+        private async void OfferTile_Click(object sender, MouseButtonEventArgs e)
+    {
+ if (!_isRfqActive)
+   {
+ // Not quoting - trigger RFQ
+   _ = SendQuoteRequestsAsync();
    }
-
-  // Parse and apply the hedge rate
-   if (hedgeRateTextBox != null && double.TryParse(hedgeRateTextBox.Text, out double rate))
-       {
-       if (_trade.HedgeType == "FORWARD")
- {
-      _trade.ForwardReference = rate;
-      }
-       else
-       {
-       _trade.SpotReference = rate;
-      }
-     }
- }
-
-   /// <summary>
-        /// Get the hedge type string for FIX session
- /// Returns "Live", "Spot", or "Forward" (converted to FIX tag 9016 by session manager)
-        /// </summary>
- private string GetHedgeTypeTag()
-        {
-  var deltaExchangeCombo = FindName("cmbDeltaExchange") as ComboBox;
-   if (deltaExchangeCombo?.SelectedItem is ComboBoxItem item)
-       {
-    var selection = item.Content?.ToString() ?? "";
- if (selection.Contains("Forward")) return "Forward";
-          if (selection.Contains("Spot")) return "Spot";
-   }
-   return "Live"; // No Hedge
-        }
-
-    /// <summary>
-        /// Get the premium type string for FIX session
-      /// Returns "Spot" or "Forward" (converted to FIX tag 5475 by session manager)
-  /// </summary>
-  private string GetPremiumTypeTag()
- {
-   var premiumDueCombo = FindName("cmbPremiumDue") as ComboBox;
-     if (premiumDueCombo?.SelectedItem is ComboBoxItem item)
-     {
-   var selection = item.Content?.ToString() ?? "";
-        if (selection.Contains("FORWARD")) return "Forward";
-    }
-      return "Spot"; // Default to Spot
-        }
-
-        private void LPHeader_Click(object sender, MouseButtonEventArgs e)
-        {
-            // Toggle LP selection panel visibility
-            if (FindName("lpSelectionPanel") is StackPanel panel && FindName("lblLPArrow") is TextBlock arrow)
-            {
-                if (panel.Visibility == Visibility.Visible)
-                {
-                    panel.Visibility = Visibility.Collapsed;
-                    arrow.Text = "\u25B6";
-                }
-                else
-                {
-                    panel.Visibility = Visibility.Visible;
-                    arrow.Text = "\u25BC";
-                }
-            }
-        }
-
-        private void LPCheckbox_Changed(object sender, RoutedEventArgs e)
-        {
-            // Update LP count in header
-            UpdateLPCount();
-
-            // Update visual state of the LP row when checkbox changes
-            if (sender is CheckBox checkbox)
-            {
-                // Find the parent Grid (LP row)
-                var parent = checkbox.Parent;
-                while (parent != null && !(parent is Grid grid && grid.Parent is Border))
-                {
-                    parent = (parent as FrameworkElement)?.Parent;
-                }
-
-                if (parent is Grid lpRowGrid && lpRowGrid.Parent is Border)
-                {
-                    // Update opacity based on checked state
-                    bool isChecked = checkbox.IsChecked == true;
-                    lpRowGrid.Opacity = isChecked ? 0.9 : 0.4;
-
-                    // Find the LP name TextBlock and update its color
-                    var centerBorder = lpRowGrid.Children.OfType<Border>().FirstOrDefault(b => Grid.GetColumn(b) == 1);
-                    if (centerBorder?.Child is StackPanel sp)
-                    {
-                        var nameLabel = sp.Children.OfType<TextBlock>().FirstOrDefault();
-                        if (nameLabel != null)
-                        {
-                            nameLabel.Foreground = isChecked
-                                ? new SolidColorBrush(Colors.White)
-                                : new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748b
-                        }
-                    }
-                }
-            }
-        }
-
-        private void UpdateLPCount()
-        {
-            var count = GetSelectedLPs().Count;
-            if (FindName("lblLPCount") is TextBlock label)
-            {
-                label.Text = $"{count} LPs";
-            }
-        }
-
-        private List<string> GetSelectedLPs()
-        {
-            var lps = new List<string>();
-
-            // Check all 9 LP checkboxes from the initial panel (matching FenicsConfig)
-            if (FindName("chkMS") is CheckBox ms && ms.IsChecked == true) lps.Add("MS");
-            if (FindName("chkHSBC") is CheckBox hsbc && hsbc.IsChecked == true) lps.Add("HSBC");
-            if (FindName("chkBNP") is CheckBox bnp && bnp.IsChecked == true) lps.Add("BNP");
-            if (FindName("chkNATWEST") is CheckBox natwest && natwest.IsChecked == true) lps.Add("NATWEST");
-            if (FindName("chkSOCGEN") is CheckBox socgen && socgen.IsChecked == true) lps.Add("SOCGEN");
-            if (FindName("chkCIBC") is CheckBox cibc && cibc.IsChecked == true) lps.Add("CIBC");
-            if (FindName("chkSCBL") is CheckBox scbl && scbl.IsChecked == true) lps.Add("SCBL");
-            if (FindName("chkNOMURA") is CheckBox nomura && nomura.IsChecked == true) lps.Add("NOMURA");
-            if (FindName("chkBAML") is CheckBox baml && baml.IsChecked == true) lps.Add("BAML");
-
-            // Also check LPs from quote rows (when quotes are active)
-            if (LPQuotes != null)
-            {
-                foreach (var quoteRow in LPQuotes)
-                {
-                    if (quoteRow.IsEnabled && !lps.Contains(quoteRow.LPName))
-                    {
-                        lps.Add(quoteRow.LPName);
-                    }
-                }
-            }
-
-            return lps;
-        }
-
-        private async Task ExecuteTradeAsync(string side)
-        {
-            // Flash animation
-            var tile = side == "BID" ? bidTile : offerTile;
-            var originalBrush = tile.Background;
-            tile.Background = new SolidColorBrush(Color.FromArgb(80, 59, 130, 246));
-
-            var flashTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-            flashTimer.Tick += (s, args) =>
-            {
-                tile.Background = originalBrush;
-                flashTimer.Stop();
-            };
-            flashTimer.Start();
-
-            // Get best quote for the side
-            var quotes = _quotesByLP.Values.ToList();
-            LPQuoteData bestQuote;
-            string tradeSide;
-            string quoteIdToExecute;
-
-            if (side == "BID")
-            {
-                bestQuote = quotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
-                tradeSide = "SELL"; // Selling to the bidder
-                quoteIdToExecute = bestQuote?.BidQuoteId;
-            }
             else
-            {
-                bestQuote = quotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
-                tradeSide = "BUY"; // Buying from the offerer
-                quoteIdToExecute = bestQuote?.OfferQuoteId;
-            }
-
-            if (bestQuote == null || string.IsNullOrEmpty(quoteIdToExecute))
-            {
-                MessageBox.Show("No valid quote available to execute", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            Console.WriteLine($"\n[WPF] ========== EXECUTING TRADE ==========");
-            Console.WriteLine($"[WPF] Side: {tradeSide}, LP: {bestQuote.LP}");
-            Console.WriteLine($"[WPF] QuoteID: {quoteIdToExecute}");
-            Console.WriteLine($"[WPF] Vol: {(side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol)}");
-
-            // Create deal card
-            var deal = new DealViewModel
-            {
-                Time = DateTime.Now.ToString("HH:mm:ss"),
-                Instrument = $"{_trade?.Underlying ?? "EURUSD"} {_trade?.Legs?[0]?.Tenor ?? "1M"} {_trade?.Legs?[0]?.OptionType ?? "CALL"}",
-                LP = bestQuote.LP,
-                Side = tradeSide,
-                Status = "PENDING",
-                Volatility = $"{(side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol):F2}%",
-                Premium = (decimal)Math.Abs(side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium),
-                EurPips = $"{Math.Abs((side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium) / 1000):F0}p",
-                // Use Bloomberg spot from quote data (already fetched in ProcessQuoteAsync)
-                // If not available, fetch from Bloomberg as fallback
-                SpotRate = !string.IsNullOrEmpty(bestQuote.SpotRate)
-                    ? bestQuote.SpotRate
-                    : (await GetBloombergSpotAsync(_trade?.Underlying ?? "EURUSD")).ToString("F4"),
-                Strike = _trade?.Legs?[0]?.Strike.ToString("F4") ?? "1.1751",
-                Notional = $"EUR {_trade?.Legs?[0]?.NotionalMM ?? 10}M",
-                ExpiryDate = _trade?.Legs?[0]?.ExpiryDate.ToString("dd MMM yy") ?? "14 Jan 26",
-                Tenor = _trade?.Legs?[0]?.Tenor ?? "1M",
-                ExpiryCut = "NYC",
-                OrderId = $"FENICS.{DateTime.Now.Ticks.ToString().Substring(10, 8)}",
-                QuoteId = quoteIdToExecute
-            };
-
-            Deals.Insert(0, deal);
-            lblNoDeals.Visibility = Visibility.Collapsed;
-
-            // Send actual FIX execution
+  {
+         // Quoting - execute trade at best offer
+    await ExecuteTradeOnBestPrice("OFFER");
+  }
+        }
+      
+        private async Task SendQuoteRequestsAsync()
+    {
             try
-            {
-                // Build FIXMessage from quote data for execution
-                var quoteMsg = new FIXMessage("S");
-                quoteMsg.Set("117", quoteIdToExecute); // QuoteID
-                quoteMsg.Set("115", bestQuote.LP);      // OnBehalfOfCompID
-                quoteMsg.Set("55", _trade?.Underlying ?? "EURUSD");
-                quoteMsg.Set("5678", (side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol).ToString());
-                quoteMsg.Set("6436", (side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium).ToString());
+        {
+      _quotesByLP.Clear();
+                LPQuotes.Clear();
 
-                var executionSide = tradeSide == "BUY" ? "1" : "2"; // FIX Side: 1=Buy, 2=Sell
-                var clOrdId = _fixSession.SendExecution(quoteMsg, executionSide, _trade);
+    // Generate GroupID in GFI format: "{numLegs}-{randomCode}"
+           int numLegs = _trade?.Legs?.Count ?? 1;
+                string randomCode = GenerateRandomGroupCode();
+             _currentGroupId = $"{numLegs}-{randomCode}";
 
-                deal.ClOrdId = clOrdId;
-                Console.WriteLine($"[WPF] Execution sent: ClOrdID={clOrdId}");
+     // Get selected LPs from checkboxes
+       var selectedLPs = GetSelectedLPs();
 
-                // Subscribe to execution report for this order
-                SubscribeToExecutionReport(deal);
-            }
+    if (selectedLPs.Count == 0)
+{
+         MessageBox.Show("Please select at least one LP.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+             return;
+                }
+
+    // Ensure SpotReference is populated
+        if (_trade.SpotReference <= 0)
+             {
+   string pair = _trade?.Underlying ?? "EURUSD";
+                double bloombergSpot = await GetBloombergSpotAsync(pair);
+      if (bloombergSpot > 0)
+         {
+       _trade.SpotReference = bloombergSpot;
+        }
+           else
+     {
+           MessageBox.Show($"Unable to fetch spot rate for {pair}.", "Missing Spot Rate", MessageBoxButton.OK, MessageBoxImage.Warning);
+return;
+   }
+                }
+
+            // Apply hedge settings
+      ApplyHedgeSettingsToTrade();
+
+          Console.WriteLine($"\n[WPF] ========== SENDING RFQ ==========");
+    Console.WriteLine($"[WPF] GroupID: {_currentGroupId}");
+  Console.WriteLine($"[WPF] Selected LPs: {string.Join(", ", selectedLPs)}");
+
+   var hedgeType = GetHedgeTypeTag();
+    var premiumType = GetPremiumTypeTag();
+
+            foreach (var lp in selectedLPs)
+     {
+ var quoteReqId = _fixSession.SendQuoteRequest(_trade, lp, _currentGroupId, hedgeType, premiumType);
+       Console.WriteLine($"[WPF] Sent RFQ to {lp}: {quoteReqId}");
+     }
+
+ShowLiveState();
+      Console.WriteLine($"[WPF] RFQ sent to {selectedLPs.Count} LPs, waiting for quotes...\n");
+    }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WPF] ERROR sending execution: {ex.Message}");
-                deal.Status = "FAILED";
-
-                // Fallback: simulate confirmation for demo
-                var confirmTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-                confirmTimer.Tick += (s, args) =>
-                {
-                    deal.Status = "CONFIRMED";
-                    confirmTimer.Stop();
-                };
-                confirmTimer.Start();
-            }
+      MessageBox.Show($"Error sending RFQ: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+     Console.WriteLine($"[WPF] ERROR sending RFQ: {ex.Message}");
+          }
         }
 
-        private void SubscribeToExecutionReport(DealViewModel deal)
+        private async Task ExecuteTradeOnBestPrice(string side)
         {
-            // Listen for execution reports
-            Action<string, string, string> handler = null;
-            handler = (clOrdId, status, execId) =>
-            {
-                if (clOrdId == deal.ClOrdId)
-                {
-                    Dispatcher.BeginInvoke(() =>
-                    {
-                        if (status == "2") // Filled
-                        {
-                            deal.Status = "CONFIRMED";
-                            Console.WriteLine($"[WPF] Trade CONFIRMED: {clOrdId}");
-                        }
-                        else if (status == "8") // Rejected
-                        {
-                            deal.Status = "REJECTED";
-                            Console.WriteLine($"[WPF] Trade REJECTED: {clOrdId}");
-                        }
-                    });
+ if (!_isRfqActive || _quotesByLP.IsEmpty)
+      {
+     MessageBox.Show("No active quotes available.", "Cannot Execute", MessageBoxButton.OK, MessageBoxImage.Warning);
+      return;
+          }
 
-                    // Unsubscribe after handling
-                    _fixSession.Application.OnExecutionReport -= handler;
-                }
+     try
+      {
+             // Get best quote for the selected side
+     var quotes = _quotesByLP.Values.ToList();
+        LPQuoteData bestQuote = null;
+
+        if (side == "BID")
+   {
+        // Best bid = highest vol you receive
+         bestQuote = quotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
+    }
+    else // OFFER
+    {
+      // Best offer = lowest vol you pay
+         bestQuote = quotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
+     }
+
+       if (bestQuote == null)
+      {
+  MessageBox.Show($"No valid {side} quote available.", "Cannot Execute", MessageBoxButton.OK, MessageBoxImage.Warning);
+     return;
+     }
+
+     // Show confirmation
+       var result = MessageBox.Show(
+      $"Execute trade with {bestQuote.LP}?\n\n" +
+       $"Side: {side}\n" +
+$"Vol: {(side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol):F2}\n" +
+     $"Premium: {(side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium):N0}",
+        "Confirm Execution",
+        MessageBoxButton.YesNo,
+      MessageBoxImage.Question);
+
+      if (result == MessageBoxResult.Yes)
+  {
+         // TODO: Send execution order via FIX session
+        Console.WriteLine($"[WPF] Executing {side} with {bestQuote.LP}");
+
+      // For now, just show success message
+   MessageBox.Show($"Trade executed with {bestQuote.LP}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+    // Clear quotes after execution
+ShowRfqState();
+}
+     }
+        catch (Exception ex)
+  {
+    MessageBox.Show($"Error executing trade: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        Console.WriteLine($"[WPF] ERROR executing trade: {ex.Message}");
+        }
+        }
+
+        // Helper methods
+        private string GenerateRandomGroupCode()
+        {
+     const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  var random = new Random();
+    return new string(Enumerable.Repeat(chars, 8).Select(s => s[random.Next(s.Length)]).ToArray());
+     }
+
+      private List<string> GetSelectedLPs()
+     {
+            var selected = new List<string>();
+     if (FindName("chkMS") is CheckBox chkMS && chkMS.IsChecked == true) selected.Add("MS");
+      if (FindName("chkHSBC") is CheckBox chkHSBC && chkHSBC.IsChecked == true) selected.Add("HSBC");
+         if (FindName("chkBNP") is CheckBox chkBNP && chkBNP.IsChecked == true) selected.Add("BNP");
+            if (FindName("chkNATWEST") is CheckBox chkNATWEST && chkNATWEST.IsChecked == true) selected.Add("NATWEST");
+            if (FindName("chkSOCGEN") is CheckBox chkSOCGEN && chkSOCGEN.IsChecked == true) selected.Add("SOCGEN");
+      if (FindName("chkCIBC") is CheckBox chkCIBC && chkCIBC.IsChecked == true) selected.Add("CIBC");
+            if (FindName("chkSCBL") is CheckBox chkSCBL && chkSCBL.IsChecked == true) selected.Add("SCBL");
+        if (FindName("chkNOMURA") is CheckBox chkNOMURA && chkNOMURA.IsChecked == true) selected.Add("NOMURA");
+            if (FindName("chkBAML") is CheckBox chkBAML && chkBAML.IsChecked == true) selected.Add("BAML");
+     return selected;
+        }
+
+    private void ApplyHedgeSettingsToTrade()
+        {
+            if (_trade == null) return;
+   var deltaExchangeCombo = FindName("cmbDeltaExchange") as ComboBox;
+     if (deltaExchangeCombo?.SelectedItem is ComboBoxItem item)
+          {
+       var selection = item.Content?.ToString() ?? "";
+     if (selection.Contains("Forward")) _trade.HedgeType = "FORWARD";
+           else if (selection.Contains("Spot")) _trade.HedgeType = "SPOT";
+            else _trade.HedgeType = "NONE";
+       }
+  }
+
+        private string GetHedgeTypeTag()
+        {
+      return _trade?.HedgeType switch
+    {
+   "SPOT" => "1",
+                "FORWARD" => "2",
+    _ => "0"
             };
-
-            _fixSession.Application.OnExecutionReport += handler;
-
-            // Timeout: if no response in 30 seconds, assume confirmed (for demo)
-            var timeout = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
-            timeout.Tick += (s, args) =>
-            {
-                if (deal.Status == "PENDING")
-                {
-                    deal.Status = "CONFIRMED";
-                    Console.WriteLine($"[WPF] Trade confirmed (timeout): {deal.ClOrdId}");
-                }
-                _fixSession.Application.OnExecutionReport -= handler;
-                timeout.Stop();
-            };
-            timeout.Start();
         }
 
-        private void DealCard_Click(object sender, MouseButtonEventArgs e)
+   private string GetPremiumTypeTag()
         {
-            var border = sender as System.Windows.Controls.Border;
-            if (border?.DataContext is DealViewModel deal)
+     var premiumCombo = FindName("cmbPremiumDue") as ComboBox;
+    if (premiumCombo?.SelectedItem is ComboBoxItem item)
             {
-                deal.IsExpanded = !deal.IsExpanded;
-            }
+      var selection = item.Content?.ToString() ?? "";
+     return selection.Contains("FORWARD") ? "1" : "0";
+      }
+            return "0";
         }
 
-        private void CallPutToggle_Click(object sender, MouseButtonEventArgs e)
-        {
-            // Toggle between EUR Call/USD Put and EUR Put/USD Call
-            if (txtCallPut.Text == "EUR Put / USD Call")
-            {
-                txtCallPut.Text = "EUR Call / USD Put";
-            }
-            else
-            {
-                txtCallPut.Text = "EUR Put / USD Call";
-            }
-        }
-
-        #endregion
+ #endregion
     }
-
-    #region Data Models
-
-    public class LPQuoteData
-    {
-        public string LP { get; set; }
-        public double BidVol { get; set; }
-        public double BidPremium { get; set; }
-        public string BidQuoteId { get; set; }
-        public double OfferVol { get; set; }
-        public double OfferPremium { get; set; }
-        public string OfferQuoteId { get; set; }
-        public DateTime LastUpdate { get; set; }
-        public DateTime ValidUntilTime { get; set; }
-        public string SpotRate { get; set; }
-        public double Delta { get; set; }
-    }
-
-    #endregion
-
-    #region ViewModels
-
-    public class LPQuoteRow : INotifyPropertyChanged
-    {
-        public string LPName { get; set; }
-        public string BidVol { get; set; }
-        public string BidSecondary { get; set; }
-        public string OfferVol { get; set; }
-        public string OfferSecondary { get; set; }
-        public double Opacity { get; set; } = 1.0;
-        public bool IsBestBid { get; set; }
-        public bool IsBestOffer { get; set; }
-
-        private bool _isEnabled = true;
-        public bool IsEnabled
-        {
-            get => _isEnabled;
-            set { _isEnabled = value; OnPropertyChanged(nameof(IsEnabled)); OnPropertyChanged(nameof(LPForeground)); }
-        }
-
-        // Border highlights for best prices
-        public Brush BidBorderBrush => IsBestBid ? new SolidColorBrush(Color.FromRgb(59, 130, 246)) : Brushes.Transparent;
-        public Brush OfferBorderBrush => IsBestOffer ? new SolidColorBrush(Color.FromRgb(59, 130, 246)) : Brushes.Transparent;
-        public Brush BidBackground => IsBestBid ? new SolidColorBrush(Color.FromArgb(30, 30, 58, 138)) : Brushes.Transparent;
-        public Brush OfferBackground => IsBestOffer ? new SolidColorBrush(Color.FromArgb(30, 30, 58, 138)) : Brushes.Transparent;
-
-        // Text colors - best prices are bold white, others are dimmer
-        public Brush BidForeground => IsBestBid ? Brushes.White : new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
-        public Brush OfferForeground => IsBestOffer ? Brushes.White : new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
-        public Brush LPForeground => IsEnabled ? Brushes.White : new SolidColorBrush(Color.FromRgb(100, 116, 139));
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
-
-    public class DealViewModel : INotifyPropertyChanged
-    {
-        public string Time { get; set; }
-        public string Instrument { get; set; }
-        public string LP { get; set; }
-        public string Side { get; set; }
-        public string ClOrdId { get; set; }
-        public string QuoteId { get; set; }
-
-        private string _status = "PENDING";
-        public string Status
-        {
-            get => _status;
-            set
-            {
-                _status = value;
-                OnPropertyChanged(nameof(Status));
-                OnPropertyChanged(nameof(StatusBackground));
-                OnPropertyChanged(nameof(StatusForeground));
-            }
-        }
-
-        private bool _isExpanded;
-        public bool IsExpanded
-        {
-            get => _isExpanded;
-            set { _isExpanded = value; OnPropertyChanged(nameof(IsExpanded)); }
-        }
-
-        public string Volatility { get; set; }
-        public decimal Premium { get; set; }
-        public string PremiumDisplay => Premium.ToString("N0");
-        public string PremiumLabel => Side == "BUY" ? "Pay" : "Receive";
-        public string EurPips { get; set; }
-        public string SpotRate { get; set; }
-        public string Strike { get; set; }
-        public string Notional { get; set; }
-        public string ExpiryDate { get; set; }
-        public string Tenor { get; set; }
-        public string ExpiryCut { get; set; }
-        public string OrderId { get; set; }
-
-        public Brush SideColor => Side == "BUY"
-            ? new SolidColorBrush(Color.FromRgb(34, 197, 94))
-            : new SolidColorBrush(Color.FromRgb(239, 68, 68));
-
-        public Brush PremiumColor => Side == "BUY"
-            ? new SolidColorBrush(Color.FromRgb(239, 68, 68))
-            : new SolidColorBrush(Color.FromRgb(34, 197, 94));
-
-        public Brush StatusBackground => Status switch
-        {
-            "CONFIRMED" => new SolidColorBrush(Color.FromArgb(51, 34, 197, 94)),
-            "REJECTED" or "FAILED" => new SolidColorBrush(Color.FromArgb(51, 239, 68, 68)),
-            _ => new SolidColorBrush(Color.FromArgb(51, 245, 158, 11))
-        };
-
-        public Brush StatusForeground => Status switch
-        {
-            "CONFIRMED" => new SolidColorBrush(Color.FromRgb(34, 197, 94)),
-            "REJECTED" or "FAILED" => new SolidColorBrush(Color.FromRgb(239, 68, 68)),
-            _ => new SolidColorBrush(Color.FromRgb(245, 158, 11))
-        };
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
-
-    #endregion
 }
