@@ -554,7 +554,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
         <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
      <TextBlock Text="Quantity" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
- <ComboBox x:Name="cmbNotionalCcy" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0" MinWidth="55">
+ <ComboBox x:Name="cmbNotionalCcy" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="-1" MinWidth="55">
              <ComboBoxItem Content="EUR"/>
         <ComboBoxItem Content="USD"/>
     </ComboBox>
@@ -563,7 +563,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
         LostFocus="txtNotional_LostFocus"/>
  </Grid>
   <Border Height="1" Background="#1e293b"/>
- 
+
              <!-- Option Type (Call/Put) - Toggle Button with Switch Arrow -->
  <Grid Height="32">
    <Grid.ColumnDefinitions>
@@ -577,8 +577,8 @@ VerticalAlignment="Center" Margin="0,0,12,0"
           CornerRadius="4" Margin="0,0,8,0" Cursor="Hand"
           MouseLeftButtonUp="CallPutToggle_Click">
       <Grid Margin="8,6">
-          <TextBlock x:Name="txtCallPut" Text="EUR Put / USD Call"
-                     Foreground="#e2e8f0" FontSize="11" FontWeight="Normal"
+          <TextBlock x:Name="txtCallPut" Text="---"
+                     Foreground="#64748b" FontSize="11" FontWeight="Normal"
                      HorizontalAlignment="Left" VerticalAlignment="Center"/>
           <TextBlock Text="⇄" FontSize="14" Foreground="#64748b"
                      HorizontalAlignment="Right" VerticalAlignment="Center"
