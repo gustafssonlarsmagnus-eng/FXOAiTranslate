@@ -1960,20 +1960,37 @@ ShowRfqState();
 
         private void CancelRFQ_Click(object sender, RoutedEventArgs e)
         {
-            // Cancel pending RFQ and reset to RFQ state
-            Console.WriteLine($"[WPF] Canceling RFQ...");
+            try
+            {
+                Console.WriteLine($"[WPF] ========== CANCELING RFQ ==========");
+                Console.WriteLine($"[WPF] Timer running: {_countdownTimer.IsEnabled}");
+                Console.WriteLine($"[WPF] Active quotes: {_quotesByLP.Count}");
 
-            // Stop countdown timer
-            _countdownTimer.Stop();
+                // Stop countdown timer
+                _countdownTimer.Stop();
+                Console.WriteLine($"[WPF] Countdown timer stopped");
 
-            // Clear pending quotes
-            _quotesByLP.Clear();
-            LPQuotes.Clear();
+                // Clear pending quotes
+                _quotesByLP.Clear();
+                LPQuotes.Clear();
+                Console.WriteLine($"[WPF] Cleared all quotes");
 
-            // Reset to RFQ state
-            ShowRfqState();
+                // Clear current group ID
+                _currentGroupId = null;
 
-            Console.WriteLine($"[WPF] RFQ canceled, countdown stopped, returned to RFQ state");
+                // Reset to RFQ state
+                ShowRfqState();
+                Console.WriteLine($"[WPF] Returned to RFQ state");
+                Console.WriteLine($"[WPF] ========== RFQ CANCELED ==========\n");
+
+                // Visual confirmation
+                MessageBox.Show("RFQ canceled successfully", "Canceled", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] ERROR canceling RFQ: {ex.Message}");
+                MessageBox.Show($"Error canceling RFQ: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void CallPutToggle_Click(object sender, MouseButtonEventArgs e)
