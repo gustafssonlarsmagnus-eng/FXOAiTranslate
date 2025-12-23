@@ -1964,6 +1964,7 @@ ShowLiveState();
                 StatusBackground = new SolidColorBrush(Color.FromRgb(251, 191, 36)), // Amber/Yellow
                 StatusForeground = new SolidColorBrush(Colors.White),
                 Volatility = $"{executedVol:F2}",
+                EurPips = $"{Math.Abs(executedPremium):N0}", // Same as premium display
                 PremiumLabel = executedPremium >= 0 ? "RCV" : "PAY",
                 PremiumDisplay = $"{Math.Abs(executedPremium):N0}",
                 PremiumColor = executedPremium >= 0
