@@ -1765,6 +1765,14 @@ return 0.50; // ATM
         {
    if (!_isRfqActive)
  {
+        // Validate trade before sending RFQ
+        if (_trade == null || _trade.Legs == null || _trade.Legs.Count == 0 || _trade.Legs[0].Strike <= 0)
+        {
+            Console.WriteLine("[WPF] Cannot send RFQ - trade not parsed. Please click Parse button first.");
+            MessageBox.Show("Please parse a trade first using the Parse button.", "Trade Not Ready", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         // Not quoting - trigger RFQ
     _  = SendQuoteRequestsAsync();
    }
@@ -1782,6 +1790,14 @@ return 0.50; // ATM
     {
  if (!_isRfqActive)
    {
+        // Validate trade before sending RFQ
+        if (_trade == null || _trade.Legs == null || _trade.Legs.Count == 0 || _trade.Legs[0].Strike <= 0)
+        {
+            Console.WriteLine("[WPF] Cannot send RFQ - trade not parsed. Please click Parse button first.");
+            MessageBox.Show("Please parse a trade first using the Parse button.", "Trade Not Ready", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
  // Not quoting - trigger RFQ
    _ = SendQuoteRequestsAsync();
    }
