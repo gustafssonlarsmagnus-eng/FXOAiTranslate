@@ -2030,7 +2030,7 @@ ShowLiveState();
                 Time = DateTime.Now.ToString("HH:mm:ss"),
                 Instrument = _trade?.Underlying ?? "EURUSD",
                 LP = bestQuote.LP,
-                Side = side == "BID" ? "YOU REC" : "YOU PAY",
+                Side = side == "BID" ? "BUY" : "SELL",
                 SideColor = side == "BID"
                     ? new SolidColorBrush(Color.FromRgb(34, 197, 94))  // Green
                     : new SolidColorBrush(Color.FromRgb(239, 68, 68)), // Red
@@ -2186,6 +2186,52 @@ ShowLiveState();
                     }
 
                     Console.WriteLine($"[WPF] LP {checkbox.Name} {(checkbox.IsChecked == true ? "checked" : "unchecked")} - Opacity: {parent.Opacity}");
+                }
+            }
+        }
+
+        private void LPName_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is Border border)
+            {
+                var stackPanel = border.Child as StackPanel;
+                if (stackPanel != null)
+                {
+                    foreach (var child in stackPanel.Children)
+                    {
+                        if (child is TextBlock textBlock && textBlock.Name == "lpNameText")
+                        {
+                            // Brighten LP name on hover
+                            textBlock.Foreground = Brushes.White;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void LPName_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is LPQuoteRow row)
+            {
+                var stackPanel = border.Child as StackPanel;
+                if (stackPanel != null)
+                {
+                    foreach (var child in stackPanel.Children)
+                    {
+                        if (child is TextBlock textBlock && textBlock.Name == "lpNameText")
+                        {
+                            // Restore original color based on checkbox state
+                            var checkbox = stackPanel.Children.OfType<CheckBox>().FirstOrDefault();
+                            if (checkbox != null)
+                            {
+                                textBlock.Foreground = checkbox.IsChecked == true
+                                    ? Brushes.White
+                                    : new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                            }
+                            break;
+                        }
+                    }
                 }
             }
         }

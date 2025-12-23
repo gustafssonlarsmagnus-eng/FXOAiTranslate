@@ -297,9 +297,10 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
        </Border>
        
           <!-- LP Name + Checkbox (Center) -->
-  <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
+  <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
+          MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
- <TextBlock Text="{Binding LPName}" FontSize="11" FontWeight="Bold" 
+ <TextBlock x:Name="lpNameText" Text="{Binding LPName}" FontSize="11" FontWeight="Bold"
             Foreground="{Binding LPForeground}" HorizontalAlignment="Center"/>
       <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}" HorizontalAlignment="Center" Margin="0,2,0,0"
          Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed" Style="{StaticResource DarkCheckBox}"/>
@@ -331,7 +332,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
   <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
    <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-     <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+     <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
      </StackPanel>
      <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -341,7 +342,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
         </StackPanel>
     </Border>
  <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-  <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+  <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
       </StackPanel>
 </Grid>
  </Border>
@@ -355,7 +356,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
      <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
       <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-    <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+    <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
   </StackPanel>
     <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -365,7 +366,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
  </StackPanel>
    </Border>
   <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-  <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+  <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
     </Grid>
   </Border>
@@ -379,7 +380,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
    <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
  <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-     <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+     <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
      <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -389,7 +390,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
         </StackPanel>
  </Border>
    <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-<TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+<TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
        </Grid>
  </Border>
@@ -403,7 +404,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
     <ColumnDefinition Width="*"/>
   </Grid.ColumnDefinitions>
    <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
- <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+ <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
   </StackPanel>
   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -413,7 +414,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
      </StackPanel>
      </Border>
   <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-<TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+<TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
      </StackPanel>
      </Grid>
   </Border>
@@ -427,7 +428,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
 <ColumnDefinition Width="*"/>
 </Grid.ColumnDefinitions>
     <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-      <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+      <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
       </StackPanel>
    <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -437,7 +438,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
        </StackPanel>
   </Border>
       <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-      <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+      <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
  </Grid>
 </Border>
@@ -451,7 +452,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
   <ColumnDefinition Width="*"/>
      </Grid.ColumnDefinitions>
   <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-      <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+      <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
       </StackPanel>
    <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -461,7 +462,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
      </StackPanel>
    </Border>
   <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-      <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+      <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
  </Grid>
 </Border>
@@ -475,7 +476,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
   <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
     <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-  <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+  <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
       </StackPanel>
    <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -485,7 +486,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
        </StackPanel>
      </Border>
       <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-      <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+      <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
  </Grid>
 </Border>
@@ -499,7 +500,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
   <ColumnDefinition Width="*"/>
  </Grid.ColumnDefinitions>
     <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-      <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+      <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
    </StackPanel>
    <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -509,7 +510,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
    </StackPanel>
      </Border>
   <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-  <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+  <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
  </Grid>
 </Border>
@@ -523,7 +524,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
   <ColumnDefinition Width="*"/>
   </Grid.ColumnDefinitions>
     <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-    <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+    <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
       </StackPanel>
    <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -533,7 +534,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
   </StackPanel>
      </Border>
       <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
- <TextBlock Text="--" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+ <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
  </Grid>
 </Border>
@@ -959,15 +960,16 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  <Grid Grid.Row="1" Background="#1a1d23" Height="32" Margin="12,0">
          <Grid.ColumnDefinitions>
     <ColumnDefinition Width="60"/>
-         <ColumnDefinition Width="*"/>
- <ColumnDefinition Width="50"/>
- <ColumnDefinition Width="45"/>
-           <ColumnDefinition Width="80"/>
+         <ColumnDefinition Width="80"/>
+ <ColumnDefinition Width="55"/>
+ <ColumnDefinition Width="70"/>
+           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
       <TextBlock Text="TIME" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
          <TextBlock Grid.Column="1" Text="INSTRUMENT" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
-        <TextBlock Grid.Column="2" Text="LP" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
-     <TextBlock Grid.Column="3" Text="SIDE" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
+        <TextBlock Grid.Column="2" Text="STRIKE" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
+     <TextBlock Grid.Column="3" Text="BUY/SELL" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
+     <TextBlock Grid.Column="4" Text="STATUS" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
    </Grid>
 
              <!-- Deal Cards -->
@@ -986,21 +988,21 @@ VerticalAlignment="Center" Margin="0,0,12,0"
    <Grid Height="44" Margin="12,0">
     <Grid.ColumnDefinitions>
     <ColumnDefinition Width="60"/>
-          <ColumnDefinition Width="*"/>
-      <ColumnDefinition Width="50"/>
- <ColumnDefinition Width="45"/>
-           <ColumnDefinition Width="80"/>
+          <ColumnDefinition Width="80"/>
+      <ColumnDefinition Width="55"/>
+ <ColumnDefinition Width="70"/>
+           <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-       
+
   <TextBlock Text="{Binding Time}" FontFamily="JetBrains Mono, Consolas"
       FontSize="11" Foreground="#94a3b8" VerticalAlignment="Center"/>
-    <TextBlock Grid.Column="1" Text="{Binding Instrument}" 
+    <TextBlock Grid.Column="1" Text="{Binding Instrument}"
   FontSize="11" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
-  <TextBlock Grid.Column="2" Text="{Binding LP}" 
- FontSize="10" FontWeight="Bold" Foreground="#3b82f6" VerticalAlignment="Center"/>
- <TextBlock Grid.Column="3" Text="{Binding Side}" 
+  <TextBlock Grid.Column="2" Text="{Binding Strike}"
+ FontSize="10" FontWeight="Bold" Foreground="#facc15" VerticalAlignment="Center"/>
+ <TextBlock Grid.Column="3" Text="{Binding Side}"
           FontSize="10" FontWeight="Bold" Foreground="{Binding SideColor}" VerticalAlignment="Center"/>
-    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
   <Border CornerRadius="2" Padding="6,2" Background="{Binding StatusBackground}">
      <TextBlock Text="{Binding Status}" FontSize="9" FontWeight="Bold" Foreground="{Binding StatusForeground}"/>
       </Border>
