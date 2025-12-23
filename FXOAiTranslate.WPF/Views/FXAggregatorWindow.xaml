@@ -956,7 +956,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  </Grid>
 
    <!-- Column Headers -->
- <Grid Grid.Row="1" Background="#1a1d23" Height="32">
+ <Grid Grid.Row="1" Background="#1a1d23" Height="32" Margin="12,0">
          <Grid.ColumnDefinitions>
     <ColumnDefinition Width="60"/>
          <ColumnDefinition Width="*"/>
@@ -964,7 +964,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  <ColumnDefinition Width="45"/>
            <ColumnDefinition Width="80"/>
         </Grid.ColumnDefinitions>
-      <TextBlock Text="TIME" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center" Margin="12,0,0,0"/>
+      <TextBlock Text="TIME" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
          <TextBlock Grid.Column="1" Text="INSTRUMENT" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
         <TextBlock Grid.Column="2" Text="LP" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
      <TextBlock Grid.Column="3" Text="SIDE" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
