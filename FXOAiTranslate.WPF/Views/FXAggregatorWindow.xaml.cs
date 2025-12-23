@@ -23,6 +23,7 @@ namespace FXOAiTranslate.WPF.Views
         private readonly GFIFIXSessionManager _fixSession;
         private readonly BloombergService _bloombergService;
         private readonly ConcurrentDictionary<string, LPQuoteData> _quotesByLP;
+        private readonly ConcurrentDictionary<string, FIXMessage> _quotesByQuoteId; // Store FIXMessages for execution
         private readonly DispatcherTimer _countdownTimer;
         private string _currentGroupId;
         private bool _isRfqActive;
@@ -35,6 +36,7 @@ namespace FXOAiTranslate.WPF.Views
             LPQuotes = new ObservableCollection<LPQuoteRow>();
             Deals = new ObservableCollection<DealViewModel>();
             _quotesByLP = new ConcurrentDictionary<string, LPQuoteData>();
+            _quotesByQuoteId = new ConcurrentDictionary<string, FIXMessage>();
 
             lpLadder.ItemsSource = LPQuotes;
             dealCards.ItemsSource = Deals;
@@ -49,9 +51,13 @@ namespace FXOAiTranslate.WPF.Views
             // Subscribe to quote events
             if (_fixSession != null)
             {
+                // Subscribe to FIXMessage version for execution
+                _fixSession.Application.OnQuoteReceived += OnQuoteReceivedWithFIXMessage;
+
+                // Subscribe to QuoteData version for UI updates
                 _fixSession.OnQuoteReceived += OnQuoteReceived;
                 _fixSession.OnQuoteRequestRejected += OnQuoteRequestRejected;
-                Console.WriteLine("[WPF] Subscribed to FIX quote events");
+                Console.WriteLine("[WPF] Subscribed to FIX quote events (FIXMessage + QuoteData)");
             }
             else
             {
@@ -87,6 +93,7 @@ namespace FXOAiTranslate.WPF.Views
             // Unsubscribe from events
             if (_fixSession != null)
             {
+                _fixSession.Application.OnQuoteReceived -= OnQuoteReceivedWithFIXMessage;
                 _fixSession.OnQuoteReceived -= OnQuoteReceived;
                 _fixSession.OnQuoteRequestRejected -= OnQuoteRequestRejected;
             }
@@ -187,6 +194,26 @@ namespace FXOAiTranslate.WPF.Views
         #endregion
 
         #region FIX Quote Handling
+
+        /// <summary>
+        /// Handle quote received with FIXMessage (needed for execution)
+        /// </summary>
+        private void OnQuoteReceivedWithFIXMessage(string quoteReqID, FIXMessage fixMsg)
+        {
+            try
+            {
+                string quoteID = fixMsg.Get(QuickFix.Fields.Tags.QuoteID.ToString());
+
+                // Store FIXMessage by QuoteID for later execution
+                _quotesByQuoteId[quoteID] = fixMsg;
+
+                Console.WriteLine($"[WPF] Stored FIXMessage for execution: QuoteID={quoteID}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error storing FIXMessage: {ex.Message}");
+            }
+        }
 
         private void OnQuoteReceived(QuoteData quote)
         {
@@ -1903,13 +1930,27 @@ ShowLiveState();
      }
 
             // Execute immediately (no confirmation popup)
-            // TODO: Send execution order via FIX session
             Console.WriteLine($"[WPF] Executing {side} with {bestQuote.LP}");
 
             double executedVol = side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol;
             double executedPremium = side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium;
 
-            // Create deal card
+            // Get the correct QuoteID for this side
+            string quoteId = side == "BID" ? bestQuote.BidQuoteId : bestQuote.OfferQuoteId;
+
+            // Retrieve the FIXMessage for execution
+            if (!_quotesByQuoteId.TryGetValue(quoteId, out var fixMsg))
+            {
+                Console.WriteLine($"[WPF] ERROR: Quote {quoteId} not found in FIXMessage cache");
+                MessageBox.Show($"Quote not found: {quoteId}", "Execution Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Send execution order via FIX session
+            string clOrdID = _fixSession.SendExecution(fixMsg, side, _trade);
+            Console.WriteLine($"[WPF] Execution sent to GFI: ClOrdID={clOrdID}, QuoteID={quoteId}");
+
+            // Create deal card (initially PENDING, will be updated by ExecutionReport)
             var deal = new DealViewModel
             {
                 Time = DateTime.Now.ToString("HH:mm:ss"),
@@ -1919,8 +1960,8 @@ ShowLiveState();
                 SideColor = side == "BID"
                     ? new SolidColorBrush(Color.FromRgb(34, 197, 94))  // Green
                     : new SolidColorBrush(Color.FromRgb(239, 68, 68)), // Red
-                Status = "CONFIRMED",
-                StatusBackground = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
+                Status = "PENDING",
+                StatusBackground = new SolidColorBrush(Color.FromRgb(251, 191, 36)), // Amber/Yellow
                 StatusForeground = new SolidColorBrush(Colors.White),
                 Volatility = $"{executedVol:F2}",
                 PremiumLabel = executedPremium >= 0 ? "RCV" : "PAY",
@@ -1932,7 +1973,7 @@ ShowLiveState();
                 ExpiryDate = _trade?.Legs?.FirstOrDefault()?.ExpiryDate.ToString("dd-MMM-yy") ?? "",
                 Notional = $"{_trade?.Legs?.FirstOrDefault()?.NotionalMM ?? 0}M",
                 ExpiryCut = "10:00 NY",
-                OrderId = $"ORD-{DateTime.Now:HHmmss}",
+                OrderId = clOrdID, // Use actual ClOrdID from GFI
                 SpotRate = _trade?.SpotReference.ToString("F4") ?? ""
             };
 
@@ -1945,7 +1986,7 @@ ShowLiveState();
                 noDealsLabel.Visibility = Visibility.Collapsed;
             }
 
-            Console.WriteLine($"[WPF] Trade confirmed - added to deals panel");
+            Console.WriteLine($"[WPF] Trade execution sent - added to deals panel as PENDING (awaiting ExecutionReport)");
 
             // Clear quotes after execution
             ShowRfqState();
