@@ -465,9 +465,9 @@ Opacity = opacity,
 
       if (bestBid != null)
    {
-     // Display vol as main value (large text in red with 90% opacity, like HTML mockup)
+     // Display vol as main value (large white text)
     lblBidValue.Text = bestBid.BidVol.ToString("F2");
-     lblBidValue.Foreground = new SolidColorBrush(Color.FromArgb(230, 239, 68, 68)); // Red #ef4444 @ 90% opacity
+     lblBidValue.Foreground = Brushes.White;
         
    // Calculate pips: premium_usd / (notional_usd * 10000)
             double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0; // Default 10M
@@ -493,9 +493,9 @@ Opacity = opacity,
 
             if (bestOffer != null)
             {
-      // Display vol as main value (large text in blue with 90% opacity, like HTML mockup)
+      // Display vol as main value (large white text)
           lblOfferValue.Text = bestOffer.OfferVol.ToString("F2");
-            lblOfferValue.Foreground = new SolidColorBrush(Color.FromArgb(230, 59, 130, 246)); // Blue #3b82f6 @ 90% opacity
+            lblOfferValue.Foreground = Brushes.White;
     
     // Calculate pips
      double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
@@ -2139,29 +2139,38 @@ ShowLiveState();
 
         private void Tile_MouseEnter(object sender, MouseEventArgs e)
         {
-            // Brighten tile on hover (only when in RFQ state)
-            if (!_isRfqActive && sender is Border tile)
+            if (sender is Border tile)
             {
                 // Store original background
-                tile.Tag = tile.Background;
-                // Brighten by adjusting opacity
-                tile.Opacity = 1.0;
-
-                // Brighten the RFQ text to white (like HTML version)
-                var grid = tile.Child as Grid;
-                if (grid != null)
+                if (tile.Tag == null)
                 {
-                    // Find the TextBlock with "RFQ" text and brighten it
-                    foreach (var child in grid.Children)
+                    tile.Tag = tile.Background;
+                }
+
+                // Change to hover gradient (midnight blue) - matching HTML mockup
+                var hoverGradient = new LinearGradientBrush();
+                hoverGradient.StartPoint = new Point(0, 0);
+                hoverGradient.EndPoint = new Point(0, 1);
+                hoverGradient.GradientStops.Add(new GradientStop(Color.FromRgb(30, 37, 54), 0.0));   // #1e2536
+                hoverGradient.GradientStops.Add(new GradientStop(Color.FromRgb(17, 21, 31), 1.0));   // #11151f
+                tile.Background = hoverGradient;
+
+                // For initial RFQ state: brighten RFQ text to white
+                if (!_isRfqActive)
+                {
+                    var grid = tile.Child as Grid;
+                    if (grid != null)
                     {
-                        if (child is StackPanel stackPanel)
+                        foreach (var child in grid.Children)
                         {
-                            foreach (var spChild in stackPanel.Children)
+                            if (child is StackPanel stackPanel)
                             {
-                                if (spChild is TextBlock textBlock && textBlock.Text == "RFQ")
+                                foreach (var spChild in stackPanel.Children)
                                 {
-                                    // Brighten to white on hover (transition from #64748b to white)
-                                    textBlock.Foreground = Brushes.White;
+                                    if (spChild is TextBlock textBlock && textBlock.Text == "RFQ")
+                                    {
+                                        textBlock.Foreground = Brushes.White;
+                                    }
                                 }
                             }
                         }
@@ -2172,26 +2181,27 @@ ShowLiveState();
 
         private void Tile_MouseLeave(object sender, MouseEventArgs e)
         {
-            // Restore original appearance
-            if (!_isRfqActive && sender is Border tile && tile.Tag is Brush originalBrush)
+            if (sender is Border tile && tile.Tag is Brush originalBrush)
             {
+                // Restore original background gradient
                 tile.Background = originalBrush;
-                tile.Opacity = 0.9;
 
-                // Restore RFQ text color to slate gray
-                var grid = tile.Child as Grid;
-                if (grid != null)
+                // For initial RFQ state: restore RFQ text color to slate gray
+                if (!_isRfqActive)
                 {
-                    foreach (var child in grid.Children)
+                    var grid = tile.Child as Grid;
+                    if (grid != null)
                     {
-                        if (child is StackPanel stackPanel)
+                        foreach (var child in grid.Children)
                         {
-                            foreach (var spChild in stackPanel.Children)
+                            if (child is StackPanel stackPanel)
                             {
-                                if (spChild is TextBlock textBlock && textBlock.Text == "RFQ")
+                                foreach (var spChild in stackPanel.Children)
                                 {
-                                    // Restore to original slate color
-                                    textBlock.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                                    if (spChild is TextBlock textBlock && textBlock.Text == "RFQ")
+                                    {
+                                        textBlock.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                                    }
                                 }
                             }
                         }
