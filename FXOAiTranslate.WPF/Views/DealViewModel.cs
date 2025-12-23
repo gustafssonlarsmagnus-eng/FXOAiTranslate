@@ -10,15 +10,54 @@ namespace FXOAiTranslate.WPF.Views
     public class DealViewModel : INotifyPropertyChanged
  {
         private bool _isExpanded;
+        private string _status;
+        private Brush _statusBackground;
+        private Brush _statusForeground;
 
         public string Time { get; set; }
       public string Instrument { get; set; }
   public string LP { get; set; }
         public string Side { get; set; }
   public Brush SideColor { get; set; }
-        public string Status { get; set; }
-        public Brush StatusBackground { get; set; }
-        public Brush StatusForeground { get; set; }
+
+        public string Status
+        {
+            get => _status;
+            set
+            {
+                if (_status != value)
+                {
+                    _status = value;
+                    OnPropertyChanged(nameof(Status));
+                }
+            }
+        }
+
+        public Brush StatusBackground
+        {
+            get => _statusBackground;
+            set
+            {
+                if (_statusBackground != value)
+                {
+                    _statusBackground = value;
+                    OnPropertyChanged(nameof(StatusBackground));
+                }
+            }
+        }
+
+        public Brush StatusForeground
+        {
+            get => _statusForeground;
+            set
+            {
+                if (_statusForeground != value)
+                {
+                    _statusForeground = value;
+                    OnPropertyChanged(nameof(StatusForeground));
+                }
+            }
+        }
 
    // Pricing details
    public string Volatility { get; set; }

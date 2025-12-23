@@ -57,7 +57,11 @@ namespace FXOAiTranslate.WPF.Views
                 // Subscribe to QuoteData version for UI updates
                 _fixSession.OnQuoteReceived += OnQuoteReceived;
                 _fixSession.OnQuoteRequestRejected += OnQuoteRequestRejected;
-                Console.WriteLine("[WPF] Subscribed to FIX quote events (FIXMessage + QuoteData)");
+
+                // Subscribe to execution reports to update deal card status
+                _fixSession.Application.OnExecutionReport += OnExecutionReport;
+
+                Console.WriteLine("[WPF] Subscribed to FIX quote events (FIXMessage + QuoteData + ExecutionReport)");
             }
             else
             {
@@ -94,6 +98,7 @@ namespace FXOAiTranslate.WPF.Views
             if (_fixSession != null)
             {
                 _fixSession.Application.OnQuoteReceived -= OnQuoteReceivedWithFIXMessage;
+                _fixSession.Application.OnExecutionReport -= OnExecutionReport;
                 _fixSession.OnQuoteReceived -= OnQuoteReceived;
                 _fixSession.OnQuoteRequestRejected -= OnQuoteRequestRejected;
             }
@@ -239,6 +244,48 @@ namespace FXOAiTranslate.WPF.Views
 
                 // Only show MessageBox if ALL LPs have responded (none pending)
                 // For now, just log it - user will see successful quotes from other LPs
+            });
+        }
+
+        /// <summary>
+        /// Handle execution report to update deal card status
+        /// </summary>
+        private void OnExecutionReport(string clOrdID, string status, string execID)
+        {
+            // Marshal to UI thread
+            Dispatcher.BeginInvoke(() =>
+            {
+                Console.WriteLine($"[WPF] ExecutionReport received: ClOrdID={clOrdID}, Status={status}, ExecID={execID}");
+
+                // Find the deal card with this ClOrdID and update its status
+                var deal = Deals.FirstOrDefault(d => d.OrderId == clOrdID);
+                if (deal != null)
+                {
+                    // Update status based on execution report
+                    if (status == "FILLED" || status == "Filled")
+                    {
+                        deal.Status = "CONFIRMED";
+                        deal.StatusBackground = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Green
+                        deal.StatusForeground = new SolidColorBrush(Colors.White);
+                        Console.WriteLine($"[WPF] Deal {clOrdID} updated to CONFIRMED");
+                    }
+                    else if (status == "REJECTED" || status == "Rejected")
+                    {
+                        deal.Status = "REJECTED";
+                        deal.StatusBackground = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+                        deal.StatusForeground = new SolidColorBrush(Colors.White);
+                        Console.WriteLine($"[WPF] Deal {clOrdID} updated to REJECTED");
+                    }
+                    else
+                    {
+                        deal.Status = status;
+                        Console.WriteLine($"[WPF] Deal {clOrdID} status updated to {status}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"[WPF] WARNING: Deal with ClOrdID {clOrdID} not found in deals list");
+                }
             });
         }
 
