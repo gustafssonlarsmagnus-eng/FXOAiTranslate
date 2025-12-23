@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Speech.Synthesis;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -25,6 +26,7 @@ namespace FXOAiTranslate.WPF.Views
         private readonly ConcurrentDictionary<string, LPQuoteData> _quotesByLP;
         private readonly ConcurrentDictionary<string, FIXMessage> _quotesByQuoteId; // Store FIXMessages for execution
         private readonly DispatcherTimer _countdownTimer;
+        private readonly SpeechSynthesizer _speechSynthesizer;
         private string _currentGroupId;
         private bool _isRfqActive;
         private bool _dealsPanelExpanded = true;
@@ -71,6 +73,20 @@ namespace FXOAiTranslate.WPF.Views
             // Countdown timer for quote expiry
             _countdownTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _countdownTimer.Tick += CountdownTimer_Tick;
+
+            // Initialize speech synthesizer for audio confirmations
+            _speechSynthesizer = new SpeechSynthesizer();
+            _speechSynthesizer.Rate = 1; // Normal rate (SpeechSynthesizer uses -10 to 10, not 1.3 like web)
+            _speechSynthesizer.Volume = 100; // 0-100
+
+            // Try to select a female voice (like HTML mockup)
+            var femaleVoice = _speechSynthesizer.GetInstalledVoices()
+                .FirstOrDefault(v => v.VoiceInfo.Gender == VoiceGender.Female && v.VoiceInfo.Culture.Name.StartsWith("en"));
+            if (femaleVoice != null)
+            {
+                _speechSynthesizer.SelectVoice(femaleVoice.VoiceInfo.Name);
+                Console.WriteLine($"[WPF] Selected voice: {femaleVoice.VoiceInfo.Name}");
+            }
         }
 
         public FXAggregatorWindow(TradeStructure trade) : this()
@@ -103,6 +119,7 @@ namespace FXOAiTranslate.WPF.Views
                 _fixSession.OnQuoteRequestRejected -= OnQuoteRequestRejected;
             }
             _countdownTimer.Stop();
+            _speechSynthesizer?.Dispose();
             base.OnClosed(e);
         }
 
@@ -268,6 +285,16 @@ namespace FXOAiTranslate.WPF.Views
                         deal.StatusBackground = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Green
                         deal.StatusForeground = new SolidColorBrush(Colors.White);
                         Console.WriteLine($"[WPF] Deal {clOrdID} updated to CONFIRMED");
+
+                        // Speak "Confirmed" with female voice (like HTML mockup)
+                        try
+                        {
+                            _speechSynthesizer.SpeakAsync("Confirmed");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[WPF] Error speaking confirmation: {ex.Message}");
+                        }
                     }
                     else if (status == "REJECTED" || status == "Rejected")
                     {
