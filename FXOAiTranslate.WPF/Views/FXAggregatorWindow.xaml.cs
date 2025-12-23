@@ -1840,27 +1840,53 @@ ShowLiveState();
      return;
      }
 
-     // Show confirmation
-       var result = MessageBox.Show(
-      $"Execute trade with {bestQuote.LP}?\n\n" +
-       $"Side: {side}\n" +
-$"Vol: {(side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol):F2}\n" +
-     $"Premium: {(side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium):N0}",
-        "Confirm Execution",
-        MessageBoxButton.YesNo,
-      MessageBoxImage.Question);
+            // Execute immediately (no confirmation popup)
+            // TODO: Send execution order via FIX session
+            Console.WriteLine($"[WPF] Executing {side} with {bestQuote.LP}");
 
-      if (result == MessageBoxResult.Yes)
-  {
-         // TODO: Send execution order via FIX session
-        Console.WriteLine($"[WPF] Executing {side} with {bestQuote.LP}");
+            double executedVol = side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol;
+            double executedPremium = side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium;
 
-      // For now, just show success message
-   MessageBox.Show($"Trade executed with {bestQuote.LP}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Create deal card
+            var deal = new DealViewModel
+            {
+                Time = DateTime.Now.ToString("HH:mm:ss"),
+                Instrument = _trade?.Underlying ?? "EURUSD",
+                LP = bestQuote.LP,
+                Side = side == "BID" ? "YOU REC" : "YOU PAY",
+                SideColor = side == "BID"
+                    ? new SolidColorBrush(Color.FromRgb(34, 197, 94))  // Green
+                    : new SolidColorBrush(Color.FromRgb(239, 68, 68)), // Red
+                Status = "CONFIRMED",
+                StatusBackground = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
+                StatusForeground = new SolidColorBrush(Colors.White),
+                Volatility = $"{executedVol:F2}",
+                PremiumLabel = executedPremium >= 0 ? "RCV" : "PAY",
+                PremiumDisplay = $"{Math.Abs(executedPremium):N0}",
+                PremiumColor = executedPremium >= 0
+                    ? new SolidColorBrush(Color.FromRgb(34, 197, 94))
+                    : new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+                Strike = _trade?.Legs?.FirstOrDefault()?.Strike.ToString("F4") ?? "",
+                ExpiryDate = _trade?.Expiry.ToString("dd-MMM-yy") ?? "",
+                Notional = $"{_trade?.Legs?.FirstOrDefault()?.NotionalMM ?? 0}M",
+                ExpiryCut = "10:00 NY",
+                OrderId = $"ORD-{DateTime.Now:HHmmss}",
+                SpotRate = _trade?.SpotReference.ToString("F4") ?? ""
+            };
 
-    // Clear quotes after execution
-ShowRfqState();
-}
+            // Add to deals collection (shows on right panel)
+            Deals.Insert(0, deal); // Insert at top (most recent first)
+
+            // Hide "No deals" message
+            if (FindName("lblNoDeals") is TextBlock noDealsLabel)
+            {
+                noDealsLabel.Visibility = Visibility.Collapsed;
+            }
+
+            Console.WriteLine($"[WPF] Trade confirmed - added to deals panel");
+
+            // Clear quotes after execution
+            ShowRfqState();
      }
         catch (Exception ex)
   {
