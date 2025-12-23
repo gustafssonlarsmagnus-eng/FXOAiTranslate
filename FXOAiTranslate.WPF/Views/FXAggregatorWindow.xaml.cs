@@ -2100,7 +2100,7 @@ ShowLiveState();
                     {
                         foreach (var child in LogicalTreeHelper.GetChildren(stackPanel))
                         {
-                            if (child is TextBlock textBlock && textBlock != checkbox)
+                            if (child is TextBlock textBlock)
                             {
                                 // Set text color: White when checked, gray when unchecked
                                 textBlock.Foreground = checkbox.IsChecked == true
