@@ -479,11 +479,57 @@ lblOfferSecondary.Visibility = Visibility.Visible;
 
         private async void ParseButton_Click(object sender, RoutedEventArgs e)
         {
-            // Parse trade input and update the trade structure
-            await ParseTradeInput();
-            UpdateUIFieldsFromTrade();
+            if (sender is not Button parseButton) return;
+
+            // Store original state
+            var originalContent = parseButton.Content;
+            var originalBackground = parseButton.Background;
+            var originalForeground = parseButton.Foreground;
+
+            try
+            {
+                // Show loading state
+                parseButton.Content = "Parsing...";
+                parseButton.IsEnabled = false;
+                parseButton.Background = new SolidColorBrush(Color.FromRgb(51, 37, 235)); // Slightly darker blue
+                Console.WriteLine("[WPF] Parsing trade input...");
+
+                // Parse trade input and update the trade structure
+                await ParseTradeInput();
+
+                // Show success state
+                parseButton.Content = "✓ Parsed";
+                parseButton.Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Green
+                parseButton.Foreground = Brushes.White;
+                Console.WriteLine("[WPF] Trade parsed successfully");
+
+                UpdateUIFieldsFromTrade();
+
+                // Reset button after short delay
+                await Task.Delay(1500);
+            }
+            catch (Exception ex)
+            {
+                // Show error state
+                parseButton.Content = "✗ Error";
+                parseButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+                parseButton.Foreground = Brushes.White;
+                Console.WriteLine($"[WPF] ERROR parsing trade: {ex.Message}");
+
+                // Reset button after longer delay for error
+                await Task.Delay(2000);
+            }
+            finally
+            {
+                // Restore original state
+                parseButton.Content = originalContent;
+                parseButton.Background = originalBackground;
+                parseButton.Foreground = originalForeground;
+                parseButton.IsEnabled = true;
+            }
+
             // Don't auto-send RFQ - let user click RFQ tiles manually to request quotes
-            Console.WriteLine("[WPF] Trade parsed - ready for RFQ (user should click tiles)");
+            Console.WriteLine("[WPF] Trade ready for RFQ (user should click tiles)");
         }
 
         private void txtTradeInput_Loaded(object sender, RoutedEventArgs e)
