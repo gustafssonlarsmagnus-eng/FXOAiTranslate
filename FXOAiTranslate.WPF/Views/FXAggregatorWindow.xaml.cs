@@ -1867,7 +1867,7 @@ ShowLiveState();
                     ? new SolidColorBrush(Color.FromRgb(34, 197, 94))
                     : new SolidColorBrush(Color.FromRgb(239, 68, 68)),
                 Strike = _trade?.Legs?.FirstOrDefault()?.Strike.ToString("F4") ?? "",
-                ExpiryDate = _trade?.Expiry.ToString("dd-MMM-yy") ?? "",
+                ExpiryDate = _trade?.Legs?.FirstOrDefault()?.ExpiryDate.ToString("dd-MMM-yy") ?? "",
                 Notional = $"{_trade?.Legs?.FirstOrDefault()?.NotionalMM ?? 0}M",
                 ExpiryCut = "10:00 NY",
                 OrderId = $"ORD-{DateTime.Now:HHmmss}",
