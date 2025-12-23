@@ -1980,8 +1980,29 @@ ShowLiveState();
 
         private void LPCheckbox_Changed(object sender, RoutedEventArgs e)
         {
-            // LP selection changed - could update UI or validate selection
-            Console.WriteLine($"[WPF] LP selection changed");
+            if (sender is CheckBox checkbox)
+            {
+                // Find the parent Grid to update its opacity
+                var parent = FindVisualParent<Grid>(checkbox);
+                if (parent != null)
+                {
+                    // Set opacity based on checkbox state
+                    parent.Opacity = checkbox.IsChecked == true ? 1.0 : 0.4;
+                    Console.WriteLine($"[WPF] LP {checkbox.Name} {(checkbox.IsChecked == true ? "checked" : "unchecked")} - Opacity: {parent.Opacity}");
+                }
+            }
+        }
+
+        // Helper method to find parent of specific type
+        private T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            var parent = VisualTreeHelper.GetParent(child);
+            if (parent == null) return null;
+
+            if (parent is T typedParent)
+                return typedParent;
+
+            return FindVisualParent<T>(parent);
         }
 
         private void CancelRFQ_Click(object sender, RoutedEventArgs e)
