@@ -252,6 +252,8 @@ if (quote.IsSetField(5678)) // Volatility tag
                         OfferPremium = side == "OFFER" ? ParseFieldDouble(6436) : 0,
                         BidVol = side == "BID" ? ParseFieldDouble(5678) : 0,
                         OfferVol = side == "OFFER" ? ParseFieldDouble(5678) : 0,
+                        BidLegPremPrice = side == "BID" ? ParseFieldDouble(5844) : 0,  // Tag 5844: Premium per MM ("pips")
+                        OfferLegPremPrice = side == "OFFER" ? ParseFieldDouble(5844) : 0,  // Tag 5844: Premium per MM ("pips")
                         Notional = ParseFieldDouble(5359),  // MQSize
                         Delta = ParseFieldDouble(6035),      // LegDelta
                         PremiumCurrency = GetFieldString(5830),  // PremiumCcy

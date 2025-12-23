@@ -37,6 +37,18 @@ namespace FXOptionsSimulator
         public double OfferVol { get; set; }
 
         /// <summary>
+        /// BID leg premium price (premium per million)
+        /// FIX Tag 5844 - This is the "pips" value streamed by GFI
+        /// </summary>
+        public double BidLegPremPrice { get; set; }
+
+        /// <summary>
+        /// OFFER leg premium price (premium per million)
+        /// FIX Tag 5844 - This is the "pips" value streamed by GFI
+        /// </summary>
+        public double OfferLegPremPrice { get; set; }
+
+        /// <summary>
         /// Quote ID for execution (critical - must match exactly)
         /// FIX Tag 117
         /// </summary>

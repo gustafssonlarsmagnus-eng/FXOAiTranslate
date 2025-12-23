@@ -332,12 +332,14 @@ namespace FXOAiTranslate.WPF.Views
             {
                 lpData.BidVol = quote.BidVol;
                 lpData.BidPremium = quote.BidPremium;
+                lpData.BidLegPremPrice = quote.BidLegPremPrice;  // Tag 5844: Premium per MM ("pips")
                 lpData.BidQuoteId = quote.QuoteID;
             }
             else
             {
                 lpData.OfferVol = quote.OfferVol;
                 lpData.OfferPremium = quote.OfferPremium;
+                lpData.OfferLegPremPrice = quote.OfferLegPremPrice;  // Tag 5844: Premium per MM ("pips")
                 lpData.OfferQuoteId = quote.QuoteID;
             }
 
@@ -2008,6 +2010,7 @@ ShowLiveState();
 
             double executedVol = side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol;
             double executedPremium = side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium;
+            double executedLegPremPrice = side == "BID" ? bestQuote.BidLegPremPrice : bestQuote.OfferLegPremPrice;  // Tag 5844 from GFI
 
             // Get the correct QuoteID for this side
             string quoteId = side == "BID" ? bestQuote.BidQuoteId : bestQuote.OfferQuoteId;
@@ -2038,7 +2041,7 @@ ShowLiveState();
                 StatusBackground = new SolidColorBrush(Color.FromRgb(251, 191, 36)), // Amber/Yellow
                 StatusForeground = new SolidColorBrush(Colors.White),
                 Volatility = $"{executedVol:F2}",
-                EurPips = $"{Math.Round(Math.Abs(executedPremium) / 1000):F0}p", // Pips = Premium / 1000 (e.g., 54,300 USD = 54p)
+                EurPips = $"{Math.Round(Math.Abs(executedLegPremPrice)):F0}p", // Use Tag 5844 (LegPremPrice) from GFI - already in "pips" format
                 PremiumLabel = executedPremium >= 0 ? "RCV" : "PAY",
                 PremiumDisplay = $"{Math.Abs(executedPremium):N0}",
                 PremiumColor = executedPremium >= 0
