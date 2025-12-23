@@ -300,7 +300,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
           MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
- <TextBlock x:Name="lpNameText" Text="{Binding LPName}" FontSize="11" FontWeight="Bold"
+ <TextBlock Text="{Binding LPName}" FontSize="11" FontWeight="Bold"
             Foreground="{Binding LPForeground}" HorizontalAlignment="Center"/>
       <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}" HorizontalAlignment="Center" Margin="0,2,0,0"
          Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed" Style="{StaticResource DarkCheckBox}"/>

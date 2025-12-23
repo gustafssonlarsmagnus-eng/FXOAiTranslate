@@ -170,7 +170,7 @@ namespace FXOAiTranslate.WPF.Views
             // Show bid tile in live quoting state (waiting for quotes)
             lblBidLabel.Visibility = Visibility.Visible;
             lblBidRfqHint.Visibility = Visibility.Collapsed;
-            lblBidValue.Text = "---"; // Clear to blank/waiting state
+            lblBidValue.Text = ""; // Empty while waiting
             lblBidValue.FontSize = 72;
             lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // Dim grey while waiting
             lblBidSecondary.Text = "Requesting...";
@@ -180,7 +180,7 @@ namespace FXOAiTranslate.WPF.Views
             // Show offer tile in live quoting state (waiting for quotes)
             lblOfferLabel.Visibility = Visibility.Visible;
             lblOfferRfqHint.Visibility = Visibility.Collapsed;
-            lblOfferValue.Text = "---"; // Clear to blank/waiting state
+            lblOfferValue.Text = ""; // Empty while waiting
             lblOfferValue.FontSize = 72;
             lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // Dim grey while waiting
             lblOfferSecondary.Text = "Requesting...";
@@ -190,7 +190,7 @@ namespace FXOAiTranslate.WPF.Views
     // Don't show spread panel until we have actual quotes
     // It will be shown in UpdateBestPrices when both bid and offer exist
         spreadPanel.Visibility = Visibility.Collapsed;
-  lblSpread.Text = "---";
+  lblSpread.Text = "";
 
    // Show STOP RFQ button in control bar
      if (FindName("btnStopRFQ") is Button stopButton)
