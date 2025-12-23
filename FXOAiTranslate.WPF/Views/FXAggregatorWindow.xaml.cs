@@ -465,9 +465,9 @@ Opacity = opacity,
 
       if (bestBid != null)
    {
-     // Display vol as main value (large white text)
+     // Display vol as main value (large text in red with 90% opacity, like HTML mockup)
     lblBidValue.Text = bestBid.BidVol.ToString("F2");
-     lblBidValue.Foreground = Brushes.White;
+     lblBidValue.Foreground = new SolidColorBrush(Color.FromArgb(230, 239, 68, 68)); // Red #ef4444 @ 90% opacity
         
    // Calculate pips: premium_usd / (notional_usd * 10000)
             double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0; // Default 10M
@@ -493,9 +493,9 @@ Opacity = opacity,
 
             if (bestOffer != null)
             {
-      // Display vol as main value (large white text)
+      // Display vol as main value (large text in blue with 90% opacity, like HTML mockup)
           lblOfferValue.Text = bestOffer.OfferVol.ToString("F2");
-            lblOfferValue.Foreground = Brushes.White;
+            lblOfferValue.Foreground = new SolidColorBrush(Color.FromArgb(230, 59, 130, 246)); // Blue #3b82f6 @ 90% opacity
     
     // Calculate pips
      double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
