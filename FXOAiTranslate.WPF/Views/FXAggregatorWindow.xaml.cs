@@ -2038,7 +2038,7 @@ ShowLiveState();
                 StatusBackground = new SolidColorBrush(Color.FromRgb(251, 191, 36)), // Amber/Yellow
                 StatusForeground = new SolidColorBrush(Colors.White),
                 Volatility = $"{executedVol:F2}",
-                EurPips = $"{Math.Round(executedVol * 10):F0}p", // Convert vol% to pips (1% = 10 pips, e.g., 5.37% = 54p)
+                EurPips = $"{Math.Round(Math.Abs(executedPremium) / 1000):F0}p", // Pips = Premium / 1000 (e.g., 54,300 USD = 54p)
                 PremiumLabel = executedPremium >= 0 ? "RCV" : "PAY",
                 PremiumDisplay = $"{Math.Abs(executedPremium):N0}",
                 PremiumColor = executedPremium >= 0
@@ -2242,8 +2242,9 @@ ShowLiveState();
                     var textBlock = stackPanel.Children.OfType<TextBlock>().FirstOrDefault();
                     if (textBlock != null)
                     {
-                        // Brighten LP name to white on hover
-                        textBlock.Foreground = Brushes.White;
+                        // Store original brush in Tag, then brighten to white
+                        textBlock.Tag = textBlock.Foreground;
+                        textBlock.SetCurrentValue(TextBlock.ForegroundProperty, Brushes.White);
                     }
                 }
             }
@@ -2258,16 +2259,38 @@ ShowLiveState();
                 {
                     // Find the first TextBlock (LP name)
                     var textBlock = stackPanel.Children.OfType<TextBlock>().FirstOrDefault();
-                    var checkbox = stackPanel.Children.OfType<CheckBox>().FirstOrDefault();
 
-                    if (textBlock != null && checkbox != null)
+                    if (textBlock != null && textBlock.Tag is Brush originalBrush)
                     {
-                        // Restore original color based on checkbox state
-                        textBlock.Foreground = checkbox.IsChecked == true
-                            ? Brushes.White
-                            : new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                        // Restore original brush from Tag
+                        textBlock.SetCurrentValue(TextBlock.ForegroundProperty, originalBrush);
+                        textBlock.Tag = null; // Clean up
                     }
                 }
+            }
+        }
+
+        private void HeroValue_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is TextBlock textBlock)
+            {
+                // Only brighten if showing actual values (not "RFQ" or "Requesting...")
+                if (_isRfqActive && textBlock.Text != "RFQ" && textBlock.Text != "Requesting...")
+                {
+                    // Store original foreground and brighten to white
+                    textBlock.Tag = textBlock.Foreground;
+                    textBlock.SetCurrentValue(TextBlock.ForegroundProperty, Brushes.White);
+                }
+            }
+        }
+
+        private void HeroValue_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is TextBlock textBlock && textBlock.Tag is Brush originalBrush)
+            {
+                // Restore original foreground
+                textBlock.SetCurrentValue(TextBlock.ForegroundProperty, originalBrush);
+                textBlock.Tag = null; // Clean up
             }
         }
 
