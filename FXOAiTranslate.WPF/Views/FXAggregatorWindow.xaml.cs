@@ -2038,7 +2038,7 @@ ShowLiveState();
                 StatusBackground = new SolidColorBrush(Color.FromRgb(251, 191, 36)), // Amber/Yellow
                 StatusForeground = new SolidColorBrush(Colors.White),
                 Volatility = $"{executedVol:F2}",
-                EurPips = $"{Math.Abs(executedPremium):N0}", // Same as premium display
+                EurPips = $"{executedVol:F2}p", // Show volatility in pips format (e.g., "5.33p")
                 PremiumLabel = executedPremium >= 0 ? "RCV" : "PAY",
                 PremiumDisplay = $"{Math.Abs(executedPremium):N0}",
                 PremiumColor = executedPremium >= 0
@@ -2141,8 +2141,29 @@ ShowLiveState();
             {
                 // Store original background
                 tile.Tag = tile.Background;
-                // Brighten by adjusting opacity or color
+                // Brighten by adjusting opacity
                 tile.Opacity = 1.0;
+
+                // Brighten the RFQ text to white (like HTML version)
+                var grid = tile.Child as Grid;
+                if (grid != null)
+                {
+                    // Find the TextBlock with "RFQ" text and brighten it
+                    foreach (var child in grid.Children)
+                    {
+                        if (child is StackPanel stackPanel)
+                        {
+                            foreach (var spChild in stackPanel.Children)
+                            {
+                                if (spChild is TextBlock textBlock && textBlock.Text == "RFQ")
+                                {
+                                    // Brighten to white on hover (transition from #64748b to white)
+                                    textBlock.Foreground = Brushes.White;
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -2153,6 +2174,26 @@ ShowLiveState();
             {
                 tile.Background = originalBrush;
                 tile.Opacity = 0.9;
+
+                // Restore RFQ text color to slate gray
+                var grid = tile.Child as Grid;
+                if (grid != null)
+                {
+                    foreach (var child in grid.Children)
+                    {
+                        if (child is StackPanel stackPanel)
+                        {
+                            foreach (var spChild in stackPanel.Children)
+                            {
+                                if (spChild is TextBlock textBlock && textBlock.Text == "RFQ")
+                                {
+                                    // Restore to original slate color
+                                    textBlock.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -2197,14 +2238,12 @@ ShowLiveState();
                 var stackPanel = border.Child as StackPanel;
                 if (stackPanel != null)
                 {
-                    foreach (var child in stackPanel.Children)
+                    // Find the first TextBlock (LP name) in the StackPanel
+                    var textBlock = stackPanel.Children.OfType<TextBlock>().FirstOrDefault();
+                    if (textBlock != null)
                     {
-                        if (child is TextBlock textBlock && textBlock.Name == "lpNameText")
-                        {
-                            // Brighten LP name on hover
-                            textBlock.Foreground = Brushes.White;
-                            break;
-                        }
+                        // Brighten LP name to white on hover
+                        textBlock.Foreground = Brushes.White;
                     }
                 }
             }
@@ -2212,25 +2251,21 @@ ShowLiveState();
 
         private void LPName_MouseLeave(object sender, MouseEventArgs e)
         {
-            if (sender is Border border && border.DataContext is LPQuoteRow row)
+            if (sender is Border border)
             {
                 var stackPanel = border.Child as StackPanel;
                 if (stackPanel != null)
                 {
-                    foreach (var child in stackPanel.Children)
+                    // Find the first TextBlock (LP name)
+                    var textBlock = stackPanel.Children.OfType<TextBlock>().FirstOrDefault();
+                    var checkbox = stackPanel.Children.OfType<CheckBox>().FirstOrDefault();
+
+                    if (textBlock != null && checkbox != null)
                     {
-                        if (child is TextBlock textBlock && textBlock.Name == "lpNameText")
-                        {
-                            // Restore original color based on checkbox state
-                            var checkbox = stackPanel.Children.OfType<CheckBox>().FirstOrDefault();
-                            if (checkbox != null)
-                            {
-                                textBlock.Foreground = checkbox.IsChecked == true
-                                    ? Brushes.White
-                                    : new SolidColorBrush(Color.FromRgb(100, 116, 139));
-                            }
-                            break;
-                        }
+                        // Restore original color based on checkbox state
+                        textBlock.Foreground = checkbox.IsChecked == true
+                            ? Brushes.White
+                            : new SolidColorBrush(Color.FromRgb(100, 116, 139));
                     }
                 }
             }
