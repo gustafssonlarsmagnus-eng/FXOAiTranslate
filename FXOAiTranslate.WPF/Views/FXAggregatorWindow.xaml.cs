@@ -2050,6 +2050,25 @@ ShowLiveState();
                 {
                     // Set opacity based on checkbox state
                     parent.Opacity = checkbox.IsChecked == true ? 1.0 : 0.4;
+
+                    // Also update the LP name TextBlock foreground color
+                    // Find the TextBlock that shows LP name (it's a sibling of the checkbox in the StackPanel)
+                    var stackPanel = FindVisualParent<StackPanel>(checkbox);
+                    if (stackPanel != null)
+                    {
+                        foreach (var child in LogicalTreeHelper.GetChildren(stackPanel))
+                        {
+                            if (child is TextBlock textBlock && textBlock != checkbox)
+                            {
+                                // Set text color: White when checked, gray when unchecked
+                                textBlock.Foreground = checkbox.IsChecked == true
+                                    ? Brushes.White
+                                    : new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748b
+                                break;
+                            }
+                        }
+                    }
+
                     Console.WriteLine($"[WPF] LP {checkbox.Name} {(checkbox.IsChecked == true ? "checked" : "unchecked")} - Opacity: {parent.Opacity}");
                 }
             }
