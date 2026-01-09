@@ -62,10 +62,10 @@
         <GradientStop Color="#0f1114" Offset="1"/>
     </LinearGradientBrush>
     
-    <!-- Tile Hover Gradient (Midnight Blue) -->
+    <!-- Tile Hover Gradient (Lighter/Brighter Blue) -->
     <LinearGradientBrush x:Key="Brush.TileHoverGradient" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#1e2536" Offset="0"/>
-        <GradientStop Color="#11151f" Offset="1"/>
+        <GradientStop Color="#2a3347" Offset="0"/>
+        <GradientStop Color="#1a2030" Offset="1"/>
     </LinearGradientBrush>
  
     <!-- Tile Flash Gradient (for trade execution) -->

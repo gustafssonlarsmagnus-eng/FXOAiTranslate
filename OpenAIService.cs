@@ -258,6 +258,21 @@ RISK REVERSAL (RR) RULES:
 - For zero-cost RR: Premium(Long option) = Premium(Short option)
 - Calculate the unknown strike to achieve zero net cost
 
+DELTA-BASED RISK REVERSAL:
+- Common shorthand notations: ""25d r/r"", ""25 delta rr"", ""10d risk reversal"", ""25d R/R""
+- ""25d r/r"" means a 25-delta risk reversal: Buy 25-delta Put + Sell 25-delta Call
+- The 'd' suffix means delta (e.g., 25d = 25 delta, 10d = 10 delta)
+- Use delta strikes: DS25 (spot delta) or DF25 (forward delta) instead of numeric strikes
+- Format: OVML (currency) (expiry) 2L B,S DS(delta)P,DS(delta)C RR VA [SP(spot)]
+- DEFAULT: Delta RR is Buy Put, Sell Call (protective structure)
+- Examples:
+  * ""EURNOK 6m 25d r/r"" → OVML EURNOK 6M 2L B,S DS25P,DS25C RR VA
+  * ""EURUSD 1m 10 delta risk reversal"" → OVML EURUSD 1M 2L B,S DS10P,DS10C RR VA  
+  * ""USDSEK 3m 25d rr in 50m"" → OVML USDSEK 3M 2L B,S DS25P,DS25C N50M,50M RR VA
+  * ""buy 25 delta r/r GBPUSD 2M"" → OVML GBPUSD 2M 2L B,S DS25P,DS25C RR VA
+- CRITICAL: ""r/r"", ""rr"", ""R/R"" all mean risk reversal
+- CRITICAL: When only delta is given (no strikes), use DS(delta) format, not numeric strikes
+
 SPOT REFERENCE AND DELTA NOTATION:
 - 'Sr: 10.9250', 'fwd ref 0.9463', or 'delta 20m @ 9.3890' provides the spot reference for pricing
 - The @ or Sr: or fwd ref value becomes the SP field in OVML output

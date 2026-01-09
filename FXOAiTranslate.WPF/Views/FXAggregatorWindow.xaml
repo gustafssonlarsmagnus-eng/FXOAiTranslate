@@ -35,18 +35,18 @@
         <!-- TRADE INPUT -->
      <Border Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8">
            <Grid>
-           <!-- TextBox with extra right padding for button (thinner with 6px vertical padding) -->
+   <!-- TextBox with extra right padding for button (thinner with 6px vertical padding) -->
            <TextBox x:Name="txtTradeInput"
-     Style="{StaticResource DarkTextBox}"
+   Style="{StaticResource DarkTextBox}"
   FontSize="14" Padding="12,6,80,6"
         Text=""
         Tag="E.g., buy 10mio EURUSD 1m call 1.18"
         GotFocus="txtTradeInput_GotFocus"
-        LostFocus="txtTradeInput_LostFocus"
-        Loaded="txtTradeInput_Loaded"/>
-
+LostFocus="txtTradeInput_LostFocus"
+        Loaded="txtTradeInput_Loaded"
+      PreviewKeyDown="txtTradeInput_KeyDown"/>
         <!-- Parse button overlaid on the right (HTML style) -->
-        <Button Content="Parse"
+        <Button x:Name="btnParse" Content="Parse"
      HorizontalAlignment="Right" VerticalAlignment="Center"
      Margin="0,0,8,0" Padding="12,4"
   Background="#332563EB" Foreground="#60a5fa"
@@ -86,18 +86,17 @@
            <ColumnDefinition Width="*"/>
    </Grid.ColumnDefinitions>
 
-            <!-- BID TILE -->
+      <!-- BID TILE -->
      <Border x:Name="bidTile" Grid.Column="0" 
  Background="{StaticResource Brush.TileGradient}"
       BorderBrush="#1e293b" BorderThickness="1"
        CornerRadius="4,0,0,4" Cursor="Hand"
-        MouseLeftButtonUp="BidTile_Click"
+    MouseLeftButtonUp="BidTile_Click"
 MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
-       <Grid Margin="16">
+       <Grid Margin="16,16,16,40">
   <Grid.RowDefinitions>
    <RowDefinition Height="Auto"/>
   <RowDefinition Height="*"/>
-           <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
    
   <!-- BID Label (top-left, hidden initially, shown when quoting) -->
@@ -107,14 +106,14 @@ FontSize="10" FontWeight="Bold" Foreground="#22c55e"
     
    <!-- Center Content -->
     <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-         <!-- RFQ instruction label (shown in initial state) -->
+ <!-- RFQ instruction label (shown in initial state) -->
      <TextBlock x:Name="lblBidRfqHint" Text="CLICK TO RFQ (F9)" 
         FontSize="10" FontWeight="Bold" Foreground="#64748b"
     HorizontalAlignment="Center" Margin="0,0,0,4"/>
-      
+
   <TextBlock x:Name="lblBidValue" Text="RFQ"
     FontFamily="./Assets/Fonts/#Inter, Segoe UI" FontSize="72" FontWeight="Bold" Foreground="#64748b"
-   HorizontalAlignment="Center" VerticalAlignment="Center"
+ HorizontalAlignment="Center" VerticalAlignment="Center"
 TextOptions.TextFormattingMode="Display"
  TextOptions.TextRenderingMode="ClearType"
  MouseEnter="HeroValue_MouseEnter" MouseLeave="HeroValue_MouseLeave"/>
@@ -123,17 +122,6 @@ TextOptions.TextFormattingMode="Display"
       HorizontalAlignment="Center" Margin="0,8,0,0"
       Visibility="Collapsed"/>
    </StackPanel>
-
-     <!-- LP Badge (bottom-left, gradient background) -->
-     <Border Grid.Row="2" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-     Padding="12,6" CornerRadius="4"
-        Background="{StaticResource Brush.LPBadgeBid}" 
-  x:Name="bidLPPanel" Visibility="Collapsed">
-  <StackPanel Orientation="Horizontal">
-    <TextBlock x:Name="lblBidLP" Text="" FontSize="18" FontWeight="Bold" Foreground="White" MinWidth="50"/>
-  <TextBlock x:Name="lblBidCountdown" Text="" FontSize="18" FontWeight="Bold" Foreground="#f59e0b" Margin="8,0,0,0"/>
- </StackPanel>
-     </Border>
     </Grid>
 </Border>
 
@@ -144,17 +132,16 @@ TextOptions.TextFormattingMode="Display"
  CornerRadius="0,4,4,0" Cursor="Hand"
  MouseLeftButtonUp="OfferTile_Click"
  MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
-<Grid Margin="16">
+<Grid Margin="16,16,16,40">
  <Grid.RowDefinitions>
    <RowDefinition Height="Auto"/>
     <RowDefinition Height="*"/>
-      <RowDefinition Height="Auto"/>
    </Grid.RowDefinitions>
       
       <!-- OFFER Label (top-right, hidden initially, shown when quoting) -->
     <TextBlock x:Name="lblOfferLabel" Text="YOU PAY" 
      FontSize="10" FontWeight="Bold" Foreground="#ef4444" HorizontalAlignment="Right"
-       Visibility="Collapsed"/>
+    Visibility="Collapsed"/>
     
        <!-- Center Content -->
   <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -162,37 +149,56 @@ TextOptions.TextFormattingMode="Display"
   <TextBlock x:Name="lblOfferRfqHint" Text="CLICK TO RFQ (F9)" 
   FontSize="10" FontWeight="Bold" Foreground="#64748b"
    HorizontalAlignment="Center" Margin="0,0,0,4"/>
-          
-        <TextBlock x:Name="lblOfferValue" Text="RFQ"
+       
+    <TextBlock x:Name="lblOfferValue" Text="RFQ"
   FontFamily="./Assets/Fonts/#Inter, Segoe UI" FontSize="72" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
-       TextOptions.TextFormattingMode="Display"
+  TextOptions.TextFormattingMode="Display"
     TextOptions.TextRenderingMode="ClearType"
     MouseEnter="HeroValue_MouseEnter" MouseLeave="HeroValue_MouseLeave"/>
    <TextBlock x:Name="lblOfferSecondary" Text=""
     FontSize="12" FontWeight="Bold" Foreground="#64748b"
 HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed"/>
-     </StackPanel>
-        
-      <!-- LP Badge (bottom-right, gradient background) -->
-   <Border Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-  Padding="12,6" CornerRadius="4"
-  Background="{StaticResource Brush.LPBadgeOffer}" 
-         x:Name="offerLPPanel" Visibility="Collapsed">
-    <StackPanel Orientation="Horizontal">
-    <TextBlock x:Name="lblOfferCountdown" Text="" FontSize="18" FontWeight="Bold" Foreground="#f59e0b"/>
-     <TextBlock x:Name="lblOfferLP" Text="" FontSize="18" FontWeight="Bold" Foreground="White" Margin="8,0,0,0" MinWidth="50" TextAlignment="Right"/>
-  </StackPanel>
-   </Border>
+</StackPanel>
     </Grid>
-         </Border>
+      </Border>
 
-     <!-- Spread Indicator (centered at bottom) -->
-<Border x:Name="spreadPanel" Grid.ColumnSpan="3" VerticalAlignment="Bottom" HorizontalAlignment="Center"
- Margin="0,0,0,4"
-  Background="#0b0d10" Padding="12,4" CornerRadius="4"
-   BorderBrush="#1e293b" BorderThickness="1" Visibility="Collapsed">
-        <TextBlock x:Name="lblSpread" Text="" FontSize="18" FontWeight="Bold" Foreground="White"/>
-     </Border>
+     <!-- Bottom Bar: LP Badges + Spread (all aligned at same baseline) -->
+     <Grid Grid.ColumnSpan="3" VerticalAlignment="Bottom" Margin="0,0,0,8">
+        <Grid.ColumnDefinitions>
+<ColumnDefinition Width="*"/>
+<ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        
+        <!-- Bid LP Badge (left side) -->
+        <Border Grid.Column="0" HorizontalAlignment="Left"
+       Padding="12,6" CornerRadius="4"
+ Background="{StaticResource Brush.LPBadgeBid}" 
+             x:Name="bidLPPanel" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal">
+     <TextBlock x:Name="lblBidLP" Text="" FontSize="18" FontWeight="Bold" Foreground="White" MinWidth="50"/>
+     <TextBlock x:Name="lblBidCountdown" Text="" FontSize="18" FontWeight="Bold" Foreground="#f59e0b" Margin="8,0,0,0"/>
+            </StackPanel>
+        </Border>
+     
+        <!-- Spread Indicator (center) -->
+        <Border x:Name="spreadPanel" Grid.Column="1" HorizontalAlignment="Center"
+        Background="#0b0d10" Padding="12,4" CornerRadius="4"
+             BorderBrush="#1e293b" BorderThickness="1" Visibility="Collapsed">
+      <TextBlock x:Name="lblSpread" Text="" FontSize="18" FontWeight="Bold" Foreground="White"/>
+        </Border>
+        
+        <!-- Offer LP Badge (right side) -->
+    <Border Grid.Column="2" HorizontalAlignment="Right"
+    Padding="12,6" CornerRadius="4"
+        Background="{StaticResource Brush.LPBadgeOffer}" 
+     x:Name="offerLPPanel" Visibility="Collapsed">
+      <StackPanel Orientation="Horizontal">
+   <TextBlock x:Name="lblOfferCountdown" Text="" FontSize="18" FontWeight="Bold" Foreground="#f59e0b"/>
+  <TextBlock x:Name="lblOfferLP" Text="" FontSize="18" FontWeight="Bold" Foreground="White" Margin="8,0,0,0" MinWidth="50" TextAlignment="Right"/>
+       </StackPanel>
+        </Border>
+     </Grid>
 </Grid>
 
     <!-- COMBINED CONTROL BAR: Ladder toggle + STOP RFQ + Price Display -->
@@ -599,31 +605,41 @@ VerticalAlignment="Center" Margin="0,0,12,0"
     </Grid>
       <Border Height="1" Background="#1e293b"/>
        
-      <!-- Notional 1 (Base Currency) -->
+      <!-- Notional with Currency Toggle -->
       <Grid Height="32">
         <Grid.ColumnDefinitions>
- <ColumnDefinition Width="100"/>
-        <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="100"/>
+     <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-     <TextBlock x:Name="lblNotional1" Text="Notional" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-  <TextBox x:Name="txtNotional1" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
-        FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="100"
-        LostFocus="txtNotional1_LostFocus"/>
- </Grid>
-  <Border Height="1" Background="#1e293b"/>
-
-      <!-- Notional 2 (Quote Currency) -->
-      <Grid Height="32">
-        <Grid.ColumnDefinitions>
- <ColumnDefinition Width="100"/>
-        <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-     <TextBlock x:Name="lblNotional2" Text="Notional" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-  <TextBox x:Name="txtNotional2" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
-        FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="100"
-        LostFocus="txtNotional2_LostFocus"/>
- </Grid>
-  <Border Height="1" Background="#1e293b"/>
+    <TextBlock x:Name="lblNotional" Text="Notional (EUR)" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+    
+   <!-- Notional input with currency toggle button -->
+        <Grid Grid.Column="1" Margin="0,0,8,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+   </Grid.ColumnDefinitions>
+      
+          <TextBox x:Name="txtNotional" Grid.Column="0" Text="" Style="{StaticResource DarkTextBox}"
+ FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" MinWidth="100"
+              LostFocus="txtNotional_LostFocus"/>
+     
+  <!-- Currency toggle button -->
+          <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1"
+   CornerRadius="4" Margin="4,0,0,0" Cursor="Hand" Padding="8,4"
+    MouseLeftButtonUp="NotionalCurrencyToggle_Click">
+            <StackPanel Orientation="Horizontal">
+ <TextBlock x:Name="txtNotionalCurrency" Text="EUR"
+   Foreground="#3b82f6" FontSize="11" FontWeight="Bold"
+   VerticalAlignment="Center"/>
+   <TextBlock Text="⇄" FontSize="12" Foreground="#64748b"
+          VerticalAlignment="Center" Margin="4,0,0,0"
+  FontWeight="Bold"/>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Grid>
+      <Border Height="1" Background="#1e293b"/>
 
              <!-- Option Type (Call/Put) - Toggle Button with Switch Arrow -->
  <Grid Height="32">
@@ -946,7 +962,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
   </Grid.RowDefinitions>
 
   <!-- Header with collapse button -->
-     <Grid Background="#0b0d10">
+     <Grid Background="#0d1117">
    <Grid.ColumnDefinitions>
     <ColumnDefinition Width="Auto"/>
  <ColumnDefinition Width="*"/>

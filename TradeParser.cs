@@ -336,8 +336,36 @@ namespace FXOAiTranslator
                                     result.OVML = $"OVML {result.Underlying} {ovmlExpiryVC} " +
                                                   $"B {match.Groups["strike"].Value}{optionType} " +
                                                   $"N{match.Groups["notional"].Value}M VA" +
-                                                  spot;
+                                                      spot;
                                     break;
+
+                                case "Delta_RiskReversal":
+   LogDebug($"DEBUG: Processing Delta_RiskReversal pattern");
+       result.LegCount = 2;
+
+  // Determine delta type: DS (spot delta) or DF (forward delta)
+         string rrDeltaTypeRaw = match.Groups["deltaType"].Value?.ToLower() ?? "";
+         string rrDeltaPrefix;
+      if (rrDeltaTypeRaw.Contains("f") || rrDeltaTypeRaw.Contains("forward"))
+      {
+           rrDeltaPrefix = "DF";  // Forward delta
+}
+              else
+       {
+     rrDeltaPrefix = "DS";  // Spot delta (default)
+       }
+
+             string rrDeltaValue = match.Groups["delta"].Value;
+
+   // Convert expiry to OVML date format
+    string ovmlExpiryDRR = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
+            // Format: OVML EURNOK 6M 2L B,S DS25P,DS25C RR VA
+         // Risk reversal: Buy put, Sell call at same delta
+ result.OVML = $"OVML {result.Underlying} {ovmlExpiryDRR} 2L B,S " +
+         $"{rrDeltaPrefix}{rrDeltaValue}P,{rrDeltaPrefix}{rrDeltaValue}C RR VA" +
+             (spotExplicitlyProvided ? " SP" + spot : "");
+    break;
 
                                 case "Collar_BuyCallSellCallSellPut":
                                     LogDebug($"DEBUG: Processing Collar_BuyCallSellCallSellPut pattern");

@@ -8,6 +8,7 @@ namespace FXOAiTranslator
         public static readonly List<TradePattern> Patterns = new List<TradePattern>
 
         {
+
 // COMPACT MULTI-LEG PATTERN: Multiple legs with direction codes (sb, sbb, etc.)
 // Matches:
 //   15mm USDNOK 10 usd call
@@ -37,6 +38,18 @@ new TradePattern(
         @"(?<type>call|put)\s+" +                                                          // call or put
         @"(?:in\s+)?(?<notional>\d+)\s*(?:m|mio|million)",                                 // in 20 mio
         RegexOptions.IgnoreCase
+    )
+),
+
+// DELTA PATTERN: Delta-based risk reversal
+// Matches: "EURNOK 6m 25d r/r" or "eurusd 1m 25 delta rr" or "10 delta risk reversal"
+// Generates: DS25 RR (spot delta) or DF25 RR (forward delta)
+new TradePattern(
+  "Delta_RiskReversal",
+    new Regex(
+        @"(?<delta>\d+)\s*(?<deltaType>d|delta|fdelta|forward\s+delta|fd|f\s+delta)?\s*" +  // 25d or 25 delta or 25 (optional delta suffix)
+        @"(?<rrType>r/?r|rr|risk\s*reversal)",       // r/r, rr, or risk reversal
+  RegexOptions.IgnoreCase
     )
 ),
 
