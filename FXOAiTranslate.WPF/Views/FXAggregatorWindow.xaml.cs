@@ -916,5 +916,700 @@ return match.Value;
         // OLD HANDLERS - Removed after consolidating to single notional field
  // private void txtNotional1_LostFocus(object sender, RoutedEventArgs e)
         // private void txtNotional2_LostFocus(object sender, RoutedEventArgs e)
+
+        #endregion
+
+        #region Trade Parsing and UI Update
+
+        /// <summary>
+        /// Parse the trade input text and update the _trade structure
+        /// </summary>
+        private async Task ParseTradeInput()
+        {
+            string input = txtTradeInput.Text?.Trim() ?? "";
+     
+            // Skip if placeholder or empty
+   if (string.IsNullOrWhiteSpace(input) || 
+        input.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
+            {
+     return;
+            }
+
+            // Simple regex-based parsing for common trade formats
+        // Format: "buy 10mio EURUSD 1m call 1.1750" or "sell 5m USDJPY 3m put 150.50"
+     var pattern = @"(?<direction>buy|sell)\s+(?<notional>[\d.]+)\s*(?:mio|m|mm)?\s*(?<pair>[A-Z]{6})\s+(?<tenor>\d+[mMwWyY])\s+(?<type>call|put)\s+(?<strike>[\d.]+)";
+            var match = System.Text.RegularExpressions.Regex.Match(input, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+       if (match.Success && _trade != null)
+          {
+     // Update trade structure from parsed input
+      _trade.Underlying = match.Groups["pair"].Value.ToUpper();
+       
+ if (_trade.Legs == null || _trade.Legs.Count == 0)
+      {
+           _trade.Legs = new System.Collections.Generic.List<TradeStructure.OptionLeg>
+   {
+  new TradeStructure.OptionLeg()
+                 };
+      }
+
+     var leg = _trade.Legs[0];
+   leg.Direction = match.Groups["direction"].Value.ToUpper();
+     leg.OptionType = match.Groups["type"].Value.ToUpper();
+    leg.Tenor = match.Groups["tenor"].Value.ToUpper();
+        
+    if (double.TryParse(match.Groups["notional"].Value, System.Globalization.NumberStyles.Any, 
+        System.Globalization.CultureInfo.InvariantCulture, out double notional))
+        {
+  leg.NotionalMM = notional;
+     }
+        
+      if (double.TryParse(match.Groups["strike"].Value, System.Globalization.NumberStyles.Any,
+     System.Globalization.CultureInfo.InvariantCulture, out double strike))
+        {
+        leg.Strike = strike;
+      }
+
+      // Fetch Bloomberg spot rate
+             _trade.SpotReference = await GetBloombergSpotAsync(_trade.Underlying);
+
+         Console.WriteLine($"[WPF] Parsed trade: {leg.Direction} {leg.NotionalMM}MM {_trade.Underlying} {leg.Tenor} {leg.OptionType} @ {leg.Strike}");
+     }
+        }
+
+  /// <summary>
+        /// Update UI fields from the current trade structure
+      /// </summary>
+        private void UpdateUIFieldsFromTrade()
+     {
+          if (_trade == null || _trade.Legs == null || _trade.Legs.Count == 0)
+    return;
+
+var leg = _trade.Legs[0];
+            string pair = _trade.Underlying ?? "EURUSD";
+  string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+ string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+
+          // Update currency pair
+       if (txtCurrencyPair != null)
+      {
+       txtCurrencyPair.Text = pair;
+            }
+
+            // Update notional field and currency toggle
+            string notionalCurrency = _notionalInBaseCurrency ? ccy1 : ccy2;
+            if (lblNotional != null)
+            {
+    lblNotional.Text = $"Notional ({notionalCurrency})";
+   }
+ if (txtNotionalCurrency != null)
+     {
+     txtNotionalCurrency.Text = notionalCurrency;
+     }
+
+  if (txtNotional != null && leg.NotionalMM > 0)
+   {
+     // NotionalMM is always in base currency (millions)
+     double notionalValue;
+          if (_notionalInBaseCurrency)
+      {
+ notionalValue = leg.NotionalMM * 1_000_000;
+                }
+       else if (_trade.SpotReference > 0)
+    {
+  // Convert to quote currency
+         notionalValue = leg.NotionalMM * 1_000_000 * _trade.SpotReference;
+        }
+    else
+{
+         notionalValue = leg.NotionalMM * 1_000_000;
+                }
+                txtNotional.Text = ((long)notionalValue).ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+ }
+
+            // Update Call/Put toggle
+       if (txtCallPut != null)
+            {
+        txtCallPut.Text = leg.OptionType == "PUT"
+        ? $"{ccy1} Put / {ccy2} Call"
+     : $"{ccy1} Call / {ccy2} Put";
+     }
+
+            // Update expiry date
+     if (txtExpiryDate != null && !string.IsNullOrEmpty(leg.Tenor))
+            {
+     // Calculate expiry from tenor
+        var expiry = CalculateExpiryFromTenor(leg.Tenor);
+  txtExpiryDate.Text = $"{expiry:dd-MMM-yy} ({leg.Tenor})";
+      }
+
+            // Update strike
+            if (txtStrike != null && leg.Strike > 0)
+       {
+                txtStrike.Text = leg.Strike.ToString("F4");
+      }
+
+            // Update spot rate in market data section
+  if (lblSpotRate != null && _trade.SpotReference > 0)
+          {
+             lblSpotRate.Text = _trade.SpotReference.ToString("F4");
+            }
+
+         // Update hedge rate
+            if (txtHedgeRate != null && _trade.SpotReference > 0)
+        {
+     txtHedgeRate.Text = _trade.SpotReference.ToString("F4");
+            }
+
+         // Update hedge value date
+        if (lblHedgeValueDate != null)
+     {
+   lblHedgeValueDate.Text = DateTime.Now.AddDays(2).ToString("dd-MMM");
+       }
+
+    // Update hedge amount
+    if (lblHedgeAmount != null && leg.NotionalMM > 0)
+            {
+      lblHedgeAmount.Text = $"{leg.NotionalMM:F1}MM";
+    }
+
+   Console.WriteLine($"[WPF] UI fields updated from trade structure");
+     }
+
+      /// <summary>
+ /// Calculate expiry date from tenor string
+      /// </summary>
+    private DateTime CalculateExpiryFromTenor(string tenor)
+  {
+        if (string.IsNullOrEmpty(tenor))
+           return DateTime.Now.AddMonths(1);
+
+    var match = System.Text.RegularExpressions.Regex.Match(tenor, @"(\d+)([mMwWyYdD])");
+     if (!match.Success)
+  return DateTime.Now.AddMonths(1);
+
+ int amount = int.Parse(match.Groups[1].Value);
+      string unit = match.Groups[2].Value.ToUpper();
+
+          return unit switch
+     {
+      "D" => DateTime.Now.AddDays(amount),
+   "W" => DateTime.Now.AddDays(amount * 7),
+   "M" => DateTime.Now.AddMonths(amount),
+       "Y" => DateTime.Now.AddYears(amount),
+         _ => DateTime.Now.AddMonths(amount)
+         };
+        }
+
+     /// <summary>
+      /// Get Bloomberg spot rate for currency pair
+        /// </summary>
+        private async Task<double> GetBloombergSpotAsync(string currencyPair)
+        {
+try
+  {
+   if (_bloombergService != null && _bloombergService.IsConnected)
+   {
+   var spot = await Task.Run(() => _bloombergService.GetSpotRate(currencyPair));
+        if (spot.HasValue && spot.Value > 0)
+{
+    Console.WriteLine($"[WPF] Bloomberg spot for {currencyPair}: {spot.Value:F4}");
+         return spot.Value;
+     }
+ }
+   }
+        catch (Exception ex)
+            {
+       Console.WriteLine($"[WPF] Error getting Bloomberg spot: {ex.Message}");
+     }
+
+   // Fallback rates
+  return currencyPair?.ToUpper() switch
+   {
+     "EURUSD" => 1.0850,
+       "USDJPY" => 149.50,
+     "GBPUSD" => 1.2650,
+  "EURGBP" => 0.8580,
+       "AUDUSD" => 0.6550,
+"USDCAD" => 1.3650,
+      "NZDUSD" => 0.6150,
+         "USDCHF" => 0.8850,
+      "EURCHF" => 0.9600,
+                "EURJPY" => 162.25,
+       "GBPJPY" => 189.10,
+       _ => 1.0
+            };
+        }
+
+      #endregion
+
+        #region Option Details Event Handlers
+
+        private void txtCurrencyPair_LostFocus(object sender, RoutedEventArgs e)
+        {
+      // Update notional currency label when pair changes
+            string pair = txtCurrencyPair?.Text?.ToUpper() ?? "EURUSD";
+      string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+    string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+
+            string notionalCurrency = _notionalInBaseCurrency ? ccy1 : ccy2;
+   if (lblNotional != null)
+            {
+       lblNotional.Text = $"Notional ({notionalCurrency})";
+            }
+      if (txtNotionalCurrency != null)
+            {
+       txtNotionalCurrency.Text = notionalCurrency;
+            }
+
+ // Update trade structure
+            if (_trade != null)
+            {
+  _trade.Underlying = pair;
+            }
+        }
+
+        private void txtCurrencyPair_TextChanged(object sender, TextChangedEventArgs e)
+        {
+         // Auto-uppercase the currency pair
+    if (txtCurrencyPair != null)
+    {
+              int caretIndex = txtCurrencyPair.CaretIndex;
+   txtCurrencyPair.Text = txtCurrencyPair.Text.ToUpper();
+  txtCurrencyPair.CaretIndex = caretIndex;
+            }
+        }
+
+    private void txtExpiryDate_LostFocus(object sender, RoutedEventArgs e)
+        {
+ // Parse expiry date and update trade structure
+ // Could add date parsing logic here
+        }
+
+        private void CallPutToggle_Click(object sender, MouseButtonEventArgs e)
+   {
+            if (_trade?.Legs == null || _trade.Legs.Count == 0)
+       return;
+
+   var leg = _trade.Legs[0];
+   string pair = _trade.Underlying ?? "EURUSD";
+        string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+            string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+
+    // Toggle between CALL and PUT
+            leg.OptionType = leg.OptionType == "CALL" ? "PUT" : "CALL";
+
+       // Update UI
+            if (txtCallPut != null)
+         {
+             txtCallPut.Text = leg.OptionType == "PUT"
+        ? $"{ccy1} Put / {ccy2} Call"
+ : $"{ccy1} Call / {ccy2} Put";
+          }
+
+       Console.WriteLine($"[WPF] Toggled option type to: {leg.OptionType}");
+        }
+
+        private void DeltaExchange_Changed(object sender, SelectionChangedEventArgs e)
+        {
+if (cmbDeltaExchange == null || hedgeDetailsPanel == null)
+           return;
+
+      // Show/hide hedge details based on selection
+            bool showDetails = cmbDeltaExchange.SelectedIndex > 0; // 0 = No Hedge
+        hedgeDetailsPanel.Visibility = showDetails ? Visibility.Visible : Visibility.Collapsed;
+
+            // Update header text
+            if (lblHedgeRateHeader != null)
+            {
+         lblHedgeRateHeader.Text = cmbDeltaExchange.SelectedIndex == 2 ? "Forward" : "Spot";
+    }
+     }
+
+        #endregion
+
+    #region Collapsible Sections
+
+        private void OptionHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+ if (optionContent == null || lblOptionArrow == null)
+      return;
+
+    bool isCollapsed = optionContent.Visibility == Visibility.Collapsed;
+            optionContent.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
+            lblOptionArrow.Text = isCollapsed ? "▼" : "▶";
+        }
+
+        private void MarketDataHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (marketDataContent == null || lblMarketDataArrow == null)
+      return;
+
+            bool isCollapsed = marketDataContent.Visibility == Visibility.Collapsed;
+       marketDataContent.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
+   lblMarketDataArrow.Text = isCollapsed ? "▼" : "▶";
+        }
+
+  private void RiskHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+   if (riskContent == null || lblRiskArrow == null)
+     return;
+
+            bool isCollapsed = riskContent.Visibility == Visibility.Collapsed;
+      riskContent.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
+    lblRiskArrow.Text = isCollapsed ? "▼" : "▶";
+        }
+
+        private void LadderHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+    if (ladderContent == null || lblLadderArrow == null)
+ return;
+
+   bool isCollapsed = ladderContent.Visibility == Visibility.Collapsed;
+     ladderContent.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
+          lblLadderArrow.Text = isCollapsed ? "▼" : "▶";
+        }
+
+     private void DealsHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+      ToggleDealsPanel();
+        }
+
+ private void DealsTabHandle_Click(object sender, MouseButtonEventArgs e)
+        {
+       ToggleDealsPanel();
+        }
+
+        private void ToggleDealsPanel()
+  {
+_dealsPanelExpanded = !_dealsPanelExpanded;
+
+    if (_dealsPanelExpanded)
+  {
+     dealsPanelColumn.Width = new GridLength(380);
+       dealsPanel.Visibility = Visibility.Visible;
+   dealsTabHandle.Visibility = Visibility.Collapsed;
+    lblDealsArrow.Text = "▶";
+      }
+ else
+            {
+      dealsPanelColumn.Width = new GridLength(0);
+     dealsPanel.Visibility = Visibility.Collapsed;
+    dealsTabHandle.Visibility = Visibility.Visible;
+lblDealsArrow.Text = "◀";
+  }
+        }
+
+        #endregion
+
+        #region RFQ Tile Clicks
+
+      private void BidTile_Click(object sender, MouseButtonEventArgs e)
+     {
+         if (_isRfqActive)
+            {
+                // Execute on bid (user is selling)
+  ExecuteTrade("BID");
+       }
+        else
+          {
+       // Start RFQ
+      StartRFQ();
+  }
+   }
+
+      private void OfferTile_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (_isRfqActive)
+            {
+// Execute on offer (user is buying)
+     ExecuteTrade("OFFER");
+        }
+else
+       {
+  // Start RFQ
+         StartRFQ();
+     }
+ }
+
+        private void StartRFQ()
+        {
+     if (_trade == null || _trade.Legs == null || _trade.Legs.Count == 0)
+          {
+     MessageBox.Show("Please enter a valid trade first.", "No Trade", MessageBoxButton.OK, MessageBoxImage.Warning);
+       return;
+          }
+
+  // Generate group ID for this RFQ session
+  _currentGroupId = Guid.NewGuid().ToString("N").Substring(0, 8);
+
+   // Clear previous quotes
+            _quotesByLP.Clear();
+            _quotesByQuoteId.Clear();
+            LPQuotes.Clear();
+
+            // Show live state
+ ShowLiveState();
+
+    // Get selected LPs
+            var selectedLPs = GetSelectedLPs();
+            if (selectedLPs.Count == 0)
+            {
+     MessageBox.Show("Please select at least one LP.", "No LPs Selected", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ShowRfqState();
+                return;
+            }
+
+   // Send RFQ to each selected LP
+          foreach (var lp in selectedLPs)
+      {
+                try
+                {
+   string quoteReqId = $"QR-{_currentGroupId}-{lp}";
+        Console.WriteLine($"[WPF] Sending RFQ to {lp}: {quoteReqId}");
+
+      // Register with FIX application
+     _fixSession?.Application?.RegisterQuoteRequest(quoteReqId, _currentGroupId);
+
+         // Send the quote request
+  _fixSession?.SendQuoteRequest(_trade, lp, quoteReqId);
+     }
+       catch (Exception ex)
+        {
+          Console.WriteLine($"[WPF] Error sending RFQ to {lp}: {ex.Message}");
+     }
+            }
+
+            Console.WriteLine($"[WPF] RFQ started with GroupId: {_currentGroupId}, LPs: {string.Join(", ", selectedLPs)}");
+        }
+
+        private void CancelRFQ_Click(object sender, RoutedEventArgs e)
+        {
+       Console.WriteLine("[WPF] Canceling RFQ...");
+ 
+            // Clear group ID to ignore any incoming quotes
+ _currentGroupId = null;
+  
+            // Stop countdown timer
+      _countdownTimer.Stop();
+  
+   // Clear quotes
+         _quotesByLP.Clear();
+_quotesByQuoteId.Clear();
+      LPQuotes.Clear();
+    
+    // Reset to RFQ state
+       ShowRfqState();
+ 
+    Console.WriteLine("[WPF] RFQ canceled");
+        }
+
+  private System.Collections.Generic.List<string> GetSelectedLPs()
+        {
+        var selectedLPs = new System.Collections.Generic.List<string>();
+
+            if (chkMS?.IsChecked == true) selectedLPs.Add("MS");
+     if (chkHSBC?.IsChecked == true) selectedLPs.Add("HSBC");
+if (chkBNP?.IsChecked == true) selectedLPs.Add("BNP");
+            if (chkNATWEST?.IsChecked == true) selectedLPs.Add("NATWEST");
+   if (chkSOCGEN?.IsChecked == true) selectedLPs.Add("SOCGEN");
+            if (chkCIBC?.IsChecked == true) selectedLPs.Add("CIBC");
+        if (chkSCBL?.IsChecked == true) selectedLPs.Add("SCBL");
+  if (chkNOMURA?.IsChecked == true) selectedLPs.Add("NOMURA");
+ if (chkBAML?.IsChecked == true) selectedLPs.Add("BAML");
+
+          return selectedLPs;
+        }
+
+    private void ExecuteTrade(string side)
+   {
+      // Find the best quote for this side
+            LPQuoteData bestQuote = null;
+     if (side == "BID")
+            {
+       bestQuote = _quotesByLP.Values.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
+         }
+    else
+  {
+         bestQuote = _quotesByLP.Values.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
+            }
+
+            if (bestQuote == null)
+            {
+MessageBox.Show("No quote available to execute.", "No Quote", MessageBoxButton.OK, MessageBoxImage.Warning);
+              return;
+       }
+
+            string quoteId = side == "BID" ? bestQuote.BidQuoteId : bestQuote.OfferQuoteId;
+    if (string.IsNullOrEmpty(quoteId))
+      {
+         MessageBox.Show("Quote ID not available.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+     return;
+       }
+
+     // Get the FIXMessage for this quote
+  if (!_quotesByQuoteId.TryGetValue(quoteId, out var fixMessage))
+      {
+           MessageBox.Show("Quote message not found.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+    }
+
+   // Generate order ID
+         string clOrdId = $"ORD-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N").Substring(0, 4)}";
+
+            // Add deal card immediately with PENDING status
+          var deal = new DealViewModel
+      {
+         Time = DateTime.Now.ToString("HH:mm:ss"),
+         Instrument = $"{_trade?.Underlying} {_trade?.Legs?[0]?.Tenor}",
+     Strike = _trade?.Legs?[0]?.Strike.ToString("F4") ?? "N/A",
+     Side = side == "BID" ? "SELL" : "BUY",
+    SideColor = new SolidColorBrush(side == "BID" ? Color.FromRgb(239, 68, 68) : Color.FromRgb(34, 197, 94)),
+       Status = "PENDING",
+         StatusBackground = new SolidColorBrush(Color.FromRgb(245, 158, 11)),
+          StatusForeground = new SolidColorBrush(Colors.Black),
+                OrderId = clOrdId,
+    Volatility = (side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol).ToString("F2") + "%",
+   EurPips = "N/A",
+            PremiumLabel = side == "BID" ? "RCV" : "PAY",
+        PremiumDisplay = Math.Abs(side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium).ToString("N0"),
+PremiumColor = new SolidColorBrush(side == "BID" ? Color.FromRgb(34, 197, 94) : Color.FromRgb(239, 68, 68)),
+       SpotRate = bestQuote.SpotRate,
+ExpiryDate = _trade?.Legs?[0]?.ExpiryDate.ToString("dd-MMM-yy") ?? "N/A",
+       Notional = $"{_trade?.Legs?[0]?.NotionalMM:F1}MM",
+                ExpiryCut = "NYC"
+            };
+
+         Deals.Insert(0, deal);
+            lblNoDeals.Visibility = Visibility.Collapsed;
+
+   // Send order
+            try
+         {
+   Console.WriteLine($"[WPF] Executing trade: {clOrdId} on {bestQuote.LP} ({side})");
+        _fixSession?.SendExecution(fixMessage, side, _trade);
+     }
+  catch (Exception ex)
+ {
+   Console.WriteLine($"[WPF] Error executing trade: {ex.Message}");
+         deal.Status = "ERROR";
+      deal.StatusBackground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+           deal.StatusForeground = new SolidColorBrush(Colors.White);
+            }
+        }
+
+        #endregion
+
+    #region LP Checkbox and Tile Hover Events
+
+   private void LPCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            // Update LP count label
+       int count = GetSelectedLPs().Count;
+    lblLPCount.Text = $"{count} LPs";
+    
+            // Update the LP name text color based on checkbox state
+            if (sender is CheckBox checkbox)
+            {
+          // Find the parent StackPanel containing the TextBlock
+     if (checkbox.Parent is StackPanel stackPanel)
+                {
+                 var textBlock = stackPanel.Children.OfType<TextBlock>().FirstOrDefault();
+       if (textBlock != null)
+          {
+     // White when checked/enabled, grey when unchecked/disabled
+      textBlock.Foreground = checkbox.IsChecked == true 
+? Brushes.White 
+          : new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748b
+         }
+           }
+            }
+        }
+
+        private void Tile_MouseEnter(object sender, MouseEventArgs e)
+  {
+            if (sender is Border border)
+      {
+  border.BorderBrush = new SolidColorBrush(Color.FromRgb(59, 130, 246)); // Blue highlight
+   }
+      }
+
+        private void Tile_MouseLeave(object sender, MouseEventArgs e)
+      {
+            if (sender is Border border)
+       {
+            border.BorderBrush = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // Original border
+            }
+        }
+
+        private void HeroValue_MouseEnter(object sender, MouseEventArgs e)
+  {
+       // Could add tooltip or highlight effect
+  }
+
+     private void HeroValue_MouseLeave(object sender, MouseEventArgs e)
+        {
+   // Could remove tooltip or highlight effect
+        }
+
+        private void LPName_MouseEnter(object sender, MouseEventArgs e)
+        {
+   if (sender is Border border)
+            {
+     border.Background = new SolidColorBrush(Color.FromRgb(20, 22, 27));
+ 
+   // Change LP name text to white (active color) on hover
+       var stackPanel = border.Child as StackPanel;
+       if (stackPanel != null)
+{
+               var textBlock = stackPanel.Children.OfType<TextBlock>().FirstOrDefault();
+  if (textBlock != null)
+          {
+            textBlock.Tag = textBlock.Foreground; // Store original color
+          textBlock.Foreground = Brushes.White;
+  }
+      }
+         }
+        }
+
+        private void LPName_MouseLeave(object sender, MouseEventArgs e)
+      {
+            if (sender is Border border)
+      {
+       border.Background = new SolidColorBrush(Color.FromRgb(15, 17, 20));
+ 
+       // Restore LP name text to correct color based on checkbox state
+       var stackPanel = border.Child as StackPanel;
+   if (stackPanel != null)
+       {
+    var textBlock = stackPanel.Children.OfType<TextBlock>().FirstOrDefault();
+    var checkbox = stackPanel.Children.OfType<CheckBox>().FirstOrDefault();
+    
+      if (textBlock != null)
+         {
+         // Set color based on checkbox state: white if checked, grey if unchecked
+         textBlock.Foreground = checkbox?.IsChecked == true 
+             ? Brushes.White 
+ : new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748b
+ }
+    }
+  }
+        }
+
+ private void DealCard_Click(object sender, MouseButtonEventArgs e)
+        {
+  // Toggle expansion of deal card
+            if (sender is Border border && border.DataContext is DealViewModel deal)
+            {
+      deal.IsExpanded = !deal.IsExpanded;
+        }
+        }
+
+        private void AddLeg_Click(object sender, MouseButtonEventArgs e)
+    {
+   MessageBox.Show("Multi-leg trading coming soon!", "Add Leg", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+ #endregion
     }
 }

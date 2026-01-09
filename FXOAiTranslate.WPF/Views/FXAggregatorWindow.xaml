@@ -29,7 +29,7 @@
         </Grid.ColumnDefinitions>
 
             <!-- LEFT: Quote Panel + Leg Details -->
- <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.Column="0" Style="{StaticResource DarkScrollViewer}">
+ <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.Column="0" Style="{StaticResource DarkScrollViewer}" Margin="0,0,0,-135">
           <StackPanel>
                
         <!-- TRADE INPUT -->
@@ -289,7 +289,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
        <ItemsControl.ItemTemplate>
      <DataTemplate>
          <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1">
-          <Grid Height="48" Background="Transparent" Opacity="{Binding Opacity}">
+          <Grid Height="48" Background="Transparent" Opacity="0.9">
    <Grid.ColumnDefinitions>
            <ColumnDefinition Width="*"/>
        <ColumnDefinition Width="70"/>
@@ -331,42 +331,44 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
         <!-- Empty state / Initial LPs when no quotes (from FenicsConfig) -->
      <StackPanel x:Name="initialLPPanel">
   
-  <!-- MS - Morgan Stanley -->
+  <!-- MS - Morgan Stanley (unchecked = grey) -->
      <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1">
-    <Grid Height="40" Background="Transparent" Opacity="0.9">
+    <Grid Height="40" Background="Transparent">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*"/>
-  <ColumnDefinition Width="70"/>
+<ColumnDefinition Width="70"/>
   <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
    <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
      <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
      </StackPanel>
-     <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
+     <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
+       MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-       <TextBlock Text="MS" FontSize="10" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
+     <TextBlock Text="MS" FontSize="10" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
 <CheckBox x:Name="chkMS" Style="{StaticResource DarkCheckBox}" IsChecked="False" HorizontalAlignment="Center" Margin="0,2,0,0"
   Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
-        </StackPanel>
-    </Border>
+   </StackPanel>
+  </Border>
  <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
   <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
       </StackPanel>
 </Grid>
  </Border>
 
-  <!-- HSBC -->
+<!-- HSBC (checked = white) -->
    <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1">
-     <Grid Height="40" Background="Transparent" Opacity="0.9">
+     <Grid Height="40" Background="Transparent">
  <Grid.ColumnDefinitions>
   <ColumnDefinition Width="*"/>
  <ColumnDefinition Width="70"/>
      <ColumnDefinition Width="*"/>
-    </Grid.ColumnDefinitions>
-      <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
+ </Grid.ColumnDefinitions>
+    <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
     <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
   </StackPanel>
-    <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
+    <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
+MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
   <TextBlock Text="HSBC" FontSize="10" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
 <CheckBox x:Name="chkHSBC" Style="{StaticResource DarkCheckBox}" IsChecked="True" HorizontalAlignment="Center" Margin="0,2,0,0"
@@ -376,12 +378,12 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
   <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
   <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
-    </Grid>
-  </Border>
+ </Grid>
+</Border>
 
-  <!-- BNP - BNP Paribas -->
+  <!-- BNP - BNP Paribas (checked = white) -->
    <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1">
-    <Grid Height="40" Background="Transparent" Opacity="0.9">
+    <Grid Height="40" Background="Transparent">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*"/>
   <ColumnDefinition Width="70"/>
@@ -390,62 +392,65 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
  <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
      <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
-     <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
+     <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
+ MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
   <TextBlock Text="BNP" FontSize="10" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
   <CheckBox x:Name="chkBNP" Style="{StaticResource DarkCheckBox}" IsChecked="True" HorizontalAlignment="Center" Margin="0,2,0,0"
-   Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
-        </StackPanel>
+ Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
+  </StackPanel>
  </Border>
    <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
 <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
-    </StackPanel>
-       </Grid>
+ </StackPanel>
+  </Grid>
  </Border>
 
-  <!-- NATWEST - NatWest Markets -->
+  <!-- NATWEST - NatWest Markets (unchecked = grey) -->
    <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1">
-      <Grid Height="40" Background="Transparent" Opacity="0.4">
+      <Grid Height="40" Background="Transparent">
       <Grid.ColumnDefinitions>
    <ColumnDefinition Width="*"/>
-    <ColumnDefinition Width="70"/>
-    <ColumnDefinition Width="*"/>
+ <ColumnDefinition Width="70"/>
+<ColumnDefinition Width="*"/>
   </Grid.ColumnDefinitions>
    <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
  <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
   </StackPanel>
-  <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
+  <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
+    MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
   <TextBlock Text="NATWEST" FontSize="9" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
-      <CheckBox x:Name="chkNATWEST" Style="{StaticResource DarkCheckBox}" IsChecked="False" HorizontalAlignment="Center" Margin="0,2,0,0"
-     Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
-     </StackPanel>
-     </Border>
+   <CheckBox x:Name="chkNATWEST" Style="{StaticResource DarkCheckBox}" IsChecked="False" HorizontalAlignment="Center" Margin="0,2,0,0"
+ Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
+   </StackPanel>
+  </Border>
   <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
 <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
      </StackPanel>
-     </Grid>
+</Grid>
   </Border>
 
   <!-- SOCGEN - Societe Generale -->
   <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1">
- <Grid Height="40" Background="Transparent" Opacity="0.4">
-     <Grid.ColumnDefinitions>
-         <ColumnDefinition Width="*"/>
+ <Grid Height="40" Background="Transparent">
+  <Grid.ColumnDefinitions>
+       <ColumnDefinition Width="*"/>
    <ColumnDefinition Width="70"/>
 <ColumnDefinition Width="*"/>
 </Grid.ColumnDefinitions>
     <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
       <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
       </StackPanel>
-   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
+   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
+        MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 <TextBlock Text="SOCGEN" FontSize="9" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
   <CheckBox x:Name="chkSOCGEN" Style="{StaticResource DarkCheckBox}" IsChecked="False" HorizontalAlignment="Center" Margin="0,2,0,0"
      Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
-       </StackPanel>
+     </StackPanel>
   </Border>
-      <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
+ <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
       <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
  </Grid>
@@ -453,7 +458,7 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
 
   <!-- CIBC - Canadian Imperial Bank -->
   <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1">
- <Grid Height="40" Background="Transparent" Opacity="0.4">
+ <Grid Height="40" Background="Transparent">
  <Grid.ColumnDefinitions>
    <ColumnDefinition Width="*"/>
    <ColumnDefinition Width="70"/>
@@ -461,13 +466,14 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
      </Grid.ColumnDefinitions>
   <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
       <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
-      </StackPanel>
-   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
+    </StackPanel>
+   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
+   MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 <TextBlock Text="CIBC" FontSize="10" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
   <CheckBox x:Name="chkCIBC" Style="{StaticResource DarkCheckBox}" IsChecked="False" HorizontalAlignment="Center" Margin="0,2,0,0"
      Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
-     </StackPanel>
+ </StackPanel>
    </Border>
   <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
       <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
@@ -477,23 +483,24 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
 
   <!-- SCBL - Standard Chartered -->
   <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1">
- <Grid Height="40" Background="Transparent" Opacity="0.4">
+ <Grid Height="40" Background="Transparent">
      <Grid.ColumnDefinitions>
     <ColumnDefinition Width="*"/>
    <ColumnDefinition Width="70"/>
   <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+   </Grid.ColumnDefinitions>
     <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
   <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
       </StackPanel>
-   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
+   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
+       MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 <TextBlock Text="SCBL" FontSize="10" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
   <CheckBox x:Name="chkSCBL" Style="{StaticResource DarkCheckBox}" IsChecked="False" HorizontalAlignment="Center" Margin="0,2,0,0"
      Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
-       </StackPanel>
-     </Border>
-      <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
+   </StackPanel>
+   </Border>
+ <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
       <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
  </Grid>
@@ -501,46 +508,48 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
 
   <!-- NOMURA -->
   <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1">
- <Grid Height="40" Background="Transparent" Opacity="0.4">
+ <Grid Height="40" Background="Transparent">
      <Grid.ColumnDefinitions>
        <ColumnDefinition Width="*"/>
    <ColumnDefinition Width="70"/>
   <ColumnDefinition Width="*"/>
  </Grid.ColumnDefinitions>
     <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-      <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+    <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
    </StackPanel>
-   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
-   <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
+     MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
+ <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 <TextBlock Text="NOMURA" FontSize="9" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
   <CheckBox x:Name="chkNOMURA" Style="{StaticResource DarkCheckBox}" IsChecked="False" HorizontalAlignment="Center" Margin="0,2,0,0"
      Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
    </StackPanel>
-     </Border>
+  </Border>
   <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-  <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+<TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
  </Grid>
 </Border>
 
   <!-- BAML - Bank of America -->
   <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1">
- <Grid Height="40" Background="Transparent" Opacity="0.4">
+ <Grid Height="40" Background="Transparent">
      <Grid.ColumnDefinitions>
       <ColumnDefinition Width="*"/>
    <ColumnDefinition Width="70"/>
   <ColumnDefinition Width="*"/>
   </Grid.ColumnDefinitions>
     <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-    <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
+ <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
       </StackPanel>
-   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0">
+   <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1,0"
+           MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 <TextBlock Text="BAML" FontSize="10" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"/>
   <CheckBox x:Name="chkBAML" Style="{StaticResource DarkCheckBox}" IsChecked="False" HorizontalAlignment="Center" Margin="0,2,0,0"
      Checked="LPCheckbox_Changed" Unchecked="LPCheckbox_Changed"/>
   </StackPanel>
-     </Border>
+   </Border>
       <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
  <TextBlock Text="" FontSize="14" Foreground="#334155" HorizontalAlignment="Center"/>
     </StackPanel>
@@ -706,38 +715,41 @@ VerticalAlignment="Center" Margin="0,0,12,0"
           <Border Height="1" Background="#1e293b"/>
        
 <!-- Delta Exchange Section -->
-   <StackPanel x:Name="deltaExchangeSection">
-      <!-- Header -->
-      <TextBlock Text="Delta Exchange" FontSize="11" Foreground="#64748b" Margin="8,8,8,4"/>
-      
-      <!-- Hedge Type Dropdown -->
-      <ComboBox x:Name="cmbDeltaExchange" Style="{StaticResource DarkComboBox}" 
-  Foreground="White" FontSize="11" SelectedIndex="1" Margin="8,0,8,4"
+   <Grid Height="32">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="100"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Text="Delta Exchange" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+ <ComboBox x:Name="cmbDeltaExchange" Grid.Column="1" Style="{StaticResource DarkComboBox}" 
+          Foreground="White" FontSize="11" SelectedIndex="1" Margin="0,0,8,0"
           SelectionChanged="DeltaExchange_Changed">
          <ComboBoxItem Content="No Hedge (Live)"/>
-  <ComboBoxItem Content="Spot Hedge"/>
+ <ComboBoxItem Content="Spot Hedge"/>
          <ComboBoxItem Content="Forward Hedge"/>
       </ComboBox>
-      
-      <!-- Hedge Details Panel (shown when Spot or Forward selected) -->
-      <Border x:Name="hedgeDetailsPanel" Background="#14161b" Margin="8,4,8,8" CornerRadius="2">
+   </Grid>
+   <Border Height="1" Background="#1e293b"/>
+   
+   <!-- Hedge Details Panel (shown when Spot or Forward selected) -->
+      <Border x:Name="hedgeDetailsPanel" Background="#14161b" Margin="0,0,0,0" CornerRadius="0">
   <StackPanel>
  <!-- Column Headers -->
       <Grid Height="24" Background="#1a1d23">
    <Grid.ColumnDefinitions>
    <ColumnDefinition Width="80"/>
       <ColumnDefinition Width="70"/>
-        <ColumnDefinition Width="*"/>
+  <ColumnDefinition Width="*"/>
  </Grid.ColumnDefinitions>
     <TextBlock Text="Value Date" FontSize="9" Foreground="#64748b" 
    VerticalAlignment="Center" Margin="8,0,0,0"/>
 <TextBlock x:Name="lblHedgeRateHeader" Grid.Column="1" Text="Spot" FontSize="9" Foreground="#64748b" 
-        VerticalAlignment="Center" HorizontalAlignment="Center"/>
+VerticalAlignment="Center" HorizontalAlignment="Center"/>
   <TextBlock x:Name="lblHedgeAmountHeader" Grid.Column="2" Text="Amount(EUR)" FontSize="9" Foreground="#64748b" 
    VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
        </Grid>
       
-            <!-- Data Row -->
+ <!-- Data Row -->
         <Grid Height="28">
     <Grid.ColumnDefinitions>
          <ColumnDefinition Width="80"/>
@@ -749,13 +761,12 @@ VerticalAlignment="Center" Margin="0,0,12,0"
    <TextBox x:Name="txtHedgeRate" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
   Foreground="White" FontSize="11" Padding="4,2"
        VerticalAlignment="Center" HorizontalAlignment="Center" Width="60"
-          HorizontalContentAlignment="Center"/>
+     HorizontalContentAlignment="Center"/>
          <TextBlock x:Name="lblHedgeAmount" Grid.Column="2" Text="" FontSize="11" Foreground="White"
         VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
-            </Grid>
+     </Grid>
          </StackPanel>
    </Border>
- </StackPanel>
    <Border Height="1" Background="#1e293b"/>
    
     <!-- Premium Due -->
@@ -975,42 +986,42 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  </Grid>
 
    <!-- Column Headers -->
- <Grid Grid.Row="1" Background="#1a1d23" Height="32" Margin="12,0">
-         <Grid.ColumnDefinitions>
-    <ColumnDefinition Width="60"/>
+ <Grid Grid.Row="1" Background="#1a1d23" Height="32" Margin="0,0,0,0">
+ <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="72"/>
          <ColumnDefinition Width="80"/>
  <ColumnDefinition Width="55"/>
  <ColumnDefinition Width="70"/>
            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-      <TextBlock Text="TIME" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
+      <TextBlock Text="TIME" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center" Margin="12,0,0,0"/>
          <TextBlock Grid.Column="1" Text="INSTRUMENT" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
         <TextBlock Grid.Column="2" Text="STRIKE" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
-     <TextBlock Grid.Column="3" Text="BUY/SELL" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
+  <TextBlock Grid.Column="3" Text="BUY/SELL" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
      <TextBlock Grid.Column="4" Text="STATUS" FontSize="10" FontWeight="Bold" Foreground="#64748b" VerticalAlignment="Center"/>
    </Grid>
 
-             <!-- Deal Cards -->
+          <!-- Deal Cards -->
     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Style="{StaticResource DarkScrollViewer}">
   <StackPanel>
     <TextBlock x:Name="lblNoDeals" Text="No trades yet. Execute a trade to see it here." 
-      FontSize="11" Foreground="#64748b" HorizontalAlignment="Center" Margin="0,40" Visibility="Visible"/>
+  FontSize="11" Foreground="#64748b" HorizontalAlignment="Center" Margin="0,40" Visibility="Visible"/>
    
   <ItemsControl x:Name="dealCards">
   <ItemsControl.ItemTemplate>
    <DataTemplate>
-          <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1" Background="#14161b" Cursor="Hand"
-            MouseLeftButtonUp="DealCard_Click">
+     <Border BorderBrush="#1e293b" BorderThickness="0,0,0,1" Background="#14161b" Cursor="Hand"
+ MouseLeftButtonUp="DealCard_Click">
    <StackPanel>
-         <!-- Collapsed Row -->
+       <!-- Collapsed Row -->
    <Grid Height="44" Margin="12,0">
     <Grid.ColumnDefinitions>
     <ColumnDefinition Width="60"/>
-          <ColumnDefinition Width="80"/>
+       <ColumnDefinition Width="80"/>
       <ColumnDefinition Width="55"/>
  <ColumnDefinition Width="70"/>
            <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+   </Grid.ColumnDefinitions>
 
   <TextBlock Text="{Binding Time}" FontFamily="JetBrains Mono, Consolas"
       FontSize="11" Foreground="#94a3b8" VerticalAlignment="Center"/>
@@ -1019,7 +1030,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
   <TextBlock Grid.Column="2" Text="{Binding Strike}"
  FontSize="10" FontWeight="Bold" Foreground="#facc15" VerticalAlignment="Center"/>
  <TextBlock Grid.Column="3" Text="{Binding Side}"
-          FontSize="10" FontWeight="Bold" Foreground="{Binding SideColor}" VerticalAlignment="Center"/>
+   FontSize="10" FontWeight="Bold" Foreground="{Binding SideColor}" VerticalAlignment="Center"/>
     <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
   <Border CornerRadius="2" Padding="6,2" Background="{Binding StatusBackground}">
      <TextBlock Text="{Binding Status}" FontSize="9" FontWeight="Bold" Foreground="{Binding StatusForeground}"/>
@@ -1043,10 +1054,10 @@ VerticalAlignment="Center" Margin="0,0,12,0"
         <TextBlock Text="Vol" Width="60" FontSize="11" Foreground="#64748b"/>
   <TextBlock Text="{Binding Volatility}" FontSize="11" Foreground="White"/>
         </StackPanel>
-        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
   <TextBlock Text="EUR Pips" Width="60" FontSize="11" Foreground="#64748b"/>
     <TextBlock Text="{Binding EurPips}" FontSize="11" Foreground="White"/>
-            </StackPanel>
+       </StackPanel>
     </StackPanel>
      <StackPanel Grid.Column="1">
  <StackPanel Orientation="Horizontal">
@@ -1055,34 +1066,34 @@ VerticalAlignment="Center" Margin="0,0,12,0"
  <Run Text="{Binding PremiumLabel, Mode=OneWay}"/>
       <Run Text=" EUR "/>
      <Run Text="{Binding PremiumDisplay, Mode=OneWay}"/>
-           </TextBlock>
+         </TextBlock>
       </StackPanel>
         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-       <TextBlock Text="Spot" Width="60" FontSize="11" Foreground="#64748b"/>
-       <TextBlock Text="{Binding SpotRate}" FontSize="11" Foreground="White"/>
+   <TextBlock Text="Spot" Width="60" FontSize="11" Foreground="#64748b"/>
+   <TextBlock Text="{Binding SpotRate}" FontSize="11" Foreground="White"/>
   </StackPanel>
  </StackPanel>
-      </Grid>
+ </Grid>
     <Border Height="1" Background="#1e293b" Margin="0,12"/>
      <TextBlock Text="TRADE DETAILS" FontSize="9" FontWeight="Bold" Foreground="#64748b" Margin="0,0,0,8"/>
    <Grid>
-          <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
+        <Grid.ColumnDefinitions>
+       <ColumnDefinition Width="*"/>
    <ColumnDefinition Width="*"/>
   </Grid.ColumnDefinitions>
  <StackPanel>
         <StackPanel Orientation="Horizontal">
  <TextBlock Text="Strike" Width="60" FontSize="11" Foreground="#64748b"/>
   <TextBlock Text="{Binding Strike}" FontSize="11" FontWeight="Bold" Foreground="#facc15"/>
-       </StackPanel>
+    </StackPanel>
     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-         <TextBlock Text="Expiry" Width="60" FontSize="11" Foreground="#64748b"/>
+ <TextBlock Text="Expiry" Width="60" FontSize="11" Foreground="#64748b"/>
      <TextBlock Text="{Binding ExpiryDate}" FontSize="11" Foreground="#3b82f6"/>
-             </StackPanel>
-       </StackPanel>
+         </StackPanel>
+     </StackPanel>
      <StackPanel Grid.Column="1">
-        <StackPanel Orientation="Horizontal">
-           <TextBlock Text="Notional" Width="60" FontSize="11" Foreground="#64748b"/>
+     <StackPanel Orientation="Horizontal">
+     <TextBlock Text="Notional" Width="60" FontSize="11" Foreground="#64748b"/>
    <TextBlock Text="{Binding Notional}" FontSize="11" Foreground="White"/>
 </StackPanel>
      <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
@@ -1095,15 +1106,15 @@ VerticalAlignment="Center" Margin="0,0,12,0"
            <Grid>
 <TextBlock Text="{Binding OrderId}" FontSize="10" FontFamily="JetBrains Mono, Consolas" Foreground="#64748b"/>
     <TextBlock Text="{Binding Status}" FontSize="10" FontWeight="Bold" Foreground="{Binding StatusForeground}" HorizontalAlignment="Right"/>
-       </Grid>
+   </Grid>
          </StackPanel>
      </Border>
       </StackPanel>
-  </Border>
-    </DataTemplate>
+    </Border>
+       </DataTemplate>
       </ItemsControl.ItemTemplate>
-  </ItemsControl>
-      </StackPanel>
+   </ItemsControl>
+  </StackPanel>
     </ScrollViewer>
     </Grid>
           </Border>
@@ -1113,15 +1124,15 @@ VerticalAlignment="Center" Margin="0,0,12,0"
       <!-- DEALS TAB HANDLE (visible when panel is collapsed) -->
   <Border x:Name="dealsTabHandle" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,120,0,0"
      Background="#1e293b" CornerRadius="4,0,0,4" Padding="4,8" Cursor="Hand"
-                MouseLeftButtonUp="DealsTabHandle_Click" Visibility="Collapsed">
+    MouseLeftButtonUp="DealsTabHandle_Click" Visibility="Collapsed">
   <StackPanel>
      <TextBlock Text="&#x25C0;" FontSize="10" Foreground="#94a3b8" HorizontalAlignment="Center"/>
 <TextBlock Text="D" FontSize="10" FontWeight="Bold" Foreground="#94a3b8"/>
   <TextBlock Text="E" FontSize="10" FontWeight="Bold" Foreground="#94a3b8"/>
   <TextBlock Text="A" FontSize="10" FontWeight="Bold" Foreground="#94a3b8"/>
-     <TextBlock Text="L" FontSize="10" FontWeight="Bold" Foreground="#94a3b8"/>
+  <TextBlock Text="L" FontSize="10" FontWeight="Bold" Foreground="#94a3b8"/>
        <TextBlock Text="S" FontSize="10" FontWeight="Bold" Foreground="#94a3b8"/>
-       </StackPanel>
+    </StackPanel>
         </Border>
 </Grid>
 </Window>
