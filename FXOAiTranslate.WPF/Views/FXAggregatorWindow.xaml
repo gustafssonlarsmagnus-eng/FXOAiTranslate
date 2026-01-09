@@ -593,7 +593,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                                     <TextBlock Text="Currency Pair" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBox x:Name="txtCurrencyPair" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
               Foreground="#3b82f6" FontWeight="Bold"
-              HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="120"/>
+              HorizontalAlignment="Left" VerticalAlignment="Center" MinWidth="120" Width="159"/>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
@@ -604,8 +604,8 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Type" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox x:Name="cmbOptionType" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0" Margin="0,0,8,0"
-           HorizontalAlignment="Left" MinWidth="120">
+                                    <ComboBox x:Name="cmbOptionType" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0"
+           HorizontalAlignment="Left" MinWidth="120" Width="159">
                                         <ComboBoxItem Content="Vanilla Option"/>
                                         <ComboBoxItem Content="Call Spread"/>
                                         <ComboBoxItem Content="Put Spread"/>
@@ -659,8 +659,8 @@ CornerRadius="4" Margin="4,0,0,0" Cursor="Hand" Padding="8,4"
 
                                     <!-- Clickable toggle to switch between Call/Put (styled like TextBox) -->
                                     <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1"
-  CornerRadius="4" Margin="0,0,8,0" Cursor="Hand" HorizontalAlignment="Left" MinWidth="140"
-          MouseLeftButtonUp="CallPutToggle_Click">
+  CornerRadius="4" Cursor="Hand" HorizontalAlignment="Left" MinWidth="140"
+          MouseLeftButtonUp="CallPutToggle_Click" Width="159">
                                         <Grid Margin="8,6">
                                             <TextBlock x:Name="txtCallPut" Text=""
          Foreground="#64748b" FontSize="11" FontWeight="Normal"
@@ -681,8 +681,8 @@ CornerRadius="4" Margin="4,0,0,0" Cursor="Hand" Padding="8,4"
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Expiry Date" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBox x:Name="txtExpiryDate" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
-     HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="140"
-     Foreground="#3b82f6"/>
+     HorizontalAlignment="Left" VerticalAlignment="Center" MinWidth="140"
+     Foreground="#3b82f6" Width="159"/>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
@@ -694,7 +694,7 @@ CornerRadius="4" Margin="4,0,0,0" Cursor="Hand" Padding="8,4"
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Strike" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBox x:Name="txtStrike" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
-    Foreground="#facc15" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="100"/>
+    Foreground="#facc15" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center" MinWidth="100" Width="159"/>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
@@ -705,8 +705,8 @@ CornerRadius="4" Margin="4,0,0,0" Cursor="Hand" Padding="8,4"
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Expiry Cut" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox x:Name="cmbExpiryCut" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0" Margin="0,0,8,0"
-   HorizontalAlignment="Left" MinWidth="80">
+                                    <ComboBox x:Name="cmbExpiryCut" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0"
+   HorizontalAlignment="Left" MinWidth="80" Width="120">
                                         <ComboBoxItem Content="NYC"/>
                                         <ComboBoxItem Content="TKY"/>
                                         <ComboBoxItem Content="LON"/>
@@ -739,32 +739,32 @@ CornerRadius="4" Margin="4,0,0,0" Cursor="Hand" Padding="8,4"
                                         <Grid Height="24" Background="#1a1d23">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="80"/>
-                                                <ColumnDefinition Width="70"/>
+                                                <ColumnDefinition Width="80"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="Value Date" FontSize="9" Foreground="#64748b" 
-   VerticalAlignment="Center" Margin="8,0,0,0"/>
+       VerticalAlignment="Center" Margin="8,0,0,0"/>
                                             <TextBlock x:Name="lblHedgeRateHeader" Grid.Column="1" Text="Spot" FontSize="9" Foreground="#64748b" 
-VerticalAlignment="Center" HorizontalAlignment="Left" Margin="22,0,0,0"/>
+    VerticalAlignment="Center" HorizontalAlignment="Left" Margin="8,0,0,0"/>
                                             <TextBlock x:Name="lblHedgeAmountHeader" Grid.Column="2" Text="Amount(EUR)" FontSize="9" Foreground="#64748b" 
-   VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
+       VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
                                         </Grid>
 
                                         <!-- Data Row -->
                                         <Grid Height="28">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="80"/>
-                                                <ColumnDefinition Width="70"/>
+                                                <ColumnDefinition Width="80"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock x:Name="lblHedgeValueDate" Text="" FontSize="11" Foreground="White"
-     VerticalAlignment="Center" Margin="8,0,0,0"/>
+    VerticalAlignment="Center" Margin="8,0,0,0"/>
                                             <TextBox x:Name="txtHedgeRate" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
-  Foreground="White" FontSize="11" Padding="4,2"
+      Foreground="White" FontSize="11" Padding="4,2"
        VerticalAlignment="Center" HorizontalAlignment="Left" Width="117"
-     HorizontalContentAlignment="Center" Margin="21,0,0,0" Grid.ColumnSpan="2"/>
+       HorizontalContentAlignment="Center" Margin="21,0,0,0" Grid.ColumnSpan="2"/>
                                             <TextBlock x:Name="lblHedgeAmount" Grid.Column="2" Text="" FontSize="11" Foreground="White"
-        VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
+ VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
