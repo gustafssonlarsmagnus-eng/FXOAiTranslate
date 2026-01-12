@@ -79,88 +79,90 @@ LostFocus="txtTradeInput_LostFocus"
                     </Border>
 
                     <!-- EXECUTION TILES -->
-                    <Grid Height="200" Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="2"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+     <Grid Height="200" Margin="0,0,0,8" UseLayoutRounding="True">
+      <Grid.ColumnDefinitions>
+           <ColumnDefinition Width="*"/>
+    <ColumnDefinition Width="2"/>
+   <ColumnDefinition Width="*"/>
+           </Grid.ColumnDefinitions>
 
-                        <!-- BID TILE -->
-                        <Border x:Name="bidTile" Grid.Column="0" 
+             <!-- BID TILE -->
+         <Border x:Name="bidTile" Grid.Column="0" 
  Background="{StaticResource Brush.TileGradient}"
       BorderBrush="#1e293b" BorderThickness="1"
        CornerRadius="4,0,0,4" Cursor="Hand"
     MouseLeftButtonUp="BidTile_Click"
 MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
-                            <Grid Margin="16,16,16,40">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
+          <Grid Margin="16,16,16,40">
+          <Grid.RowDefinitions>
+       <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-                                <!-- BID Label (top-left, hidden initially, shown when quoting) -->
-                                <TextBlock x:Name="lblBidLabel" Text="YOU REC" 
+       <!-- BID Label (top-left, hidden initially, shown when quoting) -->
+          <TextBlock x:Name="lblBidLabel" Text="YOU REC" 
 FontSize="10" FontWeight="Bold" Foreground="#22c55e" 
    Visibility="Collapsed" HorizontalAlignment="Left"/>
 
-                                <!-- Center Content -->
-                                <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <!-- RFQ instruction label (shown in initial state) -->
-                                    <TextBlock x:Name="lblBidRfqHint" Text="CLICK TO RFQ (F9)" 
-        FontSize="10" FontWeight="Bold" Foreground="#64748b"
-    HorizontalAlignment="Center" Margin="0,0,0,4"/>
+     <!-- Center Content -->
+      <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+    <!-- RFQ instruction label (shown in initial state) -->
+       <TextBlock x:Name="lblBidRfqHint" Text="CLICK TO RFQ (F9)" 
+    FontSize="10" FontWeight="Bold" Foreground="#64748b"
+ HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
-                                    <TextBlock x:Name="lblBidValue" Text="RFQ"
-    FontFamily="./Assets/Fonts/#Inter, Segoe UI" FontSize="72" FontWeight="Bold" Foreground="#64748b"
+         <TextBlock x:Name="lblBidValue" Text="RFQ"
+    FontFamily="Inter, Segoe UI" FontSize="72" FontWeight="Bold" Foreground="#64748b"
  HorizontalAlignment="Center" VerticalAlignment="Center"
-TextOptions.TextFormattingMode="Display"
- TextOptions.TextRenderingMode="ClearType"
+TextOptions.TextFormattingMode="Ideal"
+ TextOptions.TextRenderingMode="Auto"
+ SnapsToDevicePixels="False"
  MouseEnter="HeroValue_MouseEnter" MouseLeave="HeroValue_MouseLeave"/>
-                                    <TextBlock x:Name="lblBidSecondary" Text=""
+    <TextBlock x:Name="lblBidSecondary" Text=""
   FontSize="12" FontWeight="Bold" Foreground="#64748b"
-      HorizontalAlignment="Center" Margin="0,8,0,0"
-      Visibility="Collapsed"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+ HorizontalAlignment="Center" Margin="0,8,0,0"
+Visibility="Collapsed"/>
+     </StackPanel>
+       </Grid>
+         </Border>
 
-                        <!-- OFFER TILE -->
-                        <Border x:Name="offerTile" Grid.Column="2" 
+   <!-- OFFER TILE -->
+    <Border x:Name="offerTile" Grid.Column="2" 
  Background="{StaticResource Brush.TileGradient}"
     BorderBrush="#1e293b" BorderThickness="1"
  CornerRadius="0,4,4,0" Cursor="Hand"
  MouseLeftButtonUp="OfferTile_Click"
  MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
-                            <Grid Margin="16,16,16,40">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
+  <Grid Margin="16,16,16,40">
+           <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+       <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                                <!-- OFFER Label (top-right, hidden initially, shown when quoting) -->
-                                <TextBlock x:Name="lblOfferLabel" Text="YOU PAY" 
+               <!-- OFFER Label (top-right, hidden initially, shown when quoting) -->
+        <TextBlock x:Name="lblOfferLabel" Text="YOU PAY" 
      FontSize="10" FontWeight="Bold" Foreground="#ef4444" HorizontalAlignment="Right"
     Visibility="Collapsed"/>
 
-                                <!-- Center Content -->
-                                <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <!-- RFQ instruction label (shown in initial state) -->
-                                    <TextBlock x:Name="lblOfferRfqHint" Text="CLICK TO RFQ (F9)" 
+            <!-- Center Content -->
+     <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+     <!-- RFQ instruction label (shown in initial state) -->
+  <TextBlock x:Name="lblOfferRfqHint" Text="CLICK TO RFQ (F9)" 
   FontSize="10" FontWeight="Bold" Foreground="#64748b"
    HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
-                                    <TextBlock x:Name="lblOfferValue" Text="RFQ"
-  FontFamily="./Assets/Fonts/#Inter, Segoe UI" FontSize="72" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
-  TextOptions.TextFormattingMode="Display"
-    TextOptions.TextRenderingMode="ClearType"
+    <TextBlock x:Name="lblOfferValue" Text="RFQ"
+  FontFamily="Inter, Segoe UI" FontSize="72" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
+  TextOptions.TextFormattingMode="Ideal"
+  TextOptions.TextRenderingMode="Auto"
+    SnapsToDevicePixels="False"
     MouseEnter="HeroValue_MouseEnter" MouseLeave="HeroValue_MouseLeave"/>
-                                    <TextBlock x:Name="lblOfferSecondary" Text=""
+         <TextBlock x:Name="lblOfferSecondary" Text=""
     FontSize="12" FontWeight="Bold" Foreground="#64748b"
 HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+             </StackPanel>
+     </Grid>
+         </Border>
 
                         <!-- Bottom Bar: LP Badges + Spread (all aligned at same baseline) -->
                         <Grid Grid.ColumnSpan="3" VerticalAlignment="Bottom" Margin="0,0,0,8">
