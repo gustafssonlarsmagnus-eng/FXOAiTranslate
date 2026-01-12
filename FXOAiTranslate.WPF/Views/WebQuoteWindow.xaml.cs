@@ -8,6 +8,9 @@ using Microsoft.Web.WebView2.Core;
 using FXOptionsSimulator;
 using FXOptionsSimulator.FIX;
 
+// Alias to resolve WinForms/WPF type conflict
+using MessageBox = System.Windows.MessageBox;
+
 namespace FXOAiTranslate.WPF.Views
 {
     /// <summary>

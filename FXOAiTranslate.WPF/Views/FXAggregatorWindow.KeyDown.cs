@@ -3,6 +3,10 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Threading.Tasks;
 
+// Aliases to resolve WinForms/WPF type conflicts
+using Button = System.Windows.Controls.Button;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+
 namespace FXOAiTranslate.WPF.Views
 {
     public partial class FXAggregatorWindow

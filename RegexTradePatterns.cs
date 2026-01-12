@@ -67,6 +67,22 @@ new TradePattern(
     )
 ),
 
+// NEW PATTERN: Currency-led vanilla WITHOUT explicit call/put
+// Matches: "1m eurusd 1.17 in 15mio" or "eurusd 1m 1.1700 15mio"
+// Option type will be inferred from strike vs spot
+new TradePattern(
+    "Vanilla_NoType",
+    new Regex(
+        @"(?:\d+[mMwWyYdD]\s+)?" +           // Optional tenor at start (1m, 2w, etc)
+  @"(?:[A-Z]{6}\s+)?" +        // Optional EURUSD
+        @"(?:\d+[mMwWyYdD]\s+)?" +      // Optional tenor after pair
+        @"(?:[A-Z]{6}\s+)?" +    // Optional EURUSD again
+        @"(?<strike>\d+(?:\.\d+)?)\s+" +     // Strike: 1.17 or 1.1700
+        @"(?:in\s+)?(?<notional>\d+)\s*(?:m(?:io)?|mil|million)", // in 15mio or 15m
+        RegexOptions.IgnoreCase
+    )
+),
+
        
             // ==================
             // 3-Leg Collar: Buy Call + Sell Call + Sell Put

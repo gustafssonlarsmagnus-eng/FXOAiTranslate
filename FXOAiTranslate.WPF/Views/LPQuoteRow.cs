@@ -1,6 +1,11 @@
 using System.ComponentModel;
 using System.Windows.Media;
 
+// Aliases to resolve WinForms/WPF type conflicts
+using Brush = System.Windows.Media.Brush;
+using Brushes = System.Windows.Media.Brushes;
+using Color = System.Windows.Media.Color;
+
 namespace FXOAiTranslate.WPF.Views
 {
     /// <summary>

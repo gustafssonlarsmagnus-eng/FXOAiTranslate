@@ -13,16 +13,26 @@ using FXOptionsSimulator;
 using FXOptionsSimulator.FIX;
 using FXOAiTranslator;
 
+// Aliases to resolve WinForms/WPF type conflicts (caused by UseWindowsForms=true for TradeParser)
+using Color = System.Windows.Media.Color;
+using ColorConverter = System.Windows.Media.ColorConverter;
+using MessageBox = System.Windows.MessageBox;
+using CheckBox = System.Windows.Controls.CheckBox;
+using Button = System.Windows.Controls.Button;
+using Brushes = System.Windows.Media.Brushes;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+
 namespace FXOAiTranslate.WPF.Views
 {
     public partial class FXAggregatorWindow : Window
     {
         public ObservableCollection<LPQuoteRow> LPQuotes { get; set; }
-        public ObservableCollection<DealViewModel> Deals { get; set; }
+      public ObservableCollection<DealViewModel> Deals { get; set; }
 
-        private readonly TradeStructure _trade;
+        private TradeStructure _trade;
         private readonly GFIFIXSessionManager _fixSession;
         private readonly BloombergService _bloombergService;
+        private readonly TradeParser _tradeParser; // Shared parsing logic with FXO AI Translator
         private readonly ConcurrentDictionary<string, LPQuoteData> _quotesByLP;
         private readonly ConcurrentDictionary<string, FIXMessage> _quotesByQuoteId; // Store FIXMessages for execution
         private readonly DispatcherTimer _countdownTimer;
@@ -49,6 +59,12 @@ namespace FXOAiTranslate.WPF.Views
             // Initialize Bloomberg service for real market data
             _bloombergService = new BloombergService();
             Console.WriteLine($"[WPF] Bloomberg service initialized - Connected: {_bloombergService.IsConnected}");
+
+            // Initialize TradeParser for shared parsing logic (same as FXO AI Translator)
+            string openAIApiKey = LoadOpenAIApiKey();
+            _tradeParser = new TradeParser(_bloombergService, openAIApiKey);
+            _tradeParser.DebugCallback = msg => Console.WriteLine($"[TradeParser] {msg}");
+            Console.WriteLine($"[WPF] TradeParser initialized - AI enabled: {!string.IsNullOrEmpty(openAIApiKey)}");
 
             // Get FIX session
             _fixSession = GlobalFIXSession.Instance;
@@ -392,7 +408,7 @@ spreadPanel.Visibility = Visibility.Collapsed;
             // Don't clear and re-add rows - just update existing LP rows in place
         // This preserves the original LP order from the XAML (MS, HSBC, BNP, NATWEST, etc.)
 
-            // Find best prices for highlighting
+      // Find best prices for highlighting
             var allQuotes = _quotesByLP.Values.ToList();
        var bestBidLP = allQuotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault()?.LP;
     var bestOfferLP = allQuotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault()?.LP;
@@ -404,49 +420,49 @@ spreadPanel.Visibility = Visibility.Collapsed;
    {
      // LP has quoted - add/update in the ladder
      var existingRow = LPQuotes.FirstOrDefault(r => r.LPName == lpName);
-       
+   
  var secondsRemaining = (lpData.ValidUntilTime - DateTime.Now).TotalSeconds;
       var opacity = Math.Max(0.3, Math.Min(1.0, secondsRemaining / 120.0)); // Fade over 2 mins
 
-              var bidVol = lpData.BidVol > 0 ? lpData.BidVol.ToString("F2") : "-";
+ var bidVol = lpData.BidVol > 0 ? lpData.BidVol.ToString("F2") : "-";
            var offerVol = lpData.OfferVol > 0 ? lpData.OfferVol.ToString("F2") : "-";
 
       if (existingRow != null)
           {
-        // Update existing row
+  // Update existing row
     existingRow.BidVol = bidVol;
           existingRow.OfferVol = offerVol;
   existingRow.BidSecondary = lpData.BidPremium != 0 ? $"{Math.Abs(lpData.BidPremium / 1000):F0}k" : "-";
-           existingRow.OfferSecondary = lpData.OfferPremium != 0 ? $"{Math.Abs(lpData.OfferPremium / 1000):F0}k" : "-";
+ existingRow.OfferSecondary = lpData.OfferPremium != 0 ? $"{Math.Abs(lpData.OfferPremium / 1000):F0}k" : "-";
 existingRow.Opacity = opacity;
           existingRow.IsBestBid = lpName == bestBidLP;
       existingRow.IsBestOffer = lpName == bestOfferLP;
-                  }
+    }
          else
   {
           // Add new row (in order)
-         var row = new LPQuoteRow(lpName, bidVol, offerVol)
+       var row = new LPQuoteRow(lpName, bidVol, offerVol)
      {
        BidSecondary = lpData.BidPremium != 0 ? $"{Math.Abs(lpData.BidPremium / 1000):F0}k" : "-",
-        OfferSecondary = lpData.OfferPremium != 0 ? $"{Math.Abs(lpData.OfferPremium / 1000):F0}k" : "-",
+ OfferSecondary = lpData.OfferPremium != 0 ? $"{Math.Abs(lpData.OfferPremium / 1000):F0}k" : "-",
 Opacity = opacity,
        IsBestBid = lpName == bestBidLP,
-               IsBestOffer = lpName == bestOfferLP,
-        IsEnabled = true
-                 };
+        IsBestOffer = lpName == bestOfferLP,
+IsEnabled = true
+         };
      
-             // Insert at correct position to maintain order
+     // Insert at correct position to maintain order
      int insertIndex = GetInsertIndexForLP(lpName);
      if (insertIndex >= 0 && insertIndex <= LPQuotes.Count)
         {
        LPQuotes.Insert(insertIndex, row);
-              }
+   }
           else
-              {
+    {
            LPQuotes.Add(row);
-                }
+  }
           }
-       }
+ }
    }
         }
 
@@ -749,38 +765,38 @@ lblOfferSecondary.Visibility = Visibility.Visible;
         {
             var text = txtTradeInput.Text;
 
-            // Pattern to match numbers with k or m suffix (case insensitive)
-            // Context-aware: only expand notional-sized numbers, not tenors
-            var pattern = @"\b(\d+(?:\.\d+)?)\s*([kmKM])\b";
+            // Pattern to match numbers with k, m, mio, or million suffix (case insensitive)
+      // Context-aware: only expand notional-sized numbers, not tenors
+     var pattern = @"\b(\d+(?:\.\d+)?)\s*(k|m(?:io)?|million)\b";
 
             text = System.Text.RegularExpressions.Regex.Replace(text, pattern, match =>
-            {
-                var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
-                var suffix = match.Groups[2].Value.ToLower();
+        {
+           var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+     var suffix = match.Groups[2].Value.ToLower();
 
                 // Heuristic: only expand if number suggests notional (not tenor)
-                // Tenors are typically small numbers: 1m, 3m, 6m, 1y
-                // Notionals are typically large: 10m, 50m, 100k
-                if (suffix == "m" && number >= 10)
+              // Tenors are typically small numbers: 1m, 3m, 6m, 1y
+       // Notionals are typically large: 10m, 50m, 100k
+      // BUT: "mio" and "million" are ALWAYS notionals (not tenors)
+         if ((suffix == "m" && number >= 10) || suffix == "mio" || suffix == "million")
+        {
+             // Format millions with space as thousand separator
+            long formatted = (long)(number * 1_000_000);
+     return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+           }
+      else if (suffix == "k")
                 {
-                    // Format millions with space as thousand separator
-                    long formatted = (long)(number * 1_000_000);
-                    return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
-                }
-                else if (suffix == "k")
-                {
-                    // Format thousands with space as thousand separator
-                    long formatted = (long)(number * 1000);
-                    return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
-                }
+         // Format thousands with space as thousand separator
+        long formatted = (long)(number * 1000);
+          return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+     }
 
-                // Leave as-is (likely tenor like "1m", "3m")
-                return match.Value;
-            });
+       // Leave as-is (likely tenor like "1m", "3m")
+        return match.Value;
+    }, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             txtTradeInput.Text = text;
-        }
-
+   }
         /// <summary>
    /// Handle notional text field losing focus - format the value
       /// </summary>
@@ -791,19 +807,20 @@ lblOfferSecondary.Visibility = Visibility.Visible;
 
   var text = txtNotional.Text;
 
-  // Pattern to match numbers with k or m suffix (case insensitive)
-  var pattern = @"\b(\d+(?:\.\d+)?)\s*([kmKM])\b";
+  // Pattern to match numbers with k, m, mio, or million suffix (case insensitive)
+  var pattern = @"\b(\d+(?:\.\d+)?)\s*(k|m(?:io)?|million)\b";
 
   text = System.Text.RegularExpressions.Regex.Replace(text, pattern, match =>
-  {
+{
   var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
      var suffix = match.Groups[2].Value.ToLower();
 
-   // Format millions (10m -> 10 000 000)
-if (suffix == "m" && number >= 10)
+   // Format millions (10m -> 10 000 000, 15mio -> 15 000 000)
+   // "mio" and "million" are ALWAYS notionals (not tenors)
+   if ((suffix == "m" && number >= 10) || suffix == "mio" || suffix == "million")
        {
   long formatted = (long)(number * 1_000_000);
-       return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+   return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
         }
     // Format thousands (100k -> 100 000)
   else if (suffix == "k")
@@ -814,13 +831,13 @@ if (suffix == "m" && number >= 10)
 
 // Leave as-is (small numbers like "1m" for tenor)
 return match.Value;
- });
+ }, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             txtNotional.Text = text;
 
      // Update trade structure with notional
    UpdateTradeNotionalFromUI();
-      }
+   }
 
         /// <summary>
   /// Toggle notional currency between base and quote currency (e.g., EUR <-> USD for EURUSD)
@@ -922,62 +939,73 @@ return match.Value;
         #region Trade Parsing and UI Update
 
         /// <summary>
-        /// Parse the trade input text and update the _trade structure
+        /// Load OpenAI API key from environment or configuration (same as MainForm)
+  /// </summary>
+        private string LoadOpenAIApiKey()
+        {
+   // Try environment variable first
+   string key = Environment.GetEnvironmentVariable("OpenAIApiKey");
+
+         // Fall back to app.config if not found
+        if (string.IsNullOrEmpty(key) || key == "changeme")
+{
+     key = System.Configuration.ConfigurationManager.AppSettings["OpenAIApiKey"];
+        }
+
+       return key;
+        }
+
+        /// <summary>
+        /// Parse the trade input text using TradeParser (same logic as FXO AI Translator)
         /// </summary>
         private async Task ParseTradeInput()
         {
-            string input = txtTradeInput.Text?.Trim() ?? "";
-     
-            // Skip if placeholder or empty
+   string input = txtTradeInput.Text?.Trim() ?? "";
+  
+       // Skip if placeholder or empty
    if (string.IsNullOrWhiteSpace(input) || 
-        input.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
-            {
-     return;
-            }
+   input.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
+  {
+             return;
+    }
 
-            // Simple regex-based parsing for common trade formats
-        // Format: "buy 10mio EURUSD 1m call 1.1750" or "sell 5m USDJPY 3m put 150.50"
-     var pattern = @"(?<direction>buy|sell)\s+(?<notional>[\d.]+)\s*(?:mio|m|mm)?\s*(?<pair>[A-Z]{6})\s+(?<tenor>\d+[mMwWyY])\s+(?<type>call|put)\s+(?<strike>[\d.]+)";
-            var match = System.Text.RegularExpressions.Regex.Match(input, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-       if (match.Success && _trade != null)
-          {
-     // Update trade structure from parsed input
-      _trade.Underlying = match.Groups["pair"].Value.ToUpper();
-       
- if (_trade.Legs == null || _trade.Legs.Count == 0)
+    // Use TradeParser for parsing (same logic as FXO AI Translator)
+        var result = await _tradeParser.ParseTradeAsync(input);
+            
+            if (result != null && !string.IsNullOrEmpty(result.OVML))
+       {
+         Console.WriteLine($"[WPF] TradeParser result: Method={result.ParseMethod}, OVML={result.OVML}");
+        
+     // Convert OVML result to TradeStructure
+     var ovmlResult = new OVMLParseResult
       {
-           _trade.Legs = new System.Collections.Generic.List<TradeStructure.OptionLeg>
-   {
-  new TradeStructure.OptionLeg()
-                 };
-      }
+        OVML = result.OVML,
+     Underlying = result.Underlying,
+        Expiry = result.Expiry,
+       LegCount = result.LegCount
+     };
+           
+ // Use OVMLBridge to convert to TradeStructure
+       var tradeStructure = OVMLBridge.ConvertToTradeStructure(ovmlResult);
+                
+ // Copy trade structure fields to _trade
+       if (_trade != null)
+    {
+         _trade.Underlying = tradeStructure.Underlying;
+                _trade.StructureType = tradeStructure.StructureType;
+   _trade.SpotReference = tradeStructure.SpotReference;
+      _trade.Legs = tradeStructure.Legs;
+   }
+     
+           Console.WriteLine($"[WPF] Parsed trade: {tradeStructure.Underlying} {tradeStructure.StructureType} with {tradeStructure.Legs?.Count ?? 0} legs");
+            }
+            else
+  {
+  Console.WriteLine($"[WPF] TradeParser returned no result for input: {input}");
+   }
+  }
 
-     var leg = _trade.Legs[0];
-   leg.Direction = match.Groups["direction"].Value.ToUpper();
-     leg.OptionType = match.Groups["type"].Value.ToUpper();
-    leg.Tenor = match.Groups["tenor"].Value.ToUpper();
-        
-    if (double.TryParse(match.Groups["notional"].Value, System.Globalization.NumberStyles.Any, 
-        System.Globalization.CultureInfo.InvariantCulture, out double notional))
-        {
-  leg.NotionalMM = notional;
-     }
-        
-      if (double.TryParse(match.Groups["strike"].Value, System.Globalization.NumberStyles.Any,
-     System.Globalization.CultureInfo.InvariantCulture, out double strike))
-        {
-        leg.Strike = strike;
-      }
-
-      // Fetch Bloomberg spot rate
-             _trade.SpotReference = await GetBloombergSpotAsync(_trade.Underlying);
-
-         Console.WriteLine($"[WPF] Parsed trade: {leg.Direction} {leg.NotionalMM}MM {_trade.Underlying} {leg.Tenor} {leg.OptionType} @ {leg.Strike}");
-     }
-        }
-
-  /// <summary>
+        /// <summary>
         /// Update UI fields from the current trade structure
       /// </summary>
         private void UpdateUIFieldsFromTrade()

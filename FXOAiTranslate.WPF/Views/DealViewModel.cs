@@ -2,6 +2,9 @@ using System;
 using System.ComponentModel;
 using System.Windows.Media;
 
+// Alias to resolve WinForms/WPF type conflicts
+using Brush = System.Windows.Media.Brush;
+
 namespace FXOAiTranslate.WPF.Views
 {
     /// <summary>

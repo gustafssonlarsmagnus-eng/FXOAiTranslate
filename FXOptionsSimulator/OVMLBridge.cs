@@ -119,6 +119,8 @@ namespace FXOptionsSimulator
                 Legs = new List<ParsedLeg>()
             };
 
+            Console.WriteLine($"[OVMLBridge] Parsing OVML: {ovml}");
+
             // Remove "OVML" prefix and split by spaces
             var parts = ovml.Replace("OVML", "").Trim().Split(' ');
 
@@ -167,10 +169,11 @@ namespace FXOptionsSimulator
                 {
                     strikes = part;
                 }
-                // Notionals: N10M,50M
+                // Notionals: N10M or N15M,10M (handle both single and multi-leg)
                 else if (part.StartsWith("N") && part.Contains("M"))
                 {
                     notionals = part;
+                    Console.WriteLine($"[OVMLBridge] Found notionals token: {notionals}");
                 }
                 // Spot reference: SP9.3950
                 else if (part.StartsWith("SP"))
@@ -184,10 +187,29 @@ namespace FXOptionsSimulator
                 }
             }
 
+            Console.WriteLine($"[OVMLBridge] Parsed - Directions: '{directions}', Strikes: '{strikes}', Notionals: '{notionals}'");
+
             // Parse legs
             var directionList = directions.Split(',');
             var strikeList = strikes.Split(',');
-            var notionalList = notionals.Replace("N", "").Replace("M", "").Split(',');
+
+            // Parse notionals - handle format like "N15M" or "N15M,10M"
+            // Remove leading N, then split by comma, then remove trailing M from each
+            var notionalList = new List<double>();
+            if (!string.IsNullOrEmpty(notionals))
+            {
+                var notionalStr = notionals.TrimStart('N'); // Remove leading N
+                var notionalParts = notionalStr.Split(',');
+                foreach (var np in notionalParts)
+                {
+                    var cleaned = np.Trim().TrimEnd('M', 'm');
+                    if (double.TryParse(cleaned, out double val))
+                    {
+                        notionalList.Add(val);
+                        Console.WriteLine($"[OVMLBridge] Parsed notional: {val} from '{np}'");
+                    }
+                }
+            }
 
             for (int i = 0; i < strikeList.Length; i++)
             {
@@ -212,7 +234,9 @@ namespace FXOptionsSimulator
                 string direction = i < directionList.Length ? directionList[i].Trim() : "B";
                 direction = direction == "B" ? "BUY" : "SELL";
 
-                double notional = i < notionalList.Length ? double.Parse(notionalList[i].Trim()) : 10;
+                // Get notional from parsed list, default to 10 if not found
+                double notional = i < notionalList.Count ? notionalList[i] : 10;
+                Console.WriteLine($"[OVMLBridge] Leg {i}: Direction={direction}, Strike={strike}, Notional={notional}MM");
 
                 result.Legs.Add(new ParsedLeg
                 {

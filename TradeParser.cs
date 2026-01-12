@@ -336,10 +336,41 @@ namespace FXOAiTranslator
                                     result.OVML = $"OVML {result.Underlying} {ovmlExpiryVC} " +
                                                   $"B {match.Groups["strike"].Value}{optionType} " +
                                                   $"N{match.Groups["notional"].Value}M VA" +
-                                                      spot;
+                                                  spot;
                                     break;
 
-                                case "Delta_RiskReversal":
+                                case "Vanilla_NoType":
+                                    LogDebug($"DEBUG: Processing Vanilla_NoType pattern");
+                                    result.LegCount = 1;
+
+                                    string strikeValue = match.Groups["strike"].Value;
+ string notionalValue = match.Groups["notional"].Value;
+ 
+         LogDebug($"DEBUG: Vanilla_NoType - Strike: {strikeValue}, Notional: {notionalValue}");
+
+            // Determine option type from strike vs spot
+     string inferredType = "C"; // Default to Call
+       if (!string.IsNullOrEmpty(spot) && double.TryParse(strikeValue, out double strikeNum) && 
+      double.TryParse(spot, out double spotNum))
+    {
+     // If strike < spot -> PUT (OTM put), else CALL (OTM call)
+    inferredType = strikeNum < spotNum ? "P" : "C";
+       LogDebug($"DEBUG: Inferred option type: Strike {strikeNum} vs Spot {spotNum} = {inferredType}");
+   }
+               else
+   {
+             LogDebug($"DEBUG: Could not infer option type (no spot), using default CALL");
+          }
+
+                // Convert expiry to OVML date format
+        string ovmlExpiryNT = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+
+    result.OVML = $"OVML {result.Underlying} {ovmlExpiryNT} " +
+  $"B {strikeValue}{inferredType} " +
+$"N{notionalValue}M VA";
+      break;
+
+         case "Delta_RiskReversal":
    LogDebug($"DEBUG: Processing Delta_RiskReversal pattern");
        result.LegCount = 2;
 

@@ -5,6 +5,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
@@ -14,10 +15,19 @@
     <ProjectReference Include="..\FXOptionsSimulator\FXOptionsSimulator.csproj" />
   </ItemGroup>
 
+  <!-- Link TradeParser and related files from main project (shared parsing logic) -->
+  <ItemGroup>
+    <Compile Include="..\TradeParser.cs" Link="Shared\TradeParser.cs" />
+    <Compile Include="..\RegexTradePatterns.cs" Link="Shared\RegexTradePatterns.cs" />
+    <Compile Include="..\OpenAIService.cs" Link="Shared\OpenAIService.cs" />
+    <Compile Include="..\TradeSanityChecker.cs" Link="Shared\TradeSanityChecker.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
     <PackageReference Include="System.Speech" Version="8.0.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.9" />
   </ItemGroup>
 
   <ItemGroup>
