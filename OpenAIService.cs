@@ -298,7 +298,7 @@ COMPACT MULTI-LEG NOTATION WITH DIRECTION CODES:
   * Output: OVML USDNOK 06/15/26 2L B,S 10.0000C,11.5000C N15M,23M VA FW10.1045
 - Example: ""20mm USDSEK 9.4 usd call\n10mm USDSEK 10.5 usd call\n30mm USDSEK 11 usd call\nexp 10-Aug-26,\nfwd ref 9.293,\nsbb""
   * Direction codes ""sbb"" = S,B,B (Sell first leg, Buy second leg, Buy third leg)
-  * Output: OVML USDSEK 08/10/26 3L S,B,B 9.4000C,10.5000C,11.0000C N20M,10M,30M VA FW9.293
+  * Output: OVML USDSEK 08/10/26 3L S,B,B 9.4000C,10.5000C,11.0000C N20M,10M,30M VA
 - CRITICAL: Each letter in the direction code corresponds to one leg in order
 - 'fwd ref' or 'sr' becomes the FW field (forward reference) in OVML output
 
@@ -664,62 +664,76 @@ Output ONLY the OVML line:";
                             }
                         }
 
-                        // Replace the notional
+                        // Replace the notional - use regex to handle any notional format
                         if (!string.IsNullOrEmpty(newNotional))
                         {
                             var oldNotional = ExtractNotionalFromInput(pattern.ExampleInput);
-                            if (!string.IsNullOrEmpty(oldNotional) && oldNotional != newNotional)
+                            Console.WriteLine($"[AI-NOTIONAL] Old notional from pattern: '{oldNotional}', New notional from input: '{newNotional}'");
+                          
+                          if (!string.IsNullOrEmpty(oldNotional) && oldNotional != newNotional)
                             {
-                                // Replace notional in OVML (format: N15M)
-                                var formattedNewNotional = "N" + newNotional + "M";
-                                var formattedOldNotional = "N" + oldNotional + "M";
+                               // Replace notional in OVML (format: N15M)
+                             var formattedNewNotional = "N" + newNotional + "M";
+ var formattedOldNotional = "N" + oldNotional + "M";
 
-                                ovmlWithNewValues = ovmlWithNewValues.Replace(formattedOldNotional, formattedNewNotional);
-                                Console.WriteLine($"[AI]   Adapted notional: {oldNotional} → {newNotional}");
-                            }
-                        }
+ ovmlWithNewValues = ovmlWithNewValues.Replace(formattedOldNotional, formattedNewNotional);
+    Console.WriteLine($"[AI]   Adapted notional: {oldNotional} → {newNotional}");
+         }
+else if (string.IsNullOrEmpty(oldNotional))
+         {
+            // If we can't find old notional, replace ANY notional in the OVML with the new one
+        // This handles cases where the pattern's example input format differs
+          var formattedNewNotional = "N" + newNotional + "M";
+      ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
+    ovmlWithNewValues,
+            @"N\d+M",
+  formattedNewNotional
+                  );
+   Console.WriteLine($"[AI]   Replaced notional with: {newNotional} (old notional not extractable)");
+             }
+    }
 
-                        // Update spot reference to live Bloomberg spot
-                        if (!string.IsNullOrEmpty(liveSpot))
-                        {
-                            var oldSpotMatch = System.Text.RegularExpressions.Regex.Match(ovmlWithNewValues, @"SP(\d+\.?\d*)");
-                            if (oldSpotMatch.Success)
-                            {
-                                var oldSpotValue = oldSpotMatch.Groups[1].Value;
-                                ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
-                                    ovmlWithNewValues,
-                                    @"SP\d+\.?\d*",
-                                    "SP" + liveSpot
-                                );
-                                Console.WriteLine($"[AI]   Updated spot reference: SP{oldSpotValue} → SP{liveSpot}");
-                            }
-                            else if (!ovmlWithNewValues.Contains("SP"))
-                            {
-                                // Add spot reference if it doesn't exist
-                                ovmlWithNewValues += " SP" + liveSpot;
-                                Console.WriteLine($"[AI]   Added spot reference: SP{liveSpot}");
-                            }
-                        }
+       // Update spot reference to live Bloomberg spot
+if (!string.IsNullOrEmpty(liveSpot))
+    {
+           var oldSpotMatch = System.Text.RegularExpressions.Regex.Match(ovmlWithNewValues, @"SP(\d+\.?\d*)");
+       if (oldSpotMatch.Success)
+          {
+      var oldSpotValue = oldSpotMatch.Groups[1].Value;
+ ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
+     ovmlWithNewValues,
+            @"SP\d+\.?\d*",
+          "SP" + liveSpot
+       );
+       Console.WriteLine($"[AI]   Updated spot reference: SP{oldSpotValue} → SP{liveSpot}");
+             }
+    else if (!ovmlWithNewValues.Contains("SP"))
+        {
+    // Add spot reference if it doesn't exist
+          ovmlWithNewValues += " SP" + liveSpot;
+   Console.WriteLine($"[AI]   Added spot reference: SP{liveSpot}");
+               }
+  }
 
-                        // Return the adapted OVML result
-                        var result = new TradeParseResult
-                        {
-                            OVML = ovmlWithNewValues,
-                            Underlying = underlying,
-                            Expiry = expiry,
-                            ParseMethod = $"Learned-Pattern-{pattern.Name}"
-                        };
-                        result.GenerateUBS();
-                        return result;
-                    }
-                }
-                catch (Exception ex)
+// Return the adapted OVML result
+     var result = new TradeParseResult
+    {
+      OVML = ovmlWithNewValues,
+          Underlying = underlying,
+        Expiry = expiry,
+        ParseMethod = $"Learned-Pattern-{pattern.Name}"
+   };
+   result.GenerateUBS();
+            return result;
+        }
+         }
+     catch (Exception ex)
                 {
-                    Console.WriteLine($"[AI] Error testing pattern {pattern.Name}: {ex.Message}");
-                }
-            }
+      Console.WriteLine($"[AI] Error testing pattern {pattern.Name}: {ex.Message}");
+ }
+         }
 
-            return null;
+        return null;
         }
 
         public bool RemovePattern(string patternName)
@@ -952,15 +966,22 @@ Output ONLY the OVML line:";
         private string ExtractNotionalFromInput(string input)
         {
             // Extract notional like "10mio", "15m", "150nok" from input
-            // Match patterns: "15mio", "15m", "15mil", "10 mio"
+            // Match patterns: "15mio", "15m", "15mil", "10 mio", "in 15mio"
             var notionalMatch = System.Text.RegularExpressions.Regex.Match(
-                input,
-                @"(?:in\s+)?(\d+)\s*(?:mio|m|mil|million)\b",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase
-            );
+          input,
+   @"(?:in\s+)?(\d+)\s*(?:mio|mil(?:lion)?|m)\b",
+              System.Text.RegularExpressions.RegexOptions.IgnoreCase
+         );
 
-            return notionalMatch.Success ? notionalMatch.Groups[1].Value : null;
-        }
+       if (notionalMatch.Success)
+     {
+ Console.WriteLine($"[AI-NOTIONAL] Extracted notional '{notionalMatch.Groups[1].Value}' from input: '{input.Substring(0, Math.Min(50, input.Length))}'");
+                return notionalMatch.Groups[1].Value;
+         }
+         
+            Console.WriteLine($"[AI-NOTIONAL] Failed to extract notional from input: '{input.Substring(0, Math.Min(50, input.Length))}'");
+     return null;
+     }
 
         private string FormatStrikeForOVML(string strike)
         {

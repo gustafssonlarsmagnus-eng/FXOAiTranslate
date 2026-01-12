@@ -73,13 +73,14 @@ new TradePattern(
 new TradePattern(
     "Vanilla_NoType",
     new Regex(
-        @"(?:\d+[mMwWyYdD]\s+)?" +           // Optional tenor at start (1m, 2w, etc)
-  @"(?:[A-Z]{6}\s+)?" +        // Optional EURUSD
-        @"(?:\d+[mMwWyYdD]\s+)?" +      // Optional tenor after pair
-        @"(?:[A-Z]{6}\s+)?" +    // Optional EURUSD again
-        @"(?<strike>\d+(?:\.\d+)?)\s+" +     // Strike: 1.17 or 1.1700
-        @"(?:in\s+)?(?<notional>\d+)\s*(?:m(?:io)?|mil|million)", // in 15mio or 15m
-        RegexOptions.IgnoreCase
+        @"(?:\d+[mMwWyYdD]\s+)?" +     // Optional tenor at start (1m, 2w, etc)
+        @"(?:[A-Za-z]{6}\s+)?" +        // Optional EURUSD (case insensitive)
+        @"(?:\d+[mMwWyYdD]\s+)?" +  // Optional tenor after pair
+      @"(?:[A-Za-z]{6}\s+)?" +    // Optional EURUSD again (case insensitive)
+        @"(?<strike>\d+(?:\.\d+)?)\s+" +      // Strike: 1.17 or 1.1700
+        @"(?:in\s+)?(?<notional>\d+)\s*" +    // in 15 (captured notional)
+        @"(?:m(?:io)?|mil|million)", // mio, m, mil, or million suffix
+ RegexOptions.IgnoreCase
     )
 ),
 

@@ -632,7 +632,8 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                                         </Grid.ColumnDefinitions>
 
                                         <TextBox x:Name="txtNotional" Grid.Column="0" Text="" Style="{StaticResource DarkTextBox}"
- FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center" MinWidth="100"/>
+ FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center" MinWidth="100"
+  GotFocus="txtNotional_GotFocus" LostFocus="txtNotional_LostFocus"/>
 
                                         <!-- Currency toggle button -->
                                         <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1"
@@ -696,7 +697,8 @@ CornerRadius="4" Margin="4,0,0,0" Cursor="Hand" Padding="8,4"
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Strike" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBox x:Name="txtStrike" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
-    Foreground="#facc15" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center" MinWidth="100" Width="159"/>
+        Foreground="#facc15" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center" MinWidth="100" Width="159"
+        GotFocus="txtStrike_GotFocus" LostFocus="txtStrike_LostFocus"/>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 

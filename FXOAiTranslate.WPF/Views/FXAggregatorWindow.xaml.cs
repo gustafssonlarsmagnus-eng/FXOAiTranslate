@@ -739,109 +739,143 @@ lblOfferSecondary.Visibility = Visibility.Visible;
             // Format notional amounts before checking if empty
             // Don't format if it's placeholder text
             if (!string.IsNullOrWhiteSpace(txtTradeInput.Text) &&
-                txtTradeInput.Text != txtTradeInput.Tag?.ToString() &&
-                !txtTradeInput.Text.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
-            {
-                FormatNotionalAmounts();
-
-                // Automatically parse trade input and populate all fields
-                await ParseTradeInput();
-                UpdateUIFieldsFromTrade();
-
-                // Don't call ShowRfqState() here - tiles should remain in current state
-                // Only the form fields should update, not the execution tiles
-                Console.WriteLine("[WPF] Trade parsed, fields updated - tiles remain in RFQ state");
-            }
-
-            // Show placeholder when textbox loses focus and is empty
-            if (string.IsNullOrWhiteSpace(txtTradeInput.Text))
-            {
-                txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "";
-                txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
-            }
-        }
-
-        private void FormatNotionalAmounts()
-        {
-            var text = txtTradeInput.Text;
-
-            // Pattern to match numbers with k, m, mio, or million suffix (case insensitive)
-      // Context-aware: only expand notional-sized numbers, not tenors
-     var pattern = @"\b(\d+(?:\.\d+)?)\s*(k|m(?:io)?|million)\b";
-
-            text = System.Text.RegularExpressions.Regex.Replace(text, pattern, match =>
-        {
-           var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
-     var suffix = match.Groups[2].Value.ToLower();
-
-                // Heuristic: only expand if number suggests notional (not tenor)
-              // Tenors are typically small numbers: 1m, 3m, 6m, 1y
-       // Notionals are typically large: 10m, 50m, 100k
-      // BUT: "mio" and "million" are ALWAYS notionals (not tenors)
-         if ((suffix == "m" && number >= 10) || suffix == "mio" || suffix == "million")
-        {
-             // Format millions with space as thousand separator
-            long formatted = (long)(number * 1_000_000);
-     return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
-           }
-      else if (suffix == "k")
-                {
-         // Format thousands with space as thousand separator
-        long formatted = (long)(number * 1000);
-          return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
-     }
-
-       // Leave as-is (likely tenor like "1m", "3m")
-        return match.Value;
-    }, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-            txtTradeInput.Text = text;
-   }
-        /// <summary>
-   /// Handle notional text field losing focus - format the value
-      /// </summary>
-     private void txtNotional_LostFocus(object sender, RoutedEventArgs e)
-    {
- if (txtNotional == null || string.IsNullOrWhiteSpace(txtNotional.Text))
-       return;
-
-  var text = txtNotional.Text;
-
-  // Pattern to match numbers with k, m, mio, or million suffix (case insensitive)
-  var pattern = @"\b(\d+(?:\.\d+)?)\s*(k|m(?:io)?|million)\b";
-
-  text = System.Text.RegularExpressions.Regex.Replace(text, pattern, match =>
-{
-  var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
-     var suffix = match.Groups[2].Value.ToLower();
-
-   // Format millions (10m -> 10 000 000, 15mio -> 15 000 000)
-   // "mio" and "million" are ALWAYS notionals (not tenors)
-   if ((suffix == "m" && number >= 10) || suffix == "mio" || suffix == "million")
+   txtTradeInput.Text != txtTradeInput.Tag?.ToString() &&
+  !txtTradeInput.Text.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
        {
-  long formatted = (long)(number * 1_000_000);
-   return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
-        }
-    // Format thousands (100k -> 100 000)
-  else if (suffix == "k")
-  {
-  long formatted = (long)(number * 1000);
-        return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+         // Automatically parse trade input and populate all fields
+         await ParseTradeInput();
+        UpdateUIFieldsFromTrade();
+
+       // Don't call ShowRfqState() here - tiles should remain in current state
+      // Only the form fields should update, not the execution tiles
+       Console.WriteLine("[WPF] Trade parsed, fields updated - tiles remain in RFQ state");
+  }
+
+    // Show placeholder when textbox loses focus and is empty
+            if (string.IsNullOrWhiteSpace(txtTradeInput.Text))
+        {
+      txtTradeInput.Text = txtTradeInput.Tag?.ToString() ?? "";
+      txtTradeInput.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748b"));
        }
-
-// Leave as-is (small numbers like "1m" for tenor)
-return match.Value;
- }, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-            txtNotional.Text = text;
-
-     // Update trade structure with notional
-   UpdateTradeNotionalFromUI();
-   }
+      }
 
         /// <summary>
-  /// Toggle notional currency between base and quote currency (e.g., EUR <-> USD for EURUSD)
+      /// Handle strike text field getting focus - select all text for easy replacement
+  /// </summary>
+private void txtStrike_GotFocus(object sender, RoutedEventArgs e)
+    {
+   if (txtStrike != null && !string.IsNullOrEmpty(txtStrike.Text))
+            {
+                // Use Dispatcher to ensure selection happens after the focus event completes
+     Dispatcher.BeginInvoke(new Action(() =>
+        {
+               txtStrike.SelectAll();
+       }), System.Windows.Threading.DispatcherPriority.Input);
+            }
+        }
+
+        /// <summary>
+        /// Handle strike text field losing focus - update trade structure
         /// </summary>
+    private void txtStrike_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (txtStrike == null || string.IsNullOrWhiteSpace(txtStrike.Text))
+          return;
+
+       UpdateTradeStrikeFromUI();
+        }
+
+        /// <summary>
+        /// Update trade structure strike from the UI value
+  /// </summary>
+     private void UpdateTradeStrikeFromUI()
+        {
+    if (_trade?.Legs == null || _trade.Legs.Count == 0 || txtStrike == null)
+    return;
+
+      try
+   {
+  string cleanText = txtStrike.Text?.Trim() ?? "";
+                if (double.TryParse(cleanText, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out double strikeValue))
+    {
+      _trade.Legs[0].Strike = strikeValue;
+      Console.WriteLine($"[WPF] Updated trade strike to: {strikeValue}");
+ }
+       }
+     catch (Exception ex)
+     {
+      Console.WriteLine($"[WPF] Error updating trade strike: {ex.Message}");
+     }
+        }
+
+        /// <summary>
+        /// Handle notional text field getting focus - select all text for easy replacement
+ /// </summary>
+    private void txtNotional_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (txtNotional != null && !string.IsNullOrEmpty(txtNotional.Text))
+            {
+        // Use Dispatcher to ensure selection happens after the focus event completes
+     Dispatcher.BeginInvoke(new Action(() =>
+                {
+             txtNotional.SelectAll();
+             }), System.Windows.Threading.DispatcherPriority.Input);
+            }
+        }
+
+        /// <summary>
+      /// Handle notional text field losing focus - format the value
+      /// </summary>
+        private void txtNotional_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (txtNotional == null || string.IsNullOrWhiteSpace(txtNotional.Text))
+     return;
+
+    var text = txtNotional.Text.Trim();
+
+          // Pattern to match numbers with k, m, mio, or million suffix (case insensitive)
+  // Also handles plain numbers without suffix
+            var pattern = @"^(\d+(?:\.\d+)?)\s*(k|m(?:io)?|million)?$";
+
+       var match = System.Text.RegularExpressions.Regex.Match(text, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (match.Success)
+     {
+       var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+          var suffix = match.Groups[2].Value.ToLower();
+
+            long formattedValue;
+
+    if (string.IsNullOrEmpty(suffix))
+ {
+ // No suffix - keep as-is but format with spaces
+      formattedValue = (long)number;
+         }
+         else if (suffix == "k")
+   {
+         // Format thousands (100k -> 100 000)
+           formattedValue = (long)(number * 1_000);
+          }
+   else if (suffix == "m" || suffix == "mio" || suffix == "million")
+                {
+   // Format millions (10m -> 10 000 000, 15mio -> 15 000 000)
+          formattedValue = (long)(number * 1_000_000);
+     }
+   else
+                {
+        formattedValue = (long)number;
+   }
+
+    // Format with space as thousand separator
+           txtNotional.Text = formattedValue.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
+  }
+
+         // Update trade structure with notional
+      UpdateTradeNotionalFromUI();
+        }
+
+    /// <summary>
+   /// Toggle notional currency between base and quote currency (e.g., EUR <-> USD for EURUSD)
+  /// </summary>
         private void NotionalCurrencyToggle_Click(object sender, MouseButtonEventArgs e)
         {
     string pair = _trade?.Underlying ?? "EURUSD";
@@ -1462,16 +1496,16 @@ if (chkBNP?.IsChecked == true) selectedLPs.Add("BNP");
          bestQuote = _quotesByLP.Values.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
             }
 
-            if (bestQuote == null)
-            {
+          if (bestQuote == null)
+      {
 MessageBox.Show("No quote available to execute.", "No Quote", MessageBoxButton.OK, MessageBoxImage.Warning);
-              return;
+        return;
        }
 
             string quoteId = side == "BID" ? bestQuote.BidQuoteId : bestQuote.OfferQuoteId;
     if (string.IsNullOrEmpty(quoteId))
       {
-         MessageBox.Show("Quote ID not available.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+   MessageBox.Show("Quote ID not available.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
      return;
        }
 
@@ -1479,53 +1513,58 @@ MessageBox.Show("No quote available to execute.", "No Quote", MessageBoxButton.O
   if (!_quotesByQuoteId.TryGetValue(quoteId, out var fixMessage))
       {
            MessageBox.Show("Quote message not found.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+         return;
     }
 
-   // Generate order ID
-         string clOrdId = $"ORD-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N").Substring(0, 4)}";
+     // Send order FIRST to get the actual ClOrdID used by FIX
+            string clOrdId = null;
+ try
+         {
+   Console.WriteLine($"[WPF] Executing trade on {bestQuote.LP} ({side})");
+          clOrdId = _fixSession?.SendExecution(fixMessage, side, _trade);
+    Console.WriteLine($"[WPF] Execution sent with ClOrdID: {clOrdId}");
+            }
+       catch (Exception ex)
+{
+        Console.WriteLine($"[WPF] Error executing trade: {ex.Message}");
+           MessageBox.Show($"Error executing trade: {ex.Message}", "Execution Error", MessageBoxButton.OK, MessageBoxImage.Error);
+       return;
+            }
 
-            // Add deal card immediately with PENDING status
-          var deal = new DealViewModel
+      // Only add deal card AFTER we have the actual ClOrdID from the FIX layer
+         if (string.IsNullOrEmpty(clOrdId))
+            {
+         Console.WriteLine("[WPF] ERROR: SendExecution returned null/empty ClOrdID");
+      return;
+      }
+
+        var deal = new DealViewModel
       {
          Time = DateTime.Now.ToString("HH:mm:ss"),
-         Instrument = $"{_trade?.Underlying} {_trade?.Legs?[0]?.Tenor}",
+ Instrument = $"{_trade?.Underlying} {_trade?.Legs?[0]?.Tenor}",
      Strike = _trade?.Legs?[0]?.Strike.ToString("F4") ?? "N/A",
      Side = side == "BID" ? "SELL" : "BUY",
     SideColor = new SolidColorBrush(side == "BID" ? Color.FromRgb(239, 68, 68) : Color.FromRgb(34, 197, 94)),
-       Status = "PENDING",
-         StatusBackground = new SolidColorBrush(Color.FromRgb(245, 158, 11)),
+   Status = "PENDING",
+StatusBackground = new SolidColorBrush(Color.FromRgb(245, 158, 11)),
           StatusForeground = new SolidColorBrush(Colors.Black),
-                OrderId = clOrdId,
+         OrderId = clOrdId,  // Use the actual ClOrdID from FIX
     Volatility = (side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol).ToString("F2") + "%",
    EurPips = "N/A",
-            PremiumLabel = side == "BID" ? "RCV" : "PAY",
-        PremiumDisplay = Math.Abs(side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium).ToString("N0"),
+  PremiumLabel = side == "BID" ? "RCV" : "PAY",
+     PremiumDisplay = Math.Abs(side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium).ToString("N0"),
 PremiumColor = new SolidColorBrush(side == "BID" ? Color.FromRgb(34, 197, 94) : Color.FromRgb(239, 68, 68)),
        SpotRate = bestQuote.SpotRate,
 ExpiryDate = _trade?.Legs?[0]?.ExpiryDate.ToString("dd-MMM-yy") ?? "N/A",
        Notional = $"{_trade?.Legs?[0]?.NotionalMM:F1}MM",
-                ExpiryCut = "NYC"
-            };
+     ExpiryCut = "NYC"
+  };
 
          Deals.Insert(0, deal);
             lblNoDeals.Visibility = Visibility.Collapsed;
-
-   // Send order
-            try
-         {
-   Console.WriteLine($"[WPF] Executing trade: {clOrdId} on {bestQuote.LP} ({side})");
-        _fixSession?.SendExecution(fixMessage, side, _trade);
-     }
-  catch (Exception ex)
- {
-   Console.WriteLine($"[WPF] Error executing trade: {ex.Message}");
-         deal.Status = "ERROR";
-      deal.StatusBackground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-           deal.StatusForeground = new SolidColorBrush(Colors.White);
-            }
+       
+        Console.WriteLine($"[WPF] Deal card added with OrderId: {clOrdId}");
         }
-
         #endregion
 
     #region LP Checkbox and Tile Hover Events
