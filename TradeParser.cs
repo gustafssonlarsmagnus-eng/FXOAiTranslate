@@ -69,13 +69,25 @@ namespace FXOAiTranslator
             input = input.Trim();
 
             // Check cache first (skip cache if forcing AI)
-            if (!forceAI && _cache.TryGetValue(input, out var cached))
-            {
-                LogDebug("DEBUG: Returning cached result for input.");
+         // IMPORTANT: For learned patterns, we must re-parse to extract current input's values
+  if (!forceAI && _cache.TryGetValue(input, out var cached))
+  {
+     // If the cached result was from a learned pattern, we should NOT use the cache
+           // because we need to re-extract values (strike, notional, expiry) from the current input
+   if (cached.ParseMethod != null && cached.ParseMethod.StartsWith("Learned-Pattern-"))
+ {
+            LogDebug("DEBUG: Cached result was from learned pattern - clearing cache entry to re-parse with current values");
+        _cache.Remove(input);  // Remove the stale cache entry
+      // Continue to re-parse - don't return cached
+    }
+          else
+           {
+      LogDebug("DEBUG: Returning cached result for input.");
                 return cached;
-            }
+   }
+    }
 
-            LogDebug($"DEBUG: Processing input: '{input}'");
+     LogDebug($"DEBUG: Processing input: '{input}'");
 
             // Extract basic info first
             string underlying = ExtractCurrencyPair(input);
@@ -343,34 +355,45 @@ namespace FXOAiTranslator
                                     LogDebug($"DEBUG: Processing Vanilla_NoType pattern");
                                     result.LegCount = 1;
 
-                                    string strikeValue = match.Groups["strike"].Value;
- string notionalValue = match.Groups["notional"].Value;
+          string strikeValue = match.Groups["strike"].Value;
+      string notionalValue = match.Groups["notional"].Value;
  
-         LogDebug($"DEBUG: Vanilla_NoType - Strike: {strikeValue}, Notional: {notionalValue}");
+          LogDebug($"DEBUG: Vanilla_NoType - Raw match: '{match.Value}'");
+         LogDebug($"DEBUG: Vanilla_NoType - Strike group: '{strikeValue}'");
+           LogDebug($"DEBUG: Vanilla_NoType - Notional group: '{notionalValue}'");
 
-            // Determine option type from strike vs spot
-     string inferredType = "C"; // Default to Call
-       if (!string.IsNullOrEmpty(spot) && double.TryParse(strikeValue, out double strikeNum) && 
-      double.TryParse(spot, out double spotNum))
-    {
-     // If strike < spot -> PUT (OTM put), else CALL (OTM call)
-    inferredType = strikeNum < spotNum ? "P" : "C";
-       LogDebug($"DEBUG: Inferred option type: Strike {strikeNum} vs Spot {spotNum} = {inferredType}");
-   }
-               else
+          // Validate notional was captured
+         if (string.IsNullOrWhiteSpace(notionalValue))
    {
+    LogDebug($"DEBUG: WARNING - Notional not captured, using default 10");
+           notionalValue = "10";
+         }
+
+   // Determine option type from strike vs spot
+          string inferredType = "C"; // Default to Call
+          if (!string.IsNullOrEmpty(spot) && double.TryParse(strikeValue, out double strikeNum) && 
+        double.TryParse(spot, out double spotNum))
+    {
+      // If strike < spot -> PUT (OTM put), else CALL (OTM call)
+   inferredType = strikeNum < spotNum ? "P" : "C";
+LogDebug($"DEBUG: Inferred option type: Strike {strikeNum} vs Spot {spotNum} = {inferredType}");
+     }
+      else
+{
              LogDebug($"DEBUG: Could not infer option type (no spot), using default CALL");
-          }
+     }
 
-                // Convert expiry to OVML date format
-        string ovmlExpiryNT = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
+             // Convert expiry to OVML date format
+            string ovmlExpiryNT = ConvertExpiryToOVMLDate(result.Expiry, result.Underlying);
 
-    result.OVML = $"OVML {result.Underlying} {ovmlExpiryNT} " +
-  $"B {strikeValue}{inferredType} " +
+        result.OVML = $"OVML {result.Underlying} {ovmlExpiryNT} " +
+             $"B {strikeValue}{inferredType} " +
 $"N{notionalValue}M VA";
-      break;
+             
+ LogDebug($"DEBUG: Vanilla_NoType - Generated OVML: '{result.OVML}'");
+         break;
 
-         case "Delta_RiskReversal":
+                                case "Delta_RiskReversal":
    LogDebug($"DEBUG: Processing Delta_RiskReversal pattern");
        result.LegCount = 2;
 
