@@ -77,6 +77,15 @@ namespace FXOAiTranslate.WPF.Views
     public string ExpiryCut { get; set; }
         public string OrderId { get; set; }
 
+        // Delta Hedge details
+        public string HedgeType { get; set; }   // "No Hedge", "Spot Hedge", "Forward Hedge"
+ public string HedgeSide { get; set; }       // "BUY" or "SELL"
+        public string HedgeAmount { get; set; }     // e.g., "8,250,000 USD"
+     public string HedgeRate { get; set; }       // e.g., "1.1665"
+        public string HedgeValueDate { get; set; } // e.g., "22-Jan-26"
+        public string Delta { get; set; }         // e.g., "55%"
+    public bool HasHedge => !string.IsNullOrEmpty(HedgeType) && HedgeType != "No Hedge" && HedgeType != "Live";
+   
         // Expansion state
         public bool IsExpanded
  {

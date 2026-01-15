@@ -1289,6 +1289,12 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
             if (string.IsNullOrWhiteSpace(expiry))
                 return expiry;
 
+            // Preserve tenor formats (1M, 2W, 3D, 1Y, etc.) - these should not be normalized to dates
+            if (Regex.IsMatch(expiry, @"^\d+[MWYD]$", RegexOptions.IgnoreCase))
+            {
+                return expiry.ToUpperInvariant();
+            }
+
             var normalized = TryNormalizeDate(expiry);
             if (!string.IsNullOrEmpty(normalized))
                 return normalized;

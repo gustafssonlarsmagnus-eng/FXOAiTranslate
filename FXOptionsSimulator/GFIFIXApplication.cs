@@ -256,6 +256,8 @@ if (quote.IsSetField(5678)) // Volatility tag
                         OfferLegPremPrice = side == "OFFER" ? ParseFieldDouble(5844) : 0,  // Tag 5844: Premium per MM ("pips")
                         Notional = ParseFieldDouble(5359),  // MQSize
                         Delta = ParseFieldDouble(6035),      // LegDelta
+                        SpotRate = GetFieldString(5235),  // Tag 5235: LegSpotRate
+                        ForwardPoints = ParseFieldDouble(5191),  // Tag 5191: LegForwardPoints
                         PremiumCurrency = GetFieldString(5830),  // PremiumCcy
                         ValidUntilTime = GetFieldString(62),     // ValidUntilTime
                         Spread = 0  // Will be calculated client-side

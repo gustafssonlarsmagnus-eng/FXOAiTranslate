@@ -98,12 +98,23 @@ public static class FxDateService
         return AdjustDate(d, cal1, cal2, conv);
     }
 
+    // Advance by calendar days (not business days) and adjust to next good business day
+    // Used for week tenors: 1W = 7 calendar days, 2W = 14 calendar days, etc.
+    private static Date AdvanceCalendarDaysCustom(Date start, int calendarDays, QLCal cal1, QLCal cal2, BusinessDayConvention conv)
+    {
+        var d = start + calendarDays;
+        return AdjustDate(d, cal1, cal2, conv);
+    }
+
     // Compute expiry using custom calendar logic
     private static Date ComputeExpiryFromTenorCustom(string tenor, Date trade, QLCal cal1, QLCal cal2, BusinessDayConvention conv, bool eom)
     {
         tenor = (tenor ?? "").Trim().ToUpperInvariant();
         if (tenor.EndsWith("D")) return AdvanceBusinessDaysCustom(trade, int.Parse(tenor[..^1]), cal1, cal2, conv);
-        if (tenor.EndsWith("W")) return AdvanceBusinessDaysCustom(trade, int.Parse(tenor[..^1]) * 5, cal1, cal2, conv);
+        
+        // FX Options: Week tenors are 7 calendar days per week, adjusted to next good business day
+        // 1W = 7 calendar days, 2W = 14 calendar days, etc.
+        if (tenor.EndsWith("W")) return AdvanceCalendarDaysCustom(trade, int.Parse(tenor[..^1]) * 7, cal1, cal2, conv);
 
         // For month/year tenors, use QLNet's advance but then adjust with our custom logic
         Date result;
@@ -134,7 +145,10 @@ public static class FxDateService
     {
         tenor = (tenor ?? "").Trim().ToUpperInvariant();
         if (tenor.EndsWith("D")) return AdvanceBusinessDays(cal, trade, int.Parse(tenor[..^1]), conv);
-        if (tenor.EndsWith("W")) return AdvanceBusinessDays(cal, trade, int.Parse(tenor[..^1]) * 5, conv);
+        
+        // FX Options: Week tenors are 7 calendar days per week, adjusted to next good business day
+        if (tenor.EndsWith("W")) return AdvanceCalendarDays(cal, trade, int.Parse(tenor[..^1]) * 7, conv);
+        
         if (tenor.EndsWith("M")) return cal.advance(trade, new Period(int.Parse(tenor[..^1]), TimeUnit.Months), conv, eom);
         if (tenor.EndsWith("Y")) return cal.advance(trade, new Period(int.Parse(tenor[..^1]), TimeUnit.Years), conv, eom);
         if (int.TryParse(tenor, out var d)) return AdvanceBusinessDays(cal, trade, d, conv);
@@ -145,6 +159,13 @@ public static class FxDateService
     {
         var d = start; var moved = 0;
         while (moved < bd) { d = d + 1; if (cal.isBusinessDay(d)) moved++; }
+        return cal.adjust(d, conv);
+    }
+
+    // Advance by calendar days and adjust to next good business day
+    private static Date AdvanceCalendarDays(QLCal cal, Date start, int calendarDays, BusinessDayConvention conv)
+    {
+        var d = start + calendarDays;
         return cal.adjust(d, conv);
     }
 

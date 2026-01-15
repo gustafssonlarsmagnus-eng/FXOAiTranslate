@@ -323,6 +323,7 @@ spreadPanel.Visibility = Visibility.Collapsed;
                     }
                     else if (status == "REJECTED" || status == "Rejected")
                     {
+
                         deal.Status = "REJECTED";
                         deal.StatusBackground = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
                         deal.StatusForeground = new SolidColorBrush(Colors.White);
@@ -376,15 +377,25 @@ spreadPanel.Visibility = Visibility.Collapsed;
             }
 
             lpData.LastUpdate = DateTime.Now;
-            lpData.ValidUntilTime = ParseValidUntilTime(quote.ValidUntilTime);
+  lpData.ValidUntilTime = ParseValidUntilTime(quote.ValidUntilTime);
 
             // Fetch real-time Bloomberg spot instead of using hardcoded fallback
-            string pair = _trade?.Underlying ?? "EURUSD";
+        string pair = _trade?.Underlying ?? "EURUSD";
             double bloombergSpot = await GetBloombergSpotAsync(pair);
             lpData.SpotRate = bloombergSpot.ToString("F4");
-            lpData.Delta = quote.Delta;
 
-            // Update ladder
+          // Extract risk fields from quote
+lpData.Delta = quote.Delta;
+
+            // Extract market data fields from quote
+            // SpotRate comes from Bloomberg (above) but we could also use quote.SpotRate if provided
+            if (!string.IsNullOrEmpty(quote.SpotRate))
+    {
+          lpData.SpotRate = quote.SpotRate; // Use LP's spot rate if provided
+    }
+lpData.ForwardPoints = quote.ForwardPoints; // Tag 5191: LegForwardPoints
+
+    // Update ladder
             UpdateLadder();
 
             // Update best bid/offer tiles
@@ -490,7 +501,7 @@ IsEnabled = true
         {
           var quotes = _quotesByLP.Values.ToList();
 
-          // Best bid = highest vol you receive
+        // Best bid = highest vol you receive
     var bestBid = quotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
  // Best offer = lowest vol you pay
     var bestOffer = quotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
@@ -505,14 +516,14 @@ IsEnabled = true
    double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0; // Default 10M
    double premiumPips = Math.Abs(bestBid.BidPremium) / (notionalUSD * 1_000_000) * 10000;
   
-      // Format secondary text: "68,778 USD  43p"
+   // Format secondary text: "68,778 USD  43p"
   lblBidSecondary.Text = $"{Math.Abs(bestBid.BidPremium):N0} USD    {premiumPips:F0}p";
        lblBidSecondary.Visibility = Visibility.Visible;
 
  // Show LP badge with gradient background
 lblBidLP.Text = bestBid.LP;
      UpdateCountdown(lblBidCountdown, bestBid.ValidUntilTime);
-    bidLPPanel.Visibility = Visibility.Visible;
+  bidLPPanel.Visibility = Visibility.Visible;
    }
   else
      {
@@ -520,21 +531,21 @@ lblBidLP.Text = bestBid.LP;
     lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
      lblBidSecondary.Text = "---";
        lblBidLP.Text = "";
-       bidLPPanel.Visibility = Visibility.Collapsed;
+     bidLPPanel.Visibility = Visibility.Collapsed;
      }
 
-            if (bestOffer != null)
-         {
+     if (bestOffer != null)
+      {
  // Display vol as main value (large text in white/very light gray)
           lblOfferValue.Text = bestOffer.OfferVol.ToString("F2");
-            lblOfferValue.Foreground = Brushes.White; // White color for prices
+lblOfferValue.Foreground = Brushes.White; // White color for prices
     
     // Calculate pips
-  double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
+double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
  double premiumPips = Math.Abs(bestOffer.OfferPremium) / (notionalUSD * 1_000_000) * 10000;
-        
+      
    // Format secondary text: "71,699 USD  44p"
-    lblOfferSecondary.Text = $"{Math.Abs(bestOffer.OfferPremium):N0} USD    {premiumPips:F0}p";
+    lblOfferSecondary.Text = $"{Math.Abs(bestOffer.OfferPremium):N0} USD {premiumPips:F0}p";
 lblOfferSecondary.Visibility = Visibility.Visible;
        
        // Show LP badge with gradient background
@@ -543,28 +554,203 @@ lblOfferSecondary.Visibility = Visibility.Visible;
        offerLPPanel.Visibility = Visibility.Visible;
    }
         else
-         {
+ {
     lblOfferValue.Text = "---";
        lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
-      lblOfferSecondary.Text = "---";
+    lblOfferSecondary.Text = "---";
        lblOfferLP.Text = "";
        offerLPPanel.Visibility = Visibility.Collapsed;
   }
 
-      // Spread - only show when we have both bid and offer
-   if (bestBid != null && bestOffer != null)
-      {
-       var spread = bestOffer.OfferVol - bestBid.BidVol;
-   lblSpread.Text = spread.ToString("F2");
+ // Spread - only show when we have both bid and offer
+if (bestBid != null && bestOffer != null)
+     {
+          var spread = bestOffer.OfferVol - bestBid.BidVol;
+    lblSpread.Text = spread.ToString("F2");
      spreadPanel.Visibility = Visibility.Visible;
-            }
-         else
-         {
-   lblSpread.Text = "---";
-     spreadPanel.Visibility = Visibility.Collapsed;
-       }
+   }
+      else
+    {
+      lblSpread.Text = "---";
+    spreadPanel.Visibility = Visibility.Collapsed;
+   }
+
+// Update Risk section with data from best quotes
+     UpdateRiskDetails(bestBid, bestOffer);
+
+    // Update Market Data section with data from best quotes
+ UpdateMarketData(bestBid, bestOffer);
+
+    // Update Premium and Volatility in Option 1 section
+         UpdatePremiumAndVolatility(bestBid, bestOffer);
+}
+
+    /// <summary>
+        /// Update the Premium and Volatility fields in Option 1 section from quote data.
+        /// Premium shows "RCV X / PAY Y" format, Volatility shows "X / Y" format.
+  /// </summary>
+        private void UpdatePremiumAndVolatility(LPQuoteData bestBid, LPQuoteData bestOffer)
+        {
+            // Get premium currency
+     string pair = _trade?.Underlying ?? "EURUSD";
+            string premiumCcy = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+
+   // Update Premium (shows bid/offer premiums)
+            if (lblPremiumBid != null && lblPremiumOffer != null)
+    {
+         if (bestBid != null && bestBid.BidPremium != 0)
+        {
+        // Format: "RCV 68,778" (receive on bid = positive for seller)
+          lblPremiumBid.Text = $"RCV {Math.Abs(bestBid.BidPremium):N0}";
+        lblPremiumBid.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Green
   }
-        private void UpdateCountdown(System.Windows.Controls.TextBlock label, DateTime validUntil)
+ else
+      {
+        lblPremiumBid.Text = "RCV --";
+  lblPremiumBid.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+  }
+
+           if (bestOffer != null && bestOffer.OfferPremium != 0)
+ {
+    // Format: "PAY 71,699" (pay on offer = negative for buyer)
+ lblPremiumOffer.Text = $"PAY {Math.Abs(bestOffer.OfferPremium):N0}";
+         lblPremiumOffer.Foreground = Brushes.White;
+          }
+      else
+                {
+             lblPremiumOffer.Text = "PAY --";
+      lblPremiumOffer.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+       }
+        }
+
+            // Update Volatility (shows bid/offer vols)
+         if (lblVolatility != null)
+     {
+      string bidVol = bestBid != null && bestBid.BidVol > 0 ? bestBid.BidVol.ToString("F2") : "--";
+     string offerVol = bestOffer != null && bestOffer.OfferVol > 0 ? bestOffer.OfferVol.ToString("F2") : "--";
+         lblVolatility.Text = $"{bidVol} / {offerVol}";
+            }
+
+            Console.WriteLine($"[WPF] Premium/Volatility updated: Bid={bestBid?.BidPremium:N0}, Offer={bestOffer?.OfferPremium:N0}, BidVol={bestBid?.BidVol:F2}, OfferVol={bestOffer?.OfferVol:F2}");
+    }
+
+        /// <summary>
+        /// Update the Risk section UI (Delta) from quote data.
+        /// GFI FIX provides Delta (tag 6035).
+        /// </summary>
+    private void UpdateRiskDetails(LPQuoteData bestBid, LPQuoteData bestOffer)
+        {
+        // Get notional for delta calculation
+       double notionalMM = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
+            string ccy1 = _trade?.Underlying?.Length >= 6 ? _trade.Underlying.Substring(0, 3) : "EUR";
+
+            // Use offer quote delta if buying, bid quote delta if selling
+            // Delta from GFI is in percentage format (e.g., 52 = 52%)
+            double? delta = bestOffer?.Delta ?? bestBid?.Delta;
+
+            if (delta.HasValue && delta.Value != 0)
+            {
+  // Delta % (raw from quote)
+     double deltaPct = delta.Value;
+              if (lblDeltaPct != null)
+{
+      lblDeltaPct.Text = $"{deltaPct:F1}%";
+     }
+
+     // Delta in currency amount (Delta % * Notional)
+    double deltaAmount = (deltaPct / 100.0) * notionalMM * 1_000_000;
+        if (lblDelta != null)
+          {
+     lblDelta.Text = $"{deltaAmount:N0}";
+     }
+
+     Console.WriteLine($"[WPF] Risk updated: Delta={deltaPct:F1}%, DeltaAmount={deltaAmount:N0} {ccy1}");
+   }
+    else
+            {
+       if (lblDeltaPct != null)
+     {
+         lblDeltaPct.Text = "--";
+     }
+          if (lblDelta != null)
+  {
+ lblDelta.Text = "--";
+         }
+            }
+        }
+
+        /// <summary>
+        /// Update the Market Data section UI (Spot, Forward Points, Forward Rate) from quote data.
+/// GFI FIX provides: SpotRate (tag 5235), ForwardPoints (tag 5191)
+/// </summary>
+   private void UpdateMarketData(LPQuoteData bestBid, LPQuoteData bestOffer)
+     {
+            // Use the best available quote for market data (prefer offer for buy scenario)
+            var quoteForMarketData = bestOffer ?? bestBid;
+            
+            if (quoteForMarketData == null)
+  {
+  // Clear market data if no quotes
+         if (lblSpotRate != null) lblSpotRate.Text = "--";
+      if (lblForwardPts != null) lblForwardPts.Text = "--";
+    if (lblForwardRate != null) lblForwardRate.Text = "--";
+     return;
+            }
+
+            // Spot Rate (Tag 5235)
+        if (lblSpotRate != null && !string.IsNullOrEmpty(quoteForMarketData.SpotRate))
+    {
+            lblSpotRate.Text = quoteForMarketData.SpotRate;
+    }
+   else if (lblSpotRate != null)
+     {
+     lblSpotRate.Text = "--";
+            }
+
+            // Forward Points (Tag 5191)
+ if (lblForwardPts != null)
+         {
+          if (quoteForMarketData.ForwardPoints != 0)
+        {
+   lblForwardPts.Text = quoteForMarketData.ForwardPoints.ToString("F2");
+    }
+        else
+    {
+            lblForwardPts.Text = "--";
+    }
+       }
+
+      // Forward Rate = Spot + (Forward Points / divisor)
+    // Divisor depends on currency pair (10000 for most, 100 for JPY pairs)
+  if (lblForwardRate != null && !string.IsNullOrEmpty(quoteForMarketData.SpotRate))
+            {
+  if (double.TryParse(quoteForMarketData.SpotRate, out double spot) && quoteForMarketData.ForwardPoints != 0)
+           {
+// Determine divisor based on currency pair
+        double divisor = 10000.0; // Standard for most pairs
+  string underlying = _trade?.Underlying ?? "";
+       if (underlying.Contains("JPY") || underlying.Contains("HUF") || underlying.Contains("KRW"))
+    {
+             divisor = 100.0; // For JPY and other low-decimal pairs
+       }
+
+                    double forwardRate = spot + (quoteForMarketData.ForwardPoints / divisor);
+    lblForwardRate.Text = forwardRate.ToString("F4");
+          }
+      else if (double.TryParse(quoteForMarketData.SpotRate, out double spotOnly))
+              {
+                    lblForwardRate.Text = spotOnly.ToString("F4"); // No forward points, use spot
+     }
+     else
+          {
+              lblForwardRate.Text = "--";
+      }
+   }
+
+    Console.WriteLine($"[WPF] Market data updated: Spot={quoteForMarketData.SpotRate}, FwdPts={quoteForMarketData.ForwardPoints}");
+ }
+
+     private void UpdateCountdown(System.Windows.Controls.TextBlock label, DateTime validUntil)
         {
             var remaining = validUntil - DateTime.Now;
             if (remaining.TotalSeconds > 0)
@@ -720,6 +906,9 @@ lblOfferSecondary.Visibility = Visibility.Visible;
             // Initialize window to RFQ state (not live state)
             ShowRfqState();
             Console.WriteLine("[WPF] Window initialized to RFQ state (_isRfqActive = false)");
+
+            // Initialize hedge details panel
+            InitializeHedgeDetailsPanel();
         }
 
         private void txtTradeInput_GotFocus(object sender, RoutedEventArgs e)
@@ -808,6 +997,7 @@ lblOfferSecondary.Visibility = Visibility.Visible;
   var text = txtNotional.Text;
 
   // Pattern to match numbers with k, m, mio, or million suffix (case insensitive)
+  // For the dedicated notional field, ANY "m" suffix means millions (1m = 1,000,000)
   var pattern = @"\b(\d+(?:\.\d+)?)\s*(k|m(?:io)?|million)\b";
 
   text = System.Text.RegularExpressions.Regex.Replace(text, pattern, match =>
@@ -815,9 +1005,9 @@ lblOfferSecondary.Visibility = Visibility.Visible;
   var number = double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
      var suffix = match.Groups[2].Value.ToLower();
 
-   // Format millions (10m -> 10 000 000, 15mio -> 15 000 000)
-   // "mio" and "million" are ALWAYS notionals (not tenors)
-   if ((suffix == "m" && number >= 10) || suffix == "mio" || suffix == "million")
+   // In the notional field, ALL "m" suffixes mean millions (1m = 1,000,000)
+   // This is different from the trade input where we have to distinguish tenors
+   if (suffix == "m" || suffix == "mio" || suffix == "million")
        {
   long formatted = (long)(number * 1_000_000);
    return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
@@ -829,7 +1019,7 @@ lblOfferSecondary.Visibility = Visibility.Visible;
         return formatted.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
        }
 
-// Leave as-is (small numbers like "1m" for tenor)
+    // Leave as-is for any other case
 return match.Value;
  }, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
@@ -840,7 +1030,7 @@ return match.Value;
    }
 
         /// <summary>
-  /// Toggle notional currency between base and quote currency (e.g., EUR <-> USD for EURUSD)
+        /// Toggle notional currency between base and quote currency (e.g., EUR <-> USD for EURUSD)
         /// </summary>
         private void NotionalCurrencyToggle_Click(object sender, MouseButtonEventArgs e)
         {
@@ -893,8 +1083,23 @@ return match.Value;
     }
 
     /// <summary>
-        /// Update trade structure notional from the UI value (always stored in base currency MM)
-    /// </summary>
+        /// Handle notional text field gaining focus - select all text for easy replacement
+        /// </summary>
+        private void txtNotional_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (txtNotional != null && !string.IsNullOrEmpty(txtNotional.Text))
+            {
+                // Use Dispatcher to select all text AFTER the default focus behavior completes
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+                {
+                    txtNotional.SelectAll();
+                }));
+            }
+        }
+
+        /// <summary>
+  /// Update trade structure notional from the UI value (always stored in base currency MM)
+  /// </summary>
   private void UpdateTradeNotionalFromUI()
         {
   if (_trade?.Legs == null || _trade.Legs.Count == 0 || txtNotional == null)
@@ -956,59 +1161,72 @@ return match.Value;
         }
 
         /// <summary>
-        /// Parse the trade input text using TradeParser (same logic as FXO AI Translator)
-        /// </summary>
+  /// Parse the trade input text using TradeParser (same logic as FXO AI Translator)
+  /// </summary>
         private async Task ParseTradeInput()
         {
-   string input = txtTradeInput.Text?.Trim() ?? "";
-  
-       // Skip if placeholder or empty
-   if (string.IsNullOrWhiteSpace(input) || 
-   input.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
-  {
-             return;
+      string input = txtTradeInput.Text?.Trim() ?? "";
+
+   // Skip if placeholder or empty
+      if (string.IsNullOrWhiteSpace(input) ||
+    input.StartsWith("E.g.,", StringComparison.OrdinalIgnoreCase))
+            {
+     return;
     }
 
     // Use TradeParser for parsing (same logic as FXO AI Translator)
-        var result = await _tradeParser.ParseTradeAsync(input);
-            
+   var result = await _tradeParser.ParseTradeAsync(input);
+
             if (result != null && !string.IsNullOrEmpty(result.OVML))
-       {
-         Console.WriteLine($"[WPF] TradeParser result: Method={result.ParseMethod}, OVML={result.OVML}");
-        
-     // Convert OVML result to TradeStructure
-     var ovmlResult = new OVMLParseResult
-      {
-        OVML = result.OVML,
-     Underlying = result.Underlying,
-        Expiry = result.Expiry,
-       LegCount = result.LegCount
-     };
-           
- // Use OVMLBridge to convert to TradeStructure
-       var tradeStructure = OVMLBridge.ConvertToTradeStructure(ovmlResult);
-                
- // Copy trade structure fields to _trade
-       if (_trade != null)
     {
+    Console.WriteLine($"[WPF] TradeParser result: Method={result.ParseMethod}, OVML={result.OVML}");
+
+       // Convert OVML result to TradeStructure
+      var ovmlResult = new OVMLParseResult
+    {
+       OVML = result.OVML,
+ Underlying = result.Underlying,
+            Expiry = result.Expiry,
+              LegCount = result.LegCount
+    };
+
+                // Use OVMLBridge to convert to TradeStructure
+           var tradeStructure = OVMLBridge.ConvertToTradeStructure(ovmlResult);
+
+            // Always assign the parsed trade structure to _trade
+        // If _trade is null, create a new one; otherwise update existing fields
+         if (_trade == null)
+           {
+            _trade = tradeStructure;
+    Console.WriteLine($"[WPF] Created new trade structure from parsed input");
+   }
+       else
+          {
+     // Update existing trade structure fields
          _trade.Underlying = tradeStructure.Underlying;
-                _trade.StructureType = tradeStructure.StructureType;
-   _trade.SpotReference = tradeStructure.SpotReference;
-      _trade.Legs = tradeStructure.Legs;
-   }
-     
-           Console.WriteLine($"[WPF] Parsed trade: {tradeStructure.Underlying} {tradeStructure.StructureType} with {tradeStructure.Legs?.Count ?? 0} legs");
-            }
-            else
-  {
-  Console.WriteLine($"[WPF] TradeParser returned no result for input: {input}");
-   }
-  }
+   _trade.StructureType = tradeStructure.StructureType;
+     _trade.SpotReference = tradeStructure.SpotReference;
+ _trade.Legs = tradeStructure.Legs;
+    }
+
+     Console.WriteLine($"[WPF] Parsed trade: {_trade.Underlying} {_trade.StructureType} with {_trade.Legs?.Count ?? 0} legs");
+
+         // Log notional for debugging
+          if (_trade.Legs != null && _trade.Legs.Count > 0)
+       {
+                  Console.WriteLine($"[WPF] Leg 0 NotionalMM: {_trade.Legs[0].NotionalMM}");
+    }
+      }
+       else
+       {
+                Console.WriteLine($"[WPF] TradeParser returned no result for input: {input}");
+ }
+        }
 
         /// <summary>
-        /// Update UI fields from the current trade structure
+      /// Update UI fields from the current trade structure
       /// </summary>
-        private void UpdateUIFieldsFromTrade()
+        private async void UpdateUIFieldsFromTrade()
      {
           if (_trade == null || _trade.Legs == null || _trade.Legs.Count == 0)
     return;
@@ -1024,18 +1242,18 @@ var leg = _trade.Legs[0];
        txtCurrencyPair.Text = pair;
             }
 
-            // Update notional field and currency toggle
-            string notionalCurrency = _notionalInBaseCurrency ? ccy1 : ccy2;
-            if (lblNotional != null)
-            {
-    lblNotional.Text = $"Notional ({notionalCurrency})";
-   }
- if (txtNotionalCurrency != null)
-     {
-     txtNotionalCurrency.Text = notionalCurrency;
-     }
+    // Update notional field and currency toggle - use the NEW pair's currencies
+    string notionalCurrency = _notionalInBaseCurrency ? ccy1 : ccy2;
+    if (lblNotional != null)
+    {
+        lblNotional.Text = $"Notional ({notionalCurrency})";
+    }
+    if (txtNotionalCurrency != null)
+    {
+        txtNotionalCurrency.Text = notionalCurrency;
+    }
 
-  if (txtNotional != null && leg.NotionalMM > 0)
+    if (txtNotional != null && leg.NotionalMM > 0)
    {
      // NotionalMM is always in base currency (millions)
      double notionalValue;
@@ -1055,7 +1273,7 @@ var leg = _trade.Legs[0];
                 txtNotional.Text = ((long)notionalValue).ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", " ");
  }
 
-            // Update Call/Put toggle
+            // Update Call/Put toggle - use the NEW pair's currencies
        if (txtCallPut != null)
             {
         txtCallPut.Text = leg.OptionType == "PUT"
@@ -1063,75 +1281,455 @@ var leg = _trade.Legs[0];
      : $"{ccy1} Call / {ccy2} Put";
      }
 
-            // Update expiry date
-     if (txtExpiryDate != null && !string.IsNullOrEmpty(leg.Tenor))
+            // Update expiry date - use Tenor if available, otherwise try ExpiryDate
+            if (txtExpiryDate != null)
             {
-     // Calculate expiry from tenor
-        var expiry = CalculateExpiryFromTenor(leg.Tenor);
-  txtExpiryDate.Text = $"{expiry:dd-MMM-yy} ({leg.Tenor})";
-      }
+                string tenor = leg.Tenor?.ToUpperInvariant();
+                Console.WriteLine($"[WPF] UpdateUIFieldsFromTrade - leg.Tenor='{leg.Tenor}', ExpiryDate='{leg.ExpiryDate}'");
+                
+                DateTime expiryDate = DateTime.MinValue;
+                DateTime deliveryDate = DateTime.MinValue;
+                
+                if (!string.IsNullOrEmpty(tenor) && System.Text.RegularExpressions.Regex.IsMatch(tenor, @"^\d+[MWYD]$"))
+                {
+                    // Calculate expiry from tenor using calendar service
+                    try
+                    {
+                        string premiumCcy = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+                        var (tradeDate, spotDate, expiry, delivery, premiumDate) = 
+                            FxDateService.ComputeDates(
+                                DateTime.UtcNow,
+                                pair,
+                                tenor,
+                                premiumCcy,
+                                new FxDateRules()
+                            );
+                        
+                        expiryDate = expiry;
+                        deliveryDate = delivery;
+                        
+                        // Format: "13-Feb-26, Fri (1M)"
+                        string dayOfWeek = expiryDate.ToString("ddd");
+                        txtExpiryDate.Text = $"{expiryDate:dd-MMM-yy}, {dayOfWeek} ({tenor})";
+                        Console.WriteLine($"[WPF] Set expiry date from tenor: {txtExpiryDate.Text}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[WPF] Error calculating expiry from tenor '{tenor}': {ex.Message}");
+                        txtExpiryDate.Text = tenor;
+                    }
+                }
+                else if (leg.ExpiryDate != default && leg.ExpiryDate > DateTime.Now.AddDays(-30))
+                {
+                    // Use the pre-calculated ExpiryDate from OVMLBridge
+                    expiryDate = leg.ExpiryDate;
+                    deliveryDate = CalculateDeliveryDate(expiryDate);
+                    
+                    string dayOfWeek = expiryDate.ToString("ddd");
+                    string tenorDisplay = !string.IsNullOrEmpty(leg.Tenor) ? $" ({leg.Tenor.ToUpperInvariant()})" : "";
+                    txtExpiryDate.Text = $"{expiryDate:dd-MMM-yy}, {dayOfWeek}{tenorDisplay}";
+                    Console.WriteLine($"[WPF] Set expiry date from leg.ExpiryDate: {txtExpiryDate.Text}");
+                }
+                else
+                {
+                    // Fallback - show what we have or placeholder
+                    txtExpiryDate.Text = !string.IsNullOrEmpty(leg.Tenor) ? leg.Tenor.ToUpperInvariant() : "--";
+                    Console.WriteLine($"[WFP] Expiry date fallback: {txtExpiryDate.Text}");
+                }
+                
+                // Update Value Date from delivery date
+                if (deliveryDate != DateTime.MinValue && lblHedgeValueDate != null)
+                {
+                    lblHedgeValueDate.Text = deliveryDate.ToString("dd-MMM-yy", System.Globalization.CultureInfo.InvariantCulture);
+                    Console.WriteLine($"[WPF] Set Value Date: {lblHedgeValueDate.Text}");
+                }
+                
+                // Update trade structure with calculated dates
+                if (expiryDate != DateTime.MinValue)
+                {
+                    leg.ExpiryDate = expiryDate;
+                }
+                if (deliveryDate != DateTime.MinValue)
+                {
+                    leg.DeliveryDate = deliveryDate;
+                }
+            }
 
-            // Update strike
+            // Update strike with proper decimal formatting for currency pair
             if (txtStrike != null && leg.Strike > 0)
-       {
-                txtStrike.Text = leg.Strike.ToString("F4");
-      }
+            {
+                txtStrike.Text = FormatStrike(leg.Strike, pair);
+            }
+
+            // Fetch live Bloomberg spot rate if we don't have one
+            double spotRate = _trade.SpotReference;
+            if (spotRate <= 0)
+            {
+                spotRate = await GetBloombergSpotAsync(pair);
+                if (spotRate > 0)
+                {
+                    _trade.SpotReference = spotRate;
+                    Console.WriteLine($"[WPF] Fetched Bloomberg spot for {pair}: {spotRate:F4}");
+                }
+            }
 
             // Update spot rate in market data section
-  if (lblSpotRate != null && _trade.SpotReference > 0)
+  if (lblSpotRate != null && spotRate > 0)
           {
-             lblSpotRate.Text = _trade.SpotReference.ToString("F4");
+             lblSpotRate.Text = spotRate.ToString("F4");
             }
-
-         // Update hedge rate
-            if (txtHedgeRate != null && _trade.SpotReference > 0)
-        {
-     txtHedgeRate.Text = _trade.SpotReference.ToString("F4");
-            }
-
-         // Update hedge value date
-        if (lblHedgeValueDate != null)
-     {
-   lblHedgeValueDate.Text = DateTime.Now.AddDays(2).ToString("dd-MMM");
-       }
-
-    // Update hedge amount
-    if (lblHedgeAmount != null && leg.NotionalMM > 0)
-            {
-      lblHedgeAmount.Text = $"{leg.NotionalMM:F1}MM";
-    }
 
    Console.WriteLine($"[WPF] UI fields updated from trade structure");
      }
+        private DateTime CalculateDeliveryDate(DateTime expiryDate)
+        {
+            string currencyPair = _trade?.Underlying ?? "EURUSD";
+            
+            try
+            {
+                // Use FxDateService to compute delivery date properly
+                // We need to use an "ON" (overnight) tenor from the expiry date
+                // to get the proper T+2 delivery date with calendar adjustment
+                string premiumCcy = currencyPair.Length >= 6 ? currencyPair.Substring(3, 3) : "USD";
+                
+                var (_, _, _, deliveryDate, _) = FxDateService.ComputeDates(
+                    expiryDate,
+                    currencyPair,
+                    "2D", // 2 business days from expiry
+                    premiumCcy,
+                    new FxDateRules()
+                );
+                
+                Console.WriteLine($"[WPF] Calendar-adjusted delivery date: {deliveryDate:dd-MMM-yy}");
+                return deliveryDate;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] FxDateService error for delivery: {ex.Message}, using simple T+2 adjustment");
+                
+                // Fallback: simple T+2 with weekend adjustment
+                DateTime deliveryDate = expiryDate.AddDays(2);
+                while (deliveryDate.DayOfWeek == DayOfWeek.Saturday || 
+                       deliveryDate.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    deliveryDate = deliveryDate.AddDays(1);
+                }
+                return deliveryDate;
+            }
+        }
 
-      /// <summary>
- /// Calculate expiry date from tenor string
-      /// </summary>
+        /// <summary>
+        /// Handle currency pair text field gaining focus - select all text for easy replacement
+        /// </summary>
+        private void txtCurrencyPair_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (txtCurrencyPair != null && !string.IsNullOrEmpty(txtCurrencyPair.Text))
+            {
+                // Use Dispatcher to select all text AFTER the default focus behavior completes
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+                {
+                    txtCurrencyPair.SelectAll();
+                }));
+            }
+        }
+
+        private void txtCurrencyPair_LostFocus(object sender, RoutedEventArgs e)
+        {
+      // Update notional currency label when pair changes
+            string pair = txtCurrencyPair?.Text?.ToUpper() ?? "EURUSD";
+      string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+    string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+
+            string notionalCurrency = _notionalInBaseCurrency ? ccy1 : ccy2;
+   if (lblNotional != null)
+            {
+       lblNotional.Text = $"Notional ({notionalCurrency})";
+            }
+      if (txtNotionalCurrency != null)
+            {
+       txtNotionalCurrency.Text = notionalCurrency;
+            }
+
+ // Update trade structure
+            if (_trade != null)
+            {
+  _trade.Underlying = pair;
+            }
+        }
+
+        private void txtCurrencyPair_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Auto-uppercase the currency pair as user types
+            if (txtCurrencyPair != null)
+            {
+                int caretIndex = txtCurrencyPair.CaretIndex;
+                string upperText = txtCurrencyPair.Text.ToUpper();
+    
+                // Only update if text actually changed (avoid infinite loop)
+                if (txtCurrencyPair.Text != upperText)
+                {
+                    txtCurrencyPair.Text = upperText;
+                    txtCurrencyPair.CaretIndex = Math.Min(caretIndex, upperText.Length);
+                }
+         
+                // Update related fields when we have a valid 6-character currency pair
+                string pair = upperText;
+                if (pair.Length >= 6)
+                {
+                    string ccy1 = pair.Substring(0, 3);
+                    string ccy2 = pair.Substring(3, 3);
+ 
+                    // Update notional currency label and toggle
+                    string notionalCurrency = _notionalInBaseCurrency ? ccy1 : ccy2;
+                    if (lblNotional != null)
+                    {
+                        lblNotional.Text = $"Notional ({notionalCurrency})";
+                    }
+                    if (txtNotionalCurrency != null)
+                    {
+                        txtNotionalCurrency.Text = notionalCurrency;
+                    }
+       
+                    // Update Call/Put toggle display
+                    if (txtCallPut != null)
+                    {
+                        string optionType = _trade?.Legs?[0]?.OptionType ?? "CALL";
+                        txtCallPut.Text = optionType == "PUT"
+                            ? $"{ccy1} Put / {ccy2} Call"
+                            : $"{ccy1} Call / {ccy2} Put";
+                    }
+           
+                    // Hedge amount label header removed - column no longer exists
+  
+                    // Update trade structure if it exists
+                    if (_trade != null)
+                    {
+                        _trade.Underlying = pair.Substring(0, 6); // Take only first 6 chars
+                    }
+        
+                    Console.WriteLine($"[WPF] Currency pair updated to {pair} - Notional: {notionalCurrency}");
+                }
+            }
+        }
+
+        private void CallPutToggle_Click(object sender, MouseButtonEventArgs e)
+   {
+            if (_trade?.Legs == null || _trade.Legs.Count == 0)
+       return;
+
+   var leg = _trade.Legs[0];
+   string pair = _trade.Underlying ?? "EURUSD";
+        string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+            string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+
+    // Toggle between CALL and PUT
+            leg.OptionType = leg.OptionType == "CALL" ? "PUT" : "CALL";
+
+       // Update UI
+            if (txtCallPut != null)
+         {
+             txtCallPut.Text = leg.OptionType == "PUT"
+        ? $"{ccy1} Put / {ccy2} Call"
+ : $"{ccy1} Call / {ccy2} Put";
+          }
+
+       Console.WriteLine($"[WPF] Toggled option type to: {leg.OptionType}");
+        }
+
+        private void txtExpiryDate_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (txtExpiryDate != null && !string.IsNullOrEmpty(txtExpiryDate.Text))
+            {
+                // Use Dispatcher to select all text AFTER the default focus behavior completes
+                // This ensures the selection isn't immediately cleared by the mouse click
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+                {
+                    txtExpiryDate.SelectAll();
+                }));
+            }
+        }
+
+        /// <summary>
+        /// Handle expiry date text field losing focus - parse tenor and calculate actual date
+        /// </summary>
+        private void txtExpiryDate_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (txtExpiryDate == null || string.IsNullOrWhiteSpace(txtExpiryDate.Text))
+                return;
+
+            string input = txtExpiryDate.Text.Trim().ToUpperInvariant();
+            
+            // Check if it's already in the formatted output (e.g., "13-Feb-26, Thu (1M)")
+            if (input.Contains(",") && input.Contains("("))
+            {
+                // Already formatted, no need to re-parse
+                return;
+            }
+
+            try
+            {
+                string currencyPair = _trade?.Underlying ?? "EURUSD";
+                DateTime expiryDate;
+                DateTime deliveryDate;
+                string tenorDisplay = "";
+
+                // Check if input is a tenor (1M, 2M, 3M, 6M, 1Y, 1W, 7D, etc.)
+                if (System.Text.RegularExpressions.Regex.IsMatch(input, @"^\d+[MWYD]$"))
+                {
+                    // Input is a TENOR - use FxDateService for proper calendar-aware calculation
+                    tenorDisplay = input;
+                    
+                    try
+                    {
+                        string premiumCcy = currencyPair.Length >= 6 ? currencyPair.Substring(3, 3) : "USD";
+                        var (tradeDate, spotDate, expiry, delivery, premiumDate) = 
+                            FxDateService.ComputeDates(
+                                DateTime.UtcNow,
+                                currencyPair,
+                                input,
+                                premiumCcy,
+                                new FxDateRules()
+                            );
+                        
+                        expiryDate = expiry;
+                        deliveryDate = delivery;
+                        Console.WriteLine($"[WPF] Expiry LostFocus: FxDateService calculated tenor '{input}' → Expiry={expiryDate:dd-MMM-yy}, Delivery={deliveryDate:dd-MMM-yy}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[WPF] Error calculating expiry from tenor '{input}': {ex.Message}");
+                        expiryDate = CalculateExpiryFromTenor(input);
+                        deliveryDate = CalculateDeliveryDate(expiryDate);
+                    }
+                }
+                else
+                {
+                    // Try to parse as a date (various formats)
+                    bool parsed = false;
+                    
+                    // Try dd-MMM-yy format (13-Feb-26)
+                    if (DateTime.TryParseExact(input, new[] { "dd-MMM-yy", "dd-MMM-yyyy", "d-MMM-yy", "d-MMM-yyyy" },
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out expiryDate))
+                    {
+                        parsed = true;
+                    }
+                    // Try MM/dd/yy format
+                    else if (DateTime.TryParseExact(input, new[] { "MM/dd/yy", "M/d/yy", "MM/dd/yyyy", "M/d/yyyy" },
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out expiryDate))
+                    {
+                        parsed = true;
+                    }
+                    // Try general date parsing
+                    else if (DateTime.TryParse(input, out expiryDate))
+                    {
+                        parsed = true;
+                    }
+
+                    if (!parsed)
+                    {
+                        Console.WriteLine($"[WPF] Expiry LostFocus: Could not parse '{input}' as date or tenor");
+                        return; // Leave as-is if can't parse
+                    }
+                    
+                    // Calculate delivery date using calendar service
+                    deliveryDate = CalculateDeliveryDate(expiryDate);
+                    Console.WriteLine($"[WPF] Expiry LostFocus: Parsed date '{input}' → Expiry={expiryDate:dd-MMM-yy}, Delivery={deliveryDate:dd-MMM-yy}");
+                }
+
+                // Format the display: "13-Feb-26, Thu (1M)" or "13-Feb-26, Thu" if no tenor
+                string dayOfWeek = expiryDate.ToString("ddd", System.Globalization.CultureInfo.InvariantCulture);
+                string dateStr = expiryDate.ToString("dd-MMM-yy", System.Globalization.CultureInfo.InvariantCulture);
+                
+                if (!string.IsNullOrEmpty(tenorDisplay))
+                {
+                    txtExpiryDate.Text = $"{dateStr}, {dayOfWeek} ({tenorDisplay})";
+                }
+                else
+                {
+                    txtExpiryDate.Text = $"{dateStr}, {dayOfWeek}";
+                }
+
+                // Update trade structure if available
+                if (_trade != null && _trade.Legs != null && _trade.Legs.Count > 0)
+                {
+                    _trade.Legs[0].ExpiryDate = expiryDate;
+                    _trade.Legs[0].Tenor = tenorDisplay;
+                    _trade.Legs[0].DeliveryDate = deliveryDate;
+                    
+                    Console.WriteLine($"[WPF] Updated trade: ExpiryDate={expiryDate:dd-MMM-yy}, DeliveryDate={deliveryDate:dd-MMM-yy}");
+                }
+
+                // Update Value Date field in hedge details section
+                if (lblHedgeValueDate != null)
+                {
+                    lblHedgeValueDate.Text = deliveryDate.ToString("dd-MMM-yy", System.Globalization.CultureInfo.InvariantCulture);
+                    Console.WriteLine($"[WPF] Updated Value Date: {lblHedgeValueDate.Text}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Expiry LostFocus error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Calculate expiry date from tenor string using FX calendar service
+        /// </summary>
     private DateTime CalculateExpiryFromTenor(string tenor)
   {
         if (string.IsNullOrEmpty(tenor))
            return DateTime.Now.AddMonths(1);
 
-    var match = System.Text.RegularExpressions.Regex.Match(tenor, @"(\d+)([mMwWyYdD])");
-     if (!match.Success)
-  return DateTime.Now.AddMonths(1);
+        string currencyPair = _trade?.Underlying ?? "EURUSD";
 
- int amount = int.Parse(match.Groups[1].Value);
-      string unit = match.Groups[2].Value.ToUpper();
+        try
+        {
+            // Use FxDateService for proper calendar-aware date calculation
+            var (tradeDate, spotDate, expiryDate, deliveryDate, premiumDate) = 
+                FxDateService.ComputeDates(
+                    DateTime.UtcNow,
+                    currencyPair,
+                    tenor.ToUpperInvariant(),
+                    currencyPair.Substring(3, 3), // Premium currency (quote ccy)
+                    new FxDateRules()
+                );
 
-          return unit switch
-     {
-      "D" => DateTime.Now.AddDays(amount),
-   "W" => DateTime.Now.AddDays(amount * 7),
-   "M" => DateTime.Now.AddMonths(amount),
-       "Y" => DateTime.Now.AddYears(amount),
-         _ => DateTime.Now.AddMonths(amount)
-         };
+            Console.WriteLine($"[WPF] Calculated expiry for {tenor} on {currencyPair}: {expiryDate:dd-MMM-yy (ddd)}");
+            return expiryDate;
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WPF] Error calculating expiry from FxDateService: {ex.Message}");
+            
+            // Fallback to simple calculation
+            var match = System.Text.RegularExpressions.Regex.Match(tenor, @"(\d+)([mMwWyYdD])");
+            if (!match.Success)
+                return DateTime.Now.AddMonths(1);
 
-     /// <summary>
-      /// Get Bloomberg spot rate for currency pair
-        /// </summary>
+            int amount = int.Parse(match.Groups[1].Value);
+            string unit = match.Groups[2].Value.ToUpper();
+
+            var result = unit switch
+            {
+                "D" => DateTime.Now.AddDays(amount),
+                "W" => DateTime.Now.AddDays(amount * 7),
+                "M" => DateTime.Now.AddMonths(amount),
+                "Y" => DateTime.Now.AddYears(amount),
+                _ => DateTime.Now.AddMonths(amount)
+            };
+
+            // Simple weekend adjustment
+            while (result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday)
+            {
+                result = result.AddDays(1);
+            }
+
+            return result;
+        }
+  }
+
         private async Task<double> GetBloombergSpotAsync(string currencyPair)
         {
 try
@@ -1169,97 +1767,166 @@ try
             };
         }
 
+        /// <summary>
+        /// Get the number of decimal places for a currency pair's strike price.
+        /// JPY pairs use 2 decimals, most others use 4 decimals.
+        /// </summary>
+        private int GetStrikeDecimalPlaces(string currencyPair)
+        {
+            if (string.IsNullOrEmpty(currencyPair) || currencyPair.Length < 6)
+                return 4;
+
+            // JPY, HUF, KRW pairs typically use 2 decimal places
+            string quoteCurrency = currencyPair.Substring(3, 3).ToUpperInvariant();
+            return quoteCurrency switch
+            {
+                "JPY" => 2,
+                "HUF" => 2,
+                "KRW" => 2,
+                "CLP" => 2,
+                "ISK" => 2,
+                _ => 4
+            };
+        }
+
+        /// <summary>
+        /// Format strike price according to currency pair conventions.
+        /// </summary>
+        private string FormatStrike(double strike, string currencyPair)
+        {
+            int decimals = GetStrikeDecimalPlaces(currencyPair);
+            return strike.ToString($"F{decimals}");
+        }
+
       #endregion
 
         #region Option Details Event Handlers
 
-        private void txtCurrencyPair_LostFocus(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Handle strike text field gaining focus - select all text for easy replacement
+        /// </summary>
+        private void txtStrike_GotFocus(object sender, RoutedEventArgs e)
         {
-      // Update notional currency label when pair changes
-            string pair = txtCurrencyPair?.Text?.ToUpper() ?? "EURUSD";
-      string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
-    string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
-
-            string notionalCurrency = _notionalInBaseCurrency ? ccy1 : ccy2;
-   if (lblNotional != null)
+            if (txtStrike != null && !string.IsNullOrEmpty(txtStrike.Text))
             {
-       lblNotional.Text = $"Notional ({notionalCurrency})";
-            }
-      if (txtNotionalCurrency != null)
-            {
-       txtNotionalCurrency.Text = notionalCurrency;
-            }
-
- // Update trade structure
-            if (_trade != null)
-            {
-  _trade.Underlying = pair;
+                // Use Dispatcher to select all text AFTER the default focus behavior completes
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+                {
+                    txtStrike.SelectAll();
+                }));
             }
         }
 
-        private void txtCurrencyPair_TextChanged(object sender, TextChangedEventArgs e)
+        /// <summary>
+        /// Handle strike text field losing focus - auto-format to correct decimal places
+        /// E.g., "1.18" -> "1.1800" for EURUSD (4 decimals), "150.5" -> "150.50" for USDJPY (2 decimals)
+        /// Also auto-defaults Call/Put based on comparing strike with Bloomberg spot rate.
+        /// </summary>
+        private async void txtStrike_LostFocus(object sender, RoutedEventArgs e)
         {
-         // Auto-uppercase the currency pair
-    if (txtCurrencyPair != null)
-    {
-              int caretIndex = txtCurrencyPair.CaretIndex;
-   txtCurrencyPair.Text = txtCurrencyPair.Text.ToUpper();
-  txtCurrencyPair.CaretIndex = caretIndex;
+            if (txtStrike == null || string.IsNullOrWhiteSpace(txtStrike.Text))
+                return;
+
+            try
+            {
+                string input = txtStrike.Text.Trim();
+                
+                // Normalize decimal separator (handle both comma and period)
+                input = input.Replace(",", ".");
+                
+                // Try to parse the strike value
+                if (double.TryParse(input, System.Globalization.NumberStyles.Float, 
+                    System.Globalization.CultureInfo.InvariantCulture, out double strikeValue))
+                {
+                    string currencyPair = _trade?.Underlying ?? txtCurrencyPair?.Text ?? "EURUSD";
+                    
+                    // Format with correct decimal places for currency pair
+                    // This pads with zeros: 1.18 -> 1.1800 for EURUSD (4 decimals)
+                    string formattedStrike = FormatStrike(strikeValue, currencyPair);
+                    txtStrike.Text = formattedStrike;
+                    
+                    // Update trade structure if available
+                    if (_trade?.Legs != null && _trade.Legs.Count > 0)
+                    {
+                        _trade.Legs[0].Strike = strikeValue;
+                    }
+                    
+                    Console.WriteLine($"[WPF] Strike formatted: {input} → {formattedStrike} (for {currencyPair})");
+                    
+                    // Auto-default Call/Put based on strike vs Bloomberg spot rate
+                    await UpdateOptionTypeFromStrikeVsSpotAsync(strikeValue, currencyPair);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error formatting strike: {ex.Message}");
             }
         }
 
-    private void txtExpiryDate_LostFocus(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Auto-default the option type (Call/Put) based on comparing strike with Bloomberg spot rate.
+        /// If strike > spot → CALL (out-of-the-money call)
+        /// If strike < spot → PUT (out-of-the-money put)
+        /// </summary>
+        private async Task UpdateOptionTypeFromStrikeVsSpotAsync(double strike, string currencyPair)
         {
- // Parse expiry date and update trade structure
- // Could add date parsing logic here
-        }
-
-        private void CallPutToggle_Click(object sender, MouseButtonEventArgs e)
-   {
-            if (_trade?.Legs == null || _trade.Legs.Count == 0)
-       return;
-
-   var leg = _trade.Legs[0];
-   string pair = _trade.Underlying ?? "EURUSD";
-        string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
-            string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
-
-    // Toggle between CALL and PUT
-            leg.OptionType = leg.OptionType == "CALL" ? "PUT" : "CALL";
-
-       // Update UI
-            if (txtCallPut != null)
-         {
-             txtCallPut.Text = leg.OptionType == "PUT"
-        ? $"{ccy1} Put / {ccy2} Call"
- : $"{ccy1} Call / {ccy2} Put";
-          }
-
-       Console.WriteLine($"[WPF] Toggled option type to: {leg.OptionType}");
-        }
-
-        private void DeltaExchange_Changed(object sender, SelectionChangedEventArgs e)
-        {
-if (cmbDeltaExchange == null || hedgeDetailsPanel == null)
-           return;
-
-      // Show/hide hedge details based on selection
-            bool showDetails = cmbDeltaExchange.SelectedIndex > 0; // 0 = No Hedge
-        hedgeDetailsPanel.Visibility = showDetails ? Visibility.Visible : Visibility.Collapsed;
-
-            // Update header text
-            if (lblHedgeRateHeader != null)
+            try
             {
-         lblHedgeRateHeader.Text = cmbDeltaExchange.SelectedIndex == 2 ? "Forward" : "Spot";
-    }
-     }
+                // Get Bloomberg spot rate
+                double spotRate = _trade?.SpotReference ?? 0;
+                
+                // Fetch live rate if we don't have one
+                if (spotRate <= 0)
+                {
+                    spotRate = await GetBloombergSpotAsync(currencyPair);
+                    if (_trade != null && spotRate > 0)
+                    {
+                        _trade.SpotReference = spotRate;
+                    }
+                }
+                
+                if (spotRate <= 0)
+                {
+                    Console.WriteLine($"[WPF] Cannot auto-default Call/Put - no spot rate available");
+                    return;
+                }
+                
+                // Determine option type based on strike vs spot
+                // Strike above spot = CALL (OTM call), Strike below spot = PUT (OTM put)
+                string newOptionType = strike > spotRate ? "CALL" : "PUT";
+                
+                // Update trade structure
+                if (_trade?.Legs != null && _trade.Legs.Count > 0)
+                {
+                    string oldOptionType = _trade.Legs[0].OptionType;
+                    _trade.Legs[0].OptionType = newOptionType;
+                    
+                    Console.WriteLine($"[WPF] Auto-defaulted option type: Strike={strike:F4} vs Spot={spotRate:F4} → {newOptionType} (was {oldOptionType})");
+                }
+                
+                // Update UI
+                string ccy1 = currencyPair.Length >= 6 ? currencyPair.Substring(0, 3) : "EUR";
+                string ccy2 = currencyPair.Length >= 6 ? currencyPair.Substring(3, 3) : "USD";
+                
+                if (txtCallPut != null)
+                {
+                    txtCallPut.Text = newOptionType == "PUT"
+                        ? $"{ccy1} Put / {ccy2} Call"
+                        : $"{ccy1} Call / {ccy2} Put";
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error auto-defaulting option type: {ex.Message}");
+            }
+        }
 
         #endregion
 
-    #region Collapsible Sections
+        #region Collapsible Sections
 
         private void OptionHeader_Click(object sender, MouseButtonEventArgs e)
-        {
+     {
  if (optionContent == null || lblOptionArrow == null)
       return;
 
@@ -1268,37 +1935,7 @@ if (cmbDeltaExchange == null || hedgeDetailsPanel == null)
             lblOptionArrow.Text = isCollapsed ? "▼" : "▶";
         }
 
-        private void MarketDataHeader_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (marketDataContent == null || lblMarketDataArrow == null)
-      return;
-
-            bool isCollapsed = marketDataContent.Visibility == Visibility.Collapsed;
-       marketDataContent.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
-   lblMarketDataArrow.Text = isCollapsed ? "▼" : "▶";
-        }
-
-  private void RiskHeader_Click(object sender, MouseButtonEventArgs e)
-        {
-   if (riskContent == null || lblRiskArrow == null)
-     return;
-
-            bool isCollapsed = riskContent.Visibility == Visibility.Collapsed;
-      riskContent.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
-    lblRiskArrow.Text = isCollapsed ? "▼" : "▶";
-        }
-
-        private void LadderHeader_Click(object sender, MouseButtonEventArgs e)
-        {
-    if (ladderContent == null || lblLadderArrow == null)
- return;
-
-   bool isCollapsed = ladderContent.Visibility == Visibility.Collapsed;
-     ladderContent.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
-          lblLadderArrow.Text = isCollapsed ? "▼" : "▶";
-        }
-
-     private void DealsHeader_Click(object sender, MouseButtonEventArgs e)
+  private void DealsHeader_Click(object sender, MouseButtonEventArgs e)
         {
       ToggleDealsPanel();
         }
@@ -1327,6 +1964,36 @@ _dealsPanelExpanded = !_dealsPanelExpanded;
 lblDealsArrow.Text = "◀";
   }
         }
+
+        private void LadderHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+    if (ladderContent == null || lblLadderArrow == null)
+        return;
+
+  bool isCollapsed = ladderContent.Visibility == Visibility.Collapsed;
+    ladderContent.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
+lblLadderArrow.Text = isCollapsed ? "▼" : "▶";
+}
+
+private void MarketDataHeader_Click(object sender, MouseButtonEventArgs e)
+{
+ // This method is no longer needed - replaced by MarketRiskHeader_Click
+}
+
+private void RiskHeader_Click(object sender, MouseButtonEventArgs e)
+{
+    // This method is no longer needed - replaced by MarketRiskHeader_Click
+}
+
+private void MarketRiskHeader_Click(object sender, MouseButtonEventArgs e)
+{
+    if (marketRiskContent == null || lblMarketRiskArrow == null)
+        return;
+
+    bool isCollapsed = marketRiskContent.Visibility == Visibility.Collapsed;
+    marketRiskContent.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
+    lblMarketRiskArrow.Text = isCollapsed ? "▼" : "▶";
+}
 
         #endregion
 
@@ -1371,8 +2038,7 @@ else
   // Generate group ID for this RFQ session
   _currentGroupId = Guid.NewGuid().ToString("N").Substring(0, 8);
 
-   // Clear previous quotes
-            _quotesByLP.Clear();
+  // Clear previous quotes
             _quotesByQuoteId.Clear();
             LPQuotes.Clear();
 
@@ -1436,208 +2102,667 @@ _quotesByQuoteId.Clear();
         {
         var selectedLPs = new System.Collections.Generic.List<string>();
 
-            if (chkMS?.IsChecked == true) selectedLPs.Add("MS");
-     if (chkHSBC?.IsChecked == true) selectedLPs.Add("HSBC");
-if (chkBNP?.IsChecked == true) selectedLPs.Add("BNP");
-            if (chkNATWEST?.IsChecked == true) selectedLPs.Add("NATWEST");
-   if (chkSOCGEN?.IsChecked == true) selectedLPs.Add("SOCGEN");
-            if (chkCIBC?.IsChecked == true) selectedLPs.Add("CIBC");
-        if (chkSCBL?.IsChecked == true) selectedLPs.Add("SCBL");
-  if (chkNOMURA?.IsChecked == true) selectedLPs.Add("NOMURA");
- if (chkBAML?.IsChecked == true) selectedLPs.Add("BAML");
-
-          return selectedLPs;
-        }
-
-    private void ExecuteTrade(string side)
-   {
-      // Find the best quote for this side
-            LPQuoteData bestQuote = null;
-     if (side == "BID")
-            {
-       bestQuote = _quotesByLP.Values.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
-         }
-    else
+            // Get the initial LP panel to read checkbox states
+            if (FindName("initialLPPanel") is StackPanel initialPanel)
+{
+          foreach (var child in initialPanel.Children)
+         {
+ if (child is CheckBox chk && chk.IsChecked == true)
+          {
+  // Extract LP name from checkbox Tag or Content
+            string lpName = chk.Tag?.ToString() ?? chk.Content?.ToString()?.ToUpper();
+     if (!string.IsNullOrEmpty(lpName))
+         {
+   // Map display names to LP codes
+lpName = lpName switch
   {
-         bestQuote = _quotesByLP.Values.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
+       "MORGAN STANLEY" or "MORGANSTANLEY" => "MS",
+         "SOCIETE GENERALE" or "SOCIETEGENERALE" => "SOCGEN",
+          "NATWEST MARKETS" or "NATWESTMARKETS" => "NATWEST",
+    "STANDARD CHARTERED" or "STANDARDCHARTERED" => "SCBL",
+             "BANK OF AMERICA" or "BANKOFAMERICA" => "BAML",
+      "BNP PARIBAS" or "BNPPARIBAS" => "BNP",
+  _ => lpName.ToUpper().Replace(" ", "")
+         };
+    selectedLPs.Add(lpName);
+      }
+  }
+              }
             }
 
-            if (bestQuote == null)
-            {
-MessageBox.Show("No quote available to execute.", "No Quote", MessageBoxButton.OK, MessageBoxImage.Warning);
-              return;
-       }
+       // Fallback: Check named checkboxes if panel search didn't find any
+       if (selectedLPs.Count == 0)
+        {
+       if (FindName("chkMS") is CheckBox chkMS && chkMS.IsChecked == true) selectedLPs.Add("MS");
+      if (FindName("chkHSBC") is CheckBox chkHSBC && chkHSBC.IsChecked == true) selectedLPs.Add("HSBC");
+                if (FindName("chkBNP") is CheckBox chkBNP && chkBNP.IsChecked == true) selectedLPs.Add("BNP");
+  if (FindName("chkNATWEST") is CheckBox chkNATWEST && chkNATWEST.IsChecked == true) selectedLPs.Add("NATWEST");
+       if (FindName("chkSOCGEN") is CheckBox chkSOCGEN && chkSOCGEN.IsChecked == true) selectedLPs.Add("SOCGEN");
+        if (FindName("chkCIBC") is CheckBox chkCIBC && chkCIBC.IsChecked == true) selectedLPs.Add("CIBC");
+     if (FindName("chkSCBL") is CheckBox chkSCBL && chkSCBL.IsChecked == true) selectedLPs.Add("SCBL");
+    if (FindName("chkNOMURA") is CheckBox chkNOMURA && chkNOMURA.IsChecked == true) selectedLPs.Add("NOMURA");
+        if (FindName("chkBAML") is CheckBox chkBAML && chkBAML.IsChecked == true) selectedLPs.Add("BAML");
+            }
 
-            string quoteId = side == "BID" ? bestQuote.BidQuoteId : bestQuote.OfferQuoteId;
-    if (string.IsNullOrEmpty(quoteId))
-      {
-         MessageBox.Show("Quote ID not available.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-     return;
-       }
+Console.WriteLine($"[WPF] Selected LPs: {string.Join(", ", selectedLPs)}");
+       return selectedLPs;
+        }
 
-     // Get the FIXMessage for this quote
-  if (!_quotesByQuoteId.TryGetValue(quoteId, out var fixMessage))
-      {
-           MessageBox.Show("Quote message not found.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+        /// <summary>
+        /// Execute trade against the best quote for the given side (BID or OFFER)
+    /// </summary>
+  private void ExecuteTrade(string side)
+     {
+      if (!_isRfqActive || _quotesByLP.IsEmpty)
+       {
+ MessageBox.Show("No active quotes available for execution.", "Cannot Execute",
+MessageBoxButton.OK, MessageBoxImage.Warning);
+    return;
+            }
+
+      try
+       {
+            // Find the best quote for the requested side
+   LPQuoteData bestQuote = null;
+    FIXMessage bestQuoteMessage = null;
+
+    if (side == "BID")
+         {
+       // User is selling - find best bid (highest vol)
+         bestQuote = _quotesByLP.Values
+ .Where(q => q.BidVol > 0 && !string.IsNullOrEmpty(q.BidQuoteId))
+.OrderByDescending(q => q.BidVol)
+       .FirstOrDefault();
+
+    if (bestQuote != null && _quotesByQuoteId.TryGetValue(bestQuote.BidQuoteId, out var msg))
+               {
+    bestQuoteMessage = msg;
+       }
+      }
+   else // OFFER
+ {
+    // User is buying - find best offer (lowest vol)
+      bestQuote = _quotesByLP.Values
+   .Where(q => q.OfferVol > 0 && !string.IsNullOrEmpty(q.OfferQuoteId))
+      .OrderBy(q => q.OfferVol)
+     .FirstOrDefault();
+
+        if (bestQuote != null && _quotesByQuoteId.TryGetValue(bestQuote.OfferQuoteId, out var msg))
+     {
+        bestQuoteMessage = msg;
+   }
+  }
+
+ if (bestQuote == null || bestQuoteMessage == null)
+{
+     MessageBox.Show($"No valid {side} quotes available.", "Cannot Execute",
+        MessageBoxButton.OK, MessageBoxImage.Warning);
+  return;
+     }
+
+         // Check quote validity
+if (bestQuote.ValidUntilTime < DateTime.Now)
+ {
+         MessageBox.Show($"Quote from {bestQuote.LP} has expired.", "Quote Expired",
+    MessageBoxButton.OK, MessageBoxImage.Warning);
+          return;
     }
 
-   // Generate order ID
-         string clOrdId = $"ORD-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N").Substring(0, 4)}";
+       // Send execution to FIX session
+      string executionSide = side == "BID" ? "SELL" : "BUY";
+     string clOrdID = _fixSession?.SendExecution(bestQuoteMessage, executionSide, _trade);
 
-            // Add deal card immediately with PENDING status
-          var deal = new DealViewModel
+     if (!string.IsNullOrEmpty(clOrdID))
       {
-         Time = DateTime.Now.ToString("HH:mm:ss"),
-         Instrument = $"{_trade?.Underlying} {_trade?.Legs?[0]?.Tenor}",
-     Strike = _trade?.Legs?[0]?.Strike.ToString("F4") ?? "N/A",
-     Side = side == "BID" ? "SELL" : "BUY",
-    SideColor = new SolidColorBrush(side == "BID" ? Color.FromRgb(239, 68, 68) : Color.FromRgb(34, 197, 94)),
-       Status = "PENDING",
-         StatusBackground = new SolidColorBrush(Color.FromRgb(245, 158, 11)),
-          StatusForeground = new SolidColorBrush(Colors.Black),
-                OrderId = clOrdId,
-    Volatility = (side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol).ToString("F2") + "%",
-   EurPips = "N/A",
-            PremiumLabel = side == "BID" ? "RCV" : "PAY",
-        PremiumDisplay = Math.Abs(side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium).ToString("N0"),
-PremiumColor = new SolidColorBrush(side == "BID" ? Color.FromRgb(34, 197, 94) : Color.FromRgb(239, 68, 68)),
-       SpotRate = bestQuote.SpotRate,
-ExpiryDate = _trade?.Legs?[0]?.ExpiryDate.ToString("dd-MMM-yy") ?? "N/A",
-       Notional = $"{_trade?.Legs?[0]?.NotionalMM:F1}MM",
-                ExpiryCut = "NYC"
-            };
+ Console.WriteLine($"[WPF] Execution sent: ClOrdID={clOrdID}, Side={executionSide}, LP={bestQuote.LP}");
 
-         Deals.Insert(0, deal);
-            lblNoDeals.Visibility = Visibility.Collapsed;
-
-   // Send order
-            try
+         // Create deal card entry using existing DealViewModel properties
+         double vol = side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol;
+         double premium = side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium;
+         string optionType = _trade?.Legs?[0]?.OptionType ?? "CALL";
+         
+         // Get hedge details from the Delta Exchange dropdown
+         string hedgeType = "No Hedge";
+         string hedgeSide = "";
+         string hedgeAmount = "";
+         string hedgeRate = "";
+         string hedgeValueDate = "";
+         string deltaDisplay = "";
+         
+         // Check if user selected a hedge type (1 = Spot Hedge, 2 = Forward Hedge)
+         bool hasHedgeSelected = cmbDeltaExchange != null && cmbDeltaExchange.SelectedIndex > 0;
+         
+         if (hasHedgeSelected)
          {
-   Console.WriteLine($"[WPF] Executing trade: {clOrdId} on {bestQuote.LP} ({side})");
-        _fixSession?.SendExecution(fixMessage, side, _trade);
-     }
-  catch (Exception ex)
+             // Get hedge type from dropdown
+             hedgeType = cmbDeltaExchange.SelectedIndex == 1 ? "Spot Hedge" : "Forward Hedge";
+             
+             // Delta from quote (bestOffer for buy, bestBid for sell)
+             double? delta = side == "OFFER" ? bestQuote.Delta : bestQuote.Delta;
+             
+             // Get notional for calculations
+             double notionalMM = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
+             string pair = _trade?.Underlying ?? "EURUSD";
+             string hedgeCcy = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+             
+             // Try to get delta from quote first, then fall back to UI
+             double deltaPct = 0;
+             if (delta.HasValue && delta.Value != 0)
+             {
+                 deltaPct = delta.Value;
+             }
+             else if (lblDeltaPct != null && !string.IsNullOrEmpty(lblDeltaPct.Text) && lblDeltaPct.Text != "--")
+             {
+                 // Try to parse delta from UI (format: "52.5%")
+                 string deltaText = lblDeltaPct.Text.Replace("%", "").Trim();
+                 double.TryParse(deltaText, System.Globalization.NumberStyles.Float, 
+                     System.Globalization.CultureInfo.InvariantCulture, out deltaPct);
+             }
+             
+             if (deltaPct != 0)
+             {
+                 deltaDisplay = $"{deltaPct:F1}%";
+                 
+                 // Calculate hedge amount: Delta% * Notional
+                 double hedgeAmountValue = (deltaPct / 100.0) * notionalMM * 1_000_000;
+                 
+                 // Hedge side is opposite of option direction for calls, same for puts
+                 // If buying a call, you sell delta; if selling a call, you buy delta
+                 bool isCall = optionType == "CALL";
+                 bool isBuying = executionSide == "BUY";
+                 hedgeSide = (isCall == isBuying) ? "SELL" : "BUY";
+                 
+                 hedgeAmount = $"{hedgeAmountValue:N0} {hedgeCcy}";
+             }
+             else
+             {
+                 // Even without delta value, show the hedge type selected
+                 deltaDisplay = "--";
+                 hedgeSide = "--";
+                 hedgeAmount = "--";
+             }
+             
+             // Hedge rate from spot or forward
+             if (!string.IsNullOrEmpty(bestQuote.SpotRate))
+             {
+                 if (hedgeType == "Forward Hedge" && bestQuote.ForwardPoints != 0)
+                 {
+                     // Calculate forward rate
+                     if (double.TryParse(bestQuote.SpotRate, out double spot))
+                     {
+                         double divisor = pair.Contains("JPY") ? 100.0 : 10000.0;
+                         double fwdRate = spot + (bestQuote.ForwardPoints / divisor);
+                         hedgeRate = fwdRate.ToString("F4");
+                     }
+                     else
+                     {
+                         hedgeRate = bestQuote.SpotRate;
+                     }
+                 }
+                 else
+                 {
+                     hedgeRate = bestQuote.SpotRate;
+                 }
+             }
+             else
+             {
+                 // Fallback to UI spot rate
+                 hedgeRate = lblSpotRate?.Text ?? "--";
+             }
+             
+             // Value date from trade delivery date
+             if (_trade?.Legs?[0]?.DeliveryDate != default && _trade.Legs[0].DeliveryDate > DateTime.Now)
+             {
+                 hedgeValueDate = _trade.Legs[0].DeliveryDate.ToString("dd-MMM-yy");
+             }
+             else if (lblHedgeValueDate != null && !string.IsNullOrEmpty(lblHedgeValueDate.Text) && lblHedgeValueDate.Text != "--")
+             {
+                 hedgeValueDate = lblHedgeValueDate.Text;
+             }
+             else
+             {
+                 hedgeValueDate = "--";
+             }
+             
+             Console.WriteLine($"[WPF] Hedge details: Type={hedgeType}, Side={hedgeSide}, Delta={deltaDisplay}, Amount={hedgeAmount}, Rate={hedgeRate}, ValueDate={hedgeValueDate}");
+         }
+         
+     var deal = new DealViewModel
+   {
+      OrderId = clOrdID,
+      Time = DateTime.Now.ToString("HH:mm:ss"),
+    LP = bestQuote.LP,
+      Side = executionSide,
+      SideColor = executionSide == "BUY" 
+ ? new SolidColorBrush(Color.FromRgb(34, 197, 94))   // Green for buy
+          : new SolidColorBrush(Color.FromRgb(239, 68, 68)),  // Red for sell
+     Instrument = $"{_trade?.Underlying ?? "EURUSD"} {optionType}",
+     Strike = FormatStrike(_trade?.Legs?[0]?.Strike ?? 0, _trade?.Underlying ?? "EURUSD"),
+Notional = $"{_trade?.Legs?[0]?.NotionalMM ?? 0:F1}MM",
+     Volatility = vol.ToString("F2",
+ System.Globalization.CultureInfo.InvariantCulture),
+     PremiumLabel = premium >= 0 ? "RCV" : "PAY",
+     PremiumDisplay = $"{Math.Abs(premium):N0} USD",
+     PremiumColor = premium >= 0 
+? new SolidColorBrush(Color.FromRgb(34, 197, 94))   // Green for receive
+         : Brushes.White,
+     SpotRate = bestQuote.SpotRate ?? "--",
+     ExpiryDate = _trade?.Legs?[0]?.ExpiryDate.ToString("dd-MMM-yy") ?? "--",
+     ExpiryCut = _trade?.Legs?[0]?.Cutoff ?? "NY",
+   Status = "PENDING",
+          StatusBackground = new SolidColorBrush(Color.FromRgb(245, 158, 11)), // Amber for pending
+       StatusForeground = new SolidColorBrush(Colors.White),
+       
+       // Delta hedge details
+       HedgeType = hedgeType,
+       HedgeSide = hedgeSide,
+       HedgeAmount = hedgeAmount,
+       HedgeRate = hedgeRate,
+       HedgeValueDate = hedgeValueDate,
+       Delta = deltaDisplay
+           };
+
+       Deals.Insert(0, deal);
+
+         // Speak "Pending" to indicate order sent
+         try
+        {
+ _speechSynthesizer?.SpeakAsync("Pending");
+         }
+ catch (Exception ex)
  {
-   Console.WriteLine($"[WPF] Error executing trade: {ex.Message}");
-         deal.Status = "ERROR";
-      deal.StatusBackground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-           deal.StatusForeground = new SolidColorBrush(Colors.White);
+      Console.WriteLine($"[WPF] Error speaking pending: {ex.Message}");
+            }
+         }
+   else
+   {
+         MessageBox.Show("Failed to send execution order.", "Execution Failed",
+     MessageBoxButton.OK, MessageBoxImage.Error);
+     }
+            }
+catch (Exception ex)
+         {
+  Console.WriteLine($"[WPF] Error executing trade: {ex.Message}");
+      MessageBox.Show($"Error executing trade: {ex.Message}", "Execution Error",
+   MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         #endregion
 
-    #region LP Checkbox and Tile Hover Events
-
-   private void LPCheckbox_Changed(object sender, RoutedEventArgs e)
-        {
-            // Update LP count label
-       int count = GetSelectedLPs().Count;
-    lblLPCount.Text = $"{count} LPs";
-    
-            // Update the LP name text color based on checkbox state
-            if (sender is CheckBox checkbox)
-            {
-          // Find the parent StackPanel containing the TextBlock
-     if (checkbox.Parent is StackPanel stackPanel)
-                {
-                 var textBlock = stackPanel.Children.OfType<TextBlock>().FirstOrDefault();
-       if (textBlock != null)
-          {
-     // White when checked/enabled, grey when unchecked/disabled
-      textBlock.Foreground = checkbox.IsChecked == true 
-? Brushes.White 
-          : new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748b
-         }
-           }
-            }
-        }
+        #region Mouse Hover Event Handlers (UI visual feedback)
 
         private void Tile_MouseEnter(object sender, MouseEventArgs e)
-  {
+        {
+            // Add hover visual feedback for tiles - brighten background
             if (sender is Border border)
-      {
-  border.BorderBrush = new SolidColorBrush(Color.FromRgb(59, 130, 246)); // Blue highlight
-   }
-      }
-
-        private void Tile_MouseLeave(object sender, MouseEventArgs e)
-      {
-            if (sender is Border border)
-       {
-            border.BorderBrush = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // Original border
+            {
+                // Store original background for restoration
+                border.Tag = border.Background;
+                
+                // Create a brighter hover effect
+                if (_isRfqActive)
+                {
+                    // When quoting, use a subtle highlight
+                    border.Background = new SolidColorBrush(Color.FromRgb(30, 35, 45));
+                }
+                else
+                {
+                    // When in RFQ state, show clickable highlight
+                    border.Background = new SolidColorBrush(Color.FromRgb(25, 30, 40));
+                }
+                
+                // Add subtle border glow
+                border.BorderBrush = new SolidColorBrush(Color.FromRgb(59, 130, 246)); // Blue highlight
             }
         }
 
-        private void HeroValue_MouseEnter(object sender, MouseEventArgs e)
-  {
-       // Could add tooltip or highlight effect
-  }
-
-     private void HeroValue_MouseLeave(object sender, MouseEventArgs e)
+        private void Tile_MouseLeave(object sender, MouseEventArgs e)
         {
-   // Could remove tooltip or highlight effect
+            // Remove hover visual feedback for tiles - restore original
+            if (sender is Border border)
+            {
+                // Restore original background from Tag
+                if (border.Tag is System.Windows.Media.Brush originalBrush)
+                {
+                    border.Background = originalBrush;
+                }
+                else
+                {
+                    // Fallback to gradient from resources
+                    border.Background = (System.Windows.Media.Brush)FindResource("Brush.TileGradient");
+                }
+                
+                // Restore border color
+                border.BorderBrush = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1e293b
+            }
         }
 
         private void LPName_MouseEnter(object sender, MouseEventArgs e)
         {
-   if (sender is Border border)
-            {
-     border.Background = new SolidColorBrush(Color.FromRgb(20, 22, 27));
- 
-   // Change LP name text to white (active color) on hover
-       var stackPanel = border.Child as StackPanel;
-       if (stackPanel != null)
-{
-               var textBlock = stackPanel.Children.OfType<TextBlock>().FirstOrDefault();
-  if (textBlock != null)
-          {
-            textBlock.Tag = textBlock.Foreground; // Store original color
-          textBlock.Foreground = Brushes.White;
-  }
-      }
-         }
+            // Optional: Add hover visual feedback for LP names
         }
 
         private void LPName_MouseLeave(object sender, MouseEventArgs e)
-      {
-            if (sender is Border border)
-      {
-       border.Background = new SolidColorBrush(Color.FromRgb(15, 17, 20));
- 
-       // Restore LP name text to correct color based on checkbox state
-       var stackPanel = border.Child as StackPanel;
-   if (stackPanel != null)
-       {
-    var textBlock = stackPanel.Children.OfType<TextBlock>().FirstOrDefault();
-    var checkbox = stackPanel.Children.OfType<CheckBox>().FirstOrDefault();
-    
-      if (textBlock != null)
-         {
-         // Set color based on checkbox state: white if checked, grey if unchecked
-         textBlock.Foreground = checkbox?.IsChecked == true 
-             ? Brushes.White 
- : new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748b
- }
-    }
-  }
+        {
+            // Optional: Remove hover visual feedback for LP names
         }
 
- private void DealCard_Click(object sender, MouseButtonEventArgs e)
+        private void HeroValue_MouseEnter(object sender, MouseEventArgs e)
         {
-  // Toggle expansion of deal card
-            if (sender is Border border && border.DataContext is DealViewModel deal)
+            // Add hover visual feedback for hero value display - scale up slightly
+            if (sender is System.Windows.Controls.TextBlock textBlock)
             {
-      deal.IsExpanded = !deal.IsExpanded;
+                // Make text slightly brighter on hover
+                if (textBlock.Foreground is SolidColorBrush brush && brush.Color != Colors.White)
+                {
+                    textBlock.Tag = textBlock.Foreground;
+                    textBlock.Foreground = Brushes.White;
+                }
+                
+                // Apply subtle scale transform for "pop" effect
+                textBlock.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+                textBlock.RenderTransform = new ScaleTransform(1.02, 1.02);
+            }
         }
+
+        private void HeroValue_MouseLeave(object sender, MouseEventArgs e)
+        {
+            // Remove hover visual feedback for hero value display
+            if (sender is System.Windows.Controls.TextBlock textBlock)
+            {
+                // Restore original foreground
+                if (textBlock.Tag is System.Windows.Media.Brush originalBrush)
+                {
+                    textBlock.Foreground = originalBrush;
+                    textBlock.Tag = null;
+                }
+                
+                // Remove scale transform
+                textBlock.RenderTransform = null;
+            }
+        }
+
+        private void LPCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            // Optional: Handle LP checkbox state changes
+            // Could update selected LP count or validate selections
+        }
+
+        private void DealCard_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Handle deal card click - toggle expansion or show details
+            if (sender is FrameworkElement element && element.DataContext is DealViewModel deal)
+            {
+                deal.IsExpanded = !deal.IsExpanded;
+            }
         }
 
         private void AddLeg_Click(object sender, MouseButtonEventArgs e)
-    {
-   MessageBox.Show("Multi-leg trading coming soon!", "Add Leg", MessageBoxButton.OK, MessageBoxImage.Information);
+        {
+            // Handle add leg button click - add a new option leg to the trade
+            if (_trade == null)
+            {
+                _trade = new TradeStructure
+                {
+                    Underlying = "EURUSD",
+                    StructureType = "Vanilla",
+                    Legs = new System.Collections.Generic.List<TradeStructure.OptionLeg>()
+                };
+            }
+
+            // Add a new default leg
+            var newLeg = new TradeStructure.OptionLeg
+            {
+                Direction = "BUY",
+                OptionType = "CALL",
+                Strike = 1.10,
+                NotionalMM = 10.0,
+                Tenor = "1M",
+                ExpiryDate = DateTime.Now.AddMonths(1),
+                DeliveryDate = DateTime.Now.AddMonths(1).AddDays(2),
+                NotionalCurrency = _trade.Underlying?.Substring(0, 3) ?? "EUR"
+            };
+
+            _trade.Legs.Add(newLeg);
+            Console.WriteLine($"[WPF] Added new leg - Total legs: {_trade.Legs.Count}");
         }
 
- #endregion
+        private void CopyDealDetails_Click(object sender, RoutedEventArgs e)
+        {
+            // Copy deal details to clipboard
+            if (sender is FrameworkElement element && element.DataContext is DealViewModel deal)
+            {
+                string details = $"Order: {deal.OrderId}\n" +
+                    $"Time: {deal.Time}\n" +
+                    $"LP: {deal.LP}\n" +
+                    $"Side: {deal.Side}\n" +
+                    $"Instrument: {deal.Instrument}\n" +
+                    $"Strike: {deal.Strike}\n" +
+                    $"Notional: {deal.Notional}\n" +
+                    $"Volatility: {deal.Volatility}\n" +
+                    $"Premium: {deal.PremiumLabel} {deal.PremiumDisplay}\n" +
+                    $"Status: {deal.Status}";
+
+                try
+                {
+                    System.Windows.Clipboard.SetText(details);
+                    Console.WriteLine($"[WPF] Deal details copied to clipboard: {deal.OrderId}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WPF] Error copying to clipboard: {ex.Message}");
+                }
+            }
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Handle window loaded event - initialize default UI state
+        /// </summary>
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Initialize hedge details panel to show spot rate by default
+                InitializeHedgeDetailsPanel();
+                
+                Console.WriteLine("[WPF] Window loaded - hedge details panel initialized");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error in Window_Loaded: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Initialize hedge details panel with default values based on Delta Exchange selection.
+        /// Called on window load to show spot rate by default when "Spot" is selected.
+        /// </summary>
+        private async void InitializeHedgeDetailsPanel()
+        {
+            try
+            {
+                if (cmbDeltaExchange == null || hedgeDetailsPanel == null)
+                    return;
+
+                // Get default currency pair (EURUSD if no trade loaded)
+                string currencyPair = _trade?.Underlying ?? "EURUSD";
+                
+                // Fetch Bloomberg spot rate for the default currency pair
+                double spotRate = await GetBloombergSpotAsync(currencyPair);
+                
+                // Store in trade if available
+                if (_trade != null && spotRate > 0)
+                {
+                    _trade.SpotReference = spotRate;
+                }
+                
+                // Update the UI with the fetched spot rate
+                var hedgeRateLabel = FindName("lblHedgeRate") as System.Windows.Controls.TextBlock;
+                if (hedgeRateLabel != null && spotRate > 0)
+                {
+                    int decimals = currencyPair.Contains("JPY") ? 2 : 4;
+                    hedgeRateLabel.Text = $"Spot: {spotRate.ToString($"F{decimals}")}";
+                }
+                else if (hedgeRateLabel != null)
+                {
+                    hedgeRateLabel.Text = "Spot: --";
+                }
+                
+                // Calculate T+2 spot date
+                if (lblHedgeValueDate != null)
+                {
+                    var spotDate = DateTime.Today.AddDays(2);
+                    // Adjust for weekends
+                    while (spotDate.DayOfWeek == DayOfWeek.Saturday || spotDate.DayOfWeek == DayOfWeek.Sunday)
+                        spotDate = spotDate.AddDays(1);
+                    lblHedgeValueDate.Text = spotDate.ToString("dd-MMM-yyyy");
+                }
+                
+                Console.WriteLine($"[WPF] Hedge details panel initialized with Bloomberg spot: {spotRate:F4} for {currencyPair}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error initializing hedge details panel: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle delta exchange dropdown change - update hedge details panel visibility and rate display
+        /// </summary>
+        private async void DeltaExchange_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (cmbDeltaExchange == null || hedgeDetailsPanel == null)
+                    return;
+
+                int selectedIndex = cmbDeltaExchange.SelectedIndex;
+
+                // Find the hedge rate label
+                var hedgeRateLabel = FindName("lblHedgeRate") as System.Windows.Controls.TextBlock;
+                
+                // Get currency pair
+                string currencyPair = _trade?.Underlying ?? txtCurrencyPair?.Text ?? "EURUSD";
+                int decimals = currencyPair.Contains("JPY") ? 2 : 4;
+
+                // Update hedge details panel visibility and value date based on selection
+                // 0 = Spot, 1 = No Hedge (Live), 2 = Forward Hedge
+                if (selectedIndex == 1) // No Hedge (Live)
+                {
+                    hedgeDetailsPanel.Visibility = Visibility.Collapsed;
+                    if (_trade != null)
+                    {
+                        _trade.HedgeType = "NONE";
+                    }
+                }
+                else
+                {
+                    hedgeDetailsPanel.Visibility = Visibility.Visible;
+                    
+                    if (selectedIndex == 0) // Spot
+                    {
+                        if (_trade != null)
+                        {
+                            _trade.HedgeType = "SPOT";
+                        }
+                        
+                        // Get spot rate - either from trade or fetch from Bloomberg
+                        double spotRate = _trade?.SpotReference ?? 0;
+                        if (spotRate <= 0)
+                        {
+                            spotRate = await GetBloombergSpotAsync(currencyPair);
+                            if (_trade != null && spotRate > 0)
+                            {
+                                _trade.SpotReference = spotRate;
+                            }
+                        }
+                        
+                        // Show spot rate
+                        if (hedgeRateLabel != null)
+                        {
+                            if (spotRate > 0)
+                            {
+                                hedgeRateLabel.Text = $"Spot: {spotRate.ToString($"F{decimals}")}";
+                            }
+                            else
+                            {
+                                hedgeRateLabel.Text = "Spot: --";
+                            }
+                        }
+                        
+                        // Calculate T+2 spot date
+                        if (lblHedgeValueDate != null)
+                        {
+                            var spotDate = DateTime.Today.AddDays(2);
+                            // Adjust for weekends
+                            while (spotDate.DayOfWeek == DayOfWeek.Saturday || spotDate.DayOfWeek == DayOfWeek.Sunday)
+                                spotDate = spotDate.AddDays(1);
+                            lblHedgeValueDate.Text = spotDate.ToString("dd-MMM-yyyy");
+                        }
+                    }
+                    else if (selectedIndex == 2) // Forward Hedge
+                    {
+                        if (_trade != null)
+                        {
+                            _trade.HedgeType = "FORWARD";
+                        }
+                        
+                        // Get forward rate - from trade or calculate from spot
+                        double spotRate = _trade?.SpotReference ?? 0;
+                        if (spotRate <= 0)
+                        {
+                            spotRate = await GetBloombergSpotAsync(currencyPair);
+                            if (_trade != null && spotRate > 0)
+                            {
+                                _trade.SpotReference = spotRate;
+                            }
+                        }
+                        
+                        double forwardRate = _trade?.ForwardReference ?? 0;
+                        
+                        // If forward reference not set, use spot as approximation
+                        if (forwardRate <= 0 && spotRate > 0)
+                        {
+                            forwardRate = spotRate;
+                        }
+                        
+                        // Show forward rate
+                        if (hedgeRateLabel != null)
+                        {
+                            if (forwardRate > 0)
+                            {
+                                hedgeRateLabel.Text = $"Fwd: {forwardRate.ToString($"F{decimals}")}";
+                            }
+                            else
+                            {
+                                hedgeRateLabel.Text = "Fwd: --";
+                            }
+                        }
+                        
+                        // Use delivery date from trade if available
+                        if (lblHedgeValueDate != null)
+                        {
+                            if (_trade?.Legs?.Count > 0 && _trade.Legs[0].DeliveryDate != default)
+                            {
+                                lblHedgeValueDate.Text = _trade.Legs[0].DeliveryDate.ToString("dd-MMM-yyyy");
+                            }
+                            else
+                            {
+                                lblHedgeValueDate.Text = "--";
+                            }
+                        }
+                    }
+                }
+                
+                Console.WriteLine($"[WPF] Delta Exchange changed to index {selectedIndex}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error in DeltaExchange_Changed: {ex.Message}");
+            }
+        }
     }
 }

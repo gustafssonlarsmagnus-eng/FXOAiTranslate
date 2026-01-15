@@ -488,8 +488,10 @@ Output ONLY the OVML line:";
                 {
                     OVML = ovml,
                     Underlying = ExtractUnderlyingFromOVML(ovml),
-                    Expiry = ExtractExpiryFromOVML(ovml),
-                    LegCount = ExtractLegCountFromOVML(ovml),
+                    // Preserve tenor format if expiry is in tenor format (1M, 2W, etc.)
+                    Expiry = Regex.IsMatch(expiry ?? "", @"^\d+[MWYD]$", RegexOptions.IgnoreCase)
+                        ? expiry.ToUpperInvariant()
+                        : expiry,
                     ParseMethod = patternMatched ? $"Learned-Pattern-{matchedPatternName}" : "AI-Success",
                     AdditionalInfo = aiResponse
                 };
@@ -602,17 +604,19 @@ Output ONLY the OVML line:";
                             continue;  // Skip to next pattern
                         }
 
-                        Console.WriteLine($"[AI]   Using stored OVML: {pattern.ExampleOVML}");
+                        Console.WriteLine($"[AI]   Using stored OVML template: {pattern.ExampleOVML}");
                         pattern.UsageCount++;
                         SaveLearnedPatterns();
 
-                        // Extract values from NEW input and substitute into OVML template
+                        // Extract values from NEW input
                         var newExpiry = ExtractTenorFromInput(input);
                         var newStrike = ExtractStrikeFromInput(input);
                         var newNotional = ExtractNotionalFromInput(input);
                         var ovmlWithNewValues = pattern.ExampleOVML;
 
-                        // Replace the old tenor with the new one
+                        Console.WriteLine($"[AI]   Extracted from input - Tenor: {newExpiry ?? "null"}, Strike: {newStrike ?? "null"}, Notional: {newNotional ?? "null"}");
+
+                        // Replace tenor placeholder or old tenor
                         if (!string.IsNullOrEmpty(newExpiry))
                         {
                             var oldExpiry = ExtractTenorFromInput(pattern.ExampleInput);
@@ -628,74 +632,77 @@ Output ONLY the OVML line:";
                             }
                         }
 
-                        // Replace the strike and determine Call/Put
+                        // Replace strike placeholder {STRIKE} with actual strike from input
                         if (!string.IsNullOrEmpty(newStrike))
                         {
-                            var oldStrike = ExtractStrikeFromInput(pattern.ExampleInput);
-                            if (!string.IsNullOrEmpty(oldStrike) && oldStrike != newStrike)
+                            var formattedNewStrike = FormatStrikeForOVML(newStrike);
+                            
+                            // Determine Call/Put based on strike vs spot
+                            string optionType = "C"; // Default to Call
+                            if (double.TryParse(formattedNewStrike, out double strikeVal) && !string.IsNullOrEmpty(liveSpot)
+                                && double.TryParse(liveSpot, out double spotVal))
                             {
-                                // Format strike to 4 decimals for OVML
-                                var formattedNewStrike = FormatStrikeForOVML(newStrike);
-                                var formattedOldStrike = FormatStrikeForOVML(oldStrike);
-
-                                // Use LIVE Bloomberg spot to determine if Call or Put (not old stored spot from pattern)
-                                string optionType = "C"; // Default to Call
-
-                                if (double.TryParse(formattedNewStrike, out double strikeVal) && !string.IsNullOrEmpty(liveSpot)
-                                    && double.TryParse(liveSpot, out double spotVal))
+                                optionType = strikeVal < spotVal ? "P" : "C";
+                                Console.WriteLine($"[AI-LEARNED] Strike {strikeVal} vs LIVE Spot {spotVal} → {(optionType == "C" ? "CALL" : "PUT")}");
+                            }
+                            
+                            // Replace {STRIKE} placeholder
+                            if (ovmlWithNewValues.Contains("{STRIKE}"))
+                            {
+                                ovmlWithNewValues = ovmlWithNewValues.Replace("{STRIKE}C", formattedNewStrike + optionType);
+                                ovmlWithNewValues = ovmlWithNewValues.Replace("{STRIKE}P", formattedNewStrike + optionType);
+                                Console.WriteLine($"[AI]   Replaced {"{STRIKE}"} placeholder with: {formattedNewStrike}{optionType}");
+                            }
+                            else
+                            {
+                                // Old pattern without placeholder - try to replace old strike
+                                var oldStrike = ExtractStrikeFromInput(pattern.ExampleInput);
+                                if (!string.IsNullOrEmpty(oldStrike) && oldStrike != newStrike)
                                 {
-                                    // If strike < spot → PUT (OTM put)
-                                    // If strike > spot → CALL (OTM call)
-                                    optionType = strikeVal < spotVal ? "P" : "C";
-                                    Console.WriteLine($"[AI-LEARNED] Strike {strikeVal} vs LIVE Spot {spotVal} → {(optionType == "C" ? "CALL" : "PUT")}");
+                                    var formattedOldStrike = FormatStrikeForOVML(oldStrike);
+                                    ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
+                                        ovmlWithNewValues,
+                                        formattedOldStrike + @"[CP]",
+                                        formattedNewStrike + optionType
+                                    );
+                                    Console.WriteLine($"[AI]   Adapted strike: {oldStrike} → {newStrike} ({optionType})");
                                 }
-                                else
-                                {
-                                    Console.WriteLine($"[AI-LEARNED] WARNING: Could not determine option type from live spot (using default CALL)");
-                                }
-
-                                // Replace strike and option type in OVML
-                                ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
-                                    ovmlWithNewValues,
-                                    formattedOldStrike + @"[CP]",
-                                    formattedNewStrike + optionType
-                                );
-                                Console.WriteLine($"[AI]   Adapted strike: {oldStrike} → {newStrike} ({optionType})");
                             }
                         }
 
-                        // Replace the notional
+                        // Replace notional placeholder {NOTIONAL} with actual notional from input
                         if (!string.IsNullOrEmpty(newNotional))
                         {
-                            var oldNotional = ExtractNotionalFromInput(pattern.ExampleInput);
-                            if (!string.IsNullOrEmpty(oldNotional) && oldNotional != newNotional)
+                            if (ovmlWithNewValues.Contains("{NOTIONAL}"))
                             {
-                                // Replace notional in OVML (format: N15M)
-                                var formattedNewNotional = "N" + newNotional + "M";
-                                var formattedOldNotional = "N" + oldNotional + "M";
-
-                                ovmlWithNewValues = ovmlWithNewValues.Replace(formattedOldNotional, formattedNewNotional);
-                                Console.WriteLine($"[AI]   Adapted notional: {oldNotional} → {newNotional}");
+                                ovmlWithNewValues = ovmlWithNewValues.Replace("{NOTIONAL}", newNotional);
+                                Console.WriteLine($"[AI]   Replaced {"{NOTIONAL}"} placeholder with: {newNotional}");
+                            }
+                            else
+                            {
+                                // Old pattern without placeholder - replace any notional found
+                                ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
+                                    ovmlWithNewValues,
+                                    @"N\d+M",
+                                    "N" + newNotional + "M"
+                                );
+                                Console.WriteLine($"[AI]   Replaced notional with: N{newNotional}M");
                             }
                         }
+                        else
+                        {
+                            // No notional in input - cannot use this pattern
+                            Console.WriteLine($"[AI]   ✗ No notional found in input, cannot use pattern");
+                            continue;  // Skip to next pattern
+                        }
+
+                        Console.WriteLine($"[AI]   Final OVML after adaptations: {ovmlWithNewValues}");
 
                         // Update spot reference to live Bloomberg spot
                         if (!string.IsNullOrEmpty(liveSpot))
                         {
-                            var oldSpotMatch = System.Text.RegularExpressions.Regex.Match(ovmlWithNewValues, @"SP(\d+\.?\d*)");
-                            if (oldSpotMatch.Success)
+                            if (!ovmlWithNewValues.Contains("SP"))
                             {
-                                var oldSpotValue = oldSpotMatch.Groups[1].Value;
-                                ovmlWithNewValues = System.Text.RegularExpressions.Regex.Replace(
-                                    ovmlWithNewValues,
-                                    @"SP\d+\.?\d*",
-                                    "SP" + liveSpot
-                                );
-                                Console.WriteLine($"[AI]   Updated spot reference: SP{oldSpotValue} → SP{liveSpot}");
-                            }
-                            else if (!ovmlWithNewValues.Contains("SP"))
-                            {
-                                // Add spot reference if it doesn't exist
                                 ovmlWithNewValues += " SP" + liveSpot;
                                 Console.WriteLine($"[AI]   Added spot reference: SP{liveSpot}");
                             }
@@ -706,7 +713,9 @@ Output ONLY the OVML line:";
                         {
                             OVML = ovmlWithNewValues,
                             Underlying = underlying,
-                            Expiry = expiry,
+                            Expiry = Regex.IsMatch(expiry ?? "", @"^\d+[MWYD]$", RegexOptions.IgnoreCase)
+                                ? expiry.ToUpperInvariant()
+                                : expiry,
                             ParseMethod = $"Learned-Pattern-{pattern.Name}"
                         };
                         result.GenerateUBS();
@@ -884,8 +893,16 @@ Output ONLY the OVML line:";
                 string cleanedOVML = result.OVML;
                 cleanedOVML = System.Text.RegularExpressions.Regex.Replace(cleanedOVML, @"\s*SP[\d.,]+", "");
                 cleanedOVML = System.Text.RegularExpressions.Regex.Replace(cleanedOVML, @"\s*FW[\d.,]+", "");
+                
+                // IMPORTANT: Replace specific notional with placeholder {NOTIONAL}
+                // Notional is trade-specific, not part of the pattern structure
+                cleanedOVML = System.Text.RegularExpressions.Regex.Replace(cleanedOVML, @"N\d+M", "N{NOTIONAL}M");
+                
+                // Replace specific strike with placeholder {STRIKE} - strike is also trade-specific
+                cleanedOVML = System.Text.RegularExpressions.Regex.Replace(cleanedOVML, @"(\d+\.\d{4})([CP])", "{STRIKE}$2");
+                
                 cleanedOVML = cleanedOVML.TrimEnd();
-                Console.WriteLine($"[AI] Cleaned OVML for pattern (stripped SP/FW): {cleanedOVML}");
+                Console.WriteLine($"[AI] Cleaned OVML for pattern (with placeholders): {cleanedOVML}");
 
                 var pattern = new LearnedPattern
                 {
@@ -895,18 +912,18 @@ Output ONLY the OVML line:";
                     CreatedAt = DateTime.Now,
                     UsageCount = 1,
                     ExampleInput = input.Trim(),
-                    ExampleOVML = cleanedOVML  // Save cleaned OVML without SP/FW
+                    ExampleOVML = cleanedOVML  // Save cleaned OVML with placeholders
                 };
                 _learnedPatterns.Add(pattern);
                 SaveLearnedPatterns();
                 Console.WriteLine($"[AI] ✓ Learned pattern from successful {result.LegCount}-leg trade");
 
-                return pattern.Name;  // <-- Return the pattern name
+                return pattern.Name;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[AI] Error learning pattern: {ex.Message}");
-                return null;  // <-- Return null on error
+                return null;
             }
         }
 
@@ -951,15 +968,63 @@ Output ONLY the OVML line:";
 
         private string ExtractNotionalFromInput(string input)
         {
-            // Extract notional like "10mio", "15m", "150nok" from input
-            // Match patterns: "15mio", "15m", "15mil", "10 mio"
+            // Extract notional like "10mio", "15m", "150nok", "10 000 000", "10,000,000" from input
+            
+            // Pattern 1: Number with mio/m/mil/million suffix (e.g., "15mio", "15m", "10 mio")
             var notionalMatch = System.Text.RegularExpressions.Regex.Match(
                 input,
-                @"(?:in\s+)?(\d+)\s*(?:mio|m|mil|million)\b",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                @"(?:in\s+)?(\d+)\s*(?:mio|mil|million)\b",
+                RegexOptions.IgnoreCase
             );
 
-            return notionalMatch.Success ? notionalMatch.Groups[1].Value : null;
+            if (notionalMatch.Success)
+            {
+                return notionalMatch.Groups[1].Value;
+            }
+
+            // Pattern 2: Number with spaces/commas representing millions (e.g., "10 000 000", "10,000,000", "15000000")
+            // Look for numbers that are 7+ digits (millions) or formatted with separators
+            var millionMatch = System.Text.RegularExpressions.Regex.Match(
+                input,
+                @"(?:in\s+)?(\d{1,3})[\s,]?(\d{3})[\s,]?(\d{3})\b",
+                RegexOptions.IgnoreCase
+            );
+
+            if (millionMatch.Success)
+            {
+                // Combine the groups to get the full number, then convert to millions
+                string fullNumber = millionMatch.Groups[1].Value + millionMatch.Groups[2].Value + millionMatch.Groups[3].Value;
+                if (long.TryParse(fullNumber, out long num))
+                {
+                    // Convert to millions (divide by 1,000,000)
+                    long millions = num / 1_000_000;
+                    if (millions > 0)
+                    {
+                        Console.WriteLine($"[AI] ExtractNotionalFromInput: Found formatted number {fullNumber} → {millions}M");
+                        return millions.ToString();
+                    }
+                }
+            }
+
+            // Pattern 3: Simple "Xm" format where X is notional (e.g., "10m", "15m") - but not tenor like "1M", "2M"
+            // Only match if followed by a space or end of word, and number is reasonably large for notional
+            var simpleMatch = System.Text.RegularExpressions.Regex.Match(
+                input,
+                @"(?:in\s+)?(\d{2,})\s*m\b(?!\s*(?:call|put|strike|expir|tenor))",
+                RegexOptions.IgnoreCase
+            );
+
+            if (simpleMatch.Success)
+            {
+                int val = int.Parse(simpleMatch.Groups[1].Value);
+                // Only accept if it looks like a notional (>= 5, to avoid matching tenors like "1m", "2m")
+                if (val >= 5)
+                {
+                    return simpleMatch.Groups[1].Value;
+                }
+            }
+
+            return null;
         }
 
         private string FormatStrikeForOVML(string strike)

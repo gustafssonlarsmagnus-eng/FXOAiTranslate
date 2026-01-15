@@ -71,14 +71,32 @@ namespace FXOptionsSimulator
                 Legs = new List<TradeStructure.OptionLeg>()
             };
 
-            // Extract actual tenor from formatted string if present
-            // Format: "31-Dec-25, Wed (1M)" -> extract "1M"
+            // Determine the actual tenor to use
+            // Priority: 1. Tenor format in expiry (1M, 1W, etc.)
+            //           2. Tenor in parentheses from formatted string "31-Dec-25, Wed (1M)"
+            //           3. The expiry value itself
             string actualTenor = expiry;
-            var tenorInParensMatch = Regex.Match(expiry, @"\(([^)]+)\)$");
-            if (tenorInParensMatch.Success)
+            
+            // Check if expiry is already in tenor format (1M, 2W, 3D, 1Y, etc.)
+            if (Regex.IsMatch(expiry ?? "", @"^\d+[MWYD]$", RegexOptions.IgnoreCase))
             {
-                actualTenor = tenorInParensMatch.Groups[1].Value;
-                Console.WriteLine($"[OVMLBridge] Extracted tenor '{actualTenor}' from formatted string '{expiry}'");
+                actualTenor = expiry.ToUpperInvariant();
+                Console.WriteLine($"[OVMLBridge] Using tenor format directly: '{actualTenor}'");
+            }
+            else
+            {
+                // Try to extract tenor from formatted string if present
+                // Format: "31-Dec-25, Wed (1M)" -> extract "1M"
+                var tenorInParensMatch = Regex.Match(expiry ?? "", @"\(([^)]+)\)$");
+                if (tenorInParensMatch.Success)
+                {
+                    actualTenor = tenorInParensMatch.Groups[1].Value;
+                    Console.WriteLine($"[OVMLBridge] Extracted tenor '{actualTenor}' from formatted string '{expiry}'");
+                }
+                else
+                {
+                    Console.WriteLine($"[OVMLBridge] No tenor found, using expiry as-is: '{expiry}'");
+                }
             }
 
             // Convert each parsed leg to TradeStructure.OptionLeg

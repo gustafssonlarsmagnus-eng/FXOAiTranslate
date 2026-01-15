@@ -82,6 +82,18 @@ namespace FXOptionsSimulator
         public double Delta { get; set; }
 
         /// <summary>
+        /// Spot rate from LP
+        /// FIX Tag 5235 (LegSpotRate)
+        /// </summary>
+        public string SpotRate { get; set; }
+
+        /// <summary>
+        /// Forward points from LP
+        /// FIX Tag 5191 (LegForwardPoints)
+        /// </summary>
+        public double ForwardPoints { get; set; }
+
+        /// <summary>
         /// Premium currency (EUR, USD, etc.)
         /// FIX Tag 5830
         /// </summary>

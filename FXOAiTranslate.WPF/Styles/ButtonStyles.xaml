@@ -17,12 +17,12 @@
        <Setter.Value>
  <ControlTemplate TargetType="Thumb">
           <Border x:Name="thumbBorder"
-      Background="#334155"
-     CornerRadius="2"
-     Margin="1"/>
+      Background="#475569"
+     CornerRadius="3"
+     Margin="2"/>
     <ControlTemplate.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
-      <Setter TargetName="thumbBorder" Property="Background" Value="#475569"/>
+      <Setter TargetName="thumbBorder" Property="Background" Value="#64748b"/>
  </Trigger>
                <Trigger Property="IsDragging" Value="True">
    <Setter TargetName="thumbBorder" Property="Background" Value="#3b82f6"/>
@@ -35,13 +35,13 @@
 
 <!-- Vertical Scrollbar -->
     <Style x:Key="DarkScrollBar" TargetType="ScrollBar">
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Width" Value="6"/>
-        <Setter Property="MinWidth" Value="6"/>
+        <Setter Property="Background" Value="#1a1d23"/>
+        <Setter Property="Width" Value="10"/>
+        <Setter Property="MinWidth" Value="10"/>
       <Setter Property="Template">
   <Setter.Value>
            <ControlTemplate TargetType="ScrollBar">
-  <Grid Background="#0f1115">
+  <Grid Background="#1a1d23">
        <Track x:Name="PART_Track" IsDirectionReversed="True">
     <Track.Thumb>
           <Thumb Style="{StaticResource DarkScrollBarThumb}"/>
@@ -54,12 +54,12 @@
         <Style.Triggers>
      <Trigger Property="Orientation" Value="Horizontal">
                 <Setter Property="Width" Value="Auto"/>
-        <Setter Property="Height" Value="6"/>
-       <Setter Property="MinHeight" Value="6"/>
+        <Setter Property="Height" Value="10"/>
+       <Setter Property="MinHeight" Value="10"/>
          <Setter Property="Template">
             <Setter.Value>
 <ControlTemplate TargetType="ScrollBar">
-        <Grid Background="#0f1115">
+        <Grid Background="#1a1d23">
     <Track x:Name="PART_Track" IsDirectionReversed="False">
          <Track.Thumb>
        <Thumb Style="{StaticResource DarkScrollBarThumb}"/>
@@ -115,9 +115,9 @@
 
     <!-- Dark TextBox Style -->
     <Style x:Key="DarkTextBox" TargetType="TextBox">
-        <Setter Property="Background" Value="#0f1114"/>
+        <Setter Property="Background" Value="#1a1d23"/>
         <Setter Property="Foreground" Value="#e2e8f0"/>
-        <Setter Property="BorderBrush" Value="#1e293b"/>
+        <Setter Property="BorderBrush" Value="#334155"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="Padding" Value="8,4"/>
@@ -129,17 +129,18 @@
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="2">
+                            CornerRadius="4">
                         <ScrollViewer x:Name="PART_ContentHost"
                                       Margin="{TemplateBinding Padding}"
                                       VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="BorderBrush" Value="#334155"/>
+                            <Setter Property="BorderBrush" Value="#475569"/>
                         </Trigger>
                         <Trigger Property="IsFocused" Value="True">
                             <Setter Property="BorderBrush" Value="#3b82f6"/>
+                            <Setter Property="Background" Value="#1e2530"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -149,6 +150,7 @@
 
     <!-- Dark ComboBox Toggle Button -->
     <Style x:Key="DarkComboBoxToggleButton" TargetType="ToggleButton">
+        <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
@@ -158,10 +160,10 @@
                             <ColumnDefinition Width="20"/>
                         </Grid.ColumnDefinitions>
                         <Border x:Name="Border" Grid.ColumnSpan="2"
-                                Background="#0f1114"
-                                BorderBrush="#1e293b"
-                                BorderThickness="1"
-                                CornerRadius="2"/>
+                                Background="#1a1d23"
+                                BorderBrush="#334155"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"/>
                         <Path x:Name="Arrow" Grid.Column="1"
                               Data="M 0 0 L 4 4 L 8 0 Z"
                               Fill="#64748b"
@@ -170,11 +172,12 @@
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Border" Property="BorderBrush" Value="#334155"/>
+                            <Setter TargetName="Border" Property="BorderBrush" Value="#475569"/>
                             <Setter TargetName="Arrow" Property="Fill" Value="#94a3b8"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Border" Property="BorderBrush" Value="#3b82f6"/>
+                            <Setter TargetName="Border" Property="Background" Value="#1e2530"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -184,9 +187,9 @@
 
     <!-- Dark ComboBox Style -->
     <Style x:Key="DarkComboBox" TargetType="ComboBox">
-        <Setter Property="Background" Value="#0f1114"/>
+        <Setter Property="Background" Value="#1a1d23"/>
         <Setter Property="Foreground" Value="#e2e8f0"/>
-        <Setter Property="BorderBrush" Value="#1e293b"/>
+        <Setter Property="BorderBrush" Value="#334155"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="Padding" Value="8,4"/>
@@ -196,6 +199,7 @@
                     <Grid>
                         <ToggleButton x:Name="ToggleButton"
                                       Style="{StaticResource DarkComboBoxToggleButton}"
+                                      BorderThickness="{TemplateBinding BorderThickness}"
                                       Focusable="False"
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
                                       ClickMode="Press"/>
@@ -299,9 +303,9 @@
     </Style>
 
     <!-- ============================================ -->
-    <!-- BUTTON STYLES    -->
+    <!-- BUTTON STYLES                                -->
     <!-- ============================================ -->
-
+    
     <Style x:Key="ExecutionButtonBorder" TargetType="Border">
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
