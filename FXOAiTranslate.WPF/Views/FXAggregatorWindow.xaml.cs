@@ -1374,13 +1374,24 @@ var leg = _trade.Legs[0];
             }
 
             // Update spot rate in market data section
-  if (lblSpotRate != null && spotRate > 0)
-          {
-             lblSpotRate.Text = spotRate.ToString("F4");
+            if (lblSpotRate != null && spotRate > 0)
+            {
+                lblSpotRate.Text = spotRate.ToString("F4");
             }
 
-   Console.WriteLine($"[WPF] UI fields updated from trade structure");
-     }
+            // Update hedge rate label with spot rate (panel is already visible with "--" placeholders)
+            if (spotRate > 0)
+            {
+                var hedgeRateLabel = FindName("lblHedgeRate") as System.Windows.Controls.TextBlock;
+                if (hedgeRateLabel != null)
+                {
+                    int decimals = pair.Contains("JPY") ? 2 : 4;
+                    hedgeRateLabel.Text = $"Spot: {spotRate.ToString($"F{decimals}")}";
+                }
+            }
+
+            Console.WriteLine($"[WPF] UI fields updated from trade structure");
+        }
         private DateTime CalculateDeliveryDate(DateTime expiryDate)
         {
             string currencyPair = _trade?.Underlying ?? "EURUSD";
@@ -1457,7 +1468,7 @@ var leg = _trade.Legs[0];
             }
         }
 
-        private void txtCurrencyPair_TextChanged(object sender, TextChangedEventArgs e)
+        private async void txtCurrencyPair_TextChanged(object sender, TextChangedEventArgs e)
         {
             // Auto-uppercase the currency pair as user types
             if (txtCurrencyPair != null)
@@ -1508,6 +1519,34 @@ var leg = _trade.Legs[0];
                     }
         
                     Console.WriteLine($"[WPF] Currency pair updated to {pair} - Notional: {notionalCurrency}");
+                    
+                    // Fetch and display Bloomberg spot rate for the new currency pair
+                    string validPair = pair.Substring(0, 6);
+                    double spotRate = await GetBloombergSpotAsync(validPair);
+                    if (spotRate > 0)
+                    {
+                        // Update trade structure
+                        if (_trade != null)
+                        {
+                            _trade.SpotReference = spotRate;
+                        }
+                        
+                        // Update spot rate display in Market Data section
+                        if (lblSpotRate != null)
+                        {
+                            lblSpotRate.Text = spotRate.ToString("F4");
+                        }
+                        
+                        // Update hedge rate label with spot rate
+                        var hedgeRateLabel = FindName("lblHedgeRate") as System.Windows.Controls.TextBlock;
+                        if (hedgeRateLabel != null)
+                        {
+                            int decimals = validPair.Contains("JPY") ? 2 : 4;
+                            hedgeRateLabel.Text = $"Spot: {spotRate.ToString($"F{decimals}")}";
+                        }
+                        
+                        Console.WriteLine($"[WPF] Fetched Bloomberg spot for {validPair}: {spotRate:F4}");
+                    }
                 }
             }
         }
@@ -1730,8 +1769,58 @@ var leg = _trade.Legs[0];
         }
   }
 
+        /// <summary>
+        /// Check if we have a valid currency pair that has been parsed or picked by the user.
+        /// Returns true only when a 6-character currency pair exists from trade structure or UI.
+        /// Works with all FX pairs: EURUSD, EURSEK, NOKSEK, USDSEK, etc.
+        /// </summary>
+        private bool HasValidCurrencyPair()
+        {
+            return GetValidCurrencyPair() != null;
+        }
+
+        /// <summary>
+        /// Get the current valid currency pair from trade structure or UI.
+        /// Returns null if no valid pair is available.
+        /// Works with all FX pairs: EURUSD, EURSEK, NOKSEK, USDSEK, etc.
+        /// </summary>
+        private string GetValidCurrencyPair()
+        {
+            // Check trade structure first - this is the authoritative source after parsing
+            string pair = _trade?.Underlying;
+            
+            // Validate trade structure pair
+            if (!string.IsNullOrEmpty(pair) && pair.Length >= 6)
+            {
+                // Valid pair from trade structure
+                return pair.Substring(0, 6).ToUpperInvariant();
+            }
+            
+            // Check UI field as fallback
+            pair = txtCurrencyPair?.Text?.Trim();
+            
+            // Validate: must be at least 6 characters and only letters
+            if (string.IsNullOrEmpty(pair) || pair.Length < 6)
+                return null;
+            
+            // Check it's a valid currency pair format (6 uppercase letters like EURUSD, EURSEK, NOKSEK)
+            string upperPair = pair.ToUpperInvariant();
+            if (!System.Text.RegularExpressions.Regex.IsMatch(upperPair.Substring(0, 6), @"^[A-Z]{6}$"))
+                return null;
+            
+            // Return first 6 characters (the currency pair)
+            return upperPair.Substring(0, 6);
+        }
+
         private async Task<double> GetBloombergSpotAsync(string currencyPair)
         {
+            // Skip Bloomberg call if currency pair is invalid or not yet set
+            if (string.IsNullOrEmpty(currencyPair) || currencyPair.Length < 6)
+            {
+                Console.WriteLine($"[WPF] Skipping Bloomberg spot fetch - no valid currency pair");
+                return 0;
+            }
+
             try
             {
                 if (_bloombergService != null)
@@ -2572,51 +2661,41 @@ catch (Exception ex)
         }
 
         /// <summary>
-        /// Initialize hedge details panel with default values based on Delta Exchange selection.
-        /// Called on window load to show spot rate by default when "Spot" is selected.
+        /// Initialize hedge details panel - visible with placeholder text until a trade is parsed.
+        /// Fields show "--" until a valid currency pair is selected and Bloomberg spot is fetched.
         /// </summary>
-        private async void InitializeHedgeDetailsPanel()
+        private void InitializeHedgeDetailsPanel()
         {
             try
             {
-                if (cmbDeltaExchange == null || hedgeDetailsPanel == null)
-                    return;
-
-                // Get default currency pair (EURUSD if no trade loaded)
-                string currencyPair = _trade?.Underlying ?? "EURUSD";
-                
-                // Fetch Bloomberg spot rate for the default currency pair
-                double spotRate = await GetBloombergSpotAsync(currencyPair);
-                
-                // Store in trade if available
-                if (_trade != null && spotRate > 0)
+                // Show hedge details panel with placeholder values
+                if (hedgeDetailsPanel != null)
                 {
-                    _trade.SpotReference = spotRate;
+                    // Only show if Delta Exchange dropdown is not set to "No Hedge"
+                    if (cmbDeltaExchange == null || cmbDeltaExchange.SelectedIndex != 1)
+                    {
+                        hedgeDetailsPanel.Visibility = Visibility.Visible;
+                    }
                 }
                 
-                // Update the UI with the fetched spot rate
+                // Set placeholder values - will be replaced when trade is parsed
                 var hedgeRateLabel = FindName("lblHedgeRate") as System.Windows.Controls.TextBlock;
-                if (hedgeRateLabel != null && spotRate > 0)
-                {
-                    int decimals = currencyPair.Contains("JPY") ? 2 : 4;
-                    hedgeRateLabel.Text = $"Spot: {spotRate.ToString($"F{decimals}")}";
-                }
-                else if (hedgeRateLabel != null)
+                if (hedgeRateLabel != null)
                 {
                     hedgeRateLabel.Text = "Spot: --";
                 }
                 
-                // Calculate T+2 spot date
                 if (lblHedgeValueDate != null)
                 {
-                    var spotDate = DateTime.Today.AddDays(2);
-                    // Adjust for weekends
-                    while (spotDate.DayOfWeek == DayOfWeek.Saturday || spotDate.DayOfWeek == DayOfWeek.Sunday)
-                        spotDate = spotDate.AddDays(1);
-                    lblHedgeValueDate.Text = spotDate.ToString("dd-MMM-yyyy");
+                    lblHedgeValueDate.Text = "--";
                 }
                 
-                Console.WriteLine($"[WPF] Hedge details panel initialized with Bloomberg spot: {spotRate:F4} for {currencyPair}");
+                if (lblSpotRate != null)
+                {
+                    lblSpotRate.Text = "--";
+                }
+                
+                Console.WriteLine("[WPF] Hedge details panel initialized with placeholder values - waiting for currency pair");
             }
             catch (Exception ex)
             {
@@ -2625,7 +2704,8 @@ catch (Exception ex)
         }
 
         /// <summary>
-        /// Handle delta exchange dropdown change - update hedge details panel visibility and rate display
+        /// Handle delta exchange dropdown change - update hedge details panel visibility and rate display.
+        /// Only fetches Bloomberg spot if a valid currency pair has been parsed or picked.
         /// </summary>
         private async void DeltaExchange_Changed(object sender, SelectionChangedEventArgs e)
         {
@@ -2639,9 +2719,9 @@ catch (Exception ex)
                 // Find the hedge rate label
                 var hedgeRateLabel = FindName("lblHedgeRate") as System.Windows.Controls.TextBlock;
                 
-                // Get currency pair
-                string currencyPair = _trade?.Underlying ?? txtCurrencyPair?.Text ?? "EURUSD";
-                int decimals = currencyPair.Contains("JPY") ? 2 : 4;
+                // Get currency pair - only if valid
+                string currencyPair = GetValidCurrencyPair();
+                int decimals = (currencyPair?.Contains("JPY") == true) ? 2 : 4;
 
                 // Update hedge details panel visibility and value date based on selection
                 // 0 = Spot, 1 = No Hedge (Live), 2 = Forward Hedge
@@ -2664,14 +2744,19 @@ catch (Exception ex)
                             _trade.HedgeType = "SPOT";
                         }
                         
-                        // Get spot rate - either from trade or fetch from Bloomberg
-                        double spotRate = _trade?.SpotReference ?? 0;
-                        if (spotRate <= 0)
+                        // Only fetch Bloomberg spot if we have a valid currency pair
+                        double spotRate = 0;
+                        if (!string.IsNullOrEmpty(currencyPair))
                         {
-                            spotRate = await GetBloombergSpotAsync(currencyPair);
-                            if (_trade != null && spotRate > 0)
+                            // Get spot rate - either from trade or fetch from Bloomberg
+                            spotRate = _trade?.SpotReference ?? 0;
+                            if (spotRate <= 0)
                             {
-                                _trade.SpotReference = spotRate;
+                                spotRate = await GetBloombergSpotAsync(currencyPair);
+                                if (_trade != null && spotRate > 0)
+                                {
+                                    _trade.SpotReference = spotRate;
+                                }
                             }
                         }
                         
@@ -2705,23 +2790,30 @@ catch (Exception ex)
                             _trade.HedgeType = "FORWARD";
                         }
                         
-                        // Get forward rate - from trade or calculate from spot
-                        double spotRate = _trade?.SpotReference ?? 0;
-                        if (spotRate <= 0)
+                        // Only fetch Bloomberg spot if we have a valid currency pair
+                        double spotRate = 0;
+                        double forwardRate = 0;
+                        
+                        if (!string.IsNullOrEmpty(currencyPair))
                         {
-                            spotRate = await GetBloombergSpotAsync(currencyPair);
-                            if (_trade != null && spotRate > 0)
+                            // Get spot rate - from trade or fetch from Bloomberg
+                            spotRate = _trade?.SpotReference ?? 0;
+                            if (spotRate <= 0)
                             {
-                                _trade.SpotReference = spotRate;
+                                spotRate = await GetBloombergSpotAsync(currencyPair);
+                                if (_trade != null && spotRate > 0)
+                                {
+                                    _trade.SpotReference = spotRate;
+                                }
                             }
-                        }
-                        
-                        double forwardRate = _trade?.ForwardReference ?? 0;
-                        
-                        // If forward reference not set, use spot as approximation
-                        if (forwardRate <= 0 && spotRate > 0)
-                        {
-                            forwardRate = spotRate;
+                            
+                            forwardRate = _trade?.ForwardReference ?? 0;
+                            
+                            // If forward reference not set, use spot as approximation
+                            if (forwardRate <= 0 && spotRate > 0)
+                            {
+                                forwardRate = spotRate;
+                            }
                         }
                         
                         // Show forward rate
