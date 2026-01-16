@@ -387,6 +387,13 @@ spreadPanel.Visibility = Visibility.Collapsed;
           // Extract risk fields from quote
 lpData.Delta = quote.Delta;
 
+            // Premium currency from quote (Tag 5830) or derive from pair (quote ccy)
+            string pairForPremium = quote.Underlying ?? _trade?.Underlying ?? "EURUSD";
+            string premiumCcyFromPair = pairForPremium.Length >= 6 ? pairForPremium.Substring(3, 3) : "USD";
+            lpData.PremiumCurrency = !string.IsNullOrEmpty(quote.PremiumCurrency)
+                ? quote.PremiumCurrency
+                : premiumCcyFromPair;
+
             // Extract market data fields from quote
             // SpotRate comes from Bloomberg (above) but we could also use quote.SpotRate if provided
             if (!string.IsNullOrEmpty(quote.SpotRate))
@@ -1268,6 +1275,12 @@ var leg = _trade.Legs[0];
     {
         txtNotionalCurrency.Text = notionalCurrency;
     }
+    
+    // Update Delta label with base currency
+    if (lblDeltaLabel != null)
+    {
+        lblDeltaLabel.Text = $"Delta ({ccy1})";
+    }
 
     if (txtNotional != null && leg.NotionalMM > 0)
    {
@@ -1524,6 +1537,12 @@ var leg = _trade.Legs[0];
                         txtCallPut.Text = optionType == "PUT"
                             ? $"{ccy1} Put / {ccy2} Call"
                             : $"{ccy1} Call / {ccy2} Put";
+                    }
+                    
+                    // Update Delta label with base currency
+                    if (lblDeltaLabel != null)
+                    {
+                        lblDeltaLabel.Text = $"Delta ({ccy1})";
                     }
            
                     // Hedge amount label header removed - column no longer exists
@@ -2324,7 +2343,9 @@ if (bestQuote.ValidUntilTime < DateTime.Now)
          
          // Get currency pair and premium currency
          string pair = _trade?.Underlying ?? "EURUSD";
-         string premiumCcy = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";  // Premium typically in base currency
+         string premiumCcy = !string.IsNullOrEmpty(bestQuote.PremiumCurrency)
+             ? bestQuote.PremiumCurrency
+             : (pair.Length >= 6 ? pair.Substring(3, 3) : "USD");  // Premium in quote currency by default
          
          // Get hedge details from the Delta Exchange dropdown
          string hedgeType = "No Hedge";
@@ -2447,7 +2468,8 @@ Notional = $"{_trade?.Legs?[0]?.NotionalMM ?? 0:F1}MM",
  System.Globalization.CultureInfo.InvariantCulture),
      EurPips = legPremPrice != 0 ? legPremPrice.ToString("F2") : "--",  // Tag 5844: premium per MM (pips)
      PremiumLabel = executionSide == "BUY" ? "PAY" : "RCV",  // Buy = pay premium, Sell = receive premium
-     PremiumDisplay = $"{premiumCcy} {Math.Abs(premium):N0} U",  // Format: "EUR 54 800 U" showing currency
+     PremiumDisplay = $"{Math.Abs(premium):N0}",  // Format: "54 800" - just the amount
+     PremiumCurrency = premiumCcy,
      PremiumColor = executionSide == "BUY" 
          ? Brushes.White  // White for pay
          : new SolidColorBrush(Color.FromRgb(34, 197, 94)),  // Green for receive

@@ -67,6 +67,7 @@ namespace FXOAiTranslate.WPF.Views
      public string EurPips { get; set; }
         public string PremiumLabel { get; set; }  // "RCV" or "PAY"
         public string PremiumDisplay { get; set; }
+        public string PremiumCurrency { get; set; }
    public Brush PremiumColor { get; set; }
  public string SpotRate { get; set; }
 
