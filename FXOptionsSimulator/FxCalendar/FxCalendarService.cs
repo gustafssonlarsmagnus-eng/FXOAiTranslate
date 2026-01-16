@@ -280,13 +280,6 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
          int spotLag = IsT1Pair(currencyPair) ? 1 : 2;
          var expiryDate = RetreatBusinessDays(deliveryDate, spotLag, markets);
          
-         Console.WriteLine($"[FX-CALENDAR] CalculateExpiry for {currencyPair} {tenor}:");
-         Console.WriteLine($"[FX-CALENDAR]   Trade Date:    {tradeDate:yyyy-MM-dd (ddd)}");
-         Console.WriteLine($"[FX-CALENDAR]   Spot Date:     {spotDate:yyyy-MM-dd (ddd)} (T+{spotLag})");
-         Console.WriteLine($"[FX-CALENDAR]   Raw Delivery:  {rawDelivery:yyyy-MM-dd (ddd)} (Spot + {tenor})");
-         Console.WriteLine($"[FX-CALENDAR]   Adj Delivery:  {deliveryDate:yyyy-MM-dd (ddd)} (next business day)");
-         Console.WriteLine($"[FX-CALENDAR]   Expiry Date:   {expiryDate:yyyy-MM-dd (ddd)} (Delivery - {spotLag} BD)");
-         
          return expiryDate;
     }
   catch (Exception ex)
@@ -455,8 +448,6 @@ int added = 0;
             var result = date;
             int retreated = 0;
             
-            Console.WriteLine($"[FX-CALENDAR] RetreatBusinessDays: Starting from {date:yyyy-MM-dd (ddd)}, going back {days} BD");
-            
             while (retreated < days)
             {
                 result = result.AddDays(-1);
@@ -465,16 +456,12 @@ int added = 0;
                 bool isHoliday = !isWeekend && _holidayCalendar.IsHoliday(result, markets);
                 bool isBusinessDay = !isWeekend && !isHoliday;
                 
-                Console.WriteLine($"[FX-CALENDAR]   Checking {result:yyyy-MM-dd (ddd)}: Weekend={isWeekend}, Holiday={isHoliday}, IsBusinessDay={isBusinessDay}");
-                
                 if (isBusinessDay)
                 {
                     retreated++;
-                    Console.WriteLine($"[FX-CALENDAR]   -> Counted as BD #{retreated}");
                 }
             }
             
-            Console.WriteLine($"[FX-CALENDAR] RetreatBusinessDays: Result = {result:yyyy-MM-dd (ddd)}");
             return result;
         }
 

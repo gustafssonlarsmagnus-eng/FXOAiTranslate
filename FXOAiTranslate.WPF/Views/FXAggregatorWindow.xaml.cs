@@ -1732,39 +1732,34 @@ var leg = _trade.Legs[0];
 
         private async Task<double> GetBloombergSpotAsync(string currencyPair)
         {
-try
-  {
-   if (_bloombergService != null && _bloombergService.IsConnected)
-   {
-   var spot = await Task.Run(() => _bloombergService.GetSpotRate(currencyPair));
-        if (spot.HasValue && spot.Value > 0)
-{
-    Console.WriteLine($"[WPF] Bloomberg spot for {currencyPair}: {spot.Value:F4}");
-         return spot.Value;
-     }
- }
-   }
-        catch (Exception ex)
+            try
             {
-       Console.WriteLine($"[WPF] Error getting Bloomberg spot: {ex.Message}");
-     }
+                if (_bloombergService != null)
+                {
+                    var spot = await Task.Run(() => _bloombergService.GetSpotRate(currencyPair));
+                    if (spot.HasValue && spot.Value > 0)
+                    {
+                        Console.WriteLine($"[WPF] Bloomberg spot for {currencyPair}: {spot.Value:F4}");
+                        return spot.Value;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[WPF] Bloomberg returned no spot rate for {currencyPair}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"[WPF] Bloomberg service not available for {currencyPair}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error getting Bloomberg spot for {currencyPair}: {ex.Message}");
+            }
 
-   // Fallback rates
-  return currencyPair?.ToUpper() switch
-   {
-     "EURUSD" => 1.0850,
-       "USDJPY" => 149.50,
-     "GBPUSD" => 1.2650,
-  "EURGBP" => 0.8580,
-       "AUDUSD" => 0.6550,
-"USDCAD" => 1.3650,
-      "NZDUSD" => 0.6150,
-         "USDCHF" => 0.8850,
-      "EURCHF" => 0.9600,
-                "EURJPY" => 162.25,
-       "GBPJPY" => 189.10,
-       _ => 1.0
-            };
+            // No fallback - return 0 to indicate no rate available
+            Console.WriteLine($"[WPF] WARNING: No live spot rate available for {currencyPair} - Bloomberg required");
+            return 0;
         }
 
         /// <summary>

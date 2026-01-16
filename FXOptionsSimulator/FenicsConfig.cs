@@ -142,8 +142,9 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
     }
 
     /// <summary>
-    /// Realistic market data for testing
-    /// Based on actual levels as of Oct 2024
+    /// TEST/SIMULATION ONLY - Static market data for unit tests and FIX message simulation.
+    /// DO NOT use for production - always use BloombergService.GetSpotRate() for live rates.
+    /// Based on actual levels as of Oct 2024 (will be stale).
     /// </summary>
     public class MarketData
     {
@@ -157,7 +158,7 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
             return new MarketData
             {
                 Symbol = "EURUSD",
-                SpotRate = 1.0850,
+                SpotRate = 0,  // Use BloombergService.GetSpotRate() for live rates
                 ForwardPoints = new Dictionary<string, double>
                 {
                     ["1M"] = 12.5,
