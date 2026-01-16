@@ -507,18 +507,26 @@ IsEnabled = true
     var bestOffer = quotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
 
       if (bestBid != null)
-   {
-     // Display vol as main value (large text in white/very light gray)
-    lblBidValue.Text = bestBid.BidVol.ToString("F2");
-     lblBidValue.Foreground = Brushes.White; // White color for prices
+       {
+         // Display vol as main value (large text in white/very light gray)
+        lblBidValue.Text = bestBid.BidVol.ToString("F2");
+         lblBidValue.Foreground = Brushes.White; // White color for prices
      
-   // Calculate pips: premium_usd / (notional_usd * 10000)
-   double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0; // Default 10M
-   double premiumPips = Math.Abs(bestBid.BidPremium) / (notionalUSD * 1_000_000) * 10000;
+       // Calculate pips: premium / (notional * 10000)
+       double notionalMM = _trade?.Legs?[0]?.NotionalMM ?? 10.0; // Default 10M
+       double premiumPips = Math.Abs(bestBid.BidPremium) / (notionalMM * 1_000_000) * 10000;
   
-   // Format secondary text: "68,778 USD  43p"
-  lblBidSecondary.Text = $"{Math.Abs(bestBid.BidPremium):N0} USD    {premiumPips:F0}p";
-       lblBidSecondary.Visibility = Visibility.Visible;
+       // Get premium currency from quote or derive from currency pair
+       string premCcy = bestBid.PremiumCurrency;
+       if (string.IsNullOrEmpty(premCcy))
+       {
+           string pair = _trade?.Underlying ?? "EURUSD";
+           premCcy = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+       }
+  
+       // Format secondary text: "68,778 USD  43p"
+      lblBidSecondary.Text = $"{Math.Abs(bestBid.BidPremium):N0} {premCcy}    {premiumPips:F0}p";
+           lblBidSecondary.Visibility = Visibility.Visible;
 
  // Show LP badge with gradient background
 lblBidLP.Text = bestBid.LP;
@@ -535,18 +543,26 @@ lblBidLP.Text = bestBid.LP;
      }
 
      if (bestOffer != null)
-      {
- // Display vol as main value (large text in white/very light gray)
-          lblOfferValue.Text = bestOffer.OfferVol.ToString("F2");
-lblOfferValue.Foreground = Brushes.White; // White color for prices
+           {
+      // Display vol as main value (large text in white/very light gray)
+               lblOfferValue.Text = bestOffer.OfferVol.ToString("F2");
+     lblOfferValue.Foreground = Brushes.White; // White color for prices
     
-    // Calculate pips
-double notionalUSD = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
- double premiumPips = Math.Abs(bestOffer.OfferPremium) / (notionalUSD * 1_000_000) * 10000;
+         // Calculate pips
+     double notionalMM = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
+      double premiumPips = Math.Abs(bestOffer.OfferPremium) / (notionalMM * 1_000_000) * 10000;
       
-   // Format secondary text: "71,699 USD  44p"
-    lblOfferSecondary.Text = $"{Math.Abs(bestOffer.OfferPremium):N0} USD {premiumPips:F0}p";
-lblOfferSecondary.Visibility = Visibility.Visible;
+        // Get premium currency from quote or derive from currency pair
+        string premCcy = bestOffer.PremiumCurrency;
+        if (string.IsNullOrEmpty(premCcy))
+        {
+            string pair = _trade?.Underlying ?? "EURUSD";
+            premCcy = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+        }
+      
+        // Format secondary text: "71,699 USD  44p"
+         lblOfferSecondary.Text = $"{Math.Abs(bestOffer.OfferPremium):N0} {premCcy}    {premiumPips:F0}p";
+     lblOfferSecondary.Visibility = Visibility.Visible;
        
        // Show LP badge with gradient background
       lblOfferLP.Text = bestOffer.LP;
