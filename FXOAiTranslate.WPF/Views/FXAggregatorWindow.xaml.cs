@@ -147,11 +147,11 @@ namespace FXOAiTranslate.WPF.Views
         private void ShowRfqState()
         {
             // Reset bid tile to RFQ state
-            lblBidLabel.Visibility = Visibility.Collapsed;
-            lblBidRfqHint.Visibility = Visibility.Visible;
-            lblBidValue.Text = "RFQ";
-         lblBidValue.FontSize = 72;
-            lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+               lblBidLabel.Visibility = Visibility.Collapsed;
+               lblBidRfqHint.Visibility = Visibility.Visible;
+               lblBidValue.Text = "RFQ";
+            lblBidValue.FontSize = 48;
+               lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
   lblBidSecondary.Visibility = Visibility.Collapsed;
   lblBidSecondary.Text = ""; // Clear secondary text
             lblBidLP.Text = ""; // Clear LP name
@@ -159,11 +159,11 @@ namespace FXOAiTranslate.WPF.Views
             bidLPPanel.Visibility = Visibility.Collapsed;
 
      // Reset offer tile to RFQ state
-            lblOfferLabel.Visibility = Visibility.Collapsed;
-       lblOfferRfqHint.Visibility = Visibility.Visible;
-    lblOfferValue.Text = "RFQ";
-   lblOfferValue.FontSize = 72;
-    lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+              lblOfferLabel.Visibility = Visibility.Collapsed;
+         lblOfferRfqHint.Visibility = Visibility.Visible;
+      lblOfferValue.Text = "RFQ";
+     lblOfferValue.FontSize = 48;
+      lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
           lblOfferSecondary.Visibility = Visibility.Collapsed;
           lblOfferSecondary.Text = ""; // Clear secondary text
             lblOfferLP.Text = ""; // Clear LP name
@@ -196,7 +196,7 @@ spreadPanel.Visibility = Visibility.Collapsed;
             lblBidLabel.Visibility = Visibility.Visible;
             lblBidRfqHint.Visibility = Visibility.Collapsed;
             lblBidValue.Text = ""; // Empty while waiting
-            lblBidValue.FontSize = 72;
+            lblBidValue.FontSize = 48;
             lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // Dim grey while waiting
             lblBidSecondary.Text = "Requesting...";
             lblBidSecondary.Visibility = Visibility.Visible;
@@ -206,7 +206,7 @@ spreadPanel.Visibility = Visibility.Collapsed;
             lblOfferLabel.Visibility = Visibility.Visible;
             lblOfferRfqHint.Visibility = Visibility.Collapsed;
             lblOfferValue.Text = ""; // Empty while waiting
-            lblOfferValue.FontSize = 72;
+            lblOfferValue.FontSize = 48;
             lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // Dim grey while waiting
             lblOfferSecondary.Text = "Requesting...";
             lblOfferSecondary.Visibility = Visibility.Visible;

@@ -25,7 +25,7 @@
         <!-- Main Content -->
         <Grid Margin="8">
             <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="420"/>
+            <ColumnDefinition Width="320"/>
                 <ColumnDefinition Width="*"/>
    </Grid.ColumnDefinitions>
 
@@ -108,13 +108,13 @@ FontSize="10" FontWeight="Bold" Foreground="#22c55e"
      <!-- Center Content -->
       <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
     <!-- RFQ instruction label (shown in initial state) -->
-       <TextBlock x:Name="lblBidRfqHint" Text="CLICK TO RFQ (F9)" 
-    FontSize="10" FontWeight="Bold" Foreground="#64748b"
- HorizontalAlignment="Center" Margin="0,0,0,4"/>
+          <TextBlock x:Name="lblBidRfqHint" Text="CLICK TO RFQ (F9)" 
+       FontSize="10" FontWeight="Bold" Foreground="#64748b"
+    HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
-         <TextBlock x:Name="lblBidValue" Text="RFQ"
-    FontFamily="Inter, Segoe UI" FontSize="72" FontWeight="Bold" Foreground="#64748b"
- HorizontalAlignment="Center" VerticalAlignment="Center"
+            <TextBlock x:Name="lblBidValue" Text="RFQ"
+       FontFamily="Inter, Segoe UI" FontSize="48" FontWeight="Bold" Foreground="#64748b"
+    HorizontalAlignment="Center" VerticalAlignment="Center"
 TextOptions.TextFormattingMode="Ideal"
  TextOptions.TextRenderingMode="Auto"
  SnapsToDevicePixels="False"
@@ -148,12 +148,12 @@ Visibility="Collapsed"/>
             <!-- Center Content -->
      <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
      <!-- RFQ instruction label (shown in initial state) -->
-  <TextBlock x:Name="lblOfferRfqHint" Text="CLICK TO RFQ (F9)" 
-  FontSize="10" FontWeight="Bold" Foreground="#64748b"
-   HorizontalAlignment="Center" Margin="0,0,0,4"/>
+     <TextBlock x:Name="lblOfferRfqHint" Text="CLICK TO RFQ (F9)" 
+     FontSize="10" FontWeight="Bold" Foreground="#64748b"
+      HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
-    <TextBlock x:Name="lblOfferValue" Text="RFQ"
-  FontFamily="Inter, Segoe UI" FontSize="72" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
+       <TextBlock x:Name="lblOfferValue" Text="RFQ"
+     FontFamily="Inter, Segoe UI" FontSize="48" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
   TextOptions.TextFormattingMode="Ideal"
   TextOptions.TextRenderingMode="Auto"
     SnapsToDevicePixels="False"
@@ -588,14 +588,14 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                             <!-- Option Details Content -->
                             <StackPanel x:Name="optionContent" Background="#0f1114">
                                 <!-- Type -->
-                                <Grid Height="32">
+                                <Grid Height="32" Margin="12,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Type" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Type" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="cmbOptionType" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0"
-           HorizontalAlignment="Right" MinWidth="120" Width="159" Margin="0,0,8,0" BorderThickness="0">
+                                              HorizontalAlignment="Right" HorizontalContentAlignment="Right" BorderThickness="0" MinWidth="140">
                                         <ComboBoxItem Content="Vanilla Option"/>
                                         <ComboBoxItem Content="Call Spread"/>
                                         <ComboBoxItem Content="Put Spread"/>
@@ -605,121 +605,112 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                                 <Border Height="1" Background="#1e293b"/>
 
                                 <!-- Currency Pair -->
-                                <Grid Height="32">
+                                <Grid Height="32" Margin="12,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Currency Pair" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Currency Pair" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <TextBox x:Name="txtCurrencyPair" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
-Foreground="#3b82f6" FontWeight="Bold" BorderThickness="0"
-HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="120" Width="159" Margin="0,0,8,0"
-Padding="10,4,28,4"
-CharacterCasing="Upper"
-TextChanged="txtCurrencyPair_TextChanged"
-GotFocus="txtCurrencyPair_GotFocus"/>
+                                             Foreground="#3b82f6" FontWeight="Bold" BorderThickness="0"
+                                             HorizontalAlignment="Stretch" VerticalAlignment="Center" TextAlignment="Right"
+                                             Padding="10,4" CharacterCasing="Upper"
+                                             TextChanged="txtCurrencyPair_TextChanged"
+                                             GotFocus="txtCurrencyPair_GotFocus"/>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
                                 <!-- Expiry -->
-                                <Grid Height="32">
+                                <Grid Height="32" Margin="12,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Expiry" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Expiry" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <TextBox x:Name="txtExpiryDate" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
-     HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="140" Margin="0,0,8,0"
-     Foreground="#3b82f6" Width="159" BorderThickness="0"
-     GotFocus="txtExpiryDate_GotFocus"
-     LostFocus="txtExpiryDate_LostFocus"/>
+                                             HorizontalAlignment="Stretch" VerticalAlignment="Center" TextAlignment="Right"
+                                             Foreground="#3b82f6" BorderThickness="0" Padding="10,4"
+                                             GotFocus="txtExpiryDate_GotFocus"
+                                             LostFocus="txtExpiryDate_LostFocus"/>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
                                 <!-- Notional with Currency Toggle -->
-                                <Grid Height="32">
+                                <Grid Height="32" Margin="12,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="lblNotional" Text="Notional (EUR)" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                                    <!-- Notional input with currency toggle button -->
-                                    <Grid Grid.Column="1" Margin="0,0,8,0" HorizontalAlignment="Right">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <TextBox x:Name="txtNotional" Grid.Column="0" Text="" Style="{StaticResource DarkTextBox}"
- FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center" MinWidth="100" BorderThickness="0"
- LostFocus="txtNotional_LostFocus"
-GotFocus="txtNotional_GotFocus"/>
-
-                                        <!-- Currency toggle button -->
-                                        <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="0"
-CornerRadius="4" Margin="4,0,0,0" Cursor="Hand" Padding="8,4"
-    MouseLeftButtonUp="NotionalCurrencyToggle_Click">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock x:Name="txtNotionalCurrency" Text="EUR"
-   Foreground="#3b82f6" FontSize="11" FontWeight="Bold"
-   VerticalAlignment="Center"/>
-                                                <TextBlock Text="⇄" FontSize="12" Foreground="#64748b"
-       VerticalAlignment="Center" Margin="4,0,0,0"
-  FontWeight="Bold"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </Grid>
+                                    <TextBlock x:Name="lblNotional" Text="Notional (EUR)" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="txtNotional" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
+                                             FontWeight="Bold" HorizontalAlignment="Stretch" VerticalAlignment="Center" TextAlignment="Right"
+                                             BorderThickness="0" Padding="10,4"
+                                             LostFocus="txtNotional_LostFocus"
+                                             GotFocus="txtNotional_GotFocus"/>
+                                    <!-- Currency toggle button -->
+                                    <Border Grid.Column="2" Background="#1a1d23" BorderBrush="#1e293b" BorderThickness="1"
+                                            CornerRadius="4" Margin="8,0,0,0" Cursor="Hand" Padding="8,4"
+                                            MouseLeftButtonUp="NotionalCurrencyToggle_Click">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock x:Name="txtNotionalCurrency" Text="EUR"
+                                                       Foreground="#3b82f6" FontSize="11" FontWeight="Bold"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="⇄" FontSize="12" Foreground="#64748b"
+                                                       VerticalAlignment="Center" Margin="4,0,0,0"
+                                                       FontWeight="Bold"/>
+                                        </StackPanel>
+                                    </Border>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
                                 <!-- Strike -->
-                                <Grid Height="32">
+                                <Grid Height="32" Margin="12,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Strike" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Strike" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <TextBox x:Name="txtStrike" Grid.Column="1" Text="" Style="{StaticResource DarkTextBox}"
-    Foreground="#facc15" FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="100" Width="159" Margin="0,0,8,0" BorderThickness="0"
-GotFocus="txtStrike_GotFocus"
-LostFocus="txtStrike_LostFocus"/>
+                                             Foreground="#facc15" FontWeight="Bold" HorizontalAlignment="Stretch" TextAlignment="Right"
+                                             VerticalAlignment="Center" BorderThickness="0" Padding="10,4"
+                                             GotFocus="txtStrike_GotFocus"
+                                             LostFocus="txtStrike_LostFocus"/>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
-                                <!-- Option Type (Call/Put) - Toggle Button with Switch Arrow - NOW AFTER STRIKE -->
-                                <Grid Height="32">
+                                <!-- Option Type (Call/Put) - Toggle Button with Switch Arrow -->
+                                <Grid Height="32" Margin="12,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Option Type" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                                    <!-- Clickable toggle to switch between Call/Put (styled like TextBox) -->
+                                    <TextBlock Text="Option Type" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                    <!-- Clickable toggle to switch between Call/Put -->
                                     <Border Grid.Column="1" Background="#0f1114" BorderBrush="#1e293b" BorderThickness="0"
-  CornerRadius="4" Cursor="Hand" HorizontalAlignment="Right" MinWidth="140" Margin="0,0,8,0"
-          MouseLeftButtonUp="CallPutToggle_Click" Width="159">
-                                        <Grid Margin="8,6">
+                                            CornerRadius="4" Cursor="Hand" HorizontalAlignment="Stretch"
+                                            MouseLeftButtonUp="CallPutToggle_Click">
+                                        <Grid Margin="10,6">
                                             <TextBlock x:Name="txtCallPut" Text=""
-         Foreground="#64748b" FontSize="11" FontWeight="Normal"
-  HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                       Foreground="#64748b" FontSize="11" FontWeight="Normal"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"/>
                                             <TextBlock Text="⇄" FontSize="14" Foreground="#64748b"
-      HorizontalAlignment="Right" VerticalAlignment="Center"
-       FontWeight="Bold"/>
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                       FontWeight="Bold"/>
                                         </Grid>
                                     </Border>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
                                 <!-- Cut -->
-                                <Grid Height="32">
+                                <Grid Height="32" Margin="12,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Cut" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Cut" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="cmbExpiryCut" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0"
-   HorizontalAlignment="Right" MinWidth="80" Width="159" Margin="0,0,8,0" BorderThickness="0">
+                                              HorizontalAlignment="Right" HorizontalContentAlignment="Right" BorderThickness="0" MinWidth="80">
                                         <ComboBoxItem Content="NYC"/>
                                         <ComboBoxItem Content="TKY"/>
                                         <ComboBoxItem Content="LON"/>
@@ -728,16 +719,16 @@ LostFocus="txtStrike_LostFocus"/>
                                 <Border Height="1" Background="#1e293b"/>
 
                                 <!-- Delta Exchange Section -->
-                                <Grid Height="32">
+                                <Grid Height="32" Margin="12,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Delta Exchange" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Delta Exchange" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="cmbDeltaExchange" Grid.Column="1" Style="{StaticResource DarkComboBox}" 
- Foreground="White" FontSize="11" SelectedIndex="0" Margin="0,0,8,0"
-          HorizontalAlignment="Right" MinWidth="120" Width="159" BorderThickness="0"
-          SelectionChanged="DeltaExchange_Changed">
+                                              Foreground="White" FontSize="11" SelectedIndex="0"
+                                              HorizontalAlignment="Right" HorizontalContentAlignment="Right" BorderThickness="0" MinWidth="120"
+                                              SelectionChanged="DeltaExchange_Changed">
                                         <ComboBoxItem Content="Spot"/>
                                         <ComboBoxItem Content="No Hedge (Live)"/>
                                         <ComboBoxItem Content="Forward Hedge"/>
@@ -746,32 +737,32 @@ LostFocus="txtStrike_LostFocus"/>
                                 <Border Height="1" Background="#1e293b"/>
 
                                 <!-- Value Date Panel (shown when Spot or Forward selected) -->
-                                <Border x:Name="hedgeDetailsPanel" Background="#14161b" Margin="0,0,0,0" CornerRadius="0">
-                                    <Grid Height="32">
+                                <Border x:Name="hedgeDetailsPanel" Background="#14161b" CornerRadius="0">
+                                    <Grid Height="32" Margin="12,0">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="110"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Value Date" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0">
+                                        <TextBlock Text="Value Date" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                                             <TextBlock x:Name="lblHedgeRate" Text="" FontSize="11" Foreground="#3b82f6" FontWeight="Bold"
-                                                VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                       VerticalAlignment="Center" Margin="0,0,12,0"/>
                                             <TextBlock x:Name="lblHedgeValueDate" Text="--" FontSize="11" Foreground="White" FontWeight="Medium"
-                                                VerticalAlignment="Center"/>
+                                                       VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
                                 <Border Height="1" Background="#1e293b"/>
 
                                 <!-- Premium Due -->
-                                <Grid Height="32">
+                                <Grid Height="32" Margin="12,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Premium Due" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox x:Name="cmbPremiumDue" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0" Margin="0,0,8,0"
-   HorizontalAlignment="Right" Width="159" BorderThickness="0">
+                                    <TextBlock Text="Premium Due" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="cmbPremiumDue" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0"
+                                              HorizontalAlignment="Right" HorizontalContentAlignment="Right" BorderThickness="0" MinWidth="100">
                                         <ComboBoxItem Content="SPOT"/>
                                         <ComboBoxItem Content="FORWARD"/>
                                     </ComboBox>
@@ -779,107 +770,107 @@ LostFocus="txtStrike_LostFocus"/>
                                 <Border Height="1" Background="#1e293b"/>
 
                                 <!-- Premium (calculated) -->
-                                <Grid Height="32" Background="#14161b">
+                                <Grid Height="32" Background="#14161b" Margin="12,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Premium" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0">
-                                        <TextBlock x:Name="lblPremiumBid" Text="RCV --" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
-                                        <TextBlock Text=" / " FontSize="11" Foreground="#334155" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Premium" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock x:Name="lblPremiumBid" Text="RCV --" FontSize="11" Foreground="#22c55e" VerticalAlignment="Center"/>
+                                        <TextBlock Text="  " FontSize="11" Foreground="#334155" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="lblPremiumOffer" Text="PAY --" FontSize="11" Foreground="White" FontWeight="Medium" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
                                 <!-- Volatility (calculated) -->
-          <Grid Height="32" Background="#14161b">
-     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="100"/>
-             <ColumnDefinition Width="*"/>
-      </Grid.ColumnDefinitions>
-     <TextBlock Text="Volatility" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-     <TextBlock x:Name="lblVolatility" Grid.Column="1" Text="-- / --" FontSize="11" Foreground="White" FontWeight="Medium"
-            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-           </Grid>
+                                <Grid Height="32" Background="#14161b" Margin="12,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="110"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Volatility" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="lblVolatility" Grid.Column="1" Text="-- / --" FontSize="11" Foreground="White" FontWeight="Medium"
+                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
 
             <!-- MARKET & RISK SECTION (Collapsible - consolidated) -->
-  <Border Margin="0,2,0,2">
-       <StackPanel>
-           <!-- Market & Risk Header -->
-      <Grid Background="#1e293b" Height="28" Cursor="Hand" MouseLeftButtonUp="MarketRiskHeader_Click">
-               <StackPanel Orientation="Horizontal" Margin="8,0">
-           <TextBlock x:Name="lblMarketRiskArrow" Text="&#x25B6;" FontSize="9" Foreground="#64748b" 
-         VerticalAlignment="Center" Margin="0,0,8,0"/>
-           <TextBlock Text="Market &amp; Risk" FontSize="11" FontWeight="Medium" Foreground="#94a3b8" VerticalAlignment="Center"/>
-            <TextBlock Text=" (reference)" FontSize="10" Foreground="#64748b" VerticalAlignment="Center" Margin="4,0,0,0"/>
-       </StackPanel>
-        </Grid>
+                                <Border Margin="0,2,0,2">
+                                    <StackPanel>
+                                        <!-- Market & Risk Header -->
+                                        <Grid Background="#1e293b" Height="28" Cursor="Hand" MouseLeftButtonUp="MarketRiskHeader_Click">
+                                            <StackPanel Orientation="Horizontal" Margin="12,0">
+                                                <TextBlock x:Name="lblMarketRiskArrow" Text="&#x25B6;" FontSize="9" Foreground="#64748b" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBlock Text="Market &amp; Risk" FontSize="11" FontWeight="Medium" Foreground="#94a3b8" VerticalAlignment="Center"/>
+                                                <TextBlock Text=" (reference)" FontSize="10" Foreground="#64748b" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
 
- <!-- Market & Risk Content (collapsed by default) -->
-       <StackPanel x:Name="marketRiskContent" Visibility="Collapsed" Background="#0f1114">
-        <!-- Spot Rate -->
-                <Grid Height="28">
-             <Grid.ColumnDefinitions>
-         <ColumnDefinition Width="100"/>
-           <ColumnDefinition Width="*"/>
-      </Grid.ColumnDefinitions>
-       <TextBlock Text="Spot Rate" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-       <TextBlock x:Name="lblSpotRate" Grid.Column="1" Text="" FontSize="11" Foreground="White" FontWeight="Medium"
-      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-       </Grid>
-         <Border Height="1" Background="#1e293b"/>
+                                        <!-- Market & Risk Content (collapsed by default) -->
+                                        <StackPanel x:Name="marketRiskContent" Visibility="Collapsed" Background="#0f1114">
+                                            <!-- Spot Rate -->
+                                            <Grid Height="28" Margin="12,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="110"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Spot Rate" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="lblSpotRate" Grid.Column="1" Text="" FontSize="11" Foreground="White" FontWeight="Medium"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <Border Height="1" Background="#1e293b"/>
 
-      <!-- Forward Points -->
-               <Grid Height="28">
-   <Grid.ColumnDefinitions>
-    <ColumnDefinition Width="100"/>
-                 <ColumnDefinition Width="*"/>
-                  </Grid.ColumnDefinitions>
-   <TextBlock Text="Forward Pts" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-  <TextBlock x:Name="lblForwardPts" Grid.Column="1" Text="" FontSize="11" Foreground="#94a3b8"
- HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            </Grid>
-      <Border Height="1" Background="#1e293b"/>
+                                            <!-- Forward Points -->
+                                            <Grid Height="28" Margin="12,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="110"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Forward Pts" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="lblForwardPts" Grid.Column="1" Text="" FontSize="11" Foreground="#94a3b8"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <Border Height="1" Background="#1e293b"/>
 
-<!-- Forward Rate -->
-     <Grid Height="28">
-     <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="100"/>
-          <ColumnDefinition Width="*"/>
-    </Grid.ColumnDefinitions>
-                 <TextBlock Text="Forward Rate" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                   <TextBlock x:Name="lblForwardRate" Grid.Column="1" Text="" FontSize="11" Foreground="White" FontWeight="Medium"
-    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-     </Grid>
-     <Border Height="1" Background="#1e293b"/>
+                                            <!-- Forward Rate -->
+                                            <Grid Height="28" Margin="12,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="110"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Forward Rate" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="lblForwardRate" Grid.Column="1" Text="" FontSize="11" Foreground="White" FontWeight="Medium"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <Border Height="1" Background="#1e293b"/>
 
-    <!-- Delta -->
-         <Grid Height="28">
-      <Grid.ColumnDefinitions>
-           <ColumnDefinition Width="100"/>
-                 <ColumnDefinition Width="*"/>
-      </Grid.ColumnDefinitions>
-           <TextBlock Text="Delta (EUR)" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-      <TextBlock x:Name="lblDelta" Grid.Column="1" Text="" FontSize="11" Foreground="White" FontWeight="Bold"
-      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-      </Grid>
-     <Border Height="1" Background="#1e293b"/>
+                                            <!-- Delta -->
+                                            <Grid Height="28" Margin="12,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="110"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Delta (EUR)" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="lblDelta" Grid.Column="1" Text="" FontSize="11" Foreground="White" FontWeight="Bold"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <Border Height="1" Background="#1e293b"/>
 
-     <!-- Delta % -->
-      <Grid Height="28" Background="#14161b">
-    <Grid.ColumnDefinitions>
-       <ColumnDefinition Width="100"/>
-       <ColumnDefinition Width="*"/>
-  </Grid.ColumnDefinitions>
-      <TextBlock Text="Delta %" FontSize="11" Foreground="#64748b" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-         <TextBlock x:Name="lblDeltaPct" Grid.Column="1" Text="" FontSize="11" Foreground="#94a3b8"
-      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
-        </Grid>
-            </StackPanel>
-    </StackPanel>
-          </Border>
+                                            <!-- Delta % -->
+                                            <Grid Height="28" Background="#14161b" Margin="12,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="110"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Delta %" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="lblDeltaPct" Grid.Column="1" Text="" FontSize="11" Foreground="#94a3b8"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
          </StackPanel>
         </StackPanel>
           </Border>
