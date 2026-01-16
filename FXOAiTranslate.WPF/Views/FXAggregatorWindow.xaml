@@ -34,26 +34,42 @@
      <StackPanel>
 
                     <!-- TRADE INPUT -->
-                    <Border Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8">
+                    <Border Background="#0f1114" BorderBrush="#1e293b" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8" Height="36">
                         <Grid>
-                            <!-- TextBox with extra right padding for button (thinner with 6px vertical padding) -->
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <!-- TextBox takes the full width minus button space -->
                             <TextBox x:Name="txtTradeInput"
-   Style="{StaticResource DarkTextBox}"
-  FontSize="14" Padding="12,6,80,6"
-        Text=""
-        Tag="E.g., buy 10mio EURUSD 1m call 1.18"
-        GotFocus="txtTradeInput_GotFocus"
-LostFocus="txtTradeInput_LostFocus"
-        Loaded="txtTradeInput_Loaded"
-      PreviewKeyDown="txtTradeInput_KeyDown"/>
-                            <!-- Parse button overlaid on the right (HTML style) -->
-                            <Button x:Name="btnParse" Content="Parse"
-     HorizontalAlignment="Right" VerticalAlignment="Center"
-     Margin="0,0,8,0" Padding="12,4"
-  Background="#332563EB" Foreground="#60a5fa"
-            BorderThickness="0" Cursor="Hand" FontWeight="Medium"
-            FontSize="11"
-           Click="ParseButton_Click">
+                                     Grid.Column="0"
+                                     FontSize="13" 
+                                     Padding="10,8,8,8"
+                                     Text=""
+                                     Tag="E.g., buy 10m EURUSD 1m call 1.18"
+                                     Background="Transparent"
+                                     Foreground="#e2e8f0"
+                                     CaretBrush="#e2e8f0"
+                                     BorderThickness="0"
+                                     VerticalContentAlignment="Center"
+                                     GotFocus="txtTradeInput_GotFocus"
+                                     LostFocus="txtTradeInput_LostFocus"
+                                     Loaded="txtTradeInput_Loaded"
+                                     PreviewKeyDown="txtTradeInput_KeyDown"/>
+                            <!-- Parse button in its own column -->
+                            <Button x:Name="btnParse" 
+                                    Grid.Column="1"
+                                    Content="Parse"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,6,0" 
+                                    Padding="8,4"
+                                    Background="#332563EB" 
+                                    Foreground="#60a5fa"
+                                    BorderThickness="0" 
+                                    Cursor="Hand" 
+                                    FontWeight="Medium"
+                                    FontSize="11"
+                                    Click="ParseButton_Click">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="#332563EB"/>
@@ -62,7 +78,7 @@ LostFocus="txtTradeInput_LostFocus"
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="Button">
                                                     <Border x:Name="border" Background="{TemplateBinding Background}"
-                                        CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                            CornerRadius="4" Padding="{TemplateBinding Padding}">
                                                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
@@ -80,21 +96,21 @@ LostFocus="txtTradeInput_LostFocus"
                     </Border>
 
                     <!-- EXECUTION TILES -->
-     <Grid Height="200" Margin="0,0,0,8" UseLayoutRounding="True">
-      <Grid.ColumnDefinitions>
-           <ColumnDefinition Width="*"/>
-    <ColumnDefinition Width="2"/>
-   <ColumnDefinition Width="*"/>
-           </Grid.ColumnDefinitions>
+                         <Grid Height="160" Margin="0,0,0,8" UseLayoutRounding="True">
+                          <Grid.ColumnDefinitions>
+                               <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="2"/>
+                       <ColumnDefinition Width="*"/>
+                               </Grid.ColumnDefinitions>
 
-             <!-- BID TILE -->
-         <Border x:Name="bidTile" Grid.Column="0" 
- Background="{StaticResource Brush.TileGradient}"
-      BorderBrush="#1e293b" BorderThickness="1"
-       CornerRadius="4,0,0,4" Cursor="Hand"
-    MouseLeftButtonUp="BidTile_Click"
-MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
-          <Grid Margin="16,16,16,40">
+                                 <!-- BID TILE -->
+                             <Border x:Name="bidTile" Grid.Column="0" 
+                     Background="{StaticResource Brush.TileGradient}"
+                          BorderBrush="#1e293b" BorderThickness="1"
+                           CornerRadius="4,0,0,4" Cursor="Hand"
+                        MouseLeftButtonUp="BidTile_Click"
+                    MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
+                              <Grid Margin="12,12,12,32">
           <Grid.RowDefinitions>
        <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -113,28 +129,28 @@ FontSize="10" FontWeight="Bold" Foreground="#22c55e"
     HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
             <TextBlock x:Name="lblBidValue" Text="RFQ"
-       FontFamily="Inter, Segoe UI" FontSize="48" FontWeight="Bold" Foreground="#64748b"
-    HorizontalAlignment="Center" VerticalAlignment="Center"
-TextOptions.TextFormattingMode="Ideal"
- TextOptions.TextRenderingMode="Auto"
- SnapsToDevicePixels="False"
- MouseEnter="HeroValue_MouseEnter" MouseLeave="HeroValue_MouseLeave"/>
-    <TextBlock x:Name="lblBidSecondary" Text=""
-  FontSize="12" FontWeight="Bold" Foreground="#64748b"
- HorizontalAlignment="Center" Margin="0,8,0,0"
-Visibility="Collapsed"/>
+                           FontFamily="Inter, Segoe UI" FontSize="56" FontWeight="Bold" Foreground="#64748b"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+            TextOptions.TextFormattingMode="Ideal"
+             TextOptions.TextRenderingMode="Auto"
+             SnapsToDevicePixels="False"
+             MouseEnter="HeroValue_MouseEnter" MouseLeave="HeroValue_MouseLeave"/>
+                <TextBlock x:Name="lblBidSecondary" Text=""
+                  FontSize="12" Foreground="#94a3b8"
+                 HorizontalAlignment="Center" Margin="0,6,0,0"
+                Visibility="Collapsed"/>
      </StackPanel>
        </Grid>
          </Border>
 
    <!-- OFFER TILE -->
-    <Border x:Name="offerTile" Grid.Column="2" 
- Background="{StaticResource Brush.TileGradient}"
-    BorderBrush="#1e293b" BorderThickness="1"
- CornerRadius="0,4,4,0" Cursor="Hand"
- MouseLeftButtonUp="OfferTile_Click"
- MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
-  <Grid Margin="16,16,16,40">
+      <Border x:Name="offerTile" Grid.Column="2" 
+   Background="{StaticResource Brush.TileGradient}"
+      BorderBrush="#1e293b" BorderThickness="1"
+   CornerRadius="0,4,4,0" Cursor="Hand"
+   MouseLeftButtonUp="OfferTile_Click"
+   MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
+    <Grid Margin="12,12,12,32">
            <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
        <RowDefinition Height="*"/>
@@ -153,14 +169,14 @@ Visibility="Collapsed"/>
       HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
        <TextBlock x:Name="lblOfferValue" Text="RFQ"
-     FontFamily="Inter, Segoe UI" FontSize="48" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
-  TextOptions.TextFormattingMode="Ideal"
-  TextOptions.TextRenderingMode="Auto"
-    SnapsToDevicePixels="False"
-    MouseEnter="HeroValue_MouseEnter" MouseLeave="HeroValue_MouseLeave"/>
-         <TextBlock x:Name="lblOfferSecondary" Text=""
-    FontSize="12" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
-    Margin="0,8,0,0" Visibility="Collapsed"/>
+            FontFamily="Inter, Segoe UI" FontSize="56" FontWeight="Bold" Foreground="#64748b" HorizontalAlignment="Center"
+       TextOptions.TextFormattingMode="Ideal"
+       TextOptions.TextRenderingMode="Auto"
+         SnapsToDevicePixels="False"
+         MouseEnter="HeroValue_MouseEnter" MouseLeave="HeroValue_MouseLeave"/>
+              <TextBlock x:Name="lblOfferSecondary" Text=""
+              FontSize="12" Foreground="#94a3b8" HorizontalAlignment="Center"
+              Margin="0,6,0,0" Visibility="Collapsed"/>
              </StackPanel>
      </Grid>
          </Border>
@@ -205,7 +221,7 @@ Visibility="Collapsed"/>
                     </Grid>
 
                     <!-- COMBINED CONTROL BAR: Ladder toggle + STOP RFQ + Price Display -->
-                    <Border Background="#14161b" BorderBrush="#1e293b" BorderThickness="1" CornerRadius="4" Margin="0,0,0,1">
+                    <Border Background="#14161b" BorderBrush="#1e293b" BorderThickness="1,1,1,0" CornerRadius="4,4,0,0" Margin="0,0,0,0">
                         <Grid Height="28">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -254,21 +270,18 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
                             </Button>
 
                             <!-- Right: Price Display dropdown -->
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,12,0">
-                                <TextBlock Text="Price Display" FontSize="10" Foreground="#64748b" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <ComboBox x:Name="cmbPriceDisplay" Style="{StaticResource DarkComboBox}" 
-   Foreground="#3b82f6" FontSize="10" FontWeight="Bold" SelectedIndex="0">
-                                    <ComboBoxItem Content="VOL"/>
-                                    <ComboBoxItem Content="Premium"/>
-                                    <ComboBoxItem Content="EUR Pips"/>
-                                    <ComboBoxItem Content="USD Pips"/>
-                                </ComboBox>
-                            </StackPanel>
+                            <ComboBox x:Name="cmbPriceDisplay" Grid.Column="2" Style="{StaticResource DarkComboBox}" 
+                                      Foreground="#3b82f6" FontSize="10" FontWeight="Bold" SelectedIndex="0" Margin="0,0,12,0">
+                                <ComboBoxItem Content="VOL"/>
+                                <ComboBoxItem Content="Premium"/>
+                                <ComboBoxItem Content="EUR Pips"/>
+                                <ComboBoxItem Content="USD Pips"/>
+                            </ComboBox>
                         </Grid>
                     </Border>
 
                     <!-- LP LADDER (Collapsible) - with integrated LP checkboxes -->
-                    <Border x:Name="ladderBorder" Background="#14161b" BorderBrush="#1e293b" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8">
+                    <Border x:Name="ladderBorder" Background="#14161b" BorderBrush="#1e293b" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4" Margin="0,0,0,8">
                         <StackPanel x:Name="ladderContent">
                             <!-- Ladder Header -->
                             <Grid Background="#1a1d23" Height="28">
@@ -595,7 +608,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Type" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="cmbOptionType" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0"
-                                              HorizontalAlignment="Right" HorizontalContentAlignment="Right" BorderThickness="0" MinWidth="140">
+                                              HorizontalAlignment="Stretch" HorizontalContentAlignment="Right" BorderThickness="0">
                                         <ComboBoxItem Content="Vanilla Option"/>
                                         <ComboBoxItem Content="Call Spread"/>
                                         <ComboBoxItem Content="Put Spread"/>
@@ -710,7 +723,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Cut" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="cmbExpiryCut" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0"
-                                              HorizontalAlignment="Right" HorizontalContentAlignment="Right" BorderThickness="0" MinWidth="80">
+                                              HorizontalAlignment="Stretch" HorizontalContentAlignment="Right" BorderThickness="0">
                                         <ComboBoxItem Content="NYC"/>
                                         <ComboBoxItem Content="TKY"/>
                                         <ComboBoxItem Content="LON"/>
@@ -727,7 +740,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                                     <TextBlock Text="Delta Exchange" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="cmbDeltaExchange" Grid.Column="1" Style="{StaticResource DarkComboBox}" 
                                               Foreground="White" FontSize="11" SelectedIndex="0"
-                                              HorizontalAlignment="Right" HorizontalContentAlignment="Right" BorderThickness="0" MinWidth="120"
+                                              HorizontalAlignment="Stretch" HorizontalContentAlignment="Right" BorderThickness="0"
                                               SelectionChanged="DeltaExchange_Changed">
                                         <ComboBoxItem Content="Spot"/>
                                         <ComboBoxItem Content="No Hedge (Live)"/>
@@ -762,7 +775,7 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Premium Due" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="cmbPremiumDue" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0"
-                                              HorizontalAlignment="Right" HorizontalContentAlignment="Right" BorderThickness="0" MinWidth="100">
+                                              HorizontalAlignment="Stretch" HorizontalContentAlignment="Right" BorderThickness="0">
                                         <ComboBoxItem Content="SPOT"/>
                                         <ComboBoxItem Content="FORWARD"/>
                                     </ComboBox>

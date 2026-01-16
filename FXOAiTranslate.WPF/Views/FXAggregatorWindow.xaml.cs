@@ -150,7 +150,7 @@ namespace FXOAiTranslate.WPF.Views
                lblBidLabel.Visibility = Visibility.Collapsed;
                lblBidRfqHint.Visibility = Visibility.Visible;
                lblBidValue.Text = "RFQ";
-            lblBidValue.FontSize = 48;
+            lblBidValue.FontSize = 56;
                lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
   lblBidSecondary.Visibility = Visibility.Collapsed;
   lblBidSecondary.Text = ""; // Clear secondary text
@@ -162,7 +162,7 @@ namespace FXOAiTranslate.WPF.Views
               lblOfferLabel.Visibility = Visibility.Collapsed;
          lblOfferRfqHint.Visibility = Visibility.Visible;
       lblOfferValue.Text = "RFQ";
-     lblOfferValue.FontSize = 48;
+     lblOfferValue.FontSize = 56;
       lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
           lblOfferSecondary.Visibility = Visibility.Collapsed;
           lblOfferSecondary.Text = ""; // Clear secondary text
@@ -196,7 +196,7 @@ spreadPanel.Visibility = Visibility.Collapsed;
             lblBidLabel.Visibility = Visibility.Visible;
             lblBidRfqHint.Visibility = Visibility.Collapsed;
             lblBidValue.Text = ""; // Empty while waiting
-            lblBidValue.FontSize = 48;
+            lblBidValue.FontSize = 56;
             lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // Dim grey while waiting
             lblBidSecondary.Text = "Requesting...";
             lblBidSecondary.Visibility = Visibility.Visible;
@@ -206,7 +206,7 @@ spreadPanel.Visibility = Visibility.Collapsed;
             lblOfferLabel.Visibility = Visibility.Visible;
             lblOfferRfqHint.Visibility = Visibility.Collapsed;
             lblOfferValue.Text = ""; // Empty while waiting
-            lblOfferValue.FontSize = 48;
+            lblOfferValue.FontSize = 56;
             lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // Dim grey while waiting
             lblOfferSecondary.Text = "Requesting...";
             lblOfferSecondary.Visibility = Visibility.Visible;
@@ -2303,7 +2303,12 @@ if (bestQuote.ValidUntilTime < DateTime.Now)
          // Create deal card entry using existing DealViewModel properties
          double vol = side == "BID" ? bestQuote.BidVol : bestQuote.OfferVol;
          double premium = side == "BID" ? bestQuote.BidPremium : bestQuote.OfferPremium;
+         double legPremPrice = side == "BID" ? bestQuote.BidLegPremPrice : bestQuote.OfferLegPremPrice;  // Tag 5844: pips
          string optionType = _trade?.Legs?[0]?.OptionType ?? "CALL";
+         
+         // Get currency pair and premium currency
+         string pair = _trade?.Underlying ?? "EURUSD";
+         string premiumCcy = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";  // Premium typically in base currency
          
          // Get hedge details from the Delta Exchange dropdown
          string hedgeType = "No Hedge";
@@ -2326,7 +2331,6 @@ if (bestQuote.ValidUntilTime < DateTime.Now)
              
              // Get notional for calculations
              double notionalMM = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
-             string pair = _trade?.Underlying ?? "EURUSD";
              string hedgeCcy = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
              
              // Try to get delta from quote first, then fall back to UI
@@ -2425,11 +2429,12 @@ if (bestQuote.ValidUntilTime < DateTime.Now)
 Notional = $"{_trade?.Legs?[0]?.NotionalMM ?? 0:F1}MM",
      Volatility = vol.ToString("F2",
  System.Globalization.CultureInfo.InvariantCulture),
-     PremiumLabel = premium >= 0 ? "RCV" : "PAY",
-     PremiumDisplay = $"{Math.Abs(premium):N0} USD",
-     PremiumColor = premium >= 0 
-? new SolidColorBrush(Color.FromRgb(34, 197, 94))   // Green for receive
-         : Brushes.White,
+     EurPips = legPremPrice != 0 ? legPremPrice.ToString("F2") : "--",  // Tag 5844: premium per MM (pips)
+     PremiumLabel = executionSide == "BUY" ? "PAY" : "RCV",  // Buy = pay premium, Sell = receive premium
+     PremiumDisplay = $"{premiumCcy} {Math.Abs(premium):N0} U",  // Format: "EUR 54 800 U" showing currency
+     PremiumColor = executionSide == "BUY" 
+         ? Brushes.White  // White for pay
+         : new SolidColorBrush(Color.FromRgb(34, 197, 94)),  // Green for receive
      SpotRate = bestQuote.SpotRate ?? "--",
      ExpiryDate = _trade?.Legs?[0]?.ExpiryDate.ToString("dd-MMM-yy") ?? "--",
      ExpiryCut = _trade?.Legs?[0]?.Cutoff ?? "NY",
