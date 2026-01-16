@@ -251,6 +251,7 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
 
         /// <summary>
         /// Calculate expiry date from trade date and tenor.
+        /// FX Options Convention: Delivery = Spot + Tenor, Expiry = Delivery - 2 business days
         /// </summary>
       public DateTime CalculateExpiry(DateTime tradeDate, string currencyPair, string tenor)
     {
@@ -265,11 +266,28 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
              var spotDate = CalculateSpotDate(tradeDate, currencyPair);
      var markets = GetMarketsForPair(currencyPair);
           
-         // Parse tenor (1M, 3M, 6M, 1Y, etc.)
-var rawExpiry = AddTenor(spotDate, tenor);
-       
-                // Adjust for holidays - find next business day if it falls on holiday/weekend
-        return _holidayCalendar.NextBusinessDay(rawExpiry, markets);
+         // FX Options: Standard market convention
+         // 1. Calculate DELIVERY date = Spot + Tenor (adjusted for holidays)
+         // 2. Calculate EXPIRY date = Delivery - 2 business days
+         var rawDelivery = AddTenor(spotDate, tenor);
+         
+         // Adjust delivery for holidays/weekends using PRECEDING convention
+         // FX Options: If delivery falls on weekend, roll BACK to Friday (not forward to Monday)
+         // This ensures expiry calculation works correctly
+         var deliveryDate = GetPreviousBusinessDay(rawDelivery, markets);
+         
+         // Calculate expiry by going backwards 2 business days from delivery
+         int spotLag = IsT1Pair(currencyPair) ? 1 : 2;
+         var expiryDate = RetreatBusinessDays(deliveryDate, spotLag, markets);
+         
+         Console.WriteLine($"[FX-CALENDAR] CalculateExpiry for {currencyPair} {tenor}:");
+         Console.WriteLine($"[FX-CALENDAR]   Trade Date:    {tradeDate:yyyy-MM-dd (ddd)}");
+         Console.WriteLine($"[FX-CALENDAR]   Spot Date:     {spotDate:yyyy-MM-dd (ddd)} (T+{spotLag})");
+         Console.WriteLine($"[FX-CALENDAR]   Raw Delivery:  {rawDelivery:yyyy-MM-dd (ddd)} (Spot + {tenor})");
+         Console.WriteLine($"[FX-CALENDAR]   Adj Delivery:  {deliveryDate:yyyy-MM-dd (ddd)} (next business day)");
+         Console.WriteLine($"[FX-CALENDAR]   Expiry Date:   {expiryDate:yyyy-MM-dd (ddd)} (Delivery - {spotLag} BD)");
+         
+         return expiryDate;
     }
   catch (Exception ex)
             {
@@ -428,6 +446,56 @@ int added = 0;
             return result;
  }
 
+        /// <summary>
+        /// Go backwards by the specified number of business days.
+        /// Used to calculate expiry from delivery: Expiry = Delivery - N business days
+        /// </summary>
+        private DateTime RetreatBusinessDays(DateTime date, int days, string[] markets)
+        {
+            var result = date;
+            int retreated = 0;
+            
+            Console.WriteLine($"[FX-CALENDAR] RetreatBusinessDays: Starting from {date:yyyy-MM-dd (ddd)}, going back {days} BD");
+            
+            while (retreated < days)
+            {
+                result = result.AddDays(-1);
+                
+                bool isWeekend = result.DayOfWeek == DayOfWeek.Saturday || result.DayOfWeek == DayOfWeek.Sunday;
+                bool isHoliday = !isWeekend && _holidayCalendar.IsHoliday(result, markets);
+                bool isBusinessDay = !isWeekend && !isHoliday;
+                
+                Console.WriteLine($"[FX-CALENDAR]   Checking {result:yyyy-MM-dd (ddd)}: Weekend={isWeekend}, Holiday={isHoliday}, IsBusinessDay={isBusinessDay}");
+                
+                if (isBusinessDay)
+                {
+                    retreated++;
+                    Console.WriteLine($"[FX-CALENDAR]   -> Counted as BD #{retreated}");
+                }
+            }
+            
+            Console.WriteLine($"[FX-CALENDAR] RetreatBusinessDays: Result = {result:yyyy-MM-dd (ddd)}");
+            return result;
+        }
+
+        /// <summary>
+        /// Get the previous (or same) business day. If date is a weekend/holiday, go backward.
+        /// Used for delivery date adjustment in FX options.
+        /// </summary>
+        private DateTime GetPreviousBusinessDay(DateTime date, string[] markets)
+        {
+            var result = date;
+            
+            while (result.DayOfWeek == DayOfWeek.Saturday || 
+                   result.DayOfWeek == DayOfWeek.Sunday ||
+                   _holidayCalendar.IsHoliday(result, markets))
+            {
+                result = result.AddDays(-1);
+            }
+            
+            return result;
+        }
+
     private static DateTime GetNextBusinessDayFallback(DateTime date, bool includeStart)
         {
    var result = includeStart ? date : date.AddDays(1);
@@ -440,18 +508,47 @@ int added = 0;
 
         private static DateTime CalculateExpiryFallback(DateTime tradeDate, string tenor)
         {
-         // Simple T+2 spot, then add tenor
- var spotDate = AddBusinessDaysFallback(tradeDate, 2);
-          var rawExpiry = AddTenor(spotDate, tenor);
+         // FX Options Convention: Delivery = Spot + Tenor, Expiry = Delivery - 2 BD
+         // 1. Calculate spot (T+2)
+         var spotDate = AddBusinessDaysFallback(tradeDate, 2);
+         
+         // 2. Calculate delivery (Spot + Tenor)
+         var rawDelivery = AddTenor(spotDate, tenor);
           
-   // Ensure it's a business day
-            while (rawExpiry.DayOfWeek == DayOfWeek.Saturday || rawExpiry.DayOfWeek == DayOfWeek.Sunday)
-    {
-  rawExpiry = rawExpiry.AddDays(1);
-    }
+         // Ensure delivery is a business day - roll BACKWARD (not forward)
+         while (rawDelivery.DayOfWeek == DayOfWeek.Saturday || rawDelivery.DayOfWeek == DayOfWeek.Sunday)
+         {
+             rawDelivery = rawDelivery.AddDays(-1);
+         }
+         
+         // 3. Calculate expiry (Delivery - 2 business days)
+         var expiryDate = RetreatBusinessDaysFallback(rawDelivery, 2);
   
-        return rawExpiry;
+         return expiryDate;
   }
+
+        /// <summary>
+        /// Go backwards by the specified number of business days (fallback without database).
+        /// </summary>
+        private static DateTime RetreatBusinessDaysFallback(DateTime date, int days)
+        {
+            var result = date;
+            int retreated = 0;
+            
+            while (retreated < days)
+            {
+                result = result.AddDays(-1);
+                
+                // Check if it's a business day (not weekend)
+                if (result.DayOfWeek != DayOfWeek.Saturday && 
+                    result.DayOfWeek != DayOfWeek.Sunday)
+                {
+                    retreated++;
+                }
+            }
+            
+            return result;
+        }
 
     #endregion
     }
