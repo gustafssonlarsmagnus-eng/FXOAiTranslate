@@ -2564,16 +2564,6 @@ Notional = $"{_trade?.Legs?[0]?.NotionalMM ?? 0:F1}MM",
            };
 
        Deals.Insert(0, deal);
-
-         // Speak "Pending" to indicate order sent
-         try
-        {
- _speechSynthesizer?.SpeakAsync("Pending");
-         }
- catch (Exception ex)
- {
-      Console.WriteLine($"[WPF] Error speaking pending: {ex.Message}");
-            }
          }
    else
    {
