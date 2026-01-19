@@ -506,107 +506,178 @@ IsEnabled = true
   }
         private void UpdateBestPrices()
         {
-          var quotes = _quotesByLP.Values.ToList();
+            var quotes = _quotesByLP.Values.ToList();
 
-        // Best bid = highest vol you receive
-    var bestBid = quotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
- // Best offer = lowest vol you pay
-    var bestOffer = quotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
+            // Best bid = highest vol you receive
+            var bestBid = quotes.Where(q => q.BidVol > 0).OrderByDescending(q => q.BidVol).FirstOrDefault();
+            // Best offer = lowest vol you pay
+            var bestOffer = quotes.Where(q => q.OfferVol > 0).OrderBy(q => q.OfferVol).FirstOrDefault();
 
-      if (bestBid != null)
-       {
-         // Display vol as main value (large text in white/very light gray)
-        lblBidValue.Text = bestBid.BidVol.ToString("F2");
-         lblBidValue.Foreground = Brushes.White; // White color for prices
-     
-       // Calculate pips: premium / (notional * 10000)
-       double notionalMM = _trade?.Legs?[0]?.NotionalMM ?? 10.0; // Default 10M
-       double premiumPips = Math.Abs(bestBid.BidPremium) / (notionalMM * 1_000_000) * 10000;
-  
-       // Get premium currency from quote or derive from currency pair
-       string premCcy = bestBid.PremiumCurrency;
-       if (string.IsNullOrEmpty(premCcy))
-       {
-           string pair = _trade?.Underlying ?? "EURUSD";
-           premCcy = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
-       }
-  
-       // Format secondary text: "68,778 USD  43p"
-      lblBidSecondary.Text = $"{Math.Abs(bestBid.BidPremium):N0} {premCcy}    {premiumPips:F0}p";
-           lblBidSecondary.Visibility = Visibility.Visible;
-
- // Show LP badge with gradient background
-lblBidLP.Text = bestBid.LP;
-     UpdateCountdown(lblBidCountdown, bestBid.ValidUntilTime);
-  bidLPPanel.Visibility = Visibility.Visible;
-   }
-  else
-     {
-        lblBidValue.Text = "---";
-    lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
-     lblBidSecondary.Text = "---";
-       lblBidLP.Text = "";
-     bidLPPanel.Visibility = Visibility.Collapsed;
-     }
-
-     if (bestOffer != null)
-           {
-      // Display vol as main value (large text in white/very light gray)
-               lblOfferValue.Text = bestOffer.OfferVol.ToString("F2");
-     lblOfferValue.Foreground = Brushes.White; // White color for prices
-    
-         // Calculate pips
-     double notionalMM = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
-      double premiumPips = Math.Abs(bestOffer.OfferPremium) / (notionalMM * 1_000_000) * 10000;
-      
-        // Get premium currency from quote or derive from currency pair
-        string premCcy = bestOffer.PremiumCurrency;
-        if (string.IsNullOrEmpty(premCcy))
-        {
+            // Get current price display mode from dropdown
+            int priceDisplayMode = cmbPriceDisplay?.SelectedIndex ?? 0; // 0=VOL, 1=Premium, 2=EUR Pips, 3=USD Pips
+            
+            // Get currency pair info for pips calculations
             string pair = _trade?.Underlying ?? "EURUSD";
-            premCcy = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+            string ccy1 = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
+            string ccy2 = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
+            double notionalMM = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
+
+            if (bestBid != null)
+            {
+                // Get premium currency from quote or derive from currency pair
+                string premCcy = bestBid.PremiumCurrency;
+                if (string.IsNullOrEmpty(premCcy))
+                {
+                    premCcy = ccy2;
+                }
+
+                // Calculate values for all display modes
+                double bidVol = bestBid.BidVol;
+                double bidPremium = Math.Abs(bestBid.BidPremium);
+                double bidLegPremPrice = bestBid.BidLegPremPrice; // Tag 5844: premium per MM ("pips")
+                double premiumPips = bidPremium / (notionalMM * 1_000_000) * 10000;
+
+                // Set main value based on display mode
+                switch (priceDisplayMode)
+                {
+                    case 0: // VOL
+                        lblBidValue.Text = bidVol.ToString("F2");
+                        lblBidValue.FontSize = 56; // Standard size for short values
+                        lblBidSecondary.Text = $"{bidPremium:N0} {premCcy}    {bidLegPremPrice:F2}p";
+                        break;
+                    case 1: // Premium
+                        lblBidValue.Text = $"{bidPremium:N0}";
+                        lblBidValue.FontSize = 36; // Smaller size to fit larger numbers
+                        lblBidSecondary.Text = $"{bidLegPremPrice:F2}p    {bidVol:F2}v";
+                        break;
+                    case 2: // EUR Pips (Tag 5844 - LegPremPrice)
+                        lblBidValue.Text = bidLegPremPrice != 0 ? bidLegPremPrice.ToString("F2") : "--";
+                        lblBidValue.FontSize = 36; // Smaller size to fit pips values
+                        lblBidSecondary.Text = $"{bidPremium:N0} {premCcy}    {bidVol:F2}v";
+                        break;
+                    case 3: // USD Pips (calculated pips)
+                        lblBidValue.Text = premiumPips.ToString("F1");
+                        lblBidValue.FontSize = 36; // Smaller size to fit pips values
+                        lblBidSecondary.Text = $"{bidPremium:N0} {premCcy}    {bidVol:F2}v";
+                        break;
+                }
+
+                lblBidValue.Foreground = Brushes.White;
+                lblBidSecondary.Visibility = Visibility.Visible;
+
+                // Show LP badge
+                lblBidLP.Text = bestBid.LP;
+                UpdateCountdown(lblBidCountdown, bestBid.ValidUntilTime);
+                bidLPPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                lblBidValue.Text = "---";
+                lblBidValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                lblBidSecondary.Text = "---";
+                lblBidLP.Text = "";
+                bidLPPanel.Visibility = Visibility.Collapsed;
+            }
+
+            if (bestOffer != null)
+            {
+                // Get premium currency from quote or derive from currency pair
+                string premCcy = bestOffer.PremiumCurrency;
+                if (string.IsNullOrEmpty(premCcy))
+                {
+                    premCcy = ccy2;
+                }
+
+                // Calculate values for all display modes
+                double offerVol = bestOffer.OfferVol;
+                double offerPremium = Math.Abs(bestOffer.OfferPremium);
+                double offerLegPremPrice = bestOffer.OfferLegPremPrice; // Tag 5844: premium per MM ("pips")
+                double premiumPips = offerPremium / (notionalMM * 1_000_000) * 10000;
+
+                // Set main value based on display mode
+                switch (priceDisplayMode)
+                {
+                    case 0: // VOL
+                        lblOfferValue.Text = offerVol.ToString("F2");
+                        lblOfferValue.FontSize = 56; // Standard size for short values
+                        lblOfferSecondary.Text = $"{offerPremium:N0} {premCcy}    {offerLegPremPrice:F2}p";
+                        break;
+                    case 1: // Premium
+                        lblOfferValue.Text = $"{offerPremium:N0}";
+                        lblOfferValue.FontSize = 36; // Smaller size to fit larger numbers
+                        lblOfferSecondary.Text = $"{offerLegPremPrice:F2}p    {offerVol:F2}v";
+                        break;
+                    case 2: // EUR Pips (Tag 5844 - LegPremPrice)
+                        lblOfferValue.Text = offerLegPremPrice != 0 ? offerLegPremPrice.ToString("F2") : "--";
+                        lblOfferValue.FontSize = 36; // Smaller size to fit pips values
+                        lblOfferSecondary.Text = $"{offerPremium:N0} {premCcy}    {offerVol:F2}v";
+                        break;
+                    case 3: // USD Pips (calculated pips)
+                        lblOfferValue.Text = premiumPips.ToString("F1");
+                        lblOfferValue.FontSize = 36; // Smaller size to fit pips values
+                        lblOfferSecondary.Text = $"{offerPremium:N0} {premCcy}    {offerVol:F2}v";
+                        break;
+                }
+
+                lblOfferValue.Foreground = Brushes.White;
+                lblOfferSecondary.Visibility = Visibility.Visible;
+
+                // Show LP badge
+                lblOfferLP.Text = bestOffer.LP;
+                UpdateCountdown(lblOfferCountdown, bestOffer.ValidUntilTime);
+                offerLPPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                lblOfferValue.Text = "---";
+                lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                lblOfferSecondary.Text = "---";
+                lblOfferLP.Text = "";
+                offerLPPanel.Visibility = Visibility.Collapsed;
+            }
+
+            // Spread - calculate based on display mode
+            if (bestBid != null && bestOffer != null)
+            {
+                double spread;
+                switch (priceDisplayMode)
+                {
+                    case 0: // VOL
+                        spread = bestOffer.OfferVol - bestBid.BidVol;
+                        lblSpread.Text = spread.ToString("F2");
+                        break;
+                    case 1: // Premium
+                        spread = Math.Abs(bestOffer.OfferPremium) - Math.Abs(bestBid.BidPremium);
+                        lblSpread.Text = $"{spread:N0}";
+                        break;
+                    case 2: // EUR Pips
+                        spread = bestOffer.OfferLegPremPrice - bestBid.BidLegPremPrice;
+                        lblSpread.Text = spread.ToString("F2");
+                        break;
+                    case 3: // USD Pips
+                        double bidPips = Math.Abs(bestBid.BidPremium) / (notionalMM * 1_000_000) * 10000;
+                        double offerPips = Math.Abs(bestOffer.OfferPremium) / (notionalMM * 1_000_000) * 10000;
+                        spread = offerPips - bidPips;
+                        lblSpread.Text = spread.ToString("F1");
+                        break;
+                }
+                spreadPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                lblSpread.Text = "---";
+                spreadPanel.Visibility = Visibility.Collapsed;
+            }
+
+            // Update Risk section with data from best quotes
+            UpdateRiskDetails(bestBid, bestOffer);
+
+            // Update Market Data section with data from best quotes
+            UpdateMarketData(bestBid, bestOffer);
+
+            // Update Premium and Volatility in Option 1 section
+            UpdatePremiumAndVolatility(bestBid, bestOffer);
         }
-      
-        // Format secondary text: "71,699 USD  44p"
-         lblOfferSecondary.Text = $"{Math.Abs(bestOffer.OfferPremium):N0} {premCcy}    {premiumPips:F0}p";
-     lblOfferSecondary.Visibility = Visibility.Visible;
-       
-       // Show LP badge with gradient background
-      lblOfferLP.Text = bestOffer.LP;
-       UpdateCountdown(lblOfferCountdown, bestOffer.ValidUntilTime);
-       offerLPPanel.Visibility = Visibility.Visible;
-   }
-        else
- {
-    lblOfferValue.Text = "---";
-       lblOfferValue.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
-    lblOfferSecondary.Text = "---";
-       lblOfferLP.Text = "";
-       offerLPPanel.Visibility = Visibility.Collapsed;
-  }
-
- // Spread - only show when we have both bid and offer
-if (bestBid != null && bestOffer != null)
-     {
-          var spread = bestOffer.OfferVol - bestBid.BidVol;
-    lblSpread.Text = spread.ToString("F2");
-     spreadPanel.Visibility = Visibility.Visible;
-   }
-      else
-    {
-      lblSpread.Text = "---";
-    spreadPanel.Visibility = Visibility.Collapsed;
-   }
-
-// Update Risk section with data from best quotes
-     UpdateRiskDetails(bestBid, bestOffer);
-
-    // Update Market Data section with data from best quotes
- UpdateMarketData(bestBid, bestOffer);
-
-    // Update Premium and Volatility in Option 1 section
-         UpdatePremiumAndVolatility(bestBid, bestOffer);
-}
 
     /// <summary>
         /// Update the Premium and Volatility fields in Option 1 section from quote data.
@@ -1418,6 +1489,9 @@ var leg = _trade.Legs[0];
                     hedgeRateLabel.Text = $"Spot: {spotRate.ToString($"F{decimals}")}";
                 }
             }
+            
+            // Update Premium Date based on current selection and new delivery date
+            UpdatePremiumDate();
 
             Console.WriteLine($"[WPF] UI fields updated from trade structure");
         }
@@ -1738,6 +1812,9 @@ var leg = _trade.Legs[0];
                     lblHedgeValueDate.Text = deliveryDate.ToString("dd-MMM-yy", System.Globalization.CultureInfo.InvariantCulture);
                     Console.WriteLine($"[WPF] Updated Value Date: {lblHedgeValueDate.Text}");
                 }
+                
+                // Update Premium Date (for Forward premium, it uses delivery date)
+                UpdatePremiumDate();
             }
             catch (Exception ex)
             {
@@ -2735,11 +2812,81 @@ catch (Exception ex)
                     lblSpotRate.Text = "--";
                 }
                 
+                // Initialize Premium Date based on current Premium Due selection
+                UpdatePremiumDate();
+                
                 Console.WriteLine("[WPF] Hedge details panel initialized with placeholder values - waiting for currency pair");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[WPF] Error initializing hedge details panel: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle premium due dropdown change - update premium date based on selection (Spot or Forward).
+        /// Shows the premium settlement date which is typically T+2 for spot or delivery date for forward.
+        /// </summary>
+        private void PremiumDue_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            UpdatePremiumDate();
+        }
+
+        /// <summary>
+        /// Update the Premium Date field based on current Premium Due selection.
+        /// Called on initialization, when dropdown changes, and when trade is parsed.
+        /// </summary>
+        private void UpdatePremiumDate()
+        {
+            try
+            {
+                if (cmbPremiumDue == null || lblPremiumDate == null)
+                    return;
+
+                int selectedIndex = cmbPremiumDue.SelectedIndex;
+                string currencyPair = GetValidCurrencyPair() ?? "EURUSD";
+
+                if (selectedIndex == 0) // SPOT
+                {
+                    // Premium date = Trade Date + 2 business days (spot settlement)
+                    try
+                    {
+                        var calendarService = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance;
+                        var premiumDate = calendarService.CalculateSpotDate(DateTime.Today, currencyPair);
+                        lblPremiumDate.Text = premiumDate.ToString("dd-MMM-yy", System.Globalization.CultureInfo.InvariantCulture);
+                        Console.WriteLine($"[WPF] Premium Date (Spot): {lblPremiumDate.Text}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[WPF] Error calculating spot premium date: {ex.Message}");
+                        // Fallback: T+2 with weekend adjustment
+                        var premiumDate = DateTime.Today.AddDays(2);
+                        while (premiumDate.DayOfWeek == DayOfWeek.Saturday || premiumDate.DayOfWeek == DayOfWeek.Sunday)
+                            premiumDate = premiumDate.AddDays(1);
+                        lblPremiumDate.Text = premiumDate.ToString("dd-MMM-yy", System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                }
+                else if (selectedIndex == 1) // FORWARD
+                {
+                    // Premium date = Delivery date (same as option delivery)
+                    if (_trade?.Legs?.Count > 0 && _trade.Legs[0].DeliveryDate != default && _trade.Legs[0].DeliveryDate > DateTime.Now)
+                    {
+                        lblPremiumDate.Text = _trade.Legs[0].DeliveryDate.ToString("dd-MMM-yy", System.Globalization.CultureInfo.InvariantCulture);
+                        Console.WriteLine($"[WPF] Premium Date (Forward): {lblPremiumDate.Text}");
+                    }
+                    else
+                    {
+                        // If no delivery date yet, show placeholder
+                        lblPremiumDate.Text = "--";
+                        Console.WriteLine($"[WPF] Premium Date (Forward): No delivery date available");
+                    }
+                }
+
+                Console.WriteLine($"[WPF] Premium Date updated for selection index {selectedIndex}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error in UpdatePremiumDate: {ex.Message}");
             }
         }
 
@@ -2889,6 +3036,41 @@ catch (Exception ex)
             catch (Exception ex)
             {
                 Console.WriteLine($"[WPF] Error in DeltaExchange_Changed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle price display dropdown change - update hero boxes to show selected price type.
+        /// Options: VOL (volatility), Premium (total premium), EUR Pips (Tag 5844), USD Pips (calculated).
+        /// </summary>
+        private void PriceDisplay_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (cmbPriceDisplay == null)
+                    return;
+
+                int selectedIndex = cmbPriceDisplay.SelectedIndex;
+                string displayMode = selectedIndex switch
+                {
+                    0 => "VOL",
+                    1 => "Premium",
+                    2 => "EUR Pips",
+                    3 => "USD Pips",
+                    _ => "VOL"
+                };
+
+                Console.WriteLine($"[WPF] Price display mode changed to: {displayMode}");
+
+                // Refresh the hero boxes with the new display mode
+                if (_isRfqActive && !_quotesByLP.IsEmpty)
+                {
+                    UpdateBestPrices();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error in PriceDisplay_Changed: {ex.Message}");
             }
         }
     }

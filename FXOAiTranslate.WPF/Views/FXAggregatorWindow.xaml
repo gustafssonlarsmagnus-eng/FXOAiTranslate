@@ -137,7 +137,7 @@ FontSize="10" FontWeight="Bold" Foreground="#22c55e"
              MouseEnter="HeroValue_MouseEnter" MouseLeave="HeroValue_MouseLeave"/>
                 <TextBlock x:Name="lblBidSecondary" Text=""
                   FontSize="12" Foreground="#94a3b8"
-                 HorizontalAlignment="Center" Margin="0,6,0,0"
+                 HorizontalAlignment="Center" Margin="0,6,0,12"
                 Visibility="Collapsed"/>
      </StackPanel>
        </Grid>
@@ -176,7 +176,7 @@ FontSize="10" FontWeight="Bold" Foreground="#22c55e"
          MouseEnter="HeroValue_MouseEnter" MouseLeave="HeroValue_MouseLeave"/>
               <TextBlock x:Name="lblOfferSecondary" Text=""
               FontSize="12" Foreground="#94a3b8" HorizontalAlignment="Center"
-              Margin="0,6,0,0" Visibility="Collapsed"/>
+              Margin="0,6,0,12" Visibility="Collapsed"/>
              </StackPanel>
      </Grid>
          </Border>
@@ -271,7 +271,8 @@ VerticalAlignment="Center" Margin="0,0,6,0"/>
 
                             <!-- Right: Price Display dropdown -->
                             <ComboBox x:Name="cmbPriceDisplay" Grid.Column="2" Style="{StaticResource DarkComboBox}" 
-                                      Foreground="#3b82f6" FontSize="10" FontWeight="Bold" SelectedIndex="0" Margin="0,0,12,0">
+                                      Foreground="#3b82f6" FontSize="10" FontWeight="Bold" SelectedIndex="0" Margin="0,0,12,0"
+                                      SelectionChanged="PriceDisplay_Changed">
                                 <ComboBoxItem Content="VOL"/>
                                 <ComboBoxItem Content="Premium"/>
                                 <ComboBoxItem Content="EUR Pips"/>
@@ -775,10 +776,23 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Premium Due" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="cmbPremiumDue" Grid.Column="1" Style="{StaticResource DarkComboBox}" SelectedIndex="0"
-                                              HorizontalAlignment="Stretch" HorizontalContentAlignment="Right" BorderThickness="0">
+                                              HorizontalAlignment="Stretch" HorizontalContentAlignment="Right" BorderThickness="0"
+                                              SelectionChanged="PremiumDue_Changed">
                                         <ComboBoxItem Content="SPOT"/>
                                         <ComboBoxItem Content="FORWARD"/>
                                     </ComboBox>
+                                </Grid>
+                                <Border Height="1" Background="#1e293b"/>
+
+                                <!-- Premium Date (shows spot or forward date based on Premium Due selection) -->
+                                <Grid Height="32" Margin="12,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="110"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Premium Date" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="lblPremiumDate" Grid.Column="1" Text="--" FontSize="11" Foreground="White" FontWeight="Medium"
+                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
