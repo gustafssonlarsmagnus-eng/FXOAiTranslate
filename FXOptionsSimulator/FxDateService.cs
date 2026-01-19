@@ -79,6 +79,7 @@ public static class FxDateService
 
         var spot = AdvanceBusinessDaysCustom(trade, (int)rules.SpotLag, cal1, cal2, BusinessDayConvention.Following);
         var delivery = ComputeDeliveryFromTenorCustom(tenor, spot, cal1, cal2);
+        // FX Options Convention: Expiry = Delivery - SpotLag business days
         var expiry = RetreatBusinessDaysCustom(delivery, (int)rules.SpotLag, cal1, cal2, rules.ExpiryConvention);
         var premium = AdvanceBusinessDaysCustom(trade, rules.PremiumSettleDays, CalendarFromCcy(premiumCcy), null, rules.PremiumConvention);
 
@@ -179,8 +180,9 @@ public static class FxDateService
         return AdjustDate(result, cal1, cal2, conv);
     }
 
-    // Compute DELIVERY date from tenor - uses PRECEDING convention
-    // FX Options: If delivery falls on weekend/holiday, roll BACK to previous business day
+    // Compute DELIVERY date from tenor - uses MODIFIED FOLLOWING convention
+    // FX Options: If delivery falls on weekend/holiday, roll FORWARD to next business day
+    // (unless it crosses into next month, then roll back)
     private static Date ComputeDeliveryFromTenorCustom(string tenor, Date spot, QLCal cal1, QLCal cal2)
     {
         tenor = (tenor ?? "").Trim().ToUpperInvariant();
@@ -188,7 +190,7 @@ public static class FxDateService
         Date rawDelivery;
         if (tenor.EndsWith("D"))
         {
-            // For day tenors, advance business days then adjust backward if needed
+            // For day tenors, advance business days
             rawDelivery = AdvanceBusinessDaysCustom(spot, int.Parse(tenor[..^1]), cal1, cal2, BusinessDayConvention.Following);
         }
         else if (tenor.EndsWith("W"))
@@ -217,8 +219,33 @@ public static class FxDateService
             throw new ArgumentException($"Unsupported tenor: {tenor}");
         }
         
-        // Adjust using PRECEDING convention - if weekend/holiday, go BACK
-        return AdjustDate(rawDelivery, cal1, cal2, BusinessDayConvention.Preceding);
+        // Adjust using MODIFIED FOLLOWING convention - roll FORWARD, unless crosses month then roll BACK
+        return AdjustModifiedFollowing(rawDelivery, cal1, cal2);
+    }
+
+    // Modified Following adjustment: roll forward unless it crosses into next month
+    private static Date AdjustModifiedFollowing(Date d, QLCal cal1, QLCal cal2)
+    {
+        int originalMonth = d.Month;
+        var result = d;
+        
+        // First try rolling forward
+        while (!IsBusinessDay(result, cal1, cal2))
+        {
+            result = result + 1;
+        }
+        
+        // If crossed into new month, roll backward instead
+        if ((int)result.Month != originalMonth)
+        {
+            result = d;
+            while (!IsBusinessDay(result, cal1, cal2))
+            {
+                result = result - 1;
+            }
+        }
+        
+        return result;
     }
 
     public static string Ymd(DateTime dt) => dt.ToString("yyyyMMdd", CultureInfo.InvariantCulture);

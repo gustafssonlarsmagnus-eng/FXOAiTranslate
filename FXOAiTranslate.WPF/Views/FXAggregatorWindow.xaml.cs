@@ -1327,7 +1327,7 @@ var leg = _trade.Legs[0];
                         string premiumCcy = pair.Length >= 6 ? pair.Substring(3, 3) : "USD";
                         var (tradeDate, spotDate, expiry, delivery, premiumDate) = 
                             FxDateService.ComputeDates(
-                                DateTime.UtcNow,
+                                DateTime.Today,
                                 pair,
                                 tenor,
                                 premiumCcy,
@@ -1427,32 +1427,29 @@ var leg = _trade.Legs[0];
             
             try
             {
-                // Use FxDateService to compute delivery date properly
-                // We need to use an "ON" (overnight) tenor from the expiry date
-                // to get the proper T+2 delivery date with calendar adjustment
-                string premiumCcy = currencyPair.Length >= 6 ? currencyPair.Substring(3, 3) : "USD";
+                // FX Options: Delivery = Expiry + SpotLag business days (T+2 for most pairs)
+                // Use FxCalendarService for proper calendar-aware calculation
+                var calendarService = FX.Infrastructure.Calendars.Legacy.FxCalendarService.Instance;
+                var deliveryDate = calendarService.CalculateDeliveryDate(expiryDate, currencyPair);
                 
-                var (_, _, _, deliveryDate, _) = FxDateService.ComputeDates(
-                    expiryDate,
-                    currencyPair,
-                    "2D", // 2 business days from expiry
-                    premiumCcy,
-                    new FxDateRules()
-                );
-                
-                Console.WriteLine($"[WPF] Calendar-adjusted delivery date: {deliveryDate:dd-MMM-yy}");
+                Console.WriteLine($"[WPF] Calendar-adjusted delivery date: {deliveryDate:dd-MMM-yy} (Expiry + T+2)");
                 return deliveryDate;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WPF] FxDateService error for delivery: {ex.Message}, using simple T+2 adjustment");
+                Console.WriteLine($"[WPF] FxCalendarService error for delivery: {ex.Message}, using simple T+2 adjustment");
                 
-                // Fallback: simple T+2 with weekend adjustment
-                DateTime deliveryDate = expiryDate.AddDays(2);
-                while (deliveryDate.DayOfWeek == DayOfWeek.Saturday || 
-                       deliveryDate.DayOfWeek == DayOfWeek.Sunday)
+                // Fallback: simple T+2 with weekend adjustment (Modified Following)
+                DateTime deliveryDate = expiryDate;
+                int businessDaysAdded = 0;
+                while (businessDaysAdded < 2)
                 {
                     deliveryDate = deliveryDate.AddDays(1);
+                    if (deliveryDate.DayOfWeek != DayOfWeek.Saturday && 
+                        deliveryDate.DayOfWeek != DayOfWeek.Sunday)
+                    {
+                        businessDaysAdded++;
+                    }
                 }
                 return deliveryDate;
             }
@@ -1658,7 +1655,7 @@ var leg = _trade.Legs[0];
                         string premiumCcy = currencyPair.Length >= 6 ? currencyPair.Substring(3, 3) : "USD";
                         var (tradeDate, spotDate, expiry, delivery, premiumDate) = 
                             FxDateService.ComputeDates(
-                                DateTime.UtcNow,
+                                DateTime.Today,
                                 currencyPair,
                                 input,
                                 premiumCcy,
@@ -1763,7 +1760,7 @@ var leg = _trade.Legs[0];
             // Use FxDateService for proper calendar-aware date calculation
             var (tradeDate, spotDate, expiryDate, deliveryDate, premiumDate) = 
                 FxDateService.ComputeDates(
-                    DateTime.UtcNow,
+                    DateTime.Today,
                     currencyPair,
                     tenor.ToUpperInvariant(),
                     currencyPair.Substring(3, 3), // Premium currency (quote ccy)

@@ -251,42 +251,51 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
 
         /// <summary>
         /// Calculate expiry date from trade date and tenor.
-        /// FX Options Convention: Delivery = Spot + Tenor, Expiry = Delivery - 2 business days
+        /// FX Options Convention: Delivery = Spot + Tenor (Modified Following), Expiry = Delivery - 2 business days
         /// </summary>
-      public DateTime CalculateExpiry(DateTime tradeDate, string currencyPair, string tenor)
-    {
+        public DateTime CalculateExpiry(DateTime tradeDate, string currencyPair, string tenor)
+        {
             if (!_isDatabaseAvailable)
-          {
-   // Fallback: simple tenor calculation
-            return CalculateExpiryFallback(tradeDate, tenor);
+            {
+                // Fallback: simple tenor calculation
+                return CalculateExpiryFallback(tradeDate, tenor);
             }
 
-      try
-  {
-             var spotDate = CalculateSpotDate(tradeDate, currencyPair);
-     var markets = GetMarketsForPair(currencyPair);
-          
-         // FX Options: Standard market convention
-         // 1. Calculate DELIVERY date = Spot + Tenor (adjusted for holidays)
-         // 2. Calculate EXPIRY date = Delivery - 2 business days
-         var rawDelivery = AddTenor(spotDate, tenor);
-         
-         // Adjust delivery for holidays/weekends using PRECEDING convention
-         // FX Options: If delivery falls on weekend, roll BACK to Friday (not forward to Monday)
-         // This ensures expiry calculation works correctly
-         var deliveryDate = GetPreviousBusinessDay(rawDelivery, markets);
-         
-         // Calculate expiry by going backwards 2 business days from delivery
-         int spotLag = IsT1Pair(currencyPair) ? 1 : 2;
-         var expiryDate = RetreatBusinessDays(deliveryDate, spotLag, markets);
-         
-         return expiryDate;
-    }
-  catch (Exception ex)
+            try
             {
-     Console.WriteLine($"[FX-CALENDAR] Error calculating expiry: {ex.Message}");
-    return CalculateExpiryFallback(tradeDate, tenor);
-          }
+                var spotDate = CalculateSpotDate(tradeDate, currencyPair);
+                var markets = GetMarketsForPair(currencyPair);
+          
+                // FX Options: Standard market convention (per ISDA)
+                // 1. Calculate DELIVERY date = Spot + Tenor (adjusted using Modified Following)
+                // 2. Calculate EXPIRY date = Delivery - SpotLag business days
+                //
+                // Example EURUSD 1M from Jan 19 (Mon, trade date):
+                //   Spot = Jan 21 (T+2, Wed)
+                //   Raw Delivery = Feb 21 (Sat) 
+                //   Adjusted Delivery = Feb 23 (Mon) using Modified Following
+                //   Expiry = Feb 23 - 2BD = Feb 19 (Thu)
+         
+                var rawDelivery = AddTenor(spotDate, tenor);
+         
+                // Adjust delivery for holidays/weekends using MODIFIED FOLLOWING convention
+                // FX Options: If delivery falls on weekend/holiday, roll FORWARD to next business day
+                // (unless it crosses into next month, then roll back - but this is rare for standard tenors)
+                var deliveryDate = GetNextBusinessDayForDelivery(rawDelivery, markets);
+         
+                // Calculate expiry = Delivery - SpotLag business days
+                int spotLag = IsT1Pair(currencyPair) ? 1 : 2;
+                var expiryDate = RetreatBusinessDays(deliveryDate, spotLag, markets);
+         
+                Console.WriteLine($"[FX-CALENDAR] {currencyPair} {tenor}: Spot={spotDate:dd-MMM-yy}, RawDelivery={rawDelivery:dd-MMM-yy}, Delivery={deliveryDate:dd-MMM-yy}, Expiry={expiryDate:dd-MMM-yy}");
+         
+                return expiryDate;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FX-CALENDAR] Error calculating expiry: {ex.Message}");
+                return CalculateExpiryFallback(tradeDate, tenor);
+            }
         }
 
  /// <summary>
@@ -467,7 +476,7 @@ int added = 0;
 
         /// <summary>
         /// Get the previous (or same) business day. If date is a weekend/holiday, go backward.
-        /// Used for delivery date adjustment in FX options.
+        /// Used for expiry date adjustment if needed.
         /// </summary>
         private DateTime GetPreviousBusinessDay(DateTime date, string[] markets)
         {
@@ -478,6 +487,39 @@ int added = 0;
                    _holidayCalendar.IsHoliday(result, markets))
             {
                 result = result.AddDays(-1);
+            }
+            
+            return result;
+        }
+
+        /// <summary>
+        /// Get the next business day for delivery date adjustment using Modified Following.
+        /// If date is a weekend/holiday, roll FORWARD to next business day.
+        /// If rolling forward crosses into next month, roll BACKWARD instead.
+        /// </summary>
+        private DateTime GetNextBusinessDayForDelivery(DateTime date, string[] markets)
+        {
+            var result = date;
+            int originalMonth = date.Month;
+            
+            // First try rolling forward
+            while (result.DayOfWeek == DayOfWeek.Saturday || 
+                   result.DayOfWeek == DayOfWeek.Sunday ||
+                   _holidayCalendar.IsHoliday(result, markets))
+            {
+                result = result.AddDays(1);
+            }
+            
+            // Modified Following: If we crossed into a new month, roll backward instead
+            if (result.Month != originalMonth)
+            {
+                result = date;
+                while (result.DayOfWeek == DayOfWeek.Saturday || 
+                       result.DayOfWeek == DayOfWeek.Sunday ||
+                       _holidayCalendar.IsHoliday(result, markets))
+                {
+                    result = result.AddDays(-1);
+                }
             }
             
             return result;
@@ -495,24 +537,40 @@ int added = 0;
 
         private static DateTime CalculateExpiryFallback(DateTime tradeDate, string tenor)
         {
-         // FX Options Convention: Delivery = Spot + Tenor, Expiry = Delivery - 2 BD
-         // 1. Calculate spot (T+2)
-         var spotDate = AddBusinessDaysFallback(tradeDate, 2);
+            // FX Options Convention (per ISDA): Expiry = Delivery - SpotLag BD
+            // 1. Calculate spot (T+2 for most pairs)
+            int spotLag = 2; // Fallback assumes T+2
+            var spotDate = AddBusinessDaysFallback(tradeDate, spotLag);
          
-         // 2. Calculate delivery (Spot + Tenor)
-         var rawDelivery = AddTenor(spotDate, tenor);
+            // 2. Calculate delivery (Spot + Tenor)
+            var rawDelivery = AddTenor(spotDate, tenor);
+            int originalMonth = rawDelivery.Month;
           
-         // Ensure delivery is a business day - roll BACKWARD (not forward)
-         while (rawDelivery.DayOfWeek == DayOfWeek.Saturday || rawDelivery.DayOfWeek == DayOfWeek.Sunday)
-         {
-             rawDelivery = rawDelivery.AddDays(-1);
-         }
+            // Ensure delivery is a business day - use Modified Following convention
+            // Roll FORWARD to next business day, unless it crosses into next month
+            var deliveryDate = rawDelivery;
+            while (deliveryDate.DayOfWeek == DayOfWeek.Saturday || deliveryDate.DayOfWeek == DayOfWeek.Sunday)
+            {
+                deliveryDate = deliveryDate.AddDays(1);
+            }
+            
+            // Modified Following: If crossed into new month, roll backward instead
+            if (deliveryDate.Month != originalMonth)
+            {
+                deliveryDate = rawDelivery;
+                while (deliveryDate.DayOfWeek == DayOfWeek.Saturday || deliveryDate.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    deliveryDate = deliveryDate.AddDays(-1);
+                }
+            }
          
-         // 3. Calculate expiry (Delivery - 2 business days)
-         var expiryDate = RetreatBusinessDaysFallback(rawDelivery, 2);
+            // 3. Calculate expiry = Delivery - SpotLag business days
+            var expiryDate = RetreatBusinessDaysFallback(deliveryDate, spotLag);
   
-         return expiryDate;
-  }
+            Console.WriteLine($"[FX-CALENDAR-FALLBACK] {tenor}: Spot={spotDate:dd-MMM-yy}, RawDelivery={rawDelivery:dd-MMM-yy}, Delivery={deliveryDate:dd-MMM-yy}, Expiry={expiryDate:dd-MMM-yy}");
+  
+            return expiryDate;
+        }
 
         /// <summary>
         /// Go backwards by the specified number of business days (fallback without database).
