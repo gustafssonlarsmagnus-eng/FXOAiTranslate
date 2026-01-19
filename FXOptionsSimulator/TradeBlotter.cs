@@ -97,7 +97,7 @@ namespace FXOptionsSimulator
         }
 
         public void UpdateTradeStatus(string clOrdID, string status, string execID = null,
-            double? fillPrice = null, string rejectReason = null, string premiumDate = null)
+            double? fillPrice = null, string rejectReason = null, string premiumDate = null, string premiumCcy = null)
         {
             lock (_lock)
             {
@@ -114,6 +114,13 @@ namespace FXOptionsSimulator
                     {
                         trade.PremiumDate = premiumDate;
                         Console.WriteLine($"[Blotter] Premium date updated: {premiumDate}");
+                    }
+
+                    // Update premium currency if provided (from GFI execution report confirmation)
+                    if (!string.IsNullOrEmpty(premiumCcy))
+                    {
+                        trade.PremiumCcy = premiumCcy;
+                        Console.WriteLine($"[Blotter] Premium currency updated: {premiumCcy}");
                     }
 
                     Console.WriteLine($"[Blotter] Trade updated: {clOrdID} - Status: {status}");
