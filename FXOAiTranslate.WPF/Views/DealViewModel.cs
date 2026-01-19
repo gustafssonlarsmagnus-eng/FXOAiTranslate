@@ -16,6 +16,7 @@ namespace FXOAiTranslate.WPF.Views
         private string _status;
         private Brush _statusBackground;
         private Brush _statusForeground;
+        private string _premiumCurrency;
 
         public string Time { get; set; }
       public string Instrument { get; set; }
@@ -67,7 +68,20 @@ namespace FXOAiTranslate.WPF.Views
      public string EurPips { get; set; }
         public string PremiumLabel { get; set; }  // "RCV" or "PAY"
         public string PremiumDisplay { get; set; }
-        public string PremiumCurrency { get; set; }
+        
+        public string PremiumCurrency
+        {
+            get => _premiumCurrency;
+            set
+            {
+                if (_premiumCurrency != value)
+                {
+                    _premiumCurrency = value;
+                    OnPropertyChanged(nameof(PremiumCurrency));
+                }
+            }
+        }
+        
    public Brush PremiumColor { get; set; }
  public string SpotRate { get; set; }
 

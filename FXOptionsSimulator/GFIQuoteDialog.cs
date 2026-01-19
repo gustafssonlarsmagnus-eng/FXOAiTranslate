@@ -969,6 +969,14 @@ dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.WrapMode = DataGridViewTriSta
                 leg.Cutoff = _cutoff;
             }
 
+            // Update premium currency from user selection (tag 5830 in Quote Request)
+            // This allows the user to specify which currency they want the premium quoted in
+            if (!string.IsNullOrEmpty(_premiumCurrency))
+            {
+                _trade.PremiumCurrency = _premiumCurrency;
+                Console.WriteLine($"[PREMIUM CCY] Using user-selected premium currency: {_premiumCurrency}");
+            }
+
             // Generate group ID
             _groupId = $"3-REQ{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
@@ -983,6 +991,7 @@ dgvQuotes.Columns["NetPremOffer"].DefaultCellStyle.WrapMode = DataGridViewTriSta
             Console.WriteLine($"║ Cutoff: {_cutoff}");
             Console.WriteLine($"║ Hedge Type: {_hedgeType}");
             Console.WriteLine($"║ Premium Type: {_premiumType}");
+            Console.WriteLine($"║ Premium Currency: {_trade.PremiumCurrency} (Tag 5830)");
             Console.WriteLine($"║ Selected LPs ({lps.Count}): {string.Join(", ", lps)}");
             Console.WriteLine("╠════════════════════════════════════════════════════════════════");
             Console.WriteLine($"║ LEGS ({selectedLegCount}):");

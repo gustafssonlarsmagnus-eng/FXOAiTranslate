@@ -290,19 +290,26 @@ spreadPanel.Visibility = Visibility.Collapsed;
         }
 
         /// <summary>
-        /// Handle execution report to update deal card status
+        /// Handle execution report to update deal card status and premium currency
         /// </summary>
-        private void OnExecutionReport(string clOrdID, string status, string execID)
+        private void OnExecutionReport(string clOrdID, string status, string execID, string premiumCcy)
         {
             // Marshal to UI thread
             Dispatcher.BeginInvoke(() =>
             {
-                Console.WriteLine($"[WPF] ExecutionReport received: ClOrdID={clOrdID}, Status={status}, ExecID={execID}");
+                Console.WriteLine($"[WPF] ExecutionReport received: ClOrdID={clOrdID}, Status={status}, ExecID={execID}, PremiumCcy={premiumCcy ?? "N/A"}");
 
                 // Find the deal card with this ClOrdID and update its status
                 var deal = Deals.FirstOrDefault(d => d.OrderId == clOrdID);
                 if (deal != null)
                 {
+                    // Update premium currency from GFI confirmation (tag 5830 in execution report)
+                    if (!string.IsNullOrEmpty(premiumCcy))
+                    {
+                        deal.PremiumCurrency = premiumCcy;
+                        Console.WriteLine($"[WPF] Deal {clOrdID} premium currency updated to {premiumCcy}");
+                    }
+
                     // Update status based on execution report
                     if (status == "FILLED" || status == "Filled")
                     {

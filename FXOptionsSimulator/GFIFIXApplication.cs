@@ -26,7 +26,7 @@ namespace FXOptionsSimulator.FIX
         public event Action<string> OnLogoutEvent;
         public event Action<string, FIXMessage> OnQuoteReceived;
         public event Action<QuoteData> OnQuoteDataReceived; // New event for WebView2 integration
-        public event Action<string, string, string> OnExecutionReport; // ClOrdID, Status, ExecID
+        public event Action<string, string, string, string> OnExecutionReport; // ClOrdID, Status, ExecID, PremiumCcy
         public event Action<string, string, string> OnTradeCaptureReceived; // ClOrdID, CounterpartyName, LEI
         public event Action<string, int, string> OnQuoteRequestRejected; // QuoteReqID, RejectReason, RejectText
 
@@ -520,6 +520,18 @@ Console.WriteLine($"\n┌──────────────────�
                 Console.WriteLine($"[DEBUG] ✗ Tag 5020 (Premium Date) NOT present in execution report");
             }
 
+            // Extract premium currency (tag 5830) - use this from GFI confirmation for deal card
+            string premiumCcy = null;
+            if (execReport.IsSetField(5830))
+            {
+                premiumCcy = execReport.GetString(5830);
+                Console.WriteLine($"[DEBUG] ✓ Found tag 5830 (Premium Currency): {premiumCcy}");
+            }
+            else
+            {
+                Console.WriteLine($"[DEBUG] ✗ Tag 5830 (Premium Currency) NOT present in execution report");
+            }
+
             string statusText = "PENDING";
             string rejectReason = null;
 
@@ -540,13 +552,14 @@ Console.WriteLine($"\n┌──────────────────�
             // Compact trace for execution results
             string timestamp = execReport.Header.GetString(Tags.SendingTime);
             string reason = rejectReason != null ? $" | {rejectReason}" : "";
-            Console.WriteLine($"[TRACE] {timestamp} | EXEC_RPT  | {statusText} {clOrdID}{reason}");
+            string premCcyInfo = !string.IsNullOrEmpty(premiumCcy) ? $" | PremCcy={premiumCcy}" : "";
+            Console.WriteLine($"[TRACE] {timestamp} | EXEC_RPT  | {statusText} {clOrdID}{reason}{premCcyInfo}");
 
-            // Update blotter (including premium date)
-            TradeBlotter.Instance.UpdateTradeStatus(clOrdID, statusText, execID, null, rejectReason, premiumDate);
+            // Update blotter (including premium date and premium currency from GFI confirmation)
+            TradeBlotter.Instance.UpdateTradeStatus(clOrdID, statusText, execID, null, rejectReason, premiumDate, premiumCcy);
 
-            // Notify listeners
-            OnExecutionReport?.Invoke(clOrdID, statusText, execID);
+            // Notify listeners (include premium currency from GFI confirmation)
+            OnExecutionReport?.Invoke(clOrdID, statusText, execID, premiumCcy);
         }
 
         public void OnMessage(QuickFix.FIX44.TradeCaptureReport report, SessionID sessionID)
