@@ -75,7 +75,7 @@ namespace FXOptionsSimulator.FIX
                 {
                     // Trading credentials
                     username = "swed.obo.stg.api";
-                    password = "ZQcZokEOLjb9";
+                    password = "v4fIzhR3KJCH";
                     sessionType = "Trading";
 
                     // Trading session includes OnBehalfOfCompID in HEADER (not body)
@@ -93,7 +93,7 @@ namespace FXOptionsSimulator.FIX
                 {
                     Console.WriteLine($"[GFI FIX] WARNING: Unknown SenderCompID: {senderCompID}");
                     username = "swed.obo.stg.api";
-                    password = "ZQcZokEOLjb9";
+                    password = "v4fIzhR3KJCH";
                     sessionType = "Unknown";
                 }
 

@@ -543,15 +543,15 @@ IsEnabled = true
                     case 0: // VOL
                         lblBidValue.Text = bidVol.ToString("F2");
                         lblBidValue.FontSize = 56; // Standard size for short values
-                        lblBidSecondary.Text = $"{bidPremium:N0} {premCcy}    {bidLegPremPrice:F2}p";
+                        lblBidSecondary.Text = $"{bidPremium:N0} {premCcy}    {Math.Abs(bidLegPremPrice):F2}p";
                         break;
                     case 1: // Premium
                         lblBidValue.Text = $"{bidPremium:N0}";
                         lblBidValue.FontSize = 36; // Smaller size to fit larger numbers
-                        lblBidSecondary.Text = $"{bidLegPremPrice:F2}p    {bidVol:F2}v";
+                        lblBidSecondary.Text = $"{Math.Abs(bidLegPremPrice):F2}p    {bidVol:F2}v";
                         break;
                     case 2: // EUR Pips (Tag 5844 - LegPremPrice)
-                        lblBidValue.Text = bidLegPremPrice != 0 ? bidLegPremPrice.ToString("F2") : "--";
+                        lblBidValue.Text = bidLegPremPrice != 0 ? Math.Abs(bidLegPremPrice).ToString("F2") : "--";
                         lblBidValue.FontSize = 36; // Smaller size to fit pips values
                         lblBidSecondary.Text = $"{bidPremium:N0} {premCcy}    {bidVol:F2}v";
                         break;
@@ -600,15 +600,15 @@ IsEnabled = true
                     case 0: // VOL
                         lblOfferValue.Text = offerVol.ToString("F2");
                         lblOfferValue.FontSize = 56; // Standard size for short values
-                        lblOfferSecondary.Text = $"{offerPremium:N0} {premCcy}    {offerLegPremPrice:F2}p";
+                        lblOfferSecondary.Text = $"{offerPremium:N0} {premCcy}    {Math.Abs(offerLegPremPrice):F2}p";
                         break;
                     case 1: // Premium
                         lblOfferValue.Text = $"{offerPremium:N0}";
                         lblOfferValue.FontSize = 36; // Smaller size to fit larger numbers
-                        lblOfferSecondary.Text = $"{offerLegPremPrice:F2}p    {offerVol:F2}v";
+                        lblOfferSecondary.Text = $"{Math.Abs(offerLegPremPrice):F2}p    {offerVol:F2}v";
                         break;
                     case 2: // EUR Pips (Tag 5844 - LegPremPrice)
-                        lblOfferValue.Text = offerLegPremPrice != 0 ? offerLegPremPrice.ToString("F2") : "--";
+                        lblOfferValue.Text = offerLegPremPrice != 0 ? Math.Abs(offerLegPremPrice).ToString("F2") : "--";
                         lblOfferValue.FontSize = 36; // Smaller size to fit pips values
                         lblOfferSecondary.Text = $"{offerPremium:N0} {premCcy}    {offerVol:F2}v";
                         break;
@@ -2417,9 +2417,14 @@ if (bestQuote.ValidUntilTime < DateTime.Now)
          
          // Get currency pair and premium currency
          string pair = _trade?.Underlying ?? "EURUSD";
-         string premiumCcy = !string.IsNullOrEmpty(bestQuote.PremiumCurrency)
-             ? bestQuote.PremiumCurrency
-             : (pair.Length >= 6 ? pair.Substring(3, 3) : "USD");  // Premium in quote currency by default
+         
+         // Premium currency: use quote's Tag 5830, or trade's PremiumCurrency (set during RFQ)
+         string premiumCcy = bestQuote.PremiumCurrency ?? _trade?.PremiumCurrency;
+         if (string.IsNullOrEmpty(premiumCcy))
+         {
+             Console.WriteLine($"[WPF] WARNING: No premium currency from quote or trade - check Tag 5830 in quote response");
+             premiumCcy = pair.Substring(0, 3); // Use base currency as last resort, but log the issue
+         }
          
          // Get hedge details from the Delta Exchange dropdown
          string hedgeType = "No Hedge";
@@ -2540,7 +2545,7 @@ if (bestQuote.ValidUntilTime < DateTime.Now)
 Notional = $"{_trade?.Legs?[0]?.NotionalMM ?? 0:F1}MM",
      Volatility = vol.ToString("F2",
  System.Globalization.CultureInfo.InvariantCulture),
-     EurPips = legPremPrice != 0 ? legPremPrice.ToString("F2") : "--",  // Tag 5844: premium per MM (pips)
+     EurPips = legPremPrice != 0 ? Math.Abs(legPremPrice).ToString("F2") : "--",  // Tag 5844: premium per MM (pips)
      PremiumLabel = executionSide == "BUY" ? "PAY" : "RCV",  // Buy = pay premium, Sell = receive premium
      PremiumDisplay = $"{Math.Abs(premium):N0}",  // Format: "54 800" - just the amount
      PremiumCurrency = premiumCcy,

@@ -24,7 +24,7 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
         public string SenderCompID { get; set; } = "WEBFENICS55";
         public string OnBehalfOfCompID { get; set; } = "SWES";
         public string Username { get; set; } = "swed.obo.stg.api";
-        public string Password { get; set; } = "ZQcZokEOLjb9";
+        public string Password { get; set; } = "v4fIzhR3KJCH";
 
         public bool IsTestMode { get; set; } = false;
 
