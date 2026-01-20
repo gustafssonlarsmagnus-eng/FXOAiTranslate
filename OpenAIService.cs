@@ -226,9 +226,14 @@ STRANGLE RULES:
 - Example: ""buy 10m strangle EURUSD 3M 1.08 put / 1.12 call"" → OVML EURUSD 3M 2L B,B 1.0800P,1.1200C N10M,10M VA
 
 SEAGULL STRUCTURE RULES:
-- 3 legs: Buy Put (protection), Sell Put (financing), Sell Call (financing)
-- Example: '40m seagull' → N40M,40M,40M (40M on EACH leg, not 40M total)
-- For zero-cost: solve for the sold call strike that makes net premium = 0
+- 3 legs with put spread + sold call financing
+- PUT SEAGULL (downside protection): Sell Call (financing), Buy high-strike Put, Sell low-strike Put = S,B,S
+  * Example: sell 4.30 call, buy 4.22-4.15 put spread = 3L S,B,S 4.3000C,4.2200P,4.1500P
+  * The put spread is B,S (buy higher strike, sell lower strike)
+- CALL SEAGULL (upside participation): Sell Put (financing), Buy low-strike Call, Sell high-strike Call = S,B,S
+- Example: 40m seagull = N40M,40M,40M (40M on EACH leg, not 40M total)
+- For zero-cost: solve for the sold option strike that makes net premium = 0
+- CRITICAL: For X-Y put spread notation, X is bought (higher strike), Y is sold (lower strike)
 
 VERTICAL SPREAD WITH ""VS"" NOTATION:
 - When ""VS"" appears with SAME expiry on both legs, this is a VERTICAL SPREAD (not calendar)
@@ -493,7 +498,8 @@ Output ONLY the OVML line:";
                         ? expiry.ToUpperInvariant()
                         : expiry,
                     ParseMethod = patternMatched ? $"Learned-Pattern-{matchedPatternName}" : "AI-Success",
-                    AdditionalInfo = aiResponse
+                    AdditionalInfo = aiResponse,
+                    LegCount = ExtractLegCountFromOVML(ovml)  // Extract leg count from OVML string
                 };
                 try
                 {
@@ -716,7 +722,8 @@ Output ONLY the OVML line:";
                             Expiry = Regex.IsMatch(expiry ?? "", @"^\d+[MWYD]$", RegexOptions.IgnoreCase)
                                 ? expiry.ToUpperInvariant()
                                 : expiry,
-                            ParseMethod = $"Learned-Pattern-{pattern.Name}"
+                            ParseMethod = $"Learned-Pattern-{pattern.Name}",
+                            LegCount = ExtractLegCountFromOVML(ovmlWithNewValues)  // Extract leg count from OVML
                         };
                         result.GenerateUBS();
                         return result;
