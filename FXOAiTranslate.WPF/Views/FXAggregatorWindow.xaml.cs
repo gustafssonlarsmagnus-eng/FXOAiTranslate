@@ -1500,6 +1500,9 @@ var leg = _trade.Legs[0];
             // Update Premium Date based on current selection and new delivery date
             UpdatePremiumDate();
 
+            // Update premium currency dropdown based on currency pair (default to quote currency)
+            UpdatePremiumCurrencyDropdown(pair);
+
             Console.WriteLine($"[WPF] UI fields updated from trade structure");
         }
         private DateTime CalculateDeliveryDate(DateTime expiryDate)
@@ -3038,6 +3041,86 @@ catch (Exception ex)
             catch (Exception ex)
             {
                 Console.WriteLine($"[WPF] Error in DeltaExchange_Changed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle premium currency dropdown change - update trade structure with selected currency.
+        /// Premium currency is typically the quote currency (second currency in pair) but can be overridden.
+        /// </summary>
+        private void PremiumCurrency_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (cmbPremiumCurrency == null)
+                    return;
+
+                // Get selected premium currency
+                string premiumCcy = (cmbPremiumCurrency.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "USD";
+
+                // Update trade structure
+                if (_trade != null)
+                {
+                    _trade.PremiumCurrency = premiumCcy;
+                    Console.WriteLine($"[WPF] Premium currency changed to: {premiumCcy}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error in PremiumCurrency_Changed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Update the premium currency dropdown based on currency pair.
+        /// Default is the quote currency (second currency in pair).
+        /// </summary>
+        private void UpdatePremiumCurrencyDropdown(string currencyPair)
+        {
+            if (cmbPremiumCurrency == null || string.IsNullOrEmpty(currencyPair) || currencyPair.Length < 6)
+                return;
+
+            try
+            {
+                // Default premium currency is the quote currency (second currency in pair)
+                string quoteCcy = currencyPair.Substring(3, 3).ToUpperInvariant();
+                
+                // If trade already has a premium currency set, use that
+                string targetCcy = !string.IsNullOrEmpty(_trade?.PremiumCurrency) 
+                    ? _trade.PremiumCurrency 
+                    : quoteCcy;
+
+                // Find and select the matching item in the dropdown
+                bool found = false;
+                for (int i = 0; i < cmbPremiumCurrency.Items.Count; i++)
+                {
+                    if (cmbPremiumCurrency.Items[i] is ComboBoxItem item && 
+                        item.Content?.ToString() == targetCcy)
+                    {
+                        cmbPremiumCurrency.SelectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+
+                // If not found in list, default to first item and update trade
+                if (!found)
+                {
+                    cmbPremiumCurrency.SelectedIndex = 0;
+                    targetCcy = (cmbPremiumCurrency.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "USD";
+                }
+
+                // Update trade structure
+                if (_trade != null)
+                {
+                    _trade.PremiumCurrency = targetCcy;
+                }
+
+                Console.WriteLine($"[WPF] Premium currency dropdown set to: {targetCcy}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error updating premium currency dropdown: {ex.Message}");
             }
         }
 

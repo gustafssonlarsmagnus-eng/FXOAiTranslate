@@ -784,15 +784,31 @@ VerticalAlignment="Center" Margin="0,0,12,0"
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
-                                <!-- Premium Date (shows spot or forward date based on Premium Due selection) -->
+                                <!-- Premium Date with Premium Currency Dropdown -->
                                 <Grid Height="32" Margin="12,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="110"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Premium Date" FontSize="11" Foreground="#64748b" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="lblPremiumDate" Grid.Column="1" Text="--" FontSize="11" Foreground="White" FontWeight="Medium"
-                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <!-- Premium Currency Dropdown -->
+                                    <ComboBox x:Name="cmbPremiumCurrency" Grid.Column="2" Style="{StaticResource DarkComboBox}" 
+                                              Foreground="#3b82f6" FontSize="11" FontWeight="Bold" SelectedIndex="0"
+                                              MinWidth="55" HorizontalContentAlignment="Right" BorderThickness="0"
+                                              SelectionChanged="PremiumCurrency_Changed">
+                                        <ComboBoxItem Content="USD"/>
+                                        <ComboBoxItem Content="EUR"/>
+                                        <ComboBoxItem Content="GBP"/>
+                                        <ComboBoxItem Content="JPY"/>
+                                        <ComboBoxItem Content="CHF"/>
+                                        <ComboBoxItem Content="AUD"/>
+                                        <ComboBoxItem Content="CAD"/>
+                                        <ComboBoxItem Content="SEK"/>
+                                        <ComboBoxItem Content="NOK"/>
+                                    </ComboBox>
                                 </Grid>
                                 <Border Height="1" Background="#1e293b"/>
 
