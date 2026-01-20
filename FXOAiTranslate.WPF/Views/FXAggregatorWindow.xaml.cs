@@ -1359,6 +1359,9 @@ var leg = _trade.Legs[0];
     {
         lblDeltaLabel.Text = $"Delta ({ccy1})";
     }
+    
+    // Update Price Display dropdown with currency-specific pips labels
+    UpdatePriceDisplayDropdown(ccy1, ccy2);
 
     if (txtNotional != null && leg.NotionalMM > 0)
    {
@@ -1625,9 +1628,15 @@ var leg = _trade.Legs[0];
                     {
                         lblDeltaLabel.Text = $"Delta ({ccy1})";
                     }
-           
+
+                    // Update Price Display dropdown with currency-specific pips labels
+                    UpdatePriceDisplayDropdown(ccy1, ccy2);
+
+                    // Update Premium Currency dropdown with pair-specific currencies (NOK/SEK for NOKSEK, etc.)
+                    UpdatePremiumCurrencyDropdown(pair.Substring(0, 6));
+
                     // Hedge amount label header removed - column no longer exists
-  
+
                     // Update trade structure if it exists
                     if (_trade != null)
                     {
@@ -3073,6 +3082,7 @@ catch (Exception ex)
 
         /// <summary>
         /// Update the premium currency dropdown based on currency pair.
+        /// Shows only the two currencies from the pair (e.g., USD and SEK for USDSEK).
         /// Default is the quote currency (second currency in pair).
         /// </summary>
         private void UpdatePremiumCurrencyDropdown(string currencyPair)
@@ -3082,32 +3092,30 @@ catch (Exception ex)
 
             try
             {
-                // Default premium currency is the quote currency (second currency in pair)
+                // Extract both currencies from the pair
+                string baseCcy = currencyPair.Substring(0, 3).ToUpperInvariant();
                 string quoteCcy = currencyPair.Substring(3, 3).ToUpperInvariant();
                 
-                // If trade already has a premium currency set, use that
+                // Determine which currency to select (default to quote currency, or use existing trade setting)
                 string targetCcy = !string.IsNullOrEmpty(_trade?.PremiumCurrency) 
                     ? _trade.PremiumCurrency 
                     : quoteCcy;
 
-                // Find and select the matching item in the dropdown
-                bool found = false;
-                for (int i = 0; i < cmbPremiumCurrency.Items.Count; i++)
-                {
-                    if (cmbPremiumCurrency.Items[i] is ComboBoxItem item && 
-                        item.Content?.ToString() == targetCcy)
-                    {
-                        cmbPremiumCurrency.SelectedIndex = i;
-                        found = true;
-                        break;
-                    }
-                }
 
-                // If not found in list, default to first item and update trade
-                if (!found)
+                // Clear existing items and add only the two currencies from the pair
+                cmbPremiumCurrency.Items.Clear();
+                cmbPremiumCurrency.Items.Add(new ComboBoxItem { Content = quoteCcy });  // Quote currency first (default)
+                cmbPremiumCurrency.Items.Add(new ComboBoxItem { Content = baseCcy });   // Base currency second
+
+                // Select the appropriate currency
+                if (targetCcy == baseCcy)
                 {
-                    cmbPremiumCurrency.SelectedIndex = 0;
-                    targetCcy = (cmbPremiumCurrency.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "USD";
+                    cmbPremiumCurrency.SelectedIndex = 1;  // Base currency is second item
+                }
+                else
+                {
+                    cmbPremiumCurrency.SelectedIndex = 0;  // Quote currency is first item (default)
+                    targetCcy = quoteCcy;
                 }
 
                 // Update trade structure
@@ -3116,7 +3124,7 @@ catch (Exception ex)
                     _trade.PremiumCurrency = targetCcy;
                 }
 
-                Console.WriteLine($"[WPF] Premium currency dropdown set to: {targetCcy}");
+                Console.WriteLine($"[WPF] Premium currency dropdown updated for {currencyPair}: {baseCcy}/{quoteCcy}, selected: {targetCcy}");
             }
             catch (Exception ex)
             {
@@ -3125,8 +3133,41 @@ catch (Exception ex)
         }
 
         /// <summary>
+        /// Update the Price Display dropdown with currency-specific pips labels.
+        /// E.g., for USDSEK: "USD Pips" and "SEK Pips" instead of "EUR Pips" and "USD Pips".
+        /// </summary>
+        private void UpdatePriceDisplayDropdown(string baseCurrency, string quoteCurrency)
+        {
+            if (cmbPriceDisplay == null)
+                return;
+
+            try
+            {
+                // Store current selection
+                int currentIndex = cmbPriceDisplay.SelectedIndex;
+                if (currentIndex < 0) currentIndex = 0;
+
+                // Update items - keep VOL and Premium static, update pips labels with currencies
+                cmbPriceDisplay.Items.Clear();
+                cmbPriceDisplay.Items.Add(new ComboBoxItem { Content = "VOL" });
+                cmbPriceDisplay.Items.Add(new ComboBoxItem { Content = "Premium" });
+                cmbPriceDisplay.Items.Add(new ComboBoxItem { Content = $"{baseCurrency} Pips" });
+                cmbPriceDisplay.Items.Add(new ComboBoxItem { Content = $"{quoteCurrency} Pips" });
+
+                // Restore selection
+                cmbPriceDisplay.SelectedIndex = Math.Min(currentIndex, cmbPriceDisplay.Items.Count - 1);
+
+                Console.WriteLine($"[WPF] Price Display dropdown updated: {baseCurrency} Pips / {quoteCurrency} Pips");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error updating price display dropdown: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Handle price display dropdown change - update hero boxes to show selected price type.
-        /// Options: VOL (volatility), Premium (total premium), EUR Pips (Tag 5844), USD Pips (calculated).
+        /// Options: VOL (volatility), Premium (total premium), Base Pips (Tag 5844), Quote Pips (calculated).
         /// </summary>
         private void PriceDisplay_Changed(object sender, SelectionChangedEventArgs e)
         {
