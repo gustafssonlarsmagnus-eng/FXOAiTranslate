@@ -1,8 +1,12 @@
 ﻿using Bloomberglp.Blpapi;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FXOptionsSimulator
@@ -11,6 +15,51 @@ namespace FXOptionsSimulator
     {
         private IntPtr _bloombergWindow = IntPtr.Zero;
         public bool IsConnected { get; private set; } = false;
+
+        #region Streaming Subscription Support
+        
+        /// <summary>
+        /// Event fired when a subscribed spot rate is updated.
+        /// Parameters: currencyPair, spotRate, timestamp
+        /// </summary>
+        public event Action<string, double, DateTime> OnSpotRateUpdated;
+        
+        /// <summary>
+        /// Event fired when a subscription encounters an error.
+        /// Parameters: currencyPair, errorMessage
+        /// </summary>
+        public event Action<string, string> OnSubscriptionError;
+        
+        // Streaming session management
+        private Session _streamingSession;
+        private readonly ConcurrentDictionary<string, SubscriptionInfo> _activeSubscriptions = new();
+        private Thread _eventProcessingThread;
+        private volatile bool _isProcessingEvents;
+        private readonly object _sessionLock = new object();
+        
+        /// <summary>
+        /// Tracks information about each active subscription
+        /// </summary>
+        private class SubscriptionInfo
+        {
+            public string CurrencyPair { get; set; }
+            public string BloombergTicker { get; set; }
+            public CorrelationID CorrelationId { get; set; }
+            public double? LastRate { get; set; }
+            public DateTime? LastUpdate { get; set; }
+        }
+        
+        /// <summary>
+        /// Check if streaming subscriptions are active
+        /// </summary>
+        public bool IsStreamingActive => _isProcessingEvents && _streamingSession != null;
+        
+        /// <summary>
+        /// Get count of active subscriptions
+        /// </summary>
+        public int ActiveSubscriptionCount => _activeSubscriptions.Count;
+        
+        #endregion
 
         public BloombergService()
         {
@@ -367,6 +416,340 @@ namespace FXOptionsSimulator
                 return null;
             }
         }
+
+        #region Streaming Subscription Methods
+
+        /// <summary>
+        /// Subscribe to live spot rate updates for a currency pair.
+        /// Updates will be delivered via the OnSpotRateUpdated event.
+        /// </summary>
+        /// <param name="currencyPair">Currency pair (e.g., "EURUSD")</param>
+        /// <returns>True if subscription was successful</returns>
+        public bool SubscribeToSpot(string currencyPair)
+        {
+            if (string.IsNullOrEmpty(currencyPair) || currencyPair.Length != 6)
+            {
+                Console.WriteLine($"[Bloomberg Stream] Invalid currency pair: {currencyPair}");
+                return false;
+            }
+
+            string key = currencyPair.ToUpperInvariant();
+            
+            // Check if already subscribed
+            if (_activeSubscriptions.ContainsKey(key))
+            {
+                Console.WriteLine($"[Bloomberg Stream] Already subscribed to {key}");
+                return true;
+            }
+
+            try
+            {
+                // Ensure streaming session is running
+                if (!EnsureStreamingSession())
+                {
+                    Console.WriteLine($"[Bloomberg Stream] Could not start streaming session");
+                    return false;
+                }
+
+                string bloombergTicker = $"{key} Curncy";
+                var correlationId = new CorrelationID(key);
+                
+                var subscriptionInfo = new SubscriptionInfo
+                {
+                    CurrencyPair = key,
+                    BloombergTicker = bloombergTicker,
+                    CorrelationId = correlationId
+                };
+
+                // Create subscription list
+                // Create subscription
+                var topics = new List<Subscription>
+                {
+                    new Subscription(bloombergTicker, "LAST_PRICE,BID,ASK", correlationId)
+                };
+
+                // Subscribe
+                _streamingSession.Subscribe(topics);
+                _activeSubscriptions[key] = subscriptionInfo;
+
+                Console.WriteLine($"[Bloomberg Stream] ✓ Subscribed to {bloombergTicker}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Bloomberg Stream] Subscription error for {currencyPair}: {ex.Message}");
+                OnSubscriptionError?.Invoke(currencyPair, ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Subscribe to multiple currency pairs at once.
+        /// </summary>
+        public bool SubscribeToSpots(IEnumerable<string> currencyPairs)
+        {
+            bool allSuccess = true;
+            foreach (var pair in currencyPairs)
+            {
+                if (!SubscribeToSpot(pair))
+                {
+                    allSuccess = false;
+                }
+            }
+            return allSuccess;
+        }
+
+        /// <summary>
+        /// Unsubscribe from a specific currency pair.
+        /// </summary>
+        public void UnsubscribeFromSpot(string currencyPair)
+        {
+            if (string.IsNullOrEmpty(currencyPair))
+                return;
+
+            string key = currencyPair.ToUpperInvariant();
+            
+            if (_activeSubscriptions.TryRemove(key, out var subInfo))
+            {
+                try
+                {
+                    if (_streamingSession != null)
+                    {
+                        var topics = new List<Subscription>
+                        {
+                            new Subscription(subInfo.BloombergTicker, "", subInfo.CorrelationId)
+                        };
+                        _streamingSession.Unsubscribe(topics);
+                    }
+                    
+                    Console.WriteLine($"[Bloomberg Stream] Unsubscribed from {key}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Bloomberg Stream] Unsubscribe error: {ex.Message}");
+                }
+            }
+            
+            // If no more subscriptions, stop the session
+            if (_activeSubscriptions.IsEmpty)
+            {
+                StopStreamingSession();
+            }
+        }
+
+        /// <summary>
+        /// Unsubscribe from all active subscriptions.
+        /// </summary>
+        public void UnsubscribeAll()
+        {
+            foreach (var key in _activeSubscriptions.Keys.ToArray())
+            {
+                UnsubscribeFromSpot(key);
+            }
+            
+            StopStreamingSession();
+        }
+
+        /// <summary>
+        /// Get the last known rate for a subscribed currency pair.
+        /// </summary>
+        public double? GetCachedSpotRate(string currencyPair)
+        {
+            if (string.IsNullOrEmpty(currencyPair))
+                return null;
+
+            string key = currencyPair.ToUpperInvariant();
+            
+            if (_activeSubscriptions.TryGetValue(key, out var subInfo))
+            {
+                return subInfo.LastRate;
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// Ensure the streaming session is running.
+        /// </summary>
+        private bool EnsureStreamingSession()
+        {
+            lock (_sessionLock)
+            {
+                if (_streamingSession != null && _isProcessingEvents)
+                {
+                    return true;
+                }
+
+                try
+                {
+                    // Create session options for market data
+                    var sessionOptions = new SessionOptions();
+                    sessionOptions.ServerHost = "localhost";
+                    sessionOptions.ServerPort = 8194; // Default Bloomberg API port
+                    
+                    _streamingSession = new Session(sessionOptions);
+                    
+                    if (!_streamingSession.Start())
+                    {
+                        Console.WriteLine("[Bloomberg Stream] Failed to start session");
+                        _streamingSession = null;
+                        return false;
+                    }
+
+                    if (!_streamingSession.OpenService("//blp/mktdata"))
+                    {
+                        Console.WriteLine("[Bloomberg Stream] Failed to open mktdata service");
+                        _streamingSession.Stop();
+                        _streamingSession = null;
+                        return false;
+                    }
+
+                    // Start event processing thread
+                    _isProcessingEvents = true;
+                    _eventProcessingThread = new Thread(ProcessEvents)
+                    {
+                        IsBackground = true,
+                        Name = "BloombergStreamProcessor"
+                    };
+                    _eventProcessingThread.Start();
+
+                    Console.WriteLine("[Bloomberg Stream] ✓ Streaming session started");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Bloomberg Stream] Session start error: {ex.Message}");
+                    _streamingSession = null;
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Stop the streaming session.
+        /// </summary>
+        private void StopStreamingSession()
+        {
+            lock (_sessionLock)
+            {
+                _isProcessingEvents = false;
+                
+                if (_streamingSession != null)
+                {
+                    try
+                    {
+                        _streamingSession.Stop();
+                    }
+                    catch { }
+                    
+                    _streamingSession = null;
+                }
+                
+                Console.WriteLine("[Bloomberg Stream] Session stopped");
+            }
+        }
+
+        /// <summary>
+        /// Background thread to process streaming events.
+        /// </summary>
+        private void ProcessEvents()
+        {
+            Console.WriteLine("[Bloomberg Stream] Event processing started");
+            
+            while (_isProcessingEvents && _streamingSession != null)
+            {
+                try
+                {
+                    var evt = _streamingSession.NextEvent(1000); // 1 second timeout
+                    if (evt == null) continue;
+
+                    foreach (Bloomberglp.Blpapi.Message msg in evt)
+                    {
+                        ProcessMessage(msg, evt.Type);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (_isProcessingEvents)
+                    {
+                        Console.WriteLine($"[Bloomberg Stream] Event processing error: {ex.Message}");
+                    }
+                }
+            }
+            
+            Console.WriteLine("[Bloomberg Stream] Event processing stopped");
+        }
+
+        /// <summary>
+        /// Process a single Bloomberg message.
+        /// </summary>
+        private void ProcessMessage(Bloomberglp.Blpapi.Message msg, Event.EventType eventType)
+        {
+            try
+            {
+                var correlationId = msg.CorrelationID;
+                if (correlationId == null) return;
+
+                string key = correlationId.Object?.ToString();
+                if (string.IsNullOrEmpty(key)) return;
+
+                if (!_activeSubscriptions.TryGetValue(key, out var subInfo))
+                    return;
+
+                // Handle subscription status messages
+                if (eventType == Event.EventType.SUBSCRIPTION_STATUS)
+                {
+                    if (msg.HasElement("reason"))
+                    {
+                        var reason = msg.GetElement("reason");
+                        string category = reason.HasElement("category") ? reason.GetElementAsString("category") : "";
+                        string desc = reason.HasElement("description") ? reason.GetElementAsString("description") : "";
+                        
+                        Console.WriteLine($"[Bloomberg Stream] {key} status: {category} - {desc}");
+                        
+                        if (category == "BAD_SEC" || category == "NOT_ENTITLED")
+                        {
+                            OnSubscriptionError?.Invoke(key, $"{category}: {desc}");
+                        }
+                    }
+                    return;
+                }
+
+                // Handle subscription data
+                if (eventType == Event.EventType.SUBSCRIPTION_DATA)
+                {
+                    double? lastPrice = null;
+                    
+                    // Try to get LAST_PRICE first, then fall back to MID of BID/ASK
+                    if (msg.HasElement("LAST_PRICE"))
+                    {
+                        lastPrice = msg.GetElementAsFloat64("LAST_PRICE");
+                    }
+                    else if (msg.HasElement("BID") && msg.HasElement("ASK"))
+                    {
+                        double bid = msg.GetElementAsFloat64("BID");
+                        double ask = msg.GetElementAsFloat64("ASK");
+                        lastPrice = (bid + ask) / 2.0;
+                    }
+
+                    if (lastPrice.HasValue && lastPrice.Value > 0)
+                    {
+                        var now = DateTime.Now;
+                        subInfo.LastRate = lastPrice.Value;
+                        subInfo.LastUpdate = now;
+                        
+                        // Fire the event
+                        OnSpotRateUpdated?.Invoke(key, lastPrice.Value, now);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Bloomberg Stream] Message processing error: {ex.Message}");
+            }
+        }
+
+        #endregion
 
         public string DetermineCallOrPut(double strikePrice, string currencyPair)
         {

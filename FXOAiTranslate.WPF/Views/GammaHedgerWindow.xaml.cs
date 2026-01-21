@@ -11,6 +11,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using FXOptionsSimulator;
+using FXOAiTranslate.WPF.Views;
 
 // Aliases to resolve WinForms/WPF type conflicts (caused by UseWindowsForms=true for TradeParser)
 using Color = System.Windows.Media.Color;
@@ -25,6 +26,141 @@ namespace FXOAiTranslate.WPF.Views
     /// </summary>
     public partial class GammaHedgerWindow : Window, INotifyPropertyChanged
     {
+        #region Static Registry for Cross-Window Communication
+        
+        /// <summary>
+        /// Registry of active Gamma Hedger windows indexed by currency pair.
+        /// Used to notify hedgers when delta hedges are executed in FX Aggregator.
+        /// </summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, GammaHedgerWindow> _activeHedgers 
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, GammaHedgerWindow>();
+
+        /// <summary>
+        /// Apply a delta hedge to the Gamma Hedger for a specific currency pair.
+        /// Called from FX Aggregator when a hedge is executed.
+        /// </summary>
+        /// <param name="currencyPair">Currency pair (e.g., "EURUSD")</param>
+        /// <param name="hedgeAmount">Signed hedge amount in base currency (positive = bought, negative = sold)</param>
+        /// <param name="hedgeRate">Rate at which the hedge was executed</param>
+        /// <param name="hedgeType">Type of hedge: "Spot" or "Forward"</param>
+        /// <returns>True if a Gamma Hedger was found and updated</returns>
+        public static bool ApplyDeltaHedge(string currencyPair, double hedgeAmount, double hedgeRate, string hedgeType = "Spot")
+        {
+            if (string.IsNullOrEmpty(currencyPair))
+                return false;
+
+            string key = currencyPair.ToUpperInvariant();
+            
+            if (_activeHedgers.TryGetValue(key, out var hedger))
+            {
+                // Marshal to UI thread
+                hedger.Dispatcher.BeginInvoke(() =>
+                {
+                    hedger.ApplyHedgeInternal(hedgeAmount, hedgeRate, hedgeType);
+                });
+                
+                Console.WriteLine($"[GammaHedger] Applied hedge to {currencyPair}: {hedgeAmount:N0} @ {hedgeRate:F4}");
+                return true;
+            }
+            
+            Console.WriteLine($"[GammaHedger] No active hedger found for {currencyPair}");
+            return false;
+        }
+        
+        /// <summary>
+        /// Static initializer to subscribe to TradeBlotter hedge events.
+        /// </summary>
+        static GammaHedgerWindow()
+        {
+            // Subscribe to TradeBlotter hedge events to automatically update Gamma Hedgers
+            TradeBlotter.Instance.OnHedgeExecuted += (currencyPair, hedgeAmount, hedgeRate, hedgeType) =>
+            {
+                ApplyDeltaHedge(currencyPair, hedgeAmount, hedgeRate, hedgeType);
+            };
+            
+            Console.WriteLine("[GammaHedger] Subscribed to TradeBlotter hedge events");
+        }
+
+        /// <summary>
+        /// Check if there's an active Gamma Hedger for a currency pair.
+        /// </summary>
+        public static bool HasActiveHedger(string currencyPair)
+        {
+            if (string.IsNullOrEmpty(currencyPair))
+                return false;
+            
+            return _activeHedgers.ContainsKey(currencyPair.ToUpperInvariant());
+        }
+
+        /// <summary>
+        /// Register this window in the static registry.
+        /// </summary>
+        private void RegisterInRegistry()
+        {
+            if (!string.IsNullOrEmpty(CurrencyPair))
+            {
+                string key = CurrencyPair.ToUpperInvariant();
+                _activeHedgers[key] = this;
+                Console.WriteLine($"[GammaHedger] Registered hedger for {key}");
+            }
+        }
+
+        /// <summary>
+        /// Unregister this window from the static registry.
+        /// </summary>
+        private void UnregisterFromRegistry()
+        {
+            if (!string.IsNullOrEmpty(CurrencyPair))
+            {
+                string key = CurrencyPair.ToUpperInvariant();
+                _activeHedgers.TryRemove(key, out _);
+                Console.WriteLine($"[GammaHedger] Unregistered hedger for {key}");
+            }
+        }
+
+        /// <summary>
+        /// Internal method to apply a hedge (runs on UI thread).
+        /// </summary>
+        private void ApplyHedgeInternal(double hedgeAmount, double hedgeRate, string hedgeType)
+        {
+            // Calculate the delta impact of the hedge
+            // Buying spot reduces delta (you're now long spot to offset short delta)
+            // Selling spot increases delta (you're now short spot to offset long delta)
+            double deltaReduction = hedgeAmount;
+            
+            double previousDelta = CurrentDelta;
+            CurrentDelta -= deltaReduction;
+            
+            // Log the hedge
+            string side = hedgeAmount > 0 ? "BUY" : "SELL";
+            double absAmount = Math.Abs(hedgeAmount);
+            
+            LogActivity($"?? HEDGE APPLIED: {side} {absAmount:N0} {HedgeThresholdCcy} @ {hedgeRate:F4} ({hedgeType})", "HEDGE");
+            LogActivity($"   Delta: {previousDelta:N0} ? {CurrentDelta:N0} (? {-deltaReduction:+#,##0;-#,##0})", "INFO");
+            
+            // Update threshold status
+            UpdateThresholdStatus();
+            
+            // If we've reduced delta below threshold, hide any alert and reset alert state
+            if (Math.Abs(CurrentDelta) < HedgeThreshold && _alertShown)
+            {
+                hedgeAlertOverlay.Visibility = Visibility.Collapsed;
+                _alertShown = false;
+                Status = "Active";
+                LogActivity("? Delta within threshold after hedge", "INFO");
+            }
+            
+            // Speak confirmation
+            try
+            {
+                string amountInMillions = (absAmount / 1_000_000).ToString("F1");
+                _speechSynthesizer.SpeakAsync($"Hedge applied. {side} {amountInMillions} million");
+            }
+            catch { }
+        }
+
+        #endregion
+
         #region Observable Collections
         
         public ObservableCollection<GammaHedgerTab> Tabs { get; set; }
@@ -112,7 +248,18 @@ namespace FXOAiTranslate.WPF.Views
         public string CurrencyPair
         {
             get => _currencyPair;
-            set { _currencyPair = value; OnPropertyChanged(); UpdateWindowTitle(); }
+            set 
+            { 
+                // Unregister old currency pair
+                UnregisterFromRegistry();
+                
+                _currencyPair = value; 
+                OnPropertyChanged(); 
+                UpdateWindowTitle();
+                
+                // Register new currency pair
+                RegisterInRegistry();
+            }
         }
 
         private double _currentSpot;
@@ -309,11 +456,45 @@ namespace FXOAiTranslate.WPF.Views
 
         #region Spot Monitoring
 
+        private bool _useStreaming = true; // Try streaming first
+        
         private void StartSpotMonitoring()
         {
             if (string.IsNullOrEmpty(CurrencyPair)) return;
 
-            _spotPollingTimer.Start();
+            // Try to use Bloomberg streaming first
+            if (_useStreaming)
+            {
+                try
+                {
+                    // Subscribe to streaming updates
+                    _bloombergService.OnSpotRateUpdated += OnBloombergSpotUpdate;
+                    _bloombergService.OnSubscriptionError += OnBloombergSubscriptionError;
+                    
+                    if (_bloombergService.SubscribeToSpot(CurrencyPair))
+                    {
+                        LogActivity($"?? Bloomberg LIVE STREAM started for {CurrencyPair}", "INFO");
+                        // Don't start polling timer - we're using streaming
+                    }
+                    else
+                    {
+                        LogActivity($"Bloomberg streaming unavailable - falling back to polling", "WARN");
+                        _useStreaming = false;
+                        _spotPollingTimer.Start();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogActivity($"Streaming setup failed: {ex.Message} - using polling", "WARN");
+                    _useStreaming = false;
+                    _spotPollingTimer.Start();
+                }
+            }
+            else
+            {
+                _spotPollingTimer.Start();
+            }
+
             _hedgeCheckTimer.Start();
             _chartUpdateTimer.Start();
             
@@ -326,7 +507,71 @@ namespace FXOAiTranslate.WPF.Views
             _hedgeCheckTimer.Stop();
             _chartUpdateTimer.Stop();
             
+            // Unsubscribe from streaming
+            if (_useStreaming && !string.IsNullOrEmpty(CurrencyPair))
+            {
+                try
+                {
+                    _bloombergService.OnSpotRateUpdated -= OnBloombergSpotUpdate;
+                    _bloombergService.OnSubscriptionError -= OnBloombergSubscriptionError;
+                    _bloombergService.UnsubscribeFromSpot(CurrencyPair);
+                    LogActivity($"?? Bloomberg stream stopped for {CurrencyPair}", "INFO");
+                }
+                catch { }
+            }
+            
             LogActivity("Stopped spot monitoring", "INFO");
+        }
+
+        /// <summary>
+        /// Handle streaming spot rate updates from Bloomberg
+        /// </summary>
+        private void OnBloombergSpotUpdate(string currencyPair, double spotRate, DateTime timestamp)
+        {
+            // Only process updates for our currency pair
+            if (!string.Equals(currencyPair, CurrencyPair, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // Marshal to UI thread
+            Dispatcher.BeginInvoke(() =>
+            {
+                CurrentSpot = spotRate;
+                
+                // Add to chart data
+                SpotChartData.Add(new SpotDataPoint
+                {
+                    Time = timestamp,
+                    Spot = spotRate
+                });
+
+                // Keep only last 300 data points (5 mins at ~1/sec)
+                while (SpotChartData.Count > 300)
+                {
+                    SpotChartData.RemoveAt(0);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Handle Bloomberg subscription errors
+        /// </summary>
+        private void OnBloombergSubscriptionError(string currencyPair, string errorMessage)
+        {
+            if (!string.Equals(currencyPair, CurrencyPair, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            Dispatcher.BeginInvoke(() =>
+            {
+                LogActivity($"Bloomberg stream error: {errorMessage}", "ERROR");
+                
+                // Fall back to polling if streaming fails
+                if (_useStreaming && !_spotPollingTimer.IsEnabled)
+                {
+                    _useStreaming = false;
+                    _spotPollingTimer.Start();
+                    LogActivity("Switched to polling mode due to stream error", "WARN");
+                }
+            });
         }
 
         private async void SpotPollingTimer_Tick(object sender, EventArgs e)
@@ -811,6 +1056,9 @@ namespace FXOAiTranslate.WPF.Views
 
         protected override void OnClosed(EventArgs e)
         {
+            // Unregister from static registry
+            UnregisterFromRegistry();
+            
             StopSpotMonitoring();
             _speechSynthesizer?.Dispose();
             base.OnClosed(e);

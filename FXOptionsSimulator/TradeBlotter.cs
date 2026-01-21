@@ -57,6 +57,7 @@ namespace FXOptionsSimulator
         public double? HedgeAmount { get; set; }  // Hedge Amt
         public double? HedgeRate { get; set; }  // Hedge Rate
         public string HedgeDeliveryDate { get; set; }  // Hedge Del Date
+        public string HedgeType { get; set; }  // "Spot" or "Forward"
 
         // Reject Handling
         public string RejectReason { get; set; }
@@ -80,6 +81,12 @@ namespace FXOptionsSimulator
 
         public event Action<TradeBlotterEntry> OnTradeAdded;
         public event Action<TradeBlotterEntry> OnTradeUpdated;
+        
+        /// <summary>
+        /// Event fired when a hedge is executed, allowing Gamma Hedger integration.
+        /// Parameters: currencyPair, hedgeAmount (signed), hedgeRate, hedgeType
+        /// </summary>
+        public event Action<string, double, double, string> OnHedgeExecuted;
 
         private TradeBlotter()
         {
@@ -99,9 +106,11 @@ namespace FXOptionsSimulator
         public void UpdateTradeStatus(string clOrdID, string status, string execID = null,
             double? fillPrice = null, string rejectReason = null, string premiumDate = null, string premiumCcy = null)
         {
+            TradeBlotterEntry trade = null;
+            
             lock (_lock)
             {
-                var trade = _trades.FirstOrDefault(t => t.ClOrdID == clOrdID);
+                trade = _trades.FirstOrDefault(t => t.ClOrdID == clOrdID);
                 if (trade != null)
                 {
                     trade.Status = status;
@@ -124,12 +133,70 @@ namespace FXOptionsSimulator
                     }
 
                     Console.WriteLine($"[Blotter] Trade updated: {clOrdID} - Status: {status}");
-                    OnTradeUpdated?.Invoke(trade);
                 }
                 else
                 {
                     Console.WriteLine($"[Blotter] WARNING: Trade {clOrdID} not found");
                 }
+            }
+            
+            // Notify trade update
+            if (trade != null)
+            {
+                OnTradeUpdated?.Invoke(trade);
+                
+                // If trade is FILLED and has hedge info, notify Gamma Hedger
+                if (status == "FILLED" && trade.HedgeAmount.HasValue && trade.HedgeRate.HasValue)
+                {
+                    NotifyHedgeExecuted(trade);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Update trade with hedge information and notify Gamma Hedger if trade is filled.
+        /// Call this when execution report comes back with hedge details.
+        /// </summary>
+        public void UpdateTradeHedgeInfo(string clOrdID, string hedgeSide, double hedgeAmount, double hedgeRate, string hedgeType = "Spot")
+        {
+            TradeBlotterEntry trade = null;
+            
+            lock (_lock)
+            {
+                trade = _trades.FirstOrDefault(t => t.ClOrdID == clOrdID);
+                if (trade != null)
+                {
+                    trade.HedgeSide = hedgeSide;
+                    trade.HedgeAmount = hedgeAmount;
+                    trade.HedgeRate = hedgeRate;
+                    trade.HedgeType = hedgeType;
+                    
+                    Console.WriteLine($"[Blotter] Hedge info updated for {clOrdID}: {hedgeSide} {hedgeAmount:N0} @ {hedgeRate:F4} ({hedgeType})");
+                }
+            }
+            
+            // If trade is already filled, notify Gamma Hedger now
+            if (trade != null && trade.Status == "FILLED")
+            {
+                NotifyHedgeExecuted(trade);
+            }
+        }
+        
+        /// <summary>
+        /// Notify Gamma Hedger that a hedge was executed
+        /// </summary>
+        private void NotifyHedgeExecuted(TradeBlotterEntry trade)
+        {
+            if (trade.HedgeAmount.HasValue && trade.HedgeRate.HasValue && !string.IsNullOrEmpty(trade.Underlying))
+            {
+                // Calculate signed hedge amount (positive = bought, negative = sold)
+                double signedAmount = trade.HedgeSide == "BUY" ? trade.HedgeAmount.Value : -trade.HedgeAmount.Value;
+                string hedgeType = trade.HedgeType ?? "Spot";
+                
+                Console.WriteLine($"[Blotter] Notifying Gamma Hedger: {trade.Underlying} hedge {trade.HedgeSide} {trade.HedgeAmount:N0} @ {trade.HedgeRate:F4}");
+                
+                // Fire the event for Gamma Hedger integration
+                OnHedgeExecuted?.Invoke(trade.Underlying, signedAmount, trade.HedgeRate.Value, hedgeType);
             }
         }
 
