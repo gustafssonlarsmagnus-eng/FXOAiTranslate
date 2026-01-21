@@ -2772,6 +2772,46 @@ catch (Exception ex)
             }
         }
 
+        /// <summary>
+        /// Send the current parsed trade to the Gamma Hedger for delta monitoring.
+        /// Opens a new GammaHedgerWindow with the current trade structure pre-loaded.
+        /// </summary>
+        private void SendToGammaHedger_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Validate we have a trade to send
+                if (_trade == null || _trade.Legs == null || _trade.Legs.Count == 0)
+                {
+                    MessageBox.Show("Please parse a trade first before sending to Gamma Hedger.", 
+                        "No Trade", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Validate currency pair
+                if (string.IsNullOrEmpty(_trade.Underlying) || _trade.Underlying.Length < 6)
+                {
+                    MessageBox.Show("Please enter a valid currency pair before sending to Gamma Hedger.", 
+                        "Invalid Currency Pair", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                Console.WriteLine($"[WPF] Sending trade to Gamma Hedger: {_trade.Underlying} {_trade.StructureType}");
+
+                // Create and show the Gamma Hedger window with the current trade
+                var gammaHedgerWindow = new GammaHedgerWindow(_trade);
+                gammaHedgerWindow.Show();
+
+                Console.WriteLine($"[WPF] Gamma Hedger window opened for {_trade.Underlying}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WPF] Error opening Gamma Hedger: {ex.Message}");
+                MessageBox.Show($"Error opening Gamma Hedger: {ex.Message}", 
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         #endregion
 
         /// <summary>

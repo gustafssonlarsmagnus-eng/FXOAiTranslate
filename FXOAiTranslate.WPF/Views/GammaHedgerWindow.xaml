@@ -1,0 +1,461 @@
+<Window x:Class="FXOAiTranslate.WPF.Views.GammaHedgerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Gamma Hedger" 
+        Height="750" Width="1250"
+        Background="#0f172a"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <!-- Dark theme colors matching FXAggregator -->
+        <SolidColorBrush x:Key="BackgroundDark" Color="#0f172a"/>
+        <SolidColorBrush x:Key="BackgroundCard" Color="#1e293b"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#334155"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#f1f5f9"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#94a3b8"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#64748b"/>
+        <SolidColorBrush x:Key="AccentBlue" Color="#3b82f6"/>
+        <SolidColorBrush x:Key="AccentGreen" Color="#22c55e"/>
+        <SolidColorBrush x:Key="AccentRed" Color="#ef4444"/>
+        <SolidColorBrush x:Key="AccentAmber" Color="#f59e0b"/>
+        <SolidColorBrush x:Key="StatusIncomplete" Color="#eab308"/>
+        
+        <!-- Input style -->
+        <Style x:Key="DarkInput" TargetType="TextBox">
+            <Setter Property="Background" Value="#0f172a"/>
+            <Setter Property="Foreground" Value="#f1f5f9"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CaretBrush" Value="#f1f5f9"/>
+        </Style>
+        
+        <!-- ComboBox style -->
+        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#0f172a"/>
+            <Setter Property="Foreground" Value="#f1f5f9"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        
+        <!-- Label style -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#94a3b8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- Tab bar -->
+            <RowDefinition Height="Auto"/>  <!-- Header -->
+            <RowDefinition Height="*"/>     <!-- Main content -->
+        </Grid.RowDefinitions>
+        
+        <!-- Tab Bar -->
+        <Border Grid.Row="0" Background="#1e293b" BorderBrush="#334155" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Margin="8,4">
+                <ItemsControl x:Name="tabsControl" ItemsSource="{Binding Tabs}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#1e293b" 
+                                    CornerRadius="4" Margin="0,0,4,0" Padding="8,4"
+                                    BorderBrush="#22c55e" BorderThickness="1">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="8" Height="8" Fill="#22c55e" Margin="0,0,6,0"/>
+                                    <TextBlock Text="{Binding CurrencyPair}" Foreground="#f1f5f9" FontSize="12" FontWeight="SemiBold"/>
+                                    <Button Content="?" Background="Transparent" BorderThickness="0" 
+                                            Foreground="#64748b" FontSize="10" Margin="8,0,0,0" Cursor="Hand"
+                                            Click="CloseTab_Click"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Content="+" Background="Transparent" BorderThickness="0" 
+                        Foreground="#64748b" FontSize="16" Padding="8,4" Cursor="Hand"
+                        Click="AddTab_Click" ToolTip="Add position from FXOAi Translator"/>
+            </StackPanel>
+        </Border>
+        
+        <!-- Header -->
+        <Border Grid.Row="1" Background="#1e293b" BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Counterparty -->
+                <StackPanel Grid.Column="0" Margin="0,0,32,0">
+                    <TextBlock Text="Counterparty" Style="{StaticResource FieldLabel}"/>
+                    <TextBlock Text="{Binding Counterparty}" Foreground="#f1f5f9" FontSize="16" FontWeight="SemiBold"/>
+                </StackPanel>
+                
+                <!-- Status -->
+                <StackPanel Grid.Column="1" Margin="0,0,32,0">
+                    <TextBlock Text="Status" Style="{StaticResource FieldLabel}"/>
+                    <Border Background="{Binding StatusBackground}" CornerRadius="4" Padding="12,4">
+                        <TextBlock Text="{Binding Status}" Foreground="#000" FontWeight="SemiBold" FontSize="13"/>
+                    </Border>
+                </StackPanel>
+                
+                <!-- Strategy Type -->
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Strategy Type" Style="{StaticResource FieldLabel}"/>
+                    <TextBlock Text="Gamma Hedger" Foreground="#f1f5f9" FontSize="16" FontWeight="SemiBold"/>
+                </StackPanel>
+                
+                <!-- Created By (right aligned) -->
+                <StackPanel Grid.Column="4" HorizontalAlignment="Right">
+                    <TextBlock Text="Created By" Style="{StaticResource FieldLabel}"/>
+                    <TextBlock Text="{Binding CreatedBy}" Foreground="#94a3b8" FontSize="13"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- Main Content -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280"/>  <!-- Left panel: Parameters -->
+                <ColumnDefinition Width="*"/>    <!-- Center: Position + Chart -->
+                <ColumnDefinition Width="280"/>  <!-- Right panel: Activity -->
+            </Grid.ColumnDefinitions>
+            
+            <!-- LEFT PANEL: Hedge Parameters -->
+            <Border Grid.Column="0" Background="#1e293b" BorderBrush="#334155" BorderThickness="0,0,1,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16">
+                        
+                        <!-- Hedge Threshold -->
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="Hedge Threshold" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtHedgeThreshold" Style="{StaticResource DarkInput}"
+                                     Text="{Binding HedgeThreshold, StringFormat=N0, UpdateSourceTrigger=PropertyChanged}"
+                                     LostFocus="HedgeThreshold_LostFocus"/>
+                        </StackPanel>
+                        
+                        <!-- Hedge Threshold CCY -->
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="Hedge Threshold CCY" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="cmbThresholdCcy" Style="{StaticResource DarkComboBox}"
+                                      SelectedValue="{Binding HedgeThresholdCcy}">
+                                <ComboBoxItem Content="EUR"/>
+                                <ComboBoxItem Content="USD"/>
+                                <ComboBoxItem Content="GBP"/>
+                                <ComboBoxItem Content="SEK"/>
+                                <ComboBoxItem Content="NOK"/>
+                                <ComboBoxItem Content="CNH"/>
+                            </ComboBox>
+                        </StackPanel>
+                        
+                        <!-- Upper Trading Limit -->
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="Upper Trading Limit" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtUpperLimit" Style="{StaticResource DarkInput}"
+                                     Text="{Binding UpperTradingLimit, StringFormat=F4, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        
+                        <!-- Lower Trading Limit -->
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="Lower Trading Limit" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtLowerLimit" Style="{StaticResource DarkInput}"
+                                     Text="{Binding LowerTradingLimit, StringFormat=F4, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        
+                        <!-- Max Spread to Trade (optional) -->
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="Max Spread to Trade" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtMaxSpread" Style="{StaticResource DarkInput}"
+                                     Text="{Binding MaxSpreadToTrade, StringFormat=F4, TargetNullValue='(optional)'}"/>
+                        </StackPanel>
+                        
+                        <!-- Trade Step Size (optional) -->
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="Trade Step Size" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtStepSize" Style="{StaticResource DarkInput}"
+                                     Text="{Binding TradeStepSize, StringFormat=N0, TargetNullValue='(optional)'}"/>
+                        </StackPanel>
+                        
+                        <!-- STP Book (optional) -->
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="STP Book" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="txtStpBook" Style="{StaticResource DarkInput}"
+                                     Text="{Binding StpBook, TargetNullValue='(optional)'}"/>
+                        </StackPanel>
+                        
+                        <!-- Info banner -->
+                        <Border Background="#1e40af" CornerRadius="4" Padding="12,8" Margin="0,0,0,16">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="?" Foreground="#60a5fa" FontSize="14" Margin="0,0,8,0"/>
+                                <TextBlock Text="Enter ladder data or paste into first field" 
+                                           Foreground="#bfdbfe" FontSize="12" TextWrapping="Wrap" Width="180"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Gamma Ladder Section -->
+                        <Border Background="#0f172a" CornerRadius="4" Padding="12" Margin="0,0,0,16">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <TextBlock Text="Gamma Ladder" Foreground="#f1f5f9" FontWeight="SemiBold"/>
+                                    <ComboBox HorizontalAlignment="Right" Width="80" FontSize="11"
+                                              Background="#1e293b" Foreground="#94a3b8" BorderThickness="0">
+                                        <ComboBoxItem Content="Select" IsSelected="True"/>
+                                    </ComboBox>
+                                </Grid>
+                                
+                                <!-- Ladder Header -->
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="24"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="1" Text="Spot" Foreground="#64748b" FontSize="11"/>
+                                    <TextBlock Grid.Column="2" Text="Gamma" Foreground="#64748b" FontSize="11"/>
+                                </Grid>
+                                
+                                <!-- Ladder Rows -->
+                                <ItemsControl x:Name="ladderControl" ItemsSource="{Binding GammaLadder}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="24"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Button Grid.Column="0" Content="?" Background="Transparent" 
+                                                        BorderThickness="0" Foreground="#64748b" FontSize="10"
+                                                        Click="RemoveLadderRow_Click" Cursor="Hand"/>
+                                                <TextBox Grid.Column="1" Style="{StaticResource DarkInput}" Margin="0,0,4,0"
+                                                         Text="{Binding Spot, StringFormat=F4, TargetNullValue='Enter value'}"/>
+                                                <TextBox Grid.Column="2" Style="{StaticResource DarkInput}"
+                                                         Text="{Binding Gamma, StringFormat=N0, TargetNullValue='Enter value'}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                
+                                <!-- Ladder Actions -->
+                                <Grid Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="? Clear all" Background="Transparent" BorderThickness="0"
+                                                Foreground="#64748b" FontSize="11" Cursor="Hand"
+                                                Click="ClearLadder_Click"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Content="??" Background="Transparent" BorderThickness="0"
+                                                Foreground="#64748b" FontSize="14" Cursor="Hand" ToolTip="Paste from clipboard"/>
+                                        <Button Content="+" Background="Transparent" BorderThickness="0"
+                                                Foreground="#64748b" FontSize="16" Cursor="Hand" Margin="8,0,0,0"
+                                                Click="AddLadderRow_Click"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Save Button -->
+                        <Button x:Name="btnSave" Content="Save" Background="#3b82f6" Foreground="White" 
+                                FontWeight="SemiBold" Padding="16,10" BorderThickness="0"
+                                HorizontalAlignment="Center" Cursor="Hand"
+                                Click="Save_Click"/>
+                        
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+            
+            <!-- CENTER PANEL: Position + Chart -->
+            <Grid Grid.Column="1" Margin="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- Position grid -->
+                    <RowDefinition Height="*"/>     <!-- Spot chart -->
+                </Grid.RowDefinitions>
+                
+                <!-- Position Section -->
+                <Border Grid.Row="0" Background="#1e293b" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <!-- Position Header -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <TextBlock Text="Position" Foreground="#f1f5f9" FontSize="14" FontWeight="SemiBold"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="btnLock" Content="??" Background="Transparent" BorderThickness="0"
+                                        Foreground="#64748b" FontSize="14" Cursor="Hand" Margin="0,0,8,0"
+                                        Click="Lock_Click" ToolTip="Lock position (prevent auto-hedging)"/>
+                                <Button x:Name="btnFlattenNow" Content="Flatten Now" 
+                                        Background="#ef4444" Foreground="White" 
+                                        FontWeight="SemiBold" Padding="12,6" BorderThickness="0"
+                                        Cursor="Hand" Click="FlattenNow_Click"/>
+                            </StackPanel>
+                        </Grid>
+                        
+                        <!-- Position Grid -->
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- Delta -->
+                            <Border Grid.Column="0" Background="#0f172a" CornerRadius="4" Padding="12" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="Delta" Foreground="#64748b" FontSize="11"/>
+                                    <TextBlock x:Name="lblDeltaValue" Text="{Binding CurrentDelta, StringFormat=N0}" 
+                                               Foreground="#f1f5f9" FontSize="20" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding HedgeThresholdCcy}" Foreground="#64748b" FontSize="11"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- Gamma -->
+                            <Border Grid.Column="1" Background="#0f172a" CornerRadius="4" Padding="12" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="Gamma" Foreground="#64748b" FontSize="11"/>
+                                    <TextBlock Text="{Binding CurrentGamma, StringFormat=N0}" 
+                                               Foreground="#f1f5f9" FontSize="20" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- Spot -->
+                            <Border Grid.Column="2" Background="#0f172a" CornerRadius="4" Padding="12" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="Spot" Foreground="#64748b" FontSize="11"/>
+                                    <TextBlock x:Name="lblSpotValue" Text="{Binding CurrentSpot, StringFormat=F4}" 
+                                               Foreground="#f1f5f9" FontSize="20" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- Threshold Status -->
+                            <Border Grid.Column="3" x:Name="thresholdStatusBorder" Background="#0f172a" CornerRadius="4" Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="vs Threshold" Foreground="#64748b" FontSize="11"/>
+                                    <TextBlock x:Name="lblThresholdStatus" Text="OK" 
+                                               Foreground="#22c55e" FontSize="20" FontWeight="Bold"/>
+                                    <TextBlock x:Name="lblThresholdPct" Text="0%" Foreground="#64748b" FontSize="11"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Border>
+                
+                <!-- Spot Chart Section -->
+                <Border Grid.Row="1" Background="#1e293b" CornerRadius="8" Padding="16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <TextBlock Grid.Row="0" Text="Spot Chart" Foreground="#f1f5f9" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Grid.Row="0" Text="Spot" Foreground="#64748b" FontSize="11" Margin="0,20,0,0"/>
+                        
+                        <!-- Chart canvas -->
+                        <Border Grid.Row="1" Background="#0f172a" CornerRadius="4">
+                            <Canvas x:Name="spotChartCanvas" ClipToBounds="True"/>
+                        </Border>
+                        
+                        <TextBlock Grid.Row="2" Text="Time" Foreground="#64748b" FontSize="11" 
+                                   HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    </Grid>
+                </Border>
+            </Grid>
+            
+            <!-- RIGHT PANEL: Activity Log -->
+            <Border Grid.Column="2" Background="#1e293b" BorderBrush="#334155" BorderThickness="1,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- Activity Header -->
+                    <Border Grid.Row="0" BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="16,12">
+                        <Grid>
+                            <TextBlock Text="Activity" Foreground="#f1f5f9" FontSize="14" FontWeight="SemiBold"/>
+                            <Button Content="??" Background="Transparent" BorderThickness="0"
+                                    Foreground="#64748b" FontSize="14" Cursor="Hand" 
+                                    HorizontalAlignment="Right" ToolTip="Copy activity log"
+                                    Click="CopyActivityLog_Click"/>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Activity List -->
+                    <ListBox Grid.Row="1" x:Name="activityList" ItemsSource="{Binding ActivityLog}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="12,8" BorderBrush="#334155" BorderThickness="0,0,0,1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding TimeDisplay}" 
+                                                   Foreground="#64748b" FontSize="11" Margin="0,0,12,0"
+                                                   VerticalAlignment="Top"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Message}" 
+                                                   Foreground="#f1f5f9" FontSize="12" TextWrapping="Wrap"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+        </Grid>
+        
+        <!-- HEDGE ALERT OVERLAY (shown when hedge is triggered) -->
+        <Border x:Name="hedgeAlertOverlay" Grid.RowSpan="3" Background="#80000000" Visibility="Collapsed">
+            <Border Background="#1e293b" CornerRadius="12" Padding="32" 
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    BorderBrush="#ef4444" BorderThickness="3">
+                <StackPanel>
+                    <TextBlock Text="?? HEDGE REQUIRED" Foreground="#ef4444" 
+                               FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="lblAlertDetails" Text="" Foreground="#f1f5f9" 
+                               FontSize="16" HorizontalAlignment="Center" Margin="0,16,0,0"/>
+                    <TextBlock x:Name="lblAlertDelta" Text="" Foreground="#f59e0b" 
+                               FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    <TextBlock x:Name="lblAlertAction" Text="" Foreground="#94a3b8" 
+                               FontSize="14" HorizontalAlignment="Center" Margin="0,8,0,24"/>
+                    
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Execute Hedge" Background="#ef4444" Foreground="White"
+                                FontWeight="SemiBold" Padding="24,12" BorderThickness="0" Margin="0,0,12,0"
+                                Cursor="Hand" Click="ExecuteHedgeFromAlert_Click"/>
+                        <Button Content="Dismiss" Background="#334155" Foreground="#f1f5f9"
+                                FontWeight="SemiBold" Padding="24,12" BorderThickness="0"
+                                Cursor="Hand" Click="DismissAlert_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
+</Window>

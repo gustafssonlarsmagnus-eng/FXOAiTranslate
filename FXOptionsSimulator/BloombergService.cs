@@ -101,22 +101,233 @@ namespace FXOptionsSimulator
             {
                 Console.WriteLine($"[Bloomberg API] Requesting spot rate for {underlying}");
 
+                // Try direct Bloomberg quote first - Bloomberg has most pairs including CNHSEK
+                var bloombergTicker = GetBloombergTicker(underlying);
+                Console.WriteLine($"[Bloomberg API] Using Bloomberg ticker: {bloombergTicker}");
+
+                var directRate = await GetDirectSpotRate(underlying);
+                if (directRate.HasValue)
+                {
+                    Console.WriteLine($"[Bloomberg API] Got direct spot rate for {underlying}: {directRate.Value:F4}");
+                    return directRate;
+                }
+
+                // If direct quote failed and it's a CNH cross pair, try synthetic calculation as fallback
+                if (IsCnhCrossPair(underlying))
+                {
+                    Console.WriteLine($"[Bloomberg API] Direct quote failed for {underlying}, trying synthetic calculation");
+                    string ccy1 = underlying.Substring(0, 3).ToUpper();
+                    string ccy2 = underlying.Substring(3, 3).ToUpper();
+                    var crossRate = await GetCrossRate(ccy1, ccy2);
+                    if (crossRate.HasValue)
+                    {
+                        Console.WriteLine($"[Bloomberg API] Synthetic {underlying} rate: {crossRate.Value:F6}");
+                        return crossRate;
+                    }
+                }
+
+                Console.WriteLine($"[Bloomberg API] No data returned for {underlying}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Bloomberg API] Error fetching spot for {underlying}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Gets the correct Bloomberg ticker for a currency pair.
+        /// Bloomberg has direct quotes for most pairs including CNH crosses like CNHSEK.
+        /// </summary>
+        private string GetBloombergTicker(string underlying)
+        {
+            if (string.IsNullOrEmpty(underlying) || underlying.Length != 6)
+                return $"{underlying} Curncy";
+
+            // Standard format: "CNHSEK Curncy", "EURUSD Curncy", etc.
+            return $"{underlying} Curncy";
+        }
+
+        /// <summary>
+        /// Identifies CNH cross pairs that may need synthetic calculation.
+        /// These pairs often don't have direct quotes in Bloomberg.
+        /// </summary>
+        private bool IsCnhCrossPair(string underlying)
+        {
+            if (string.IsNullOrEmpty(underlying) || underlying.Length != 6)
+                return false;
+
+            string ccy1 = underlying.Substring(0, 3).ToUpper();
+            string ccy2 = underlying.Substring(3, 3).ToUpper();
+
+            // CNH crosses with non-USD currencies typically need synthetic calculation
+            // USDCNH is the primary liquid pair, others are derived
+            bool hasCnh = ccy1 == "CNH" || ccy2 == "CNH";
+            bool hasUsd = ccy1 == "USD" || ccy2 == "USD";
+
+            return hasCnh && !hasUsd;
+        }
+
+        /// <summary>
+        /// For cross pairs not directly available in Bloomberg, calculate from USD legs.
+        /// CNH pairs are special because USDCNH is quoted as CNH per USD (like USDJPY).
+        /// 
+        /// Examples:
+        /// - CNHSEK = USDSEK / USDCNH  (CNH per SEK = SEK per USD / CNH per USD)
+        /// - CNHNOK = USDNOK / USDCNH
+        /// - EURCNH = USDCNH / EURUSD  (CNH per EUR = CNH per USD / USD per EUR)
+        /// </summary>
+        public async Task<double?> GetCrossRate(string ccy1, string ccy2)
+        {
+            try
+            {
+                Console.WriteLine($"[Bloomberg API] Calculating cross rate for {ccy1}/{ccy2}");
+
+                // Special handling for CNH pairs
+                if (ccy1 == "CNH" || ccy2 == "CNH")
+                {
+                    return await GetCnhCrossRate(ccy1, ccy2);
+                }
+
+                // Get both USD rates using direct Bloomberg API call (not recursive GetSpotRate)
+                double? usdCcy1 = await GetDirectSpotRate($"USD{ccy1}");
+                double? usdCcy2 = await GetDirectSpotRate($"USD{ccy2}");
+
+                // Try inverse if direct quote not available
+                if (!usdCcy1.HasValue)
+                {
+                    var ccy1Usd = await GetDirectSpotRate($"{ccy1}USD");
+                    if (ccy1Usd.HasValue && ccy1Usd.Value != 0)
+                        usdCcy1 = 1.0 / ccy1Usd.Value;
+                }
+
+                if (!usdCcy2.HasValue)
+                {
+                    var ccy2Usd = await GetDirectSpotRate($"{ccy2}USD");
+                    if (ccy2Usd.HasValue && ccy2Usd.Value != 0)
+                        usdCcy2 = 1.0 / ccy2Usd.Value;
+                }
+
+                if (usdCcy1.HasValue && usdCcy2.HasValue && usdCcy1.Value != 0)
+                {
+                    // Cross rate: CCY1/CCY2 = (USD/CCY2) / (USD/CCY1)
+                    double crossRate = usdCcy2.Value / usdCcy1.Value;
+                    Console.WriteLine($"[Bloomberg API] Cross rate {ccy1}/{ccy2}: {crossRate:F6}");
+                    return crossRate;
+                }
+
+                Console.WriteLine($"[Bloomberg API] Could not calculate cross rate for {ccy1}/{ccy2}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Bloomberg API] Cross rate calculation error: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Calculate CNH cross rates using USDCNH as the base.
+        /// USDCNH is quoted as CNH per USD (similar to USDJPY convention).
+        /// 
+        /// For CNHSEK (how many SEK per CNH):
+        ///   CNHSEK = USDSEK / USDCNH
+        ///   If USDSEK = 10.50 and USDCNH = 7.25, then CNHSEK = 10.50 / 7.25 = 1.448
+        ///   
+        /// For EURCNH (how many CNH per EUR):
+        ///   EURCNH = USDCNH / EURUSD (inverse)
+        ///   If USDCNH = 7.25 and EURUSD = 1.08, then EURCNH = 7.25 / 1.08 = 6.713
+        /// </summary>
+        private async Task<double?> GetCnhCrossRate(string ccy1, string ccy2)
+        {
+            try
+            {
+                Console.WriteLine($"[Bloomberg API] Calculating CNH cross rate for {ccy1}{ccy2}");
+
+                // Get USDCNH (primary CNH pair)
+                double? usdCnh = await GetDirectSpotRate("USDCNH");
+                if (!usdCnh.HasValue || usdCnh.Value == 0)
+                {
+                    Console.WriteLine("[Bloomberg API] Could not get USDCNH rate");
+                    return null;
+                }
+
+                Console.WriteLine($"[Bloomberg API] USDCNH = {usdCnh.Value:F4}");
+
+                // Determine the other currency
+                string otherCcy = ccy1 == "CNH" ? ccy2 : ccy1;
+
+                // Get USD rate for the other currency
+                double? usdOther = await GetDirectSpotRate($"USD{otherCcy}");
+                
+                // Try inverse if direct quote not available
+                if (!usdOther.HasValue)
+                {
+                    var otherUsd = await GetDirectSpotRate($"{otherCcy}USD");
+                    if (otherUsd.HasValue && otherUsd.Value != 0)
+                    {
+                        usdOther = 1.0 / otherUsd.Value;
+                    }
+                }
+
+                if (!usdOther.HasValue || usdOther.Value == 0)
+                {
+                    Console.WriteLine($"[Bloomberg API] Could not get USD{otherCcy} rate");
+                    return null;
+                }
+
+                Console.WriteLine($"[Bloomberg API] USD{otherCcy} = {usdOther.Value:F4}");
+
+                double crossRate;
+                if (ccy1 == "CNH")
+                {
+                    // CNHXXX format: How many XXX per CNH
+                    // CNHSEK = USDSEK / USDCNH
+                    crossRate = usdOther.Value / usdCnh.Value;
+                    Console.WriteLine($"[Bloomberg API] {ccy1}{ccy2} = USD{otherCcy} / USDCNH = {usdOther.Value:F4} / {usdCnh.Value:F4} = {crossRate:F6}");
+                }
+                else
+                {
+                    // XXXCNH format: How many CNH per XXX
+                    // EURCNH = USDCNH / EURUSD (need to invert if we have XXXUSD)
+                    crossRate = usdCnh.Value / usdOther.Value;
+                    Console.WriteLine($"[Bloomberg API] {ccy1}{ccy2} = USDCNH / USD{otherCcy} = {usdCnh.Value:F4} / {usdOther.Value:F4} = {crossRate:F6}");
+                }
+
+                return crossRate;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Bloomberg API] CNH cross rate calculation error: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get spot rate directly from Bloomberg without cross-rate calculation fallback.
+        /// Used internally to avoid recursion when calculating synthetic rates.
+        /// </summary>
+        private async Task<double?> GetDirectSpotRate(string underlying)
+        {
+            try
+            {
+                var bloombergTicker = $"{underlying} Curncy";
+
                 using var session = new Session();
                 if (!session.Start())
                 {
-                    Console.WriteLine("[Bloomberg API] Failed to start session");
                     return null;
                 }
 
                 if (!session.OpenService("//blp/refdata"))
                 {
-                    Console.WriteLine("[Bloomberg API] Failed to open reference data service");
                     return null;
                 }
 
                 var service = session.GetService("//blp/refdata");
                 var request = service.CreateRequest("ReferenceDataRequest");
-                request.Append("securities", $"{underlying} Curncy");
+                request.Append("securities", bloombergTicker);
                 request.Append("fields", "PX_LAST");
 
                 session.SendRequest(request, null);
@@ -124,11 +335,7 @@ namespace FXOptionsSimulator
                 while (true)
                 {
                     var evt = session.NextEvent(5000);
-                    if (evt == null)
-                    {
-                        Console.WriteLine("[Bloomberg API] Timeout waiting for response");
-                        break;
-                    }
+                    if (evt == null) break;
 
                     foreach (var msg in evt)
                     {
@@ -138,22 +345,13 @@ namespace FXOptionsSimulator
                             for (int i = 0; i < securityDataArray.NumValues; i++)
                             {
                                 var securityData = securityDataArray.GetValueAsElement(i);
-
                                 if (securityData.HasElement("fieldData"))
                                 {
                                     var fieldData = securityData.GetElement("fieldData");
                                     if (fieldData.HasElement("PX_LAST"))
                                     {
-                                        double spot = fieldData.GetElementAsFloat64("PX_LAST");
-                                        Console.WriteLine($"[Bloomberg API] Got spot rate for {underlying}: {spot:F4}");
-                                        return spot;
+                                        return fieldData.GetElementAsFloat64("PX_LAST");
                                     }
-                                }
-
-                                if (securityData.HasElement("securityError"))
-                                {
-                                    var error = securityData.GetElement("securityError");
-                                    Console.WriteLine($"[Bloomberg API] Security error: {error.GetElementAsString("message")}");
                                 }
                             }
                         }
@@ -162,12 +360,10 @@ namespace FXOptionsSimulator
                     if (evt.Type == Event.EventType.RESPONSE) break;
                 }
 
-                Console.WriteLine($"[Bloomberg API] No data returned for {underlying}");
                 return null;
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[Bloomberg API] Error fetching spot for {underlying}: {ex.Message}");
                 return null;
             }
         }

@@ -711,10 +711,10 @@ $"N{notionalValue}M VA";
             input = input.Trim();
 
             // 2a. Join separated currency pairs (usd nok → USDNOK)
-            input = Regex.Replace(input, @"\b(USD|EUR|GBP|NOK|SEK)\s+(NOK|SEK|USD|EUR|GBP)\b", "$1$2", RegexOptions.IgnoreCase);
+            input = Regex.Replace(input, @"\b(USD|EUR|GBP|NOK|SEK|CNH)\s+(NOK|SEK|USD|EUR|GBP|CNH)\b", "$1$2", RegexOptions.IgnoreCase);
 
             // 2b. Normalize currency pair capitalization
-            var currencyPairs = new[] { "EURSEK", "USDSEK", "USDNOK", "EURNOK", "GBPSEK", "NOKSEK", "EURUSD", "GBPUSD" };
+            var currencyPairs = new[] { "EURSEK", "USDSEK", "USDNOK", "EURNOK", "GBPSEK", "NOKSEK", "EURUSD", "GBPUSD", "CNHSEK", "CNHNOK", "USDCNH", "EURCNH" };
             foreach (var pair in currencyPairs)
             {
                 input = Regex.Replace(input, pair, pair, RegexOptions.IgnoreCase);
@@ -835,7 +835,8 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
             "EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD",
             "USDCAD", "NZDUSD", "EURSEK", "EURNOK", "USDNOK",
             "EURJPY", "GBPJPY", "AUDJPY", "EURAUD", "EURGBP",
-            "USDSEK", "GBPNOK", "NOKSEK", "SEKEUR", "SEKNOK"
+            "USDSEK", "GBPNOK", "NOKSEK", "SEKEUR", "SEKNOK",
+            "CNHSEK", "USDCNH", "EURCNH", "CNHNOK"  // CNH (offshore yuan) pairs
         };
 
                 string upper = input.ToUpper();
@@ -866,7 +867,8 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
                     string[] validCurrencies = {
                 "EUR", "USD", "GBP", "JPY", "CHF", "AUD", "CAD", "NZD",
                 "SEK", "NOK", "DKK", "PLN", "CZK", "HUF", "RUB", "CNY",
-                "HKD", "SGD", "THB", "MXN", "ZAR", "BRL", "KRW", "INR"
+                "HKD", "SGD", "THB", "MXN", "ZAR", "BRL", "KRW", "INR",
+                "CNH"  // Offshore Chinese Yuan (important for FX options)
             };
 
                     if (validCurrencies.Contains(ccy1) && validCurrencies.Contains(ccy2))
@@ -1702,6 +1704,28 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
         {
             var match = Regex.Match(ovml, @"SP(\d+\.?\d*)");
             return match.Success ? match.Groups[1].Value : "";
+        }
+
+        /// <summary>
+        /// Convert this TradeParseResult to a TradeStructure for use with Gamma Hedger.
+        /// Uses OVMLBridge to parse the OVML string and create a structured trade representation.
+        /// </summary>
+        public TradeStructure ToTradeStructure()
+        {
+            if (string.IsNullOrEmpty(OVML))
+            {
+                throw new InvalidOperationException("Cannot convert to TradeStructure: OVML is empty");
+            }
+
+            try
+            {
+                return OVMLBridge.ConvertToTradeStructure(this);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[TradeParseResult] Error converting to TradeStructure: {ex.Message}");
+                throw;
+            }
         }
     }
 }

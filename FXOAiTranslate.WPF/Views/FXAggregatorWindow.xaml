@@ -582,11 +582,12 @@ MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
                     <!-- OPTION 1 DETAILS PANEL -->
                     <Border Background="#152040" BorderBrush="#1e293b" BorderThickness="1" CornerRadius="4">
                         <StackPanel>
-                            <!-- Option 1 Header -->
+                        <!-- Option 1 Header -->
                             <Grid Background="#1a2850" Cursor="Hand" MouseLeftButtonUp="OptionHeader_Click">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Orientation="Horizontal" Margin="12,8">
@@ -594,7 +595,35 @@ MouseEnter="LPName_MouseEnter" MouseLeave="LPName_MouseLeave">
                                     <TextBlock Text="Option 1" FontSize="12" FontWeight="Bold" Foreground="#e2e8f0"/>
                                     <TextBlock Text=" >> Global" FontSize="10" Foreground="#64748b" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                 </StackPanel>
-                                <TextBlock Grid.Column="2" Text="+" FontSize="16" Foreground="#64748b" Cursor="Hand" 
+                                <!-- Send to Gamma Hedger Button -->
+                                <Button x:Name="btnSendToGammaHedger" Grid.Column="2" Content="📊 Gamma" 
+                                        Padding="8,4" FontSize="10" FontWeight="Medium"
+                                        BorderThickness="0" Cursor="Hand" Margin="0,0,8,0"
+                                        ToolTip="Send position to Gamma Hedger"
+                                        Click="SendToGammaHedger_Click">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#332563EB"/>
+                                            <Setter Property="Foreground" Value="#60a5fa"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#4D2563EB"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <TextBlock Grid.Column="3" Text="+" FontSize="16" Foreground="#64748b" Cursor="Hand" 
 VerticalAlignment="Center" Margin="0,0,12,0"
              MouseLeftButtonUp="AddLeg_Click" ToolTip="Add new option"/>
                             </Grid>
