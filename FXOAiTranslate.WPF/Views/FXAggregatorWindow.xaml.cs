@@ -2466,6 +2466,7 @@ if (bestQuote.ValidUntilTime < DateTime.Now)
              
              // Get notional for calculations
              double notionalMM = _trade?.Legs?[0]?.NotionalMM ?? 10.0;
+
              string hedgeCcy = pair.Length >= 6 ? pair.Substring(0, 3) : "EUR";
              
              // Try to get delta from quote first, then fall back to UI

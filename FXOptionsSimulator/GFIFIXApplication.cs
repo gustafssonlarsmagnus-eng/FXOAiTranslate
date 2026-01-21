@@ -258,7 +258,8 @@ if (quote.IsSetField(5678)) // Volatility tag
                         Delta = ParseFieldDouble(6035),      // LegDelta
                         SpotRate = GetFieldString(5235),  // Tag 5235: LegSpotRate
                         ForwardPoints = ParseFieldDouble(5191),  // Tag 5191: LegForwardPoints
-                        PremiumCurrency = GetFieldString(5830),  // PremiumCcy
+                        PremiumCurrency = GetFieldString(5830),  // Tag 5830: PremiumCcy (message-level)
+                        LegPremiumCurrency = GetFieldString(556),  // Tag 556: LegCurrency (leg-level, user can choose)
                         ValidUntilTime = GetFieldString(62),     // ValidUntilTime
                         Spread = 0  // Will be calculated client-side
                     };

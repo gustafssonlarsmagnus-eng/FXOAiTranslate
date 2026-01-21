@@ -100,6 +100,12 @@ namespace FXOptionsSimulator
         public string PremiumCurrency { get; set; }
 
         /// <summary>
+        /// Leg-level premium currency if different from message-level
+        /// Derived from Tag 556 (LegCurrency) or user selection
+        /// </summary>
+        public string LegPremiumCurrency { get; set; }
+
+        /// <summary>
         /// Quote expiry time
         /// FIX Tag 62 (ValidUntilTime)
         /// </summary>

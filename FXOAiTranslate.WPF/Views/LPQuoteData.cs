@@ -22,5 +22,6 @@ namespace FXOAiTranslate.WPF.Views
         public double ForwardPoints { get; set; }    // Tag 5191: LegForwardPoints
         public double Delta { get; set; }            // Tag 6035: LegDelta
         public string PremiumCurrency { get; set; }  // Tag 5830: Premium currency (EUR, USD, etc.)
+        public string LegPremiumCurrency { get; set; }  // Tag 6436 as currency if provided, or derived from leg
     }
 }
