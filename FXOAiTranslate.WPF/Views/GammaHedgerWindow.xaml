@@ -285,14 +285,9 @@
                 
                 <!-- Position Section -->
                 <Border Grid.Row="0" Background="#1e293b" CornerRadius="8" Padding="16" Margin="0,0,0,16">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        
+                    <StackPanel>
                         <!-- Position Header -->
-                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid Margin="0,0,0,12">
                             <TextBlock Text="Position" Foreground="#f1f5f9" FontSize="14" FontWeight="SemiBold"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                 <Button x:Name="btnLock" Content="??" Background="Transparent" BorderThickness="0"
@@ -305,8 +300,8 @@
                             </StackPanel>
                         </Grid>
                         
-                        <!-- Position Grid -->
-                        <Grid Grid.Row="1">
+                        <!-- Position Tiles -->
+                        <Grid Margin="0,0,0,16">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
@@ -352,7 +347,58 @@
                                 </StackPanel>
                             </Border>
                         </Grid>
-                    </Grid>
+                        
+                        <!-- Manual Hedge Entry Section -->
+                        <Border Background="#0f172a" CornerRadius="4" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="Manual Hedge Entry" Foreground="#94a3b8" FontSize="11" Margin="0,0,0,10"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <!-- Amount input -->
+                                    <TextBox x:Name="txtManualHedgeAmount" Grid.Column="0" 
+                                             Style="{StaticResource DarkInput}"
+                                             Text="" ToolTip="Enter hedge amount (e.g., 5M, 500K, 5000000)"
+                                             VerticalAlignment="Center"/>
+                                    
+                                    <!-- Rate display/input -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0">
+                                        <TextBlock Text="@" Foreground="#64748b" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="14"/>
+                                        <TextBox x:Name="txtManualHedgeRate" Style="{StaticResource DarkInput}" Width="90"
+                                                 Text="{Binding CurrentSpot, StringFormat=F4, Mode=OneWay}" VerticalAlignment="Center"
+                                                 ToolTip="Hedge rate (defaults to current spot)"/>
+                                    </StackPanel>
+                                    
+                                    <!-- BUY button -->
+                                    <Button x:Name="btnManualBuy" Grid.Column="2" Content="BUY" 
+                                            Background="#166534" Foreground="White" 
+                                            FontWeight="Bold" Padding="20,10" BorderThickness="0"
+                                            Cursor="Hand" Margin="4,0" Click="ManualHedgeBuy_Click"
+                                            ToolTip="Execute BUY hedge to reduce short delta"/>
+                                    
+                                    <!-- SELL button -->
+                                    <Button x:Name="btnManualSell" Grid.Column="3" Content="SELL" 
+                                            Background="#991b1b" Foreground="White" 
+                                            FontWeight="Bold" Padding="20,10" BorderThickness="0"
+                                            Cursor="Hand" Margin="4,0" Click="ManualHedgeSell_Click"
+                                            ToolTip="Execute SELL hedge to reduce long delta"/>
+                                    
+                                    <!-- Hedge to Flat button -->
+                                    <Button x:Name="btnHedgeToFlat" Grid.Column="4" Content="? FLAT" 
+                                            Background="#1e40af" Foreground="White" 
+                                            FontWeight="Bold" Padding="16,10" BorderThickness="0"
+                                            Cursor="Hand" Margin="4,0" Click="HedgeToFlat_Click"
+                                            ToolTip="Calculate and execute hedge to flatten delta"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </Border>
                 
                 <!-- Spot Chart Section -->

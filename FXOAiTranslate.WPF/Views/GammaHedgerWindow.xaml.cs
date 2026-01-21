@@ -843,6 +843,166 @@ namespace FXOAiTranslate.WPF.Views
 
         #endregion
 
+        #region Manual Hedge
+
+        /// <summary>
+        /// Parse the manual hedge amount from the text field.
+        /// Supports formats: "5000000", "5M", "5m", "5 000 000", "500K"
+        /// </summary>
+        private double? ParseManualHedgeAmount()
+        {
+            string input = txtManualHedgeAmount?.Text?.Trim();
+            if (string.IsNullOrEmpty(input))
+            {
+                MessageBox.Show("Please enter a hedge amount", "Missing Amount", 
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return null;
+            }
+
+            // Remove spaces and commas
+            input = input.Replace(" ", "").Replace(",", "");
+
+            // Check for M/m suffix (millions)
+            if (input.EndsWith("M", StringComparison.OrdinalIgnoreCase))
+            {
+                string numPart = input.Substring(0, input.Length - 1);
+                if (double.TryParse(numPart, out double millions))
+                {
+                    return millions * 1_000_000;
+                }
+            }
+            
+            // Check for K/k suffix (thousands)
+            if (input.EndsWith("K", StringComparison.OrdinalIgnoreCase))
+            {
+                string numPart = input.Substring(0, input.Length - 1);
+                if (double.TryParse(numPart, out double thousands))
+                {
+                    return thousands * 1_000;
+                }
+            }
+
+            // Try to parse as raw number
+            if (double.TryParse(input, out double amount))
+            {
+                return amount;
+            }
+
+            MessageBox.Show($"Invalid amount format: '{input}'\n\nUse formats like: 5000000, 5M, 500K", 
+                "Invalid Amount", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return null;
+        }
+
+        /// <summary>
+        /// Parse the manual hedge rate from the text field.
+        /// </summary>
+        private double? ParseManualHedgeRate()
+        {
+            string input = txtManualHedgeRate?.Text?.Trim();
+            if (string.IsNullOrEmpty(input))
+            {
+                // Use current spot as default
+                if (CurrentSpot > 0)
+                {
+                    return CurrentSpot;
+                }
+                
+                MessageBox.Show("Please enter a hedge rate", "Missing Rate", 
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return null;
+            }
+
+            if (double.TryParse(input, out double rate) && rate > 0)
+            {
+                return rate;
+            }
+
+            MessageBox.Show($"Invalid rate format: '{input}'", "Invalid Rate", 
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return null;
+        }
+
+        /// <summary>
+        /// Execute a manual BUY hedge (reduces short delta / increases long delta)
+        /// </summary>
+        private void ManualHedgeBuy_Click(object sender, RoutedEventArgs e)
+        {
+            ExecuteManualHedge(isBuy: true);
+        }
+
+        /// <summary>
+        /// Execute a manual SELL hedge (reduces long delta / increases short delta)
+        /// </summary>
+        private void ManualHedgeSell_Click(object sender, RoutedEventArgs e)
+        {
+            ExecuteManualHedge(isBuy: false);
+        }
+
+        /// <summary>
+        /// Calculate and execute a hedge to flatten the current delta position.
+        /// </summary>
+        private void HedgeToFlat_Click(object sender, RoutedEventArgs e)
+        {
+            if (Math.Abs(CurrentDelta) < 1000)
+            {
+                MessageBox.Show("Position already flat (delta < 1,000)", "Already Flat", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var rate = ParseManualHedgeRate();
+            if (!rate.HasValue) return;
+
+            // Calculate the hedge amount needed to flatten
+            // If delta is positive (long), we need to SELL to flatten
+            // If delta is negative (short), we need to BUY to flatten
+            double hedgeAmount = -CurrentDelta;
+            
+            string side = hedgeAmount > 0 ? "BUY" : "SELL";
+            double absAmount = Math.Abs(hedgeAmount);
+            
+            var result = MessageBox.Show(
+                $"Execute hedge to flatten delta?\n\n" +
+                $"Current Delta: {CurrentDelta:N0} {HedgeThresholdCcy}\n" +
+                $"Hedge: {side} {absAmount:N0} {HedgeThresholdCcy} @ {rate.Value:F4}\n\n" +
+                $"This will bring delta to approximately zero.",
+                "Confirm Flatten",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                ApplyHedgeInternal(hedgeAmount, rate.Value, "Spot");
+                LogActivity($"? FLATTENED: Delta neutralized via {side} {absAmount:N0}", "TRADE");
+            }
+        }
+
+        /// <summary>
+        /// Execute a manual hedge and update the delta position.
+        /// </summary>
+        private void ExecuteManualHedge(bool isBuy)
+        {
+            var amount = ParseManualHedgeAmount();
+            if (!amount.HasValue) return;
+
+            var rate = ParseManualHedgeRate();
+            if (!rate.HasValue) return;
+
+            // Make amount signed based on direction
+            double signedAmount = isBuy ? Math.Abs(amount.Value) : -Math.Abs(amount.Value);
+            
+            // Apply the hedge
+            ApplyHedgeInternal(signedAmount, rate.Value, "Spot");
+            
+            // Clear the input field for next hedge
+            txtManualHedgeAmount.Text = "";
+            
+            // Update the rate field to current spot
+            txtManualHedgeRate.Text = CurrentSpot.ToString("F4");
+        }
+
+        #endregion
+
         #region Chart Drawing
 
         private void ChartUpdateTimer_Tick(object sender, EventArgs e)
