@@ -349,8 +349,77 @@ namespace FXOAiTranslator
             toolsMenu.DropDownItems.Add(new ToolStripSeparator());
             toolsMenu.DropDownItems.Add(testGFIMenuItem);
 
+            // Windows Menu - launch other apps
+            var windowsMenu = new ToolStripMenuItem("Windows");
+
+            var gammaHedgerMenuItem = new ToolStripMenuItem("📈 Gamma Hedger");
+            gammaHedgerMenuItem.ShortcutKeys = Keys.Control | Keys.H;
+            gammaHedgerMenuItem.Click += OpenGammaHedger_Click;
+
+            var fxAggregatorMenuItem = new ToolStripMenuItem("📊 FX Aggregator");
+            fxAggregatorMenuItem.ShortcutKeys = Keys.Control | Keys.Shift | Keys.A;
+            fxAggregatorMenuItem.Click += OpenFXAggregator_Click;
+
+            var tradeBlotterMenuItem = new ToolStripMenuItem("📋 Trade Blotter");
+            tradeBlotterMenuItem.Click += OpenTradeBlotter_Click;
+
+            windowsMenu.DropDownItems.Add(gammaHedgerMenuItem);
+            windowsMenu.DropDownItems.Add(fxAggregatorMenuItem);
+            windowsMenu.DropDownItems.Add(new ToolStripSeparator());
+            windowsMenu.DropDownItems.Add(tradeBlotterMenuItem);
+
             menuStrip.Items.Add(viewMenu);
             menuStrip.Items.Add(toolsMenu);
+            menuStrip.Items.Add(windowsMenu);
+        }
+
+        private void OpenGammaHedger_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var gammaHedger = new FXOAiTranslate.WPF.Views.GammaHedgerWindow();
+                gammaHedger.Show();
+                LogDebugMessage("Opened Gamma Hedger window");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error opening Gamma Hedger: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LogDebugMessage($"Error opening Gamma Hedger: {ex}");
+            }
+        }
+
+        private void OpenFXAggregator_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var aggregator = new FXOAiTranslate.WPF.Views.FXAggregatorWindow();
+                aggregator.Show();
+                LogDebugMessage("Opened FX Aggregator window");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error opening FX Aggregator: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LogDebugMessage($"Error opening FX Aggregator: {ex}");
+            }
+        }
+
+        private void OpenTradeBlotter_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var blotter = new TradeBlotterForm();
+                blotter.Show();
+                blotter.BringToFront();
+                LogDebugMessage("Opened Trade Blotter window");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error opening Trade Blotter: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LogDebugMessage($"Error opening Trade Blotter: {ex}");
+            }
         }
 
         private void SetTabOrder()
@@ -368,8 +437,9 @@ namespace FXOAiTranslator
             ctxRowMenu.Items.Add("Copy Request", null, (s, e) => CopySelectedCell("Request"));
             ctxRowMenu.Items.Add(new ToolStripSeparator());
 
-            // ADD THIS NEW ITEM HERE:
+            // Send to external systems
             ctxRowMenu.Items.Add("📤 Send to GFI Fenics", null, SendToGFI_Click);
+            ctxRowMenu.Items.Add("📈 Send to Gamma Hedger", null, SendToGammaHedger_Click);
             ctxRowMenu.Items.Add(new ToolStripSeparator());
 
             ctxRowMenu.Items.Add("Re-parse with AI", null, CtxReParseAI_Click);
@@ -656,6 +726,59 @@ namespace FXOAiTranslator
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        private void SendToGammaHedger_Click(object sender, EventArgs e)
+        {
+            if (dgvTradeBlotter.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Please select a trade first.", "No Selection",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var row = dgvTradeBlotter.SelectedRows[0];
+
+            // Create OVML parse result from grid row
+            var ovmlResult = new OVMLParseResult
+            {
+                OVML = row.Cells["OVML"]?.Value?.ToString() ?? "",
+                Underlying = row.Cells["Underlying"]?.Value?.ToString() ?? "",
+                Expiry = row.Cells["Expiry"]?.Value?.ToString() ?? "",
+                LegCount = int.Parse(row.Cells["Legs"]?.Value?.ToString() ?? "1")
+            };
+
+            // Validate we have required data
+            if (string.IsNullOrEmpty(ovmlResult.OVML) || string.IsNullOrEmpty(ovmlResult.Underlying))
+            {
+                MessageBox.Show("Selected row has no OVML or underlying data.", "Invalid Selection",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // Convert OVML to TradeStructure
+                var tradeStructure = FXOptionsSimulator.OVMLBridge.ConvertToTradeStructure(ovmlResult);
+
+                // Generate a unique TradeId if not present
+                if (string.IsNullOrEmpty(tradeStructure.TradeId))
+                {
+                    tradeStructure.TradeId = $"AI_{DateTime.Now:HHmmss}_{ovmlResult.Underlying}";
+                }
+
+                // Route to Gamma Hedger (will create or activate the appropriate hedger)
+                FXOAiTranslate.WPF.Views.GammaHedgerWindow.RouteTradeToHedger(tradeStructure);
+                
+                LogDebugMessage($"Sent trade {tradeStructure.TradeId} to Gamma Hedger");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error sending to Gamma Hedger:\n\n{ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LogDebugMessage($"Error sending to Gamma Hedger: {ex}");
+            }
+        }
+
         private void BtnTestGFI_Click(object sender, EventArgs e)
         {
             var testTrade = new FXOptionsSimulator.TradeStructure

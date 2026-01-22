@@ -10,6 +10,7 @@ namespace FXOptionsSimulator
     /// </summary>
     public class TradeStructure
     {
+        public string TradeId { get; set; } // Unique identifier for the trade
         public string Underlying { get; set; }
         public string CurrencyPair { get; set; }  // ← ADD THIS LINE
         public string StructureType { get; set; } // "CallSpread", "PutSpread", "RiskReversal", "Seagull"
