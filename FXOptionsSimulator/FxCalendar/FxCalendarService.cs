@@ -29,43 +29,16 @@ namespace FX.Infrastructure.Calendars.Legacy
             try
             {
                 // Ensure connection string uses TCP/IP for remote access
-    connectionString = EnsureRemoteCompatible(connectionString);
+                connectionString = EnsureRemoteCompatible(connectionString);
                 
-       Console.WriteLine($"[FX-CALENDAR] Testing connection: {MaskConnectionString(connectionString)}");
+                var builder = new SqlConnectionStringBuilder(connectionString);
+                Console.WriteLine($"[FX-CALENDAR] Initializing: {builder.DataSource}");
 
-           // Parse connection string to check DNS
-       var builder = new SqlConnectionStringBuilder(connectionString);
-     Console.WriteLine($"[FX-CALENDAR] Data Source: {builder.DataSource}");
-          Console.WriteLine($"[FX-CALENDAR] Connect Timeout: {builder.ConnectTimeout}s");
-       Console.WriteLine($"[FX-CALENDAR] Encrypt: {builder.Encrypt}, TrustServerCertificate: {builder.TrustServerCertificate}");
-
-    // Try DNS resolution first
- try
-{
-  var sw = System.Diagnostics.Stopwatch.StartNew();
-       var serverName = builder.DataSource.Replace("tcp:", "").Split(',')[0];
-   var addresses = System.Net.Dns.GetHostAddresses(serverName);
-             sw.Stop();
-         Console.WriteLine($"[FX-CALENDAR] DNS resolved in {sw.ElapsedMilliseconds}ms: {string.Join(", ", addresses.Select(a => a.ToString()))}");
-   }
-      catch (Exception dnsEx)
-   {
-           Console.WriteLine($"[FX-CALENDAR] DNS FAILED: {dnsEx.Message}");
-      Console.WriteLine($"[FX-CALENDAR] Tip: If on VPN, ensure you're connected and can reach internal servers");
-          throw new Exception($"DNS resolution failed for {builder.DataSource}", dnsEx);
-  }
-
-         _holidayCalendar = new HolidayCalendar(connectionString);
-
-       // Test connection by trying to get a small date range
-                var testDate = DateTime.UtcNow;
-        Console.WriteLine($"[FX-CALENDAR] Attempting SQL connection via TCP/IP...");
-        var sw2 = System.Diagnostics.Stopwatch.StartNew();
-                _holidayCalendar.GetHolidays(new[] { "USA" }, testDate, testDate.AddDays(1), timeoutSeconds: 30);
-                sw2.Stop();
-
-      _isDatabaseAvailable = true;
-           Console.WriteLine($"[FX-CALENDAR] Database connection successful ({sw2.ElapsedMilliseconds}ms)");
+                // Create calendar service - connection will be established on first query
+                // This avoids blocking startup with a test query (was taking 20+ seconds)
+                _holidayCalendar = new HolidayCalendar(connectionString);
+                _isDatabaseAvailable = true;
+                Console.WriteLine($"[FX-CALENDAR] Service ready (connection will be established on first use)");
          }
             catch (SqlException sqlEx)
           {
@@ -128,20 +101,25 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
  }
          }
 
-   // Increase timeout for VPN latency - 30 seconds minimum
-            if (builder.ConnectTimeout < 30)
+   // Set connection timeout - 10 seconds is sufficient for reachable servers
+            if (builder.ConnectTimeout < 10 || builder.ConnectTimeout > 30)
   {
-            builder.ConnectTimeout = 30;
+            builder.ConnectTimeout = 10;
         }
 
-  // Enable encryption with TrustServerCertificate for internal servers
-       if (!builder.Encrypt)
+            // Enable encryption with TrustServerCertificate for internal servers
+            if (!builder.Encrypt)
             {
-        builder.Encrypt = true;
-        builder.TrustServerCertificate = true;
-   }
+                builder.Encrypt = true;
+                builder.TrustServerCertificate = true;
+            }
 
-  return builder.ConnectionString;
+            // Enable connection pooling for faster subsequent connections
+            builder.Pooling = true;
+            builder.MinPoolSize = 1;
+            builder.MaxPoolSize = 10;
+
+            return builder.ConnectionString;
         }
 
   /// <summary>
