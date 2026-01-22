@@ -37,13 +37,36 @@
             <Setter Property="CaretBrush" Value="#f1f5f9"/>
         </Style>
         
-        <!-- ComboBox style -->
+        <!-- ComboBox style with proper dropdown styling -->
         <Style x:Key="DarkComboBox" TargetType="ComboBox">
-            <Setter Property="Background" Value="#0f172a"/>
+            <Setter Property="Background" Value="#1e293b"/>
             <Setter Property="Foreground" Value="#f1f5f9"/>
             <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="FontSize" Value="13"/>
+            <Style.Resources>
+                <!-- Style the dropdown popup -->
+                <Style TargetType="Popup">
+                    <Setter Property="AllowsTransparency" Value="True"/>
+                </Style>
+            </Style.Resources>
+        </Style>
+        
+        <!-- ComboBoxItem style for readable dropdown items -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="#1e293b"/>
+            <Setter Property="Foreground" Value="#f1f5f9"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#334155"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#3b82f6"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         
         <!-- Label style -->
@@ -219,13 +242,15 @@
                                         <ColumnDefinition Width="24"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="1" Text="Spot" Foreground="#64748b" FontSize="11"/>
-                                    <TextBlock Grid.Column="2" Text="Gamma" Foreground="#64748b" FontSize="11"/>
+                                    <TextBlock Grid.Column="2" Text="Delta" Foreground="#64748b" FontSize="11"/>
+                                    <TextBlock Grid.Column="3" Text="Gamma" Foreground="#64748b" FontSize="11"/>
                                 </Grid>
                                 
                                 <!-- Ladder Rows -->
-                                <ItemsControl x:Name="ladderControl" ItemsSource="{Binding GammaLadder}">
+                                <ItemsControl x:Name="ladderControl" ItemsSource="{Binding GammaLadder}" MaxHeight="200">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="0,2">
@@ -233,23 +258,30 @@
                                                     <ColumnDefinition Width="24"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <Button Grid.Column="0" Content="?" Background="Transparent" 
+                                                <Button Grid.Column="0" Content="×" Background="Transparent" 
                                                         BorderThickness="0" Foreground="#64748b" FontSize="10"
                                                         Click="RemoveLadderRow_Click" Cursor="Hand"/>
-                                                <TextBox Grid.Column="1" Style="{StaticResource DarkInput}" Margin="0,0,4,0"
-                                                         Text="{Binding Spot, StringFormat=F4, TargetNullValue='Enter value'}"/>
-                                                <TextBox Grid.Column="2" Style="{StaticResource DarkInput}"
-                                                         Text="{Binding Gamma, StringFormat=N0, TargetNullValue='Enter value'}"/>
+                                                <TextBlock Grid.Column="1" Foreground="#94a3b8" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                           Text="{Binding Spot, StringFormat=F6}"/>
+                                                <TextBlock Grid.Column="2" Foreground="#94a3b8" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                           Text="{Binding Delta, StringFormat=F2, TargetNullValue='-'}"/>
+                                                <TextBlock Grid.Column="3" Foreground="#f1f5f9" FontSize="11" VerticalAlignment="Center"
+                                                           Text="{Binding Gamma, StringFormat=F2}"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 
+                                <!-- Row count indicator -->
+                                <TextBlock x:Name="lblLadderCount" Foreground="#64748b" FontSize="10" Margin="0,4,0,0"
+                                           Text="{Binding GammaLadder.Count, StringFormat='{}{0} rows loaded'}"/>
+                                
                                 <!-- Ladder Actions -->
                                 <Grid Margin="0,8,0,0">
                                     <StackPanel Orientation="Horizontal">
-                                        <Button Content="? Clear all" Background="Transparent" BorderThickness="0"
+                                        <Button Content="🗑 Clear all" Background="Transparent" BorderThickness="0"
                                                 Foreground="#64748b" FontSize="11" Cursor="Hand"
                                                 Click="ClearLadder_Click"/>
                                     </StackPanel>
