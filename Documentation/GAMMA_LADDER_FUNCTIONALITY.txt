@@ -1,0 +1,260 @@
+================================================================================
+GAMMA LADDER FUNCTIONALITY SUMMARY
+================================================================================
+
+OVERVIEW
+--------
+The Gamma Ladder is a component of the Gamma Hedger module that provides traders
+with a visual and interactive interface for tracking option position Greeks and
+managing delta hedging requirements in FX options trading.
+
+The Gamma Ladder displays spot rates and their corresponding gamma values,
+allowing traders to understand the position's exposure across different price
+levels and to manually configure hedging parameters.
+
+
+CORE COMPONENTS
+---------------
+
+1. GAMMA LADDER ROW MODEL (GammaLadderRow)
+   - Spot: Double value representing the underlying currency pair spot rate
+   - Gamma: Double value representing the gamma exposure at that spot level
+   - Both properties support two-way data binding with the UI
+   - Each row is independently editable for manual configuration
+
+2. LADDER DATA STRUCTURE
+   - Implemented as an ObservableCollection<GammaLadderRow>
+   - Reactive updates: UI automatically reflects programmatic or manual changes
+   - Supports multiple rows for comprehensive spot range visualization
+   - Initial configuration: 3 default rows initialized on window creation
+
+3. LADDER INITIALIZATION
+   - InitializeGammaLadder(): Creates 3 empty GammaLadderRow instances
+   - Called during GammaHedgerWindow constructor
+   - Called when ladder is cleared to reset to default state
+
+
+UI INTERACTIONS
+---------------
+
+1. ADD LADDER ROW
+   - Button: "+" (Add Row Button)
+   - Function: AddLadderRow_Click()
+   - Behavior: Appends new empty GammaLadderRow to collection
+   - User can then populate Spot and Gamma values
+
+2. REMOVE LADDER ROW
+   - Button: "✕" (Delete button on each row)
+   - Function: RemoveLadderRow_Click()
+   - Behavior: Removes selected row from GammaLadder collection
+   - Data context binding allows row-level deletion
+
+3. CLEAR LADDER
+   - Button: "⊗ Clear all" (Clear Ladder Button)
+   - Function: ClearLadder_Click()
+   - Behavior: Clears all rows and reinitializes to 3 empty rows
+   - Useful for resetting after batch data input
+
+4. MANUAL DATA ENTRY
+   - Each row displays two TextBox inputs:
+     * Left column: Spot price (formatted to 4 decimal places)
+     * Right column: Gamma value (formatted as integer)
+   - Binding mode: Two-way with INotifyPropertyChanged notifications
+   - Format strings: 
+     * Spot: StringFormat=F4 (4 decimal places)
+     * Gamma: StringFormat=N0 (thousand separators, no decimals)
+
+
+FUNCTIONAL CAPABILITIES
+------------------------
+
+1. SPOT MONITORING
+   - Tracks live spot rates via BloombergService integration
+   - Updates occur at 500ms polling interval via _spotPollingTimer
+   - Current spot is maintained in CurrentSpot property
+   - Ladder rows can be manually updated or feed from live data
+
+2. GAMMA EXPOSURE TRACKING
+   - Manual entry of gamma values for different spot levels
+   - No automatic calculation (manual/external data source)
+   - Supports visualization of gamma distribution across spot range
+
+3. POSITION LOADING
+   - When a trade is loaded via LoadPosition():
+     * Extracts strike price from first leg
+     * Sets trading limits: ±5% around strike
+     * Initializes hedge threshold: 10% of notional
+     * Stores reference spot rate
+
+4. HEDGE ALERT INTEGRATION
+   - Ladder data can inform manual hedge decisions
+   - Not directly used in automated threshold calculations
+   - Provides reference information for trader decision-making
+   - Activity log tracks all hedge-related actions
+
+
+DATA FLOW
+---------
+
+Source (Trade Structure)
+        ↓
+    LoadPosition()
+        ↓
+Extract Strike & Notional
+        ↓
+Set Trading Limits & Thresholds
+        ↓
+Ladder initialized with 3 empty rows
+        ↓
+Trader manually enters spot/gamma levels
+        ↓
+Live spot monitoring updates CurrentSpot
+        ↓
+Hedge alert engine monitors vs. thresholds
+
+
+INTEGRATION WITH GAMMA HEDGER
+------------------------------
+
+1. POSITION CONTEXT
+   - Ladder is part of tabbed interface in GammaHedgerWindow
+   - Each position gets its own tab with associated ladder
+   - Ladder data persists as long as tab is active
+
+2. THRESHOLD MONITORING
+   - Hedge threshold checked every 100ms via _hedgeCheckTimer
+   - Compares absolute delta vs. HedgeThreshold
+   - Ladder serves as reference for manual override capability
+
+3. ALERT STATE
+   - When hedge alert triggered:
+     * Displays suggested hedge action (BUY/SELL amount)
+     * Shows current spot and delta
+     * Ladder remains visible for trader reference
+
+4. TRADING LIMITS
+   - Upper limit: Strike × 1.05
+   - Lower limit: Strike × 0.95
+   - Hedge deferred if current spot outside these limits
+   - Ladder can help visualize relative position to limits
+
+
+ACTIVITY LOGGING
+----------------
+
+All ladder operations are logged to ActivityLog:
+- Row additions: "Ladder row added"
+- Row removals: "Ladder row removed"
+- Ladder clears: "Ladder cleared" or "Ladder reset"
+- Hedge events reference ladder context
+- Log limit: 100 most recent entries maintained
+- Log can be copied to clipboard via "📋" button
+
+
+VISUAL PRESENTATION
+--------------------
+
+UI Layout:
+- Title: "Gamma Ladder"
+- Info Banner: "Enter ladder data or paste into first field"
+- Header Row: "Spot | Gamma" column labels
+- Data Rows: 
+  * Left column: Spot TextBox (4 decimals)
+  * Center column: Delete button (✕)
+  * Right column: Gamma TextBox (integer format)
+- Action Buttons:
+  * Paste button (📋)
+  * Add row button (+)
+  * Clear all button (⊗)
+
+Styling:
+- Background: Dark theme (#0f172a)
+- Text: Light gray (#f1f5f9)
+- Input fields: Dark input style (#1e293b)
+- Focus states: Interactive hover/focus effects
+
+
+TECHNICAL DETAILS
+-----------------
+
+Language: C# / WPF (Windows Presentation Foundation)
+Framework: .NET 8.0 (Windows)
+Data Binding: Two-way binding with INotifyPropertyChanged
+Threading: UI updates via Dispatcher for thread safety
+Collection Type: ObservableCollection for automatic UI refresh
+UI Type: ItemsControl with DataTemplate for row rendering
+
+
+USE CASES
+---------
+
+1. MANUAL GAMMA PROFILING
+   - Traders enter known gamma levels at different spot prices
+   - Helps visualize position convexity
+   - Reference for manual hedging decisions
+
+2. POSITION REFERENCE
+   - Ladder acts as scratchpad for hedging calculations
+   - Can store expected Greeks values for comparison
+   - Helps track historical spot/gamma movements
+
+3. TRADE VERIFICATION
+   - Verify position parameters before sending to hedger
+   - Compare expected vs. actual Greeks
+   - Document position Greeks at trade inception
+
+4. HEDGE PLANNING
+   - Identify optimal hedge spot levels
+   - Plan delta-neutral rebalancing
+   - Track cumulative hedges on position
+
+
+LIMITATIONS & NOTES
+-------------------
+
+1. Manual Input: Ladder requires manual data entry (no auto-calculation)
+2. No Historical Storage: Data persists only while tab is open
+3. Limited Rows: UI efficiently handles 20+ rows but designed for 3-10
+4. Spot Format: Limited to 4 decimal places (standard FX convention)
+5. Gamma Format: No decimal support (integer values only)
+6. No Export: Ladder data cannot be directly exported (copy log as alternative)
+7. Not Automated: Ladder does not automatically trigger hedges
+
+
+FUTURE ENHANCEMENTS
+-------------------
+
+Potential improvements:
+- CSV import/export for ladder data
+- Automatic gamma calculation from Greeks engine
+- Ladder snapshot comparison (before/after hedges)
+- Spot/gamma trend visualization over time
+- Bulk operations (scale all gamma values, adjust spot levels)
+- Hedge suggestion engine based on ladder gamma distribution
+- Integration with Bloomberg real-time gamma calculations
+- Multi-position gamma ladder aggregation
+
+
+EXAMPLE WORKFLOW
+----------------
+
+1. Trader parses FX option trade (e.g., EUR/USD 1.10 call, 5M notional)
+2. Sends to Gamma Hedger via "Send to Gamma Hedger" button
+3. GammaHedgerWindow opens with position loaded
+4. Ladder initialized with 3 empty rows
+5. Trader enters reference spots and gamma values:
+   - Row 1: Spot 1.09, Gamma -50,000
+   - Row 2: Spot 1.10, Gamma +100,000
+   - Row 3: Spot 1.11, Gamma +45,000
+6. Sets hedge threshold to 500k EUR (default 10% of 5M notional)
+7. Clicks "Save" to activate monitoring
+8. Bloomberg service updates CurrentSpot every 500ms
+9. If delta exceeds 500k:
+   - Hedge alert triggered
+   - Activity logged
+   - Ladder available for reference during manual execution
+10. After hedge execution, trader can add new ladder rows for new position state
+
+
+END OF GAMMA LADDER FUNCTIONALITY DOCUMENTATION
+================================================================================

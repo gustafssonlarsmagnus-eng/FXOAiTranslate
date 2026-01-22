@@ -1705,27 +1705,5 @@ Generate a regex pattern for similar inputs. Respond in JSON format:
             var match = Regex.Match(ovml, @"SP(\d+\.?\d*)");
             return match.Success ? match.Groups[1].Value : "";
         }
-
-        /// <summary>
-        /// Convert this TradeParseResult to a TradeStructure for use with Gamma Hedger.
-        /// Uses OVMLBridge to parse the OVML string and create a structured trade representation.
-        /// </summary>
-        public TradeStructure ToTradeStructure()
-        {
-            if (string.IsNullOrEmpty(OVML))
-            {
-                throw new InvalidOperationException("Cannot convert to TradeStructure: OVML is empty");
-            }
-
-            try
-            {
-                return OVMLBridge.ConvertToTradeStructure(this);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[TradeParseResult] Error converting to TradeStructure: {ex.Message}");
-                throw;
-            }
-        }
     }
 }

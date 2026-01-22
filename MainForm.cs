@@ -1237,8 +1237,8 @@ namespace FXOAiTranslator
                 }
                 else
                 {
-                    lblCalendarStatus.Text = "Calendar DB: Fallback Mode";
-                    lblCalendarStatus.ForeColor = Color.Orange;
+                    lblCalendarStatus.Text = "⚠ Calendar DB: UNAVAILABLE";
+                    lblCalendarStatus.ForeColor = Color.Red;
                 }
             }
             catch (Exception ex)

@@ -6,6 +6,16 @@ using Microsoft.Data.SqlClient;
 namespace FX.Infrastructure.Calendars.Legacy
 {
     /// <summary>
+    /// Exception thrown when calendar database is not available.
+    /// </summary>
+    public class CalendarUnavailableException : Exception
+    {
+        public CalendarUnavailableException() : base("Calendar database is not available. Date calculations cannot be performed.") { }
+        public CalendarUnavailableException(string message) : base(message) { }
+        public CalendarUnavailableException(string message, Exception innerException) : base(message, innerException) { }
+    }
+
+    /// <summary>
     /// Service for FX calendar operations using database-backed holiday calendars.
     /// Replaces QLNet-based FxDateService with reliable, database-driven business day calculations.
     /// </summary>
@@ -71,7 +81,7 @@ namespace FX.Infrastructure.Calendars.Legacy
       catch (Exception ex)
             {
 _isDatabaseAvailable = false;
-  Console.WriteLine($"[FX-CALENDAR] WARNING: Database unavailable, using fallback calculations: {ex.Message}");
+  Console.WriteLine($"[FX-CALENDAR] ERROR: Database unavailable - calendar calculations will fail: {ex.Message}");
          if (ex.InnerException != null)
   {
          Console.WriteLine($"[FX-CALENDAR] Inner exception: {ex.InnerException.Message}");
@@ -177,34 +187,32 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
   /// </summary>
  public DateTime GetNextBusinessDay(DateTime date, string currencyPair, bool includeStart = true)
         {
-   if (!_isDatabaseAvailable)
-   {
-                return GetNextBusinessDayFallback(date, includeStart);
- }
+            if (!_isDatabaseAvailable)
+            {
+                throw new CalendarUnavailableException();
+            }
 
-      try
+            try
             {
                 var markets = GetMarketsForPair(currencyPair);
    var startDate = includeStart ? date : date.AddDays(1);
     return _holidayCalendar.NextBusinessDay(startDate, markets);
             }
-   catch (Exception ex)
-       {
-          Console.WriteLine($"[FX-CALENDAR] Error getting next business day: {ex.Message}");
-    return GetNextBusinessDayFallback(date, includeStart);
-  }
- }
-
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FX-CALENDAR] Error getting next business day: {ex.Message}");
+                throw new CalendarUnavailableException($"Error getting next business day: {ex.Message}", ex);
+            }
+        }
         /// <summary>
         /// Calculate spot date (T+2 for most pairs, T+1 for some).
         /// </summary>
         public DateTime CalculateSpotDate(DateTime tradeDate, string currencyPair)
         {
-         if (!_isDatabaseAvailable)
-  {
-             // Fallback: simple T+2 calculation
- return AddBusinessDaysFallback(tradeDate, 2);
- }
+            if (!_isDatabaseAvailable)
+            {
+                throw new CalendarUnavailableException();
+            }
 
          try
             {
@@ -220,12 +228,12 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
  }
         return result;
 }
-      catch (Exception ex)
-    {
-        Console.WriteLine($"[FX-CALENDAR] Error calculating spot date: {ex.Message}");
-             return AddBusinessDaysFallback(tradeDate, 2);
-   }
-    }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FX-CALENDAR] Error calculating spot date: {ex.Message}");
+                throw new CalendarUnavailableException($"Error calculating spot date: {ex.Message}", ex);
+            }
+        }
 
         /// <summary>
         /// Calculate expiry date from trade date and tenor.
@@ -235,8 +243,7 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
         {
             if (!_isDatabaseAvailable)
             {
-                // Fallback: simple tenor calculation
-                return CalculateExpiryFallback(tradeDate, tenor);
+                throw new CalendarUnavailableException();
             }
 
             try
@@ -272,7 +279,7 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
             catch (Exception ex)
             {
                 Console.WriteLine($"[FX-CALENDAR] Error calculating expiry: {ex.Message}");
-                return CalculateExpiryFallback(tradeDate, tenor);
+                throw new CalendarUnavailableException($"Error calculating expiry: {ex.Message}", ex);
             }
         }
 
@@ -283,8 +290,8 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
         {
             if (!_isDatabaseAvailable)
             {
-   return AddBusinessDaysFallback(expiryDate, 2);
-     }
+                throw new CalendarUnavailableException();
+            }
 
             try
     {
@@ -298,21 +305,21 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
           }
                 return result;
             }
-     catch (Exception ex)
-         {
-  Console.WriteLine($"[FX-CALENDAR] Error calculating delivery date: {ex.Message}");
-     return AddBusinessDaysFallback(expiryDate, 2);
- }
-     }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FX-CALENDAR] Error calculating delivery date: {ex.Message}");
+                throw new CalendarUnavailableException($"Error calculating delivery date: {ex.Message}", ex);
+            }
+        }
 
         /// <summary>
         /// Check if a date is a business day.
       /// </summary>
         public bool IsBusinessDay(DateTime date, string currencyPair)
         {
-  if (!_isDatabaseAvailable)
-          {
-   return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
+            if (!_isDatabaseAvailable)
+            {
+                throw new CalendarUnavailableException();
             }
 
             try
@@ -324,10 +331,10 @@ builder.DataSource = $"tcp:{builder.DataSource},1433";
      
          return !_holidayCalendar.IsHoliday(date, markets);
             }
-  catch
+            catch (Exception ex)
             {
-          return date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday;
-     }
+                throw new CalendarUnavailableException($"Error checking business day: {ex.Message}", ex);
+            }
         }
 
         #region Helper Methods

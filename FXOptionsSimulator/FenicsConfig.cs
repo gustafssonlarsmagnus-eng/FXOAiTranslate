@@ -206,61 +206,6 @@ namespace FXOptionsSimulator.FIX  // ← CHANGED: Added .FIX namespace
             };
         }
 
-        /// <summary>
-        /// CNHSEK market data for testing - CNH (Offshore Yuan) vs Swedish Krona
-        /// Synthetic cross calculated from USDCNH and USDSEK
-        /// CNHSEK = USDSEK / USDCNH
-        /// </summary>
-        public static MarketData GetCNHSEK()
-        {
-            return new MarketData
-            {
-                Symbol = "CNHSEK",
-                SpotRate = 1.4420,  // Approximate: 10.4560 / 7.25 ≈ 1.442
-                ForwardPoints = new Dictionary<string, double>
-                {
-                    ["1M"] = -15.5,
-                    ["3M"] = -45.2,
-                    ["6M"] = -92.1,
-                    ["1Y"] = -175.3,
-                },
-                ImpliedVols = new Dictionary<string, double>
-                {
-                    ["1M_ATM"] = 9.5,
-                    ["3M_ATM"] = 10.2,
-                    ["6M_ATM"] = 10.8,
-                    ["1Y_ATM"] = 11.5,
-                }
-            };
-        }
-
-        /// <summary>
-        /// USDCNH market data for testing - USD vs Offshore Yuan
-        /// Primary CNH pair used for cross rate calculations
-        /// </summary>
-        public static MarketData GetUSDCNH()
-        {
-            return new MarketData
-            {
-                Symbol = "USDCNH",
-                SpotRate = 7.2500,
-                ForwardPoints = new Dictionary<string, double>
-                {
-                    ["1M"] = 125.0,
-                    ["3M"] = 380.0,
-                    ["6M"] = 750.0,
-                    ["1Y"] = 1450.0,
-                },
-                ImpliedVols = new Dictionary<string, double>
-                {
-                    ["1M_ATM"] = 5.5,
-                    ["3M_ATM"] = 6.2,
-                    ["6M_ATM"] = 6.8,
-                    ["1Y_ATM"] = 7.3,
-                }
-            };
-        }
-
         public double GetForwardRate(string tenor)
         {
             if (ForwardPoints.TryGetValue(tenor, out var points))

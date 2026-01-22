@@ -1,0 +1,645 @@
+================================================================================
+CALENDAR DATABASE INTEGRATION AND CONNECTION PROCESS
+================================================================================
+
+EXECUTIVE SUMMARY
+-----------------
+The FX Calendar Service is a database-driven holiday calendar system that replaces
+QLNet-based calendar logic with reliable, production-backed business day calculations.
+It maintains real holiday data in a SQL Server database and provides core date services
+for FX options trading, including spot date calculation, business day detection, and
+expiry/delivery date adjustments using the Modified Following convention.
+
+
+ARCHITECTURE OVERVIEW
+---------------------
+
+Three-Layer Architecture:
+
+┌─────────────────────────────────┐
+│   FxCalendarService (Singleton) │  <- Public API / Entry Point
+│   - Initialization              │
+│   - Thread-safe access          │
+│   - Configuration management    │
+└────────────┬────────────────────┘
+             │
+┌────────────▼──────────────────────────┐
+│   HolidayCalendar (Core DB Access)   │  <- Database interaction layer
+│   - Connection handling              │
+│   - Retry/backoff logic              │
+│   - Query execution                  │
+└────────────┬───────────────────────────┘
+             │
+┌────────────▼─────────────────────┐
+│   AHSKvant Production Database   │  <- Holiday data storage
+│   - Holiday table                 │
+│   - Market mapping                │
+│   - 2025+ historical/future data  │
+└───────────────────────────────────┘
+
+
+DATABASE COMPONENTS
+-------------------
+
+1. PRIMARY TABLE: Holiday
+   Location: AHSKvant production database
+   
+   Schema:
+   ┌─────────────┬──────────┬───────────────────────┐
+   │ MARKET      │ MARKET   │ HOLIDAY_DATE          │
+   ├─────────────┼──────────┼───────────────────────┤
+   │ USA         │ string   │ DateTime (UTC)        │
+   │ TARGET      │ string   │ DateTime (UTC)        │
+   │ ENGLAND     │ string   │ DateTime (UTC)        │
+   │ NORWAY      │ string   │ DateTime (UTC)        │
+   │ SWEDEN      │ string   │ DateTime (UTC)        │
+   │ SWITZERLAND │ string   │ DateTime (UTC)        │
+   │ CANADA      │ string   │ DateTime (UTC)        │
+   │ AUSTRALIA   │ string   │ DateTime (UTC)        │
+   │ JAPAN       │ string   │ DateTime (UTC)        │
+   │ RUSSIA      │ string   │ DateTime (UTC)        │
+   └─────────────┴──────────┴───────────────────────┘
+
+2. MARKET CODE MAPPING
+   - USA:          United States FX market
+   - TARGET:       Euro settlement system (ECB calendar)
+   - ENGLAND:      UK financial market
+   - NORWAY:       Norway stock exchange
+   - SWEDEN:       Sweden stock exchange
+   - SWITZERLAND:  Swiss financial market
+   - CANADA:       Canadian FX market
+   - AUSTRALIA:    Australian FX market
+   - JAPAN:        Japan FX market
+   - RUSSIA:       Russia FX market
+
+
+CONNECTION INITIALIZATION PROCESS
+----------------------------------
+
+STEP 1: CONFIGURATION LOADING
+   └─ FxCalendarService.Instance getter triggered
+   └─ Singleton lock acquired (_lock)
+   └─ Connection string resolution:
+      1. Try: ConfigurationManager.ConnectionStrings["AHSKvant"]
+      2. Fallback: ConfigurationManager.AppSettings["AHSKvantConnectionString"]
+      3. Error: InvalidOperationException if not found
+
+STEP 2: CONNECTION STRING VALIDATION
+   └─ EnsureRemoteCompatible() processes connection string
+   └─ TCP/IP protocol enforcement:
+      - Adds "tcp:" prefix if missing
+      - Specifies port 1433 if not provided
+      - Transforms: "AHSKvant-prod-db" → "tcp:AHSKvant-prod-db,1433"
+   
+STEP 3: CONNECTION SECURITY CONFIGURATION
+   └─ Encryption enabled: Encrypt = true
+   └─ Certificate handling: TrustServerCertificate = true (internal server)
+   └─ Connection pooling activated:
+      - MinPoolSize = 1
+      - MaxPoolSize = 10
+   
+STEP 4: TIMEOUT SETTINGS
+   └─ ConnectTimeout set to 10 seconds (reachable servers)
+   └─ Query timeout defaults to 15 seconds
+   └─ Range allowed: 10-30 seconds
+
+STEP 5: CONNECTION TEST & INSTANCE CREATION
+   └─ New FxCalendarService(connectionString) created
+   └─ HolidayCalendar instantiated with validated connection string
+   └─ _isDatabaseAvailable flag set to true on success
+   
+STEP 6: ERROR HANDLING & DIAGNOSTICS
+   └─ SqlException caught and parsed
+   └─ Specific error codes identified:
+      - Error 53: Named Pipes protocol failure → Recommend tcp: prefix
+      - Error 258: Connection timeout → Check firewall/network
+      - Error 18456: SQL Login failure → Check credentials/auth mode
+      - "Access is denied" → Windows auth not working, use SQL auth
+   └─ Helpful diagnostics logged to console
+   └─ _isDatabaseAvailable set to false on failure
+
+
+CONFIGURATION SETUP
+-------------------
+
+Option 1: connectionStrings (PREFERRED)
+   <configuration>
+     <connectionStrings>
+       <add name="AHSKvant"
+            connectionString="Server=AHSKvant-prod-db;Database=YourDatabaseName;
+                             Integrated Security=true;Connection Timeout=30;"
+            providerName="System.Data.SqlClient" />
+     </connectionStrings>
+   </configuration>
+
+Option 2: appSettings (FALLBACK)
+   <configuration>
+     <appSettings>
+       <add key="AHSKvantConnectionString"
+            value="Server=AHSKvant-prod-db;Database=YourDatabaseName;
+                   Integrated Security=true;Connection Timeout=30;" />
+     </appSettings>
+   </configuration>
+
+Option 3: SQL Authentication (Non-Windows)
+   <connectionStrings>
+     <add name="AHSKvant"
+          connectionString="Server=AHSKvant-prod-db;Database=YourDatabaseName;
+                           User Id=sqluser;Password=password;Connection Timeout=30;"
+          providerName="System.Data.SqlClient" />
+   </connectionStrings>
+
+
+HOLIDAY DATA RETRIEVAL PROCESS
+-------------------------------
+
+Query Pattern:
+   1. Client calls FxCalendarService.Instance.<method>()
+   2. Singleton returns active instance
+   3. Database availability checked: _isDatabaseAvailable == true
+   4. HolidayCalendar method called with market codes & date range
+   5. SQL query executed with retry logic
+   6. Results returned as DataTable or processed collection
+
+SQL Query Template:
+   SELECT DISTINCT MARKET, HOLIDAY_DATE
+   FROM Holiday WITH (NOLOCK)
+   WHERE HOLIDAY_DATE >= @from 
+     AND HOLIDAY_DATE <= @to 
+     AND MARKET IN (@m0, @m1, ...)
+   ORDER BY MARKET, HOLIDAY_DATE
+
+Query Features:
+   - NOLOCK hint: Non-blocking read (dirty read acceptable for holiday data)
+   - Parametrized queries: SQL injection prevention
+   - Distinct results: Avoids duplicate rows
+   - Date range filtering: Minimal data transfer
+   - Market filtering: Optional (null = all markets)
+
+
+RETRY AND RESILIENCE LOGIC
+---------------------------
+
+Retry Configuration:
+   - Max attempts: 5
+   - Initial delay: 100 milliseconds
+   - Backoff strategy: Exponential (double each retry)
+   - Maximum delay cap: 4,000 milliseconds
+   - Transient error detection: SqlException only
+
+Retry Flow:
+   Attempt 1: Immediate
+   Attempt 2: Wait 100ms, retry
+   Attempt 3: Wait 200ms, retry
+   Attempt 4: Wait 400ms, retry
+   Attempt 5: Wait 800ms, retry
+   Attempt 6: Throw exception
+
+Covered Scenarios:
+   - Network timeouts
+   - Connection pool exhaustion
+   - Transient SQL Server issues
+   - Database temporarily unavailable
+   - Connection drops during query
+
+Non-Retryable Errors:
+   - Authentication failures (Error 18456)
+   - Login not available (Error 40529)
+   - Database not found
+   - Syntax errors
+   - Permission denied
+
+
+CORE FUNCTIONALITY METHODS
+--------------------------
+
+1. GetHolidays(markets, from, to, timeoutSeconds = 15)
+   Purpose: Fetch holiday records from database
+   Parameters:
+     - markets: Null/empty = all markets, or collection of market codes
+     - from: Start date (inclusive)
+     - to: End date (inclusive)
+     - timeoutSeconds: Query timeout (default 15)
+   Returns: DataTable with MARKET and HolidayDate columns
+   Throws: SqlException on DB error, CalendarUnavailableException if DB offline
+
+2. IsHoliday(date, markets)
+   Purpose: Quick holiday check
+   Implementation: Calls GetHolidays(date, date) and checks row count
+   Returns: bool (true if date is holiday in any specified market)
+   Throws: CalendarUnavailableException if DB offline
+
+3. NextBusinessDay(startDate, markets)
+   Purpose: Find next business day from given start date
+   Algorithm:
+     1. Get holidays for 1-year window from startDate
+     2. Build HashSet<DateTime> of holidays
+     3. Loop forward from startDate
+     4. Skip weekends (Sat/Sun) and holidays
+     5. Return first non-excluded date
+   Returns: DateTime (next business day)
+   Throws: CalendarUnavailableException if DB offline
+
+4. ExecuteWithRetry(action, maxAttempts = 5, initialDelayMs = 100)
+   Purpose: Low-level database execution with resilience
+   Pattern: Exponential backoff on transient errors
+   Features:
+     - Automatic connection management
+     - Retry loop with calculated delays
+     - Thread.Sleep() based backoff
+     - SQL connection opened fresh each attempt
+
+
+QUERY PARAMETER SAFETY
+----------------------
+
+Parametrized Query Pattern:
+   Input: markets = ["USA", "EUR"]
+   
+   Generated placeholders: @m0, @m1
+   Parameters added: 
+     - SqlParameter("@m0", "USA")
+     - SqlParameter("@m1", "EUR")
+   
+   Query: WHERE MARKET IN (@m0, @m1)
+   
+   Benefit: Prevents SQL injection via market codes
+
+Date Parameter Handling:
+   Input: DateTime tradeDate = new DateTime(2025, 12, 31)
+   Parameters:
+     - SqlParameter("@from", SqlDbType.DateTime) { Value = from }
+     - SqlParameter("@to", SqlDbType.DateTime) { Value = to }
+   
+   Benefit: Type-safe date comparisons, handles timezone context
+
+
+BUSINESS DAY CONVENTIONS
+------------------------
+
+Modified Following (Default):
+   Standard for FX expiry dates
+   
+   Algorithm:
+   1. Calculate base date
+   2. If base date is weekend/holiday:
+      - Try next business day
+      - Check if next BDay is in different month
+      - If so: Use previous business day instead
+   3. Return adjusted date
+
+Example Scenarios:
+
+   Scenario A: Normal case
+   ├─ Input: Dec 24, 2025 (Wednesday)
+   └─ Result: Dec 24, 2025 (same day, already business day)
+
+   Scenario B: Weekend
+   ├─ Input: Dec 27, 2025 (Saturday)
+   └─ Next: Dec 29, 2025 (Monday, same month)
+   └─ Result: Dec 29, 2025
+
+   Scenario C: End-of-month with holiday
+   ├─ Input: Dec 31, 2025 (Wednesday holiday)
+   ├─ Next: Jan 1, 2026 (crosses to next month)
+   └─ Result: Dec 30, 2025 (previous business day)
+
+   Scenario D: Multi-day holiday period
+   ├─ Input: Dec 29, 2025 (holiday)
+   ├─ Dec 30, 2025 (holiday)
+   ├─ Dec 31, 2025 (holiday)
+   ├─ Jan 1, 2026 (holiday, next month)
+   └─ Result: Dec 28, 2025 (previous business day)
+
+
+INTEGRATION POINTS
+------------------
+
+1. FxCalendarService Integration
+   Usage Pattern:
+     var calendarService = FxCalendarService.Instance;
+     DateTime spotDate = calendarService.CalculateSpotDate(tradeDate, "EURUSD");
+     bool isBizDay = calendarService.IsBusinessDay(date, "EURUSD");
+
+2. Trade Parsing Integration
+   - TradeParser uses FxCalendarService for:
+     * Spot date calculation (T+2 or T+1)
+     * Expiry date validation
+     * Settlement date adjustment
+   - Currency pair mapped to markets in GetMarketsForPair()
+
+3. Bloomberg Service Integration
+   - BloombergService may use calendar for:
+     * Historical quote date validation
+     * Settlement cycle awareness
+
+4. Gamma Hedger Integration
+   - GammaHedgerWindow references calendar for:
+     * Position expiry date
+     * Next rebalancing date
+     * Spot monitoring date context
+
+5. FX Options Simulator Integration
+   - FXOptionsSimulator core uses FxCalendarService for:
+     * Trade settlement dates
+     * Option expiry calculations
+     * Spot/forward conversions
+
+
+CURRENCY TO MARKET MAPPING
+---------------------------
+
+Code Lookup Table:
+
+USD      → USA
+EUR      → TARGET         (ECB TARGET2 system)
+GBP      → ENGLAND        (UK settlement)
+JPY      → JAPAN          (Japan FX market)
+CHF      → SWITZERLAND    (Swiss market)
+CAD      → CANADA         (Canadian market)
+AUD      → AUSTRALIA      (Australian market)
+NZD      → NEW ZEALAND    (NZ market)
+SEK      → SWEDEN         (Swedish market)
+NOK      → NORWAY         (Norwegian market)
+DKK      → DENMARK        (Danish market)
+SGD      → SINGAPORE      (Singapore market)
+HKD      → HONGKONG       (Hong Kong market)
+CNY      → CHINA          (China market)
+INR      → INDIA          (India market)
+ZAR      → SOUTHAFRICA    (South Africa market)
+BRL      → BRAZIL         (Brazil market)
+MXN      → MEXICO         (Mexico market)
+RUB      → RUSSIA         (Russia market)
+HUF      → HUNGARY        (Hungary market)
+CZK      → CZECHIA        (Czech Republic market)
+PLN      → POLAND         (Poland market)
+RON      → ROMANIA        (Romania market)
+TRY      → TURKEY         (Turkey market)
+
+Pair Mapping Logic:
+   For pair "EURUSD":
+     - EUR → TARGET
+     - USD → USA
+     - Markets: ["TARGET", "USA"]
+   
+   For pair "GBPJPY":
+     - GBP → ENGLAND
+     - JPY → JAPAN
+     - Markets: ["ENGLAND", "JAPAN"]
+
+
+SPOT LAG DETERMINATION
+----------------------
+
+Standard Spot Lag: T+2 (Two Business Days)
+Pairs: Most FX pairs (EURUSD, GBPUSD, etc.)
+
+Reduced Spot Lag: T+1 (One Business Day)
+Pairs: USD/CAD, USD/MXN, and emerging market pairs
+
+Logic:
+   IsT1Pair(currencyPair) checks if pair is T+1
+   If T+1: spotLag = 1
+   If standard: spotLag = 2
+   
+Example: EURUSD + 1D
+   └─ Trade date: Mon, Jan 20
+   └─ Add 1 business day: Tue, Jan 21 (skip weekends/holidays)
+   └─ Add another business day: Wed, Jan 22 (if EURUSD is T+2)
+   └─ Spot date: Wed, Jan 22
+
+
+ERROR HANDLING & DIAGNOSTICS
+-----------------------------
+
+Error Detection:
+   SqlException.Number checks:
+     - 53: Named Pipes error
+     - 258: Connection timeout
+     - 18456: Login failed
+     - 40529: Login not available
+   
+   Message pattern checks:
+     - "wait operation timed out"
+     - "Access is denied"
+     - "Named Pipes"
+
+Diagnostic Output:
+   Sample error with debugging info:
+
+   [FX-CALENDAR] SQL ERROR (53): Named Pipes Provider: Protocol error
+   [FX-CALENDAR] TIP: Named Pipes failed. This often happens when working remotely.
+   [FX-CALENDAR] TIP: Ensure connection uses 'tcp:servername,1433' format.
+   [FX-CALENDAR] TIP: Verify VPN is connected and you can ping the server.
+   [FX-CALENDAR] TIP: Check if port 1433 is open: Test-NetConnection -ComputerName 
+                      AHSKvant-prod-db -Port 1433
+
+Logging Pattern:
+   - [FX-CALENDAR] prefix for all diagnostic output
+   - Error level differentiation: ERROR, WARNING, INFO, TIP
+   - Timestamp context from DateTime.Now
+   - Connection string masked (passwords replaced with ****)
+
+
+THREAD SAFETY & CONCURRENCY
+----------------------------
+
+Singleton Pattern Implementation:
+   private static FxCalendarService _instance;
+   private static readonly object _lock = new object();
+
+   public static FxCalendarService Instance
+   {
+       get
+       {
+           if (_instance == null)
+           {
+               lock (_lock)
+               {
+                   if (_instance == null)
+                   {
+                       _instance = new FxCalendarService(connString);
+                   }
+               }
+           }
+           return _instance;
+       }
+   }
+
+Thread-Safe Features:
+   - Double-check lock pattern
+   - Static lock object prevents race conditions
+   - All queries use connection pooling
+   - SqlConnection.Open() is thread-safe
+   - HolidayCalendar methods are reentrant
+
+Connection Pooling:
+   - Pool size: 1-10 connections
+   - Automatic connection reuse
+   - MinPoolSize = 1: Always keep one connection ready
+   - MaxPoolSize = 10: Prevent resource exhaustion
+   - Connection string parsing happens once per pool
+
+
+PERFORMANCE OPTIMIZATION
+------------------------
+
+1. Connection Pooling
+   - Reuses connections across method calls
+   - Avoids expensive connect/disconnect cycles
+   - Configured pool size: 1-10
+
+2. Query Optimization
+   - NOLOCK hint: Non-blocking reads
+   - Date range filtering: Only pull needed dates
+   - DISTINCT keyword: No duplicate processing
+   - ORDER BY: Database-side sorting
+
+3. Lazy Connection
+   - Connection established on first query (not at initialization)
+   - Avoids startup delays (previously 20+ seconds)
+   - Reduces impact if database is temporarily unavailable
+
+4. Holiday Caching Strategy
+   - NextBusinessDay() loads 1-year window
+   - HashSet<DateTime> for O(1) lookups
+   - Suitable for interactive trading scenarios
+
+5. Parametrized Queries
+   - Query plan caching by SQL Server
+   - Consistent performance for repeated patterns
+
+
+DIAGNOSTIC & DEBUG FEATURES
+----------------------------
+
+1. DiagnoseDecember2025Holidays() Method
+   Purpose: Troubleshoot specific date range issues
+   Functionality:
+     - Query all markets for Dec 1-31, 2025
+     - Display holiday count
+     - List all holidays with dates
+     - Check specific markets: USA, TARGET, ENGLAND, NORWAY, SWEDEN
+     - Print formatted output for analysis
+   
+   Usage: _holidayCalendar.DiagnoseDecember2025Holidays()
+
+2. Console Logging
+   - All connection events logged
+   - SQL error codes and messages displayed
+   - Helpful tips for common issues
+   - Masked connection strings (passwords hidden)
+
+3. Database Availability Flag
+   - Public property: IsDatabaseAvailable
+   - Set during initialization
+   - Checked before each operation
+   - CalendarUnavailableException thrown if false
+
+
+TROUBLESHOOTING GUIDE
+---------------------
+
+Issue: CalendarUnavailableException
+   Cause: _isDatabaseAvailable is false
+   Solution: Check initialization logs for connection error details
+
+Issue: "Named Pipes" error (Code 53)
+   Cause: Using shared memory or named pipes protocol
+   Solution: Use tcp:servername,1433 format in connection string
+
+Issue: "Timeout" (Code 258)
+   Cause: Cannot reach database server
+   Solutions:
+     - Check VPN connection (if remote)
+     - Verify firewall allows port 1433
+     - Test: Test-NetConnection -ComputerName AHSKvant-prod-db -Port 1433
+     - Check if server is operational
+
+Issue: "Login Failed" (Code 18456)
+   Cause: Authentication failure
+   Solutions:
+     - Verify Windows credentials (if using Integrated Security)
+     - Verify SQL credentials (if using User Id/Password)
+     - Check if account has database access
+
+Issue: "Access Denied"
+   Cause: Credentials not working over network
+   Solution: Switch from Windows auth to SQL Server authentication
+
+Issue: Missing 2025 holidays
+   Cause: Database Holiday table not populated for 2025
+   Solution: Use DiagnoseDecember2025Holidays() to verify; update database
+
+
+OPERATIONAL BEST PRACTICES
+--------------------------
+
+1. Deployment
+   - Store connection strings in secure configuration (not hardcoded)
+   - Use Integrated Security for domain-joined environments
+   - Use SQL authentication for cloud/non-domain environments
+   - Ensure SQL Server allows remote connections
+
+2. Monitoring
+   - Log FxCalendarService initialization output
+   - Track IsDatabaseAvailable flag
+   - Monitor query response times (should be <500ms)
+   - Alert on repeated CalendarUnavailableException
+
+3. Maintenance
+   - Periodically update Holiday table with new year data
+   - Archive old connection attempts if pooling issues occur
+   - Review performance metrics if response time increases
+   - Test failover procedures
+
+4. Configuration
+   - Keep connection timeout ≤ 30 seconds
+   - Adjust pool size based on concurrent user load
+   - Document any environment-specific connection parameters
+   - Test connection string before deploying
+
+
+RELATED COMPONENTS
+------------------
+
+HolidayCalendar.cs
+   └─ Core database interaction
+   └─ Retry/backoff implementation
+   └─ Query parameterization
+
+FxCalendarService.cs
+   └─ Singleton wrapper
+   └─ Configuration loading
+   └─ Public API methods
+   └─ Date calculation logic
+
+TradeParser.cs
+   └─ Uses FxCalendarService for spot/expiry dates
+   └─ Validates trade settlement dates
+
+GammaHedgerWindow.xaml.cs
+   └─ References calendar for position dates
+   └─ Uses for business day checks
+
+FXOptionsSimulator.cs
+   └─ Core trading logic using FxCalendarService
+   └─ Settlement date calculations
+
+
+FUTURE ENHANCEMENTS
+-------------------
+
+Planned Improvements:
+   - Async query methods for UI responsiveness
+   - Multi-database failover support
+   - Redis caching for holiday data
+   - Bulk holiday imports/exports
+   - Support for custom market calendars
+   - Performance metrics collection
+   - More granular retry policies
+   - Batch holiday updates capability
+
+
+END OF CALENDAR DATABASE INTEGRATION DOCUMENTATION
+================================================================================
