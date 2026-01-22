@@ -973,6 +973,48 @@ namespace FXOAiTranslate.WPF.Views
         }
 
         /// <summary>
+        /// Interpolate delta from the gamma ladder at the given spot level.
+        /// Returns delta in millions (e.g., 16.95 = 16.95M CNH/USD delta).
+        /// Only works if ladder has delta column (3-column format).
+        /// </summary>
+        private double InterpolateDeltaFromLadder(double spot)
+        {
+            var validRows = GammaLadder
+                .Where(r => r.Spot.HasValue && r.Delta.HasValue)
+                .OrderBy(r => r.Spot.Value)
+                .ToList();
+
+            if (validRows.Count == 0) return 0;
+            if (validRows.Count == 1) return validRows[0].Delta.Value;
+
+            // Find the two ladder rungs surrounding current spot
+            for (int i = 0; i < validRows.Count - 1; i++)
+            {
+                double spotLow = validRows[i].Spot.Value;
+                double spotHigh = validRows[i + 1].Spot.Value;
+
+                if (spot >= spotLow && spot <= spotHigh)
+                {
+                    // Linear interpolation
+                    double deltaLow = validRows[i].Delta.Value;
+                    double deltaHigh = validRows[i + 1].Delta.Value;
+                    double fraction = (spot - spotLow) / (spotHigh - spotLow);
+                    return deltaLow + (deltaHigh - deltaLow) * fraction;
+                }
+            }
+
+            // Spot is outside ladder range - extrapolate from nearest end
+            if (spot < validRows.First().Spot.Value)
+            {
+                return validRows.First().Delta.Value;
+            }
+            else
+            {
+                return validRows.Last().Delta.Value;
+            }
+        }
+
+        /// <summary>
         /// Calculate aggregate gamma from parsed positions (simplified).
         /// </summary>
         private double CalculatePositionsGamma()
@@ -1492,6 +1534,7 @@ namespace FXOAiTranslate.WPF.Views
 
         /// <summary>
         /// Parse gamma ladder from tab-separated text.
+        /// Supports 2-column (Spot, Gamma) or 3-column (Spot, Delta, Gamma) formats.
         /// </summary>
         private void ParseAndLoadGammaLadder(string text)
         {
@@ -1505,26 +1548,40 @@ namespace FXOAiTranslate.WPF.Views
 
             GammaLadder.Clear();
             string detectedCcy = null;
+            string detectedDeltaCcy = null;
             int rowsParsed = 0;
+            bool hasThreeColumns = false;
 
             foreach (var line in lines)
             {
                 var parts = line.Split('\t');
                 
-                // Try to parse as data row (Spot, Gamma)
-                if (parts.Length >= 2)
+                // Try to parse as data row - 3-column format: Spot, Delta, Gamma
+                if (parts.Length >= 3)
                 {
-                    // Try parsing first column as spot
+                    if (TryParseDouble(parts[0], out double spot) && 
+                        TryParseDouble(parts[1], out double delta) &&
+                        TryParseDouble(parts[2], out double gamma))
+                    {
+                        GammaLadder.Add(new GammaLadderRow { Spot = spot, Delta = delta, Gamma = gamma });
+                        rowsParsed++;
+                        hasThreeColumns = true;
+                        continue;
+                    }
+                }
+                // Try 2-column format: Spot, Gamma
+                else if (parts.Length >= 2)
+                {
                     if (TryParseDouble(parts[0], out double spot) && 
                         TryParseDouble(parts[1], out double gamma))
                     {
-                        GammaLadder.Add(new GammaLadderRow { Spot = spot, Gamma = gamma });
+                        GammaLadder.Add(new GammaLadderRow { Spot = spot, Delta = null, Gamma = gamma });
                         rowsParsed++;
                         continue;
                     }
                 }
 
-                // Check if this is a header with currency pair (e.g., "CNHSEK" or "mio CNH")
+                // Check if this is a header with currency pair (e.g., "CNHSEK" or "USDSEK")
                 if (detectedCcy == null)
                 {
                     var match = Regex.Match(line, @"\b([A-Z]{6})\b");
@@ -1532,30 +1589,22 @@ namespace FXOAiTranslate.WPF.Views
                     {
                         detectedCcy = match.Groups[1].Value;
                     }
-                    else
+                }
+                
+                // Extract delta currency from "mio XXX" pattern (e.g., "mio CNH", "mio USD")
+                if (detectedDeltaCcy == null)
+                {
+                    var mioMatch = Regex.Match(line, @"mio\s+([A-Z]{3})", RegexOptions.IgnoreCase);
+                    if (mioMatch.Success)
                     {
-                        // Try to extract currency from "mio XXX" pattern
-                        var mioMatch = Regex.Match(line, @"mio\s+([A-Z]{3})", RegexOptions.IgnoreCase);
-                        if (mioMatch.Success)
-                        {
-                            string ccy = mioMatch.Groups[1].Value.ToUpper();
-                            // Try to infer pair from existing setting or use USD as counter
-                            if (!string.IsNullOrEmpty(CurrencyPair) && CurrencyPair.Contains(ccy))
-                            {
-                                detectedCcy = CurrencyPair;
-                            }
-                            else
-                            {
-                                detectedCcy = ccy + "USD"; // Default assumption
-                            }
-                        }
+                        detectedDeltaCcy = mioMatch.Groups[1].Value.ToUpper();
                     }
                 }
             }
 
             if (rowsParsed == 0)
             {
-                MessageBox.Show("No valid data rows found. Expected format:\nSpot[TAB]Gamma\n1.3248[TAB]18.20", 
+                MessageBox.Show("No valid data rows found. Expected format:\nSpot[TAB]Delta[TAB]Gamma or Spot[TAB]Gamma\n1.3248[TAB]16.9[TAB]18.20", 
                     "Invalid Format", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -1574,9 +1623,17 @@ namespace FXOAiTranslate.WPF.Views
                 // Update gamma ladder on active tab
             }
 
-            // Reset delta tracking for new ladder
-            _accumulatedDelta = 0;
-            _lastSpotForDelta = CurrentSpot;
+            // Set delta currency from ladder header (e.g., "mio CNH" -> "CNH")
+            // This determines the currency for threshold comparison
+            if (!string.IsNullOrEmpty(detectedDeltaCcy))
+            {
+                HedgeThresholdCcy = detectedDeltaCcy;
+            }
+            else if (!string.IsNullOrEmpty(detectedCcy))
+            {
+                // Default to base currency of pair (first 3 chars)
+                HedgeThresholdCcy = detectedCcy.Substring(0, 3);
+            }
 
             // Set trading limits based on ladder range
             var validRows = GammaLadder.Where(r => r.Spot.HasValue).ToList();
@@ -1597,16 +1654,41 @@ namespace FXOAiTranslate.WPF.Views
                     _activeTab.GammaLadder.Add(new GammaLadderRow 
                     { 
                         Spot = row.Spot, 
+                        Delta = row.Delta,
                         Gamma = row.Gamma 
                     });
                 }
-                _activeTab.AccumulatedDelta = 0;
+                
+                // Set delta currency on tab
+                if (!string.IsNullOrEmpty(detectedDeltaCcy))
+                {
+                    _activeTab.DeltaCurrency = detectedDeltaCcy;
+                }
+            }
+
+            // Initialize delta from ladder if we have 3-column format
+            double initialDelta = 0;
+            if (hasThreeColumns && CurrentSpot > 0)
+            {
+                initialDelta = InterpolateDeltaFromLadder(CurrentSpot);
+                LogActivity($"Initialized delta from ladder: {initialDelta:F2} mio {HedgeThresholdCcy} at spot {CurrentSpot:F4}", "INFO");
+            }
+            
+            // Set accumulated delta (convert from millions to actual units)
+            _accumulatedDelta = initialDelta * 1_000_000;
+            _lastSpotForDelta = CurrentSpot;
+            
+            if (_activeTab != null)
+            {
+                _activeTab.AccumulatedDelta = _accumulatedDelta;
                 _activeTab.LastSpotForDelta = CurrentSpot;
             }
 
             LogActivity($"Loaded gamma ladder: {rowsParsed} rows" + 
-                (detectedCcy != null ? $" ({detectedCcy})" : ""), "INFO");
+                (detectedCcy != null ? $" ({detectedCcy})" : "") +
+                (hasThreeColumns ? " with delta column" : ""), "INFO");
             LogActivity($"Ladder range: {LowerTradingLimit:F4} - {UpperTradingLimit:F4}", "INFO");
+            LogActivity($"Delta currency: {HedgeThresholdCcy}", "INFO");
             
             // Recalculate position with new ladder
             RecalculatePosition();
@@ -2082,6 +2164,17 @@ namespace FXOAiTranslate.WPF.Views
             set { _isHedgingActive = value; OnPropertyChanged(); }
         }
 
+        /// <summary>
+        /// The currency for delta/gamma values (e.g., "CNH", "USD", "EUR").
+        /// Extracted from ladder header "mio XXX" pattern.
+        /// </summary>
+        private string _deltaCurrency;
+        public string DeltaCurrency
+        {
+            get => _deltaCurrency;
+            set { _deltaCurrency = value; OnPropertyChanged(); }
+        }
+
         private string _status = "Incomplete";
         public string Status
         {
@@ -2222,6 +2315,16 @@ namespace FXOAiTranslate.WPF.Views
         {
             get => _spot;
             set { _spot = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Delta at this spot level (in millions of delta currency).
+        /// </summary>
+        private double? _delta;
+        public double? Delta
+        {
+            get => _delta;
+            set { _delta = value; OnPropertyChanged(); }
         }
 
         private double? _gamma;
