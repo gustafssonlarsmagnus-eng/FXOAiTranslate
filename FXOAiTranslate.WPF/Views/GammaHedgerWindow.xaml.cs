@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -25,6 +26,89 @@ namespace FXOAiTranslate.WPF.Views
     /// </summary>
     public partial class GammaHedgerWindow : Window, INotifyPropertyChanged
     {
+        #region Static Instance Registry
+        
+        /// <summary>
+        /// Registry of active Gamma Hedger windows by currency pair
+        /// </summary>
+        private static readonly Dictionary<string, GammaHedgerWindow> _activeHedgers = new();
+        
+        /// <summary>
+        /// Routes a trade to an existing Gamma Hedger window or creates a new one.
+        /// Called from FXOAi Translator MainForm when "Send to Gamma Hedger" is clicked.
+        /// </summary>
+        /// <param name="trade">The parsed trade structure to hedge</param>
+        public static void RouteTradeToHedger(TradeStructure trade)
+        {
+            if (trade == null) return;
+            
+            string currencyPair = trade.Underlying ?? trade.CurrencyPair;
+            if (string.IsNullOrEmpty(currencyPair)) return;
+            
+            // Check if we already have a hedger for this currency pair
+            if (_activeHedgers.TryGetValue(currencyPair, out var existingHedger))
+            {
+                // Route to existing window
+                existingHedger.Dispatcher.Invoke(() =>
+                {
+                    existingHedger.LoadPosition(trade);
+                    existingHedger.Activate();
+                    existingHedger.Focus();
+                });
+            }
+            else
+            {
+                // Create new hedger window on the UI thread
+                System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    var newHedger = new GammaHedgerWindow(trade);
+                    _activeHedgers[currencyPair] = newHedger;
+                    
+                    // Remove from registry when closed
+                    newHedger.Closed += (s, e) =>
+                    {
+                        _activeHedgers.Remove(currencyPair);
+                    };
+                    
+                    newHedger.Show();
+                });
+            }
+        }
+        
+        /// <summary>
+        /// Applies a delta hedge from an external source (e.g., FX Aggregator execution)
+        /// </summary>
+        /// <param name="currencyPair">Currency pair of the hedge</param>
+        /// <param name="hedgeAmount">Amount hedged (positive = bought, negative = sold)</param>
+        /// <param name="hedgeRate">Rate at which hedge was executed</param>
+        /// <param name="hedgeType">Type of hedge (e.g., "Spot", "Forward")</param>
+        public static void ApplyDeltaHedge(string currencyPair, double hedgeAmount, double hedgeRate, string hedgeType)
+        {
+            if (string.IsNullOrEmpty(currencyPair)) return;
+            
+            if (_activeHedgers.TryGetValue(currencyPair, out var hedger))
+            {
+                hedger.Dispatcher.Invoke(() =>
+                {
+                    // Adjust delta by hedge amount
+                    hedger.CurrentDelta -= hedgeAmount;
+                    
+                    string side = hedgeAmount > 0 ? "BUY" : "SELL";
+                    hedger.LogActivity($"External hedge applied: {side} {Math.Abs(hedgeAmount):N0} @ {hedgeRate:F4} ({hedgeType})", "TRADE");
+                    
+                    // Dismiss any active alert if delta is now within threshold
+                    if (Math.Abs(hedger.CurrentDelta) < hedger.HedgeThreshold)
+                    {
+                        hedger.hedgeAlertOverlay.Visibility = Visibility.Collapsed;
+                        hedger._alertShown = false;
+                        hedger.Status = "Active";
+                    }
+                });
+            }
+        }
+        
+        #endregion
+
         #region Observable Collections
         
         public ObservableCollection<GammaHedgerTab> Tabs { get; set; }
@@ -696,7 +780,7 @@ namespace FXOAiTranslate.WPF.Views
 
         #region Activity Log
 
-        private void LogActivity(string message, string level)
+        internal void LogActivity(string message, string level)
         {
             Dispatcher.BeginInvoke(() =>
             {
